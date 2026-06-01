@@ -56,5 +56,6 @@ python tests/test_gupshup_webhook.py integration
 ## Notes
 
 - On Vercel, messages are processed **synchronously** (`VERCEL=1`); Docker still uses background tasks.
-- Hobby plan: 10s function timeout; full bot replies may need Vercel Pro (`maxDuration: 60` in `vercel.json`).
+- `vercel.json` uses `functions` + `rewrites` only (do not add legacy `builds` — Vercel rejects `builds` + `functions` together).
+- Hobby plan: default timeout may be 10s; this project sets `maxDuration: 60` on `api/index.py` (Pro may be required for 60s on some plans).
 - Production should use Docker/long-running hosting, not Vercel serverless.
