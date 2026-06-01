@@ -14,7 +14,7 @@ from kisna_chatbot.prompts.general_agent_kisna import (
     request_live_agent_tool,
     web_search_tool,
 )
-from kisna_chatbot.utils.get_openai_client import openai_client
+from kisna_chatbot.utils.get_openai_client import get_openai_client
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
     send_customer_support_template,
@@ -49,7 +49,7 @@ async def run_openai_general_agent(
 
     try:
         for iteration in range(3):
-            response = await openai_client.responses.create(
+            response = await get_openai_client().responses.create(
                 model=model,
                 instructions=build_general_agent_prompt(),
                 input=input_messages,
@@ -135,7 +135,7 @@ async def run_openai_general_agent(
             (item for item in response.output if item.type == "message"), None
         )
         if not message_item:
-            response = await openai_client.responses.create(
+            response = await get_openai_client().responses.create(
                 model=model,
                 instructions=build_general_agent_prompt(),
                 input=input_messages,

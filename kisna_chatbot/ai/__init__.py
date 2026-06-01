@@ -2,8 +2,6 @@
 
 from kisna_chatbot.ai.config import get_public_config, resolve_provider
 from kisna_chatbot.ai.factory import complete_chat, get_chat_provider
-from kisna_chatbot.ai.openai_responses import run_openai_general_agent
-from kisna_chatbot.ai.groq_general import run_groq_general_agent
 from kisna_chatbot.ai.types import AgentName, ProviderName
 
 __all__ = [
@@ -15,7 +13,20 @@ __all__ = [
     "resolve_provider",
     "run_openai_general_agent",
     "run_groq_general_agent",
+    "run_general_agent",
 ]
+
+
+async def run_openai_general_agent(*args, **kwargs):
+    from kisna_chatbot.ai.openai_responses import run_openai_general_agent as _run
+
+    return await _run(*args, **kwargs)
+
+
+async def run_groq_general_agent(*args, **kwargs):
+    from kisna_chatbot.ai.groq_general import run_groq_general_agent as _run
+
+    return await _run(*args, **kwargs)
 
 
 async def run_general_agent(

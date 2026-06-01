@@ -1,9 +1,6 @@
 import time
 import uuid
 
-import chromadb
-from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
-
 from kisna_chatbot.constants import EMBEDDING_MODEL
 from kisna_chatbot.utils.env_load import chroma_api, chroma_tenant, openai_api_key
 from kisna_chatbot.utils.logger_config import logger
@@ -17,6 +14,8 @@ _kb_collection = None
 def _get_chroma_client():
     global _chroma_client
     if _chroma_client is None:
+        import chromadb
+
         _chroma_client = chromadb.CloudClient(
             tenant=chroma_tenant,
             database="Kisna_Chatbot",
@@ -28,6 +27,8 @@ def _get_chroma_client():
 def _get_embedding_fn():
     global _embedding_fn
     if _embedding_fn is None:
+        from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+
         _embedding_fn = OpenAIEmbeddingFunction(
             api_key=openai_api_key,
             model_name=EMBEDDING_MODEL,

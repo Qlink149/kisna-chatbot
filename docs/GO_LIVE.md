@@ -75,7 +75,20 @@ This is **not** your phone number. It is Meta’s internal `phone_number_id` ins
 
 You do **not** need this for testing with only Kisna on `GUPSHUP_SOURCE`.
 
-## 5. Test on WhatsApp
+## 5. Vercel env (required or the site shows 500)
+
+In Vercel → **Settings → Environment Variables**, add at least:
+
+- `ENV_MODE=dev` (do not use `prod` until all prod keys are set)
+- `MONGO_URI`, `MONGO_DB_NAME`
+- `GROQ_API_KEY`, `AI_PROVIDER=groq`, `AI_PROVIDER_GENERAL=groq`, `AI_FALLBACK_ENABLED=false`
+- `GUPSHUP_APP_ID`, `GUPSHUP_TOKEN`, `GUPSHUP_APP_NAME`, `GUPSHUP_API_KEY`, `GUPSHUP_SOURCE`
+
+`OPENAI_API_KEY` is **not** required when using Groq only.
+
+After deploy, open `https://YOUR-APP.vercel.app/ping` — must return `{"status":"ok"}`. If you see **FUNCTION_INVOCATION_FAILED**, check **Logs** for missing env or import errors.
+
+## 6. Test on WhatsApp
 
 1. Send **Hi** to your Gupshup WhatsApp number.
 2. Check **Vercel → Logs** for errors (Mongo, Groq, Gupshup send).

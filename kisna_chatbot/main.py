@@ -46,8 +46,17 @@ async def lifespan(app: FastAPI):
     """Validate Gupshup configuration on application startup."""
     from kisna_chatbot.utils.env_load import validate_ai_config, validate_gupshup_config
 
-    validate_gupshup_config()
-    validate_ai_config()
+    # On Vercel, missing optional keys should warn (not crash) unless ENV_MODE=prod.
+    try:
+        validate_gupshup_config()
+        validate_ai_config()
+    except RuntimeError:
+        if os.getenv("VERCEL") and os.getenv("ENV_MODE", "dev").lower() != "prod":
+            logger.warning(
+                "Startup validation failed on Vercel; continuing because ENV_MODE is not prod"
+            )
+        else:
+            raise
     yield
 
 
