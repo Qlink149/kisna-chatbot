@@ -100,7 +100,10 @@ class ProductSearchTests(unittest.TestCase):
                 "phone_number": "919999999999",
                 "messages": {"text": {"body": "sofa"}},
                 "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
-                "client_config": MagicMock(client_id="kisna"),
+                "client_config": MagicMock(
+                    client_id="kisna",
+                    product_api_base="https://api.example.com/catalog",
+                ),
             }
             mock_products = [{"id": "1", "title": "Sofa", "price": 100}]
             with patch(

@@ -2,20 +2,22 @@
 """
 Register or update the Gupshup Partner webhook subscription for Kisna.
 
-Reads configuration from .env in the project root (kisna-chatbot/.env).
+Reads .env from kisna-chatbot/ (project root).
 
 Required:
   GUPSHUP_APP_ID
-  GUPSHUP_TOKEN
-  WEBHOOK_URL   e.g. https://your-app.vercel.app/gupshup/message/kisna
+  WEBHOOK_URL
 
-Optional:
-  GUPSHUP_WEBHOOK_TAG=kisna-chatbot
-  GUPSHUP_WEBHOOK_VERSION=3
-  GUPSHUP_WEBHOOK_MODES=MESSAGE
-  GUPSHUP_WEBHOOK_SHOW_ON_UI=true
+Partner auth (pick one):
+  GUPSHUP_PARTNER_TOKEN
+  GUPSHUP_PARTNER_EMAIL + GUPSHUP_PARTNER_CLIENT_SECRET (or GUPSHUP_PARTNER_PASSWORD)
 
-Usage (from kisna-chatbot/):
+App token for subscription API (pick one):
+  GUPSHUP_PARTNER_APP_TOKEN
+  GUPSHUP_TOKEN (legacy — if already the app token)
+  else fetched via partner token + GET /partner/app/{appId}/token
+
+Usage:
   python scripts/setup_gupshup_webhook.py
   python scripts/setup_gupshup_webhook.py --list
 """
@@ -26,15 +28,16 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import requests
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(ROOT / ".env")
+ROOT_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT_DIR / ".env")
 
 PARTNER_BASE_URL = "https://partner.gupshup.io"
-DEFAULT_MODES = "MESSAGE"
+DEFAULT_MODES = "MESSAGE,SENT,DELIVERED,READ,DELETED,FAILED,OTHERS,ENQUEUED"
 
 
 def require_env(name: str) -> str:
@@ -44,72 +47,98 @@ def require_env(name: str) -> str:
     return value
 
 
-def get_app_token(app_id: str) -> str:
-    """Fetch short-lived app token using partner GUPSHUP_TOKEN."""
-    partner_token = require_env("GUPSHUP_TOKEN")
-    response = requests.get(
-        f"{PARTNER_BASE_URL}/partner/app/{app_id}/token",
-        headers={
-            "Authorization": partner_token,
-            "Content-Type": "application/json",
-        },
+def parse_json_response(response: requests.Response) -> dict[str, Any]:
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise SystemExit(
+            f"Unexpected non-JSON response from {response.request.method} {response.url}: "
+            f"HTTP {response.status_code} {response.text[:500]}"
+        ) from exc
+
+
+def ensure_ok(response: requests.Response, context: str) -> dict[str, Any]:
+    data = parse_json_response(response)
+    if response.status_code >= 400:
+        message = data.get("message") or data.get("status") or response.text[:500]
+        raise SystemExit(f"{context} failed: HTTP {response.status_code} - {message}")
+    return data
+
+
+def get_partner_token() -> str:
+    explicit_token = (os.environ.get("GUPSHUP_PARTNER_TOKEN") or "").strip()
+    if explicit_token:
+        return explicit_token
+
+    email = (os.environ.get("GUPSHUP_PARTNER_EMAIL") or "").strip()
+    password = (
+        os.environ.get("GUPSHUP_PARTNER_CLIENT_SECRET")
+        or os.environ.get("GUPSHUP_PARTNER_PASSWORD")
+        or ""
+    ).strip()
+    if not email or not password:
+        raise SystemExit(
+            "Missing partner authentication. Set GUPSHUP_PARTNER_TOKEN, or both "
+            "GUPSHUP_PARTNER_EMAIL and GUPSHUP_PARTNER_CLIENT_SECRET "
+            "(or GUPSHUP_PARTNER_PASSWORD for older partner accounts)."
+        )
+
+    response = requests.post(
+        f"{PARTNER_BASE_URL}/partner/account/login",
+        data={"email": email, "password": password},
         timeout=30,
     )
-    if response.status_code != 200:
-        raise SystemExit(
-            f"Failed to get app token ({response.status_code}): {response.text}"
-        )
-    data = response.json()
-    token = data.get("token") or data.get("access_token") or ""
+    data = ensure_ok(response, "Partner login")
+    token = (data.get("token") or "").strip()
     if not token:
-        raise SystemExit(f"App token response had no token field: {data}")
-    return str(token)
+        raise SystemExit("Partner login succeeded but no partner token was returned.")
+    return token
 
 
-def ensure_ok(response: requests.Response, action: str) -> dict:
-    try:
-        data = response.json()
-    except ValueError:
-        data = {"raw": response.text}
-    if response.status_code not in (200, 201):
+def get_app_token(app_id: str) -> str:
+    explicit_app_token = (os.environ.get("GUPSHUP_PARTNER_APP_TOKEN") or "").strip()
+    if explicit_app_token:
+        return explicit_app_token
+
+    legacy_app_token = (os.environ.get("GUPSHUP_TOKEN") or "").strip()
+    if legacy_app_token:
+        return legacy_app_token
+
+    partner_token = get_partner_token()
+    response = requests.get(
+        f"{PARTNER_BASE_URL}/partner/app/{app_id}/token",
+        headers={"token": partner_token},
+        timeout=30,
+    )
+    data = ensure_ok(response, "Fetch app token")
+    token_data = data.get("token") or {}
+    app_token = token_data.get("token") if isinstance(token_data, dict) else str(token_data)
+    app_token = (app_token or "").strip()
+    if not app_token:
         raise SystemExit(
-            f"{action} failed ({response.status_code}): "
-            f"{json.dumps(data, indent=2) if isinstance(data, dict) else data}"
+            "App token request succeeded but no app token was returned."
         )
-    return data if isinstance(data, dict) else {"raw": data}
+    return app_token
 
 
-def _parse_subscriptions_payload(data: dict | list) -> list[dict]:
-    if isinstance(data, list):
-        return data
-    if not isinstance(data, dict):
-        return []
-    subscriptions = data.get("subscription") or data.get("subscriptions") or data
-    if isinstance(subscriptions, list):
-        return subscriptions
-    if isinstance(subscriptions, dict):
-        return [subscriptions]
-    return []
+def get_existing_subscriptions(
+    app_id: str, app_token: str
+) -> list[dict[str, Any]]:
+    response = requests.get(
+        f"{PARTNER_BASE_URL}/partner/app/{app_id}/subscription",
+        headers={"Authorization": app_token},
+        timeout=30,
+    )
+    data = ensure_ok(response, "Fetch subscriptions")
+    subscriptions = data.get("subscriptions") or []
+    if not isinstance(subscriptions, list):
+        raise SystemExit("Unexpected subscriptions payload returned by Gupshup.")
+    return subscriptions
 
 
-def get_existing_subscriptions(app_id: str, app_token: str) -> list[dict]:
-    for auth in (app_token, os.environ.get("GUPSHUP_TOKEN", "").strip()):
-        if not auth:
-            continue
-        response = requests.get(
-            f"{PARTNER_BASE_URL}/partner/app/{app_id}/subscription",
-            headers={"Authorization": auth, "accept": "application/json"},
-            timeout=30,
-        )
-        if response.status_code == 200:
-            try:
-                return _parse_subscriptions_payload(response.json())
-            except ValueError:
-                return []
-    return []
-
-
-def upsert_subscription(app_id: str, app_token: str, webhook_url: str) -> dict:
+def upsert_subscription(
+    app_id: str, app_token: str, webhook_url: str
+) -> dict[str, Any]:
     tag = (os.environ.get("GUPSHUP_WEBHOOK_TAG") or "kisna-chatbot").strip()
     version = (os.environ.get("GUPSHUP_WEBHOOK_VERSION") or "3").strip()
     modes = (os.environ.get("GUPSHUP_WEBHOOK_MODES") or DEFAULT_MODES).strip()
@@ -169,10 +198,7 @@ def main() -> None:
     if "--list" in sys.argv:
         app_token = get_app_token(app_id)
         subs = get_existing_subscriptions(app_id, app_token)
-        if not subs:
-            print(json.dumps({"subscriptions": [], "note": "none or list API failed"}, indent=2))
-        else:
-            print(json.dumps({"subscriptions": subs}, indent=2))
+        print(json.dumps({"subscriptions": subs}, indent=2))
         return
 
     webhook_url = require_env("WEBHOOK_URL")
@@ -186,7 +212,7 @@ def main() -> None:
                 "action": result["action"],
                 "appId": app_id,
                 "subscriptionId": subscription.get("id"),
-                "url": subscription.get("url") or webhook_url,
+                "url": subscription.get("url"),
                 "tag": subscription.get("tag"),
                 "version": subscription.get("version"),
                 "modes": subscription.get("modes"),

@@ -46,9 +46,20 @@ def send_damage_complaint_flow(phone_number: str):
     }
 
     try:
-        response = httpx.post(url, headers=headers, json=data)
-        logger.info("Response", extra={"response": response.json()})
-        return response.json()
+        response = httpx.post(url, headers=headers, json=data, timeout=30)
+        body = response.json()
+        logger.info(
+            "Damage complaint flow API response",
+            extra={"status_code": response.status_code, "body": body},
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"Gupshup flow send failed: HTTP {response.status_code} — {body}"
+            )
+        return body
     except Exception as e:
-        logger.error("Error in sending damage complaint flow", extra={"error": e})
-        raise e
+        logger.error(
+            "Error in sending damage complaint flow",
+            extra={"phone_number": phone_number, "error": str(e)},
+        )
+        raise

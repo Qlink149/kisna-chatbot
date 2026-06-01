@@ -183,6 +183,9 @@ class ClientAPIAdapter:
             NotImplementedError: If the client is not supported.
             ClientAPIError: If the HTTP request fails.
             ValueError: If product_api_base is not configured.
+
+        HTTP contract (Kisna): GET {product_api_base}/search?q=<query>&limit=<n>.
+        JSON must expose a list under results, products, data, or items.
         """
         if not self._is_kisna():
             self._unsupported()

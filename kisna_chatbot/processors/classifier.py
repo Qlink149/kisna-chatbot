@@ -7,6 +7,12 @@ from kisna_chatbot.ai.types import AgentName
 from kisna_chatbot.constants import ADMINS
 from kisna_chatbot.models.service_list import ServiceList
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.processors.service_list import (
+    build_complaint_flow_bot_response,
+    build_greeting_welcome_bot_responses,
+    is_new_session,
+    is_pure_greeting,
+)
 from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
@@ -70,12 +76,22 @@ class Classifier(Processor):
                     user_profile["service_selected"] = ServiceList.AD_FLOW.value
                     return data
 
+                chat_history = data["user_profile"].get("chat_history", [])
+                if is_pure_greeting(user_query) and is_new_session(chat_history):
+                    user_profile["service_selected"] = ""
+                    data["classified_category"] = "greeting"
+                    data["bot_response"] = build_greeting_welcome_bot_responses()
+                    logger.info(
+                        "Greeting on new session — welcome and main menu",
+                        extra={"phone_number": phone_number},
+                    )
+                    return data
+
                 logger.info(
                     "Request received to classify query",
                     extra={"phone_number": phone_number, "query": user_query},
                 )
 
-                chat_history = data["user_profile"].get("chat_history", [])
                 recent_chats = chat_history[-8:]
 
                 chat_history_str = ""
@@ -105,7 +121,7 @@ class Classifier(Processor):
                 logger.info(
                     "Classifier agent response",
                     extra={
-                        "respnse": classifier_response,
+                        "response": classifier_response,
                         "phone_number": phone_number,
                     },
                 )
@@ -142,6 +158,15 @@ class Classifier(Processor):
                     ]
                     logger.info(
                         "Human handoff triggered",
+                        extra={"phone_number": phone_number},
+                    )
+                    return data
+
+                if category == "complaint":
+                    user_profile["service_selected"] = ServiceList.COMPLAINT.value
+                    data["bot_response"] = [build_complaint_flow_bot_response()]
+                    logger.info(
+                        "Complaint intent — launching damage complaint flow",
                         extra={"phone_number": phone_number},
                     )
                     return data

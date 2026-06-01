@@ -166,7 +166,7 @@ async def process_message(request_data: dict) -> None:
                 .get("phone_number_id", "")
             )
             if phone_number_id and phone_number_id not in build_phone_number_id_map():
-                logger.info(
+                logger.debug(
                     "Webhook phone_number_id not in env map; using default client "
                     "(optional: set KISNA_PHONE_NUMBER_ID for explicit routing)",
                     extra={

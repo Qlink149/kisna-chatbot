@@ -135,7 +135,12 @@ class ResponseManager:
         """
         list_name = bot_response["list"]
         if list_name == "service_list":
-            return send_service_list(phone_number=phone_number)
+            # Legacy alias: send inline Kisna menu payload (not Nilkamal hardcoded list).
+            from kisna_chatbot.processors.service_list import _build_main_menu_list
+
+            legacy = _build_main_menu_list()
+            legacy["list"] = "list"
+            return send_list(phone_number=phone_number, bot_response=legacy)
         elif list_name == "list":
             return send_list(phone_number=phone_number, bot_response=bot_response)
         else:
@@ -152,7 +157,23 @@ class ResponseManager:
         if flow_name == "site_visit":
             return send_site_visit_flow(phone_number=phone_number)
         elif flow_name == "damage_complaint":
-            return send_damage_complaint_flow(phone_number=phone_number)
+            try:
+                return send_damage_complaint_flow(phone_number=phone_number)
+            except Exception as e:
+                logger.exception(
+                    "Failed to send damage complaint flow",
+                    extra={"phone_number": phone_number, "error": str(e)},
+                )
+                return send_text_message_with_retry(
+                    phone_number=phone_number,
+                    bot_response={
+                        "type": "text",
+                        "text": (
+                            "Sorry, we couldn't open the complaint form right now. "
+                            "Please try again in a moment or type *human* for support."
+                        ),
+                    },
+                )
         elif flow_name == "store_locator":
             return send_store_locator_flow(phone_number=phone_number, name=bot_response.get("name", "there"))
         elif flow_name == "store_visit_datetime":

@@ -33,7 +33,10 @@ GUPSHUP_WEBHOOK_MODES=MESSAGE
 
 # Leave empty for now (optional)
 GUPSHUP_WEBHOOK_SECRET=
-KISNA_PHONE_NUMBER_ID=
+KISNA_PHONE_NUMBER_ID=451074671429987
+
+# Product catalog (required for "show me sofas" / product search)
+KISNA_PRODUCT_API=https://your-api-host
 ```
 
 `GUPSHUP_SOURCE` is the WhatsApp business number **without** `+` — same as your value `919549549339`.
@@ -60,6 +63,36 @@ cd kisna-chatbot
 python scripts/setup_gupshup_webhook.py
 ```
 
+### If you get `403` on `/partner/app/.../token`
+
+`GUPSHUP_TOKEN` must be a **Partner Portal** token, not the WhatsApp `apikey`.
+
+1. Log in at [partner.gupshup.io](https://partner.gupshup.io)
+2. **Settings → API client details** → create/copy **Client Secret**
+3. Add to `.env` (Partner Portal → Settings → API client details):
+
+```env
+GUPSHUP_PARTNER_EMAIL=your-partner-login-email
+GUPSHUP_PARTNER_CLIENT_SECRET=your-client-secret
+```
+
+(Older accounts may use `GUPSHUP_PARTNER_PASSWORD` instead of client secret.)
+
+4. Run the script again:
+
+```bash
+python scripts/setup_gupshup_webhook.py
+```
+
+**Or set webhook in the UI:** Partner Portal → app **Qliink** (your `GUPSHUP_APP_NAME`) → Webhook / Subscription → URL:
+
+`https://kisna-chatbot.vercel.app/gupshup/message/kisna`
+
+| Variable | Used for |
+|----------|----------|
+| `GUPSHUP_API_KEY` | Sending WhatsApp messages (`apikey` header) |
+| `GUPSHUP_TOKEN` / partner login | Partner API (token, subscriptions, flows) |
+
 List existing subscriptions:
 
 ```bash
@@ -83,6 +116,8 @@ In Vercel → **Settings → Environment Variables**, add at least:
 - `MONGO_URI`, `MONGO_DB_NAME`
 - `GROQ_API_KEY`, `AI_PROVIDER=groq`, `AI_PROVIDER_GENERAL=groq`, `AI_FALLBACK_ENABLED=false`
 - `GUPSHUP_APP_ID`, `GUPSHUP_TOKEN`, `GUPSHUP_APP_NAME`, `GUPSHUP_API_KEY`, `GUPSHUP_SOURCE`
+- `KISNA_PHONE_NUMBER_ID` (from webhook logs, e.g. `451074671429987`)
+- `KISNA_PRODUCT_API` (catalog base URL for product search)
 
 `OPENAI_API_KEY` is **not** required when using Groq only.
 
@@ -90,11 +125,12 @@ After deploy, open `https://YOUR-APP.vercel.app/ping` — must return `{"status"
 
 ## 6. Test on WhatsApp
 
-1. Send **Hi** to your Gupshup WhatsApp number.
-2. Check **Vercel → Logs** for errors (Mongo, Groq, Gupshup send).
-3. Check Atlas → database `MONGO_DB_NAME` → collection `users` for a new document.
+1. Send **Hi** (first message) — welcome text + main menu list.
+2. Send **What do you have?** — product list if `KISNA_PRODUCT_API` is set.
+3. Send **I have a complaint** — complaint WhatsApp Flow opens.
+4. Check **Vercel → Logs** and Atlas → `users` collection.
 
-## 6. No webhook secret
+## 7. No webhook secret
 
 Leave `GUPSHUP_WEBHOOK_SECRET` empty. The app skips signature verification in dev (warning only).
 

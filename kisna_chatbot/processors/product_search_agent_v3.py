@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlparse
 
 from kisna_chatbot.integrations.client_api_adapter import ClientAPIAdapter, ClientAPIError
 from kisna_chatbot.models.service_list import ServiceList as SL
@@ -10,6 +11,10 @@ _PRODUCT_LIST_MSGID = "product_select$results"
 
 _GENERIC_ERROR = (
     "Sorry, we couldn't search the catalog right now. Please try again in a moment."
+)
+_CATALOG_NOT_CONFIGURED = (
+    "Our product catalog isn't connected yet. You can still ask design questions, "
+    "check offers, or track an order from the menu — type *hi* to open it."
 )
 _EMPTY_RESULTS = (
     "No products matched your search. Try different keywords — e.g. *sofa*, "
@@ -99,6 +104,21 @@ def _build_error_response() -> list:
     return [{"type": "text", "text": _GENERIC_ERROR}]
 
 
+def _build_catalog_not_configured_response() -> list:
+    return [{"type": "text", "text": _CATALOG_NOT_CONFIGURED}]
+
+
+def _catalog_api_host(client_config) -> str:
+    base = getattr(client_config, "product_api_base", "") or ""
+    if not isinstance(base, str):
+        return ""
+    base = base.strip()
+    if not base:
+        return ""
+    host = urlparse(base).netloc or base
+    return host.split("@")[-1]
+
+
 def _extract_search_query(messages: dict) -> str | None:
     text_body = messages.get("text", {}).get("body", "")
     if text_body and text_body.strip():
@@ -168,25 +188,59 @@ class ProductSearchAgentV3(Processor):
         if not query:
             return data
 
+        api_host = _catalog_api_host(client_config)
+        if not api_host:
+            logger.warning(
+                "Product search skipped — KISNA_PRODUCT_API not configured",
+                extra={"phone_number": phone_number, "query": query},
+            )
+            data["bot_response"] = _build_catalog_not_configured_response()
+            return data
+
         logger.info(
             "Product search",
-            extra={"phone_number": phone_number, "query": query},
+            extra={
+                "phone_number": phone_number,
+                "query": query,
+                "catalog_host": api_host,
+            },
         )
 
         adapter = ClientAPIAdapter(client_config)
         try:
             products = await adapter.search_products(query=query, limit=_MAX_RESULTS)
-        except (ClientAPIError, ValueError, NotImplementedError) as e:
+        except ValueError as e:
+            logger.warning(
+                "Product search configuration error",
+                extra={
+                    "phone_number": phone_number,
+                    "query": query,
+                    "catalog_host": api_host,
+                    "error": str(e),
+                },
+            )
+            data["bot_response"] = _build_catalog_not_configured_response()
+            return data
+        except (ClientAPIError, NotImplementedError) as e:
             logger.exception(
                 "Product search failed",
-                extra={"phone_number": phone_number, "query": query, "error": str(e)},
+                extra={
+                    "phone_number": phone_number,
+                    "query": query,
+                    "catalog_host": api_host,
+                    "error": str(e),
+                },
             )
             data["bot_response"] = _build_error_response()
             return data
         except Exception as e:
             logger.exception(
                 "Unexpected product search error",
-                extra={"phone_number": phone_number, "error": str(e)},
+                extra={
+                    "phone_number": phone_number,
+                    "catalog_host": api_host,
+                    "error": str(e),
+                },
             )
             data["bot_response"] = _build_error_response()
             return data

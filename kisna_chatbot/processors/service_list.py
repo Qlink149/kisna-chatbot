@@ -32,6 +32,28 @@ _TRACK_ORDER_TEXT = (
     "Please share your order ID (e.g. #KIS12345) so I can pull up tracking for you."
 )
 
+_WELCOME_TEXT = (
+    "Welcome to Kisna! I'm your design assistant.\n"
+    "Pick an option from the menu below, or type your question anytime."
+)
+
+_GREETING_TOKENS = frozenset(
+    {
+        "hi",
+        "hello",
+        "hey",
+        "hii",
+        "hola",
+        "namaste",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "whats up",
+        "what's up",
+        "sup",
+    }
+)
+
 _FAQ_TEXT = (
     "*FAQs & Help*\n\n"
     "• *Returns & refunds* — Share your order ID and we'll guide you through the process.\n"
@@ -54,11 +76,46 @@ def _parse_button_msgid(raw_id: str) -> str:
     return btn_msgid if isinstance(btn_msgid, str) else raw_id
 
 
+def is_pure_greeting(text: str) -> bool:
+    """True for short greetings without a separate intent (hi, hello, hey, etc.)."""
+    normalized = " ".join((text or "").strip().lower().split())
+    if not normalized:
+        return False
+    if normalized in _GREETING_TOKENS:
+        return True
+    for prefix in ("hi ", "hello ", "hey "):
+        if normalized.startswith(prefix) and len(normalized.split()) <= 4:
+            return True
+    return False
+
+
+def is_new_session(chat_history: list) -> bool:
+    """True when the user has no prior turns stored (first interaction)."""
+    return len(chat_history or []) == 0
+
+
+def build_greeting_welcome_bot_responses() -> list[dict]:
+    """Welcome text plus main menu list (Option A)."""
+    return [
+        {"type": "text", "text": _WELCOME_TEXT},
+        _build_main_menu_list(),
+    ]
+
+
+def build_complaint_flow_bot_response() -> dict:
+    """WhatsApp Flow payload for damage / quality complaints."""
+    return {
+        "type": "flow",
+        "flow": "damage_complaint",
+        "text": "Please provide your order details and describe the issue.",
+    }
+
+
 def _build_main_menu_list() -> dict:
     """Build WhatsApp list payload for the main service menu."""
     return {
         "type": "list",
-        "list": "service_list",
+        "list": "list",
         "body": _MENU_BODY,
         "footer": "Kisna",
         "msgid": ListIds.SERVICE_LIST_ID.value,
@@ -116,8 +173,8 @@ def _build_main_menu_list() -> dict:
     }
 
 
-def _parse_list_reply(messages: dict) -> tuple[str, str] | None:
-    """Parse list_reply id JSON into (msgid, title), or None."""
+def _parse_list_reply(messages: dict) -> tuple[str, str, str] | None:
+    """Parse list_reply into (msgid, title, postbackText)."""
     interactive = messages.get("interactive", {})
     if interactive.get("type") != "list_reply":
         return None
@@ -126,17 +183,40 @@ def _parse_list_reply(messages: dict) -> tuple[str, str] | None:
     title = list_reply.get("title", "")
     raw_id = list_reply.get("id", "")
     list_msgid = raw_id
+    postback = ""
 
     try:
         payload = json.loads(raw_id)
         if isinstance(payload, dict):
             list_msgid = payload.get("msgid", raw_id)
+            postback = str(payload.get("postbackText", "") or "")
     except (json.JSONDecodeError, TypeError):
         pass
 
     if not isinstance(list_msgid, str):
         return None
-    return list_msgid, title
+    return list_msgid, title, postback
+
+
+def _normalize_menu_key(title: str, postback: str) -> str:
+    """Map list title or postbackText to a stable menu action key."""
+    postback = (postback or "").strip().lower()
+    if postback:
+        return postback
+
+    title_key = " ".join((title or "").strip().lower().split())
+    aliases = {
+        "raise complaint": "raise_complaint",
+        "raise a complaint": "raise_complaint",
+        "locate store": "find_store",
+        "find store near me": "find_store",
+        "explore products": "explore_products",
+        "view offers": "view_offers",
+        "track my order": "track_order",
+        "faqs & help": "faqs_help",
+        "rate us": "rate_us",
+    }
+    return aliases.get(title_key, title_key)
 
 
 def _build_rating_quickreply() -> dict:
@@ -155,54 +235,57 @@ def _build_rating_quickreply() -> dict:
     }
 
 
-def _handle_menu_selection(title: str, user_profile: dict, data: dict) -> None:
-    """Route main menu selection to service_selected and bot_response."""
-    if title == "Explore Products":
+def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback: str = "") -> None:
+    """Route main menu selection by postbackText and title (Kisna + legacy Nilkamal labels)."""
+    key = _normalize_menu_key(title, postback)
+
+    if key in ("explore_products",):
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
         data["bot_response"] = [{"type": "text", "text": _EXPLORE_PRODUCTS_TEXT}]
         return
 
-    if title == "View Offers":
+    if key in ("view_offers",):
         user_profile["service_selected"] = SL.OFFERS.value
         data["bot_response"] = [{"type": "text", "text": _VIEW_OFFERS_TEXT}]
         return
 
-    if title == "Find Store Near Me":
+    if key in ("find_store", "locate_store"):
         user_profile["service_selected"] = SL.AD_FLOW.value
         data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
         return
 
-    if title == "Track My Order":
+    if key in ("track_order",):
         user_profile["service_selected"] = SL.ORDER_TRACKING.value
         data["bot_response"] = [{"type": "text", "text": _TRACK_ORDER_TEXT}]
         return
 
-    if title == "Raise a Complaint":
+    if key in ("raise_complaint", "damage_complaint", "complaint"):
         user_profile["service_selected"] = SL.COMPLAINT.value
-        data["bot_response"] = [
-            {
-                "type": "flow",
-                "flow": "damage_complaint",
-                "text": (
-                    "Please provide your order details and describe the issue."
-                ),
-            }
-        ]
+        data["bot_response"] = [build_complaint_flow_bot_response()]
         return
 
-    if title == "FAQs & Help":
+    if key in ("faqs_help",):
         user_profile["service_selected"] = SL.GENERAL.value
         data["bot_response"] = [{"type": "text", "text": _FAQ_TEXT}]
         return
 
-    if title == "Rate Us":
+    if key in ("rate_us",):
         data["bot_response"] = [_build_rating_quickreply()]
         return
 
     logger.warning(
         "Unknown service list selection",
-        extra={"title": title},
+        extra={"title": title, "postback": postback, "key": key},
     )
+    data["bot_response"] = [
+        {
+            "type": "text",
+            "text": (
+                "Sorry, I didn't recognize that option. "
+                "Type *hi* to open the menu again."
+            ),
+        }
+    ]
 
 
 def _handle_rating_button(button_reply: dict, data: dict, phone_number: str) -> None:
@@ -279,13 +362,14 @@ class ServiceList(Processor):
 
             parsed = _parse_list_reply(messages)
             if parsed:
-                list_msgid, title = parsed
+                list_msgid, title, postback = parsed
                 logger.info(
                     "List reply received",
                     extra={
                         "phone_number": phone_number,
                         "list_msgid": list_msgid,
                         "title": title,
+                        "postback": postback,
                     },
                 )
 
@@ -297,12 +381,16 @@ class ServiceList(Processor):
                     user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
                     return data
 
-                if list_msgid == ListIds.SERVICE_LIST_ID.value:
+                if list_msgid == ListIds.SERVICE_LIST_ID.value or postback:
                     logger.info(
                         "User selected menu option",
-                        extra={"phone_number": phone_number, "title": title},
+                        extra={
+                            "phone_number": phone_number,
+                            "title": title,
+                            "postback": postback,
+                        },
                     )
-                    _handle_menu_selection(title, user_profile, data)
+                    _handle_menu_selection(title, user_profile, data, postback)
                     return data
 
             if user_profile.get("service_selected", "") == "":
