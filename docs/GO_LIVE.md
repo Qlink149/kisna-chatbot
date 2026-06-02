@@ -99,6 +99,46 @@ List existing subscriptions:
 python scripts/setup_gupshup_webhook.py --list
 ```
 
+## 3b. Create complaint WhatsApp Flow (script)
+
+The menu **Raise a Complaint** sends a Gupshup Flow. You need a flow **published on your Kisna WABA** (not Nilkamal’s legacy id).
+
+1. Ensure partner auth in `.env` (same as webhook script — `GUPSHUP_TOKEN` or partner email + secret).
+2. Optional in `.env`:
+
+```env
+GUPSHUP_FLOW_NAME=kisna_damage_complaint
+GUPSHUP_FLOW_CATEGORIES=OTHER
+GUPSHUP_FLOW_JSON_PATH=json/damage_complaint.json
+```
+
+3. Run from `kisna-chatbot/`:
+
+```bash
+python scripts/setup_gupshup_flow.py --dry-run
+python scripts/setup_gupshup_flow.py
+```
+
+4. Copy the printed `flowId` into `.env` and Vercel:
+
+```env
+KISNA_DAMAGE_COMPLAINT_FLOW_ID=<flowId from script>
+```
+
+5. Redeploy Vercel and test **Raise a Complaint** on WhatsApp.
+
+List flows: `python scripts/setup_gupshup_flow.py --list`
+
+If create succeeded but upload failed (network error on Windows), resume without creating a duplicate:
+
+```bash
+python scripts/setup_gupshup_flow.py --resume
+```
+
+Or: `python scripts/setup_gupshup_flow.py --flow-id YOUR_FLOW_ID --upload-only` then `--publish-only`.
+
+API docs: [Create Flow](https://partner-docs.gupshup.io/reference/createflow), [Publish flow](https://partner-docs.gupshup.io/reference/publishflow).
+
 ## 4. About `KISNA_PHONE_NUMBER_ID` (you can skip it)
 
 This is **not** your phone number. It is Meta’s internal `phone_number_id` inside webhook JSON (`metadata.phone_number_id`).
@@ -116,6 +156,7 @@ In Vercel → **Settings → Environment Variables**, add at least:
 - `MONGO_URI`, `MONGO_DB_NAME`
 - `GROQ_API_KEY`, `AI_PROVIDER=groq`, `AI_PROVIDER_GENERAL=groq`, `AI_FALLBACK_ENABLED=false`
 - `GUPSHUP_APP_ID`, `GUPSHUP_TOKEN`, `GUPSHUP_APP_NAME`, `GUPSHUP_API_KEY`, `GUPSHUP_SOURCE`
+- `KISNA_DAMAGE_COMPLAINT_FLOW_ID` (from `setup_gupshup_flow.py` after publish)
 - `KISNA_PHONE_NUMBER_ID` (from webhook logs, e.g. `451074671429987`)
 - `KISNA_PRODUCT_API` (catalog base URL for product search)
 

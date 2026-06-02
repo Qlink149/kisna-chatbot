@@ -1,19 +1,21 @@
 import json
 import time
 
+from kisna_chatbot.config.gupshup import get_damage_complaint_flow_id
 from kisna_chatbot.database.collections import complaints
 from kisna_chatbot.integrations.crm_adapter import CRMAdapter, CRMError
 from kisna_chatbot.models.enums import FLowId, FlowId
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger
 
-# Outbound flow uses FLowId.DAMAGE_COMPLAINT; accept legacy FlowId placeholder too.
-COMPLAINT_FLOW_IDS = frozenset(
-    {
+
+def _complaint_flow_ids() -> frozenset[str]:
+    ids = {
         FLowId.DAMAGE_COMPLAINT.value,
         FlowId.COMPLAINT_FLOW.value,
+        get_damage_complaint_flow_id(),
     }
-)
+    return frozenset(ids)
 
 _GENERIC_ERROR = (
     "Sorry, we couldn't register your complaint right now. "
@@ -49,7 +51,7 @@ def _parse_complaint_flow(messages: dict) -> dict | None:
         return None
 
     flow_token = flow_data.get("flow_token")
-    if flow_token not in COMPLAINT_FLOW_IDS:
+    if flow_token not in _complaint_flow_ids():
         return None
 
     return flow_data

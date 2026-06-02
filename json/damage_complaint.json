@@ -1,0 +1,83 @@
+{
+  "screens": [
+    {
+      "data": {},
+      "id": "RECOMMEND",
+      "layout": {
+        "children": [
+          {
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Enter Order ID & Describe Your Issue."
+              },
+              {
+                "data-source": [
+                  {
+                    "id": "0_Delayed_Delivery",
+                    "title": "Delayed Delivery"
+                  },
+                  {
+                    "id": "1_Order_Cancellation",
+                    "title": "Order Cancellation"
+                  },
+                  {
+                    "id": "2_Wrong_Product_Delivered",
+                    "title": "Wrong Product Delivered"
+                  },
+                  {
+                    "id": "3_Partial_Order_Received",
+                    "title": "Partial Order Received"
+                  },
+                  {
+                    "id": "4_Return-Defective/Damaged_Product",
+                    "title": "Return-Defective/Damaged Product"
+                  },
+                  {
+                    "id": "5_30_Nights_Trial",
+                    "title": "30 Nights Trial"
+                  }
+                ],
+                "label": "Complaint Type",
+                "name": "Complaint_Type_522e3f",
+                "required": true,
+                "type": "Dropdown"
+              },
+              {
+                "input-type": "text",
+                "label": "Order ID",
+                "name": "Order_ID_b1c73d",
+                "required": true,
+                "type": "TextInput"
+              },
+              {
+                "label": "Issue Description",
+                "name": "Issue_Description_516d4e",
+                "required": true,
+                "type": "TextArea"
+              },
+              {
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "screen_0_Order_ID_0": "${form.Order_ID_b1c73d}",
+                    "screen_0_Issue_Description_1": "${form.Issue_Description_516d4e}",
+                    "screen_0_complaint_type_2": "${form.Complaint_Type_522e3f}"
+                  }
+                },
+                "type": "Footer"
+              }
+            ],
+            "name": "flow_path",
+            "type": "Form"
+          }
+        ],
+        "type": "SingleColumnLayout"
+      },
+      "terminal": true,
+      "title": "Damage Product Complaint"
+    }
+  ],
+  "version": "7.3"
+}

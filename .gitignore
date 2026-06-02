@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.gupshup_flow_state.json
 
 # Python
 __pycache__/

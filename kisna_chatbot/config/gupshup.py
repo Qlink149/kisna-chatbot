@@ -3,10 +3,20 @@
 import os
 from functools import lru_cache
 
+from kisna_chatbot.models.enums import FLowId
+
 
 def get_gupshup_source() -> str:
     """WhatsApp sender number (E.164 without +). GUPSHUP_SOURCE alone is sufficient."""
     return os.getenv("GUPSHUP_PHONE_NUMBER", "") or os.getenv("GUPSHUP_SOURCE", "")
+
+
+def get_damage_complaint_flow_id() -> str:
+    """WhatsApp Flow id for damage/complaint form (Kisna WABA)."""
+    override = os.getenv("KISNA_DAMAGE_COMPLAINT_FLOW_ID", "").strip()
+    if override:
+        return override
+    return FLowId.DAMAGE_COMPLAINT.value
 
 
 @lru_cache(maxsize=1)

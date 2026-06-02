@@ -1,6 +1,6 @@
 import httpx
 
-from kisna_chatbot.models.enums import FLowId
+from kisna_chatbot.config.gupshup import get_damage_complaint_flow_id
 from kisna_chatbot.utils.env_load import (
     gupshup_app_id,
     gupshup_token
@@ -19,7 +19,7 @@ def send_damage_complaint_flow(phone_number: str):
         "Authorization": f"{gupshup_token}",
         "Content-Type": "application/json",
     }
-    flow_id = FLowId.DAMAGE_COMPLAINT.value
+    flow_id = get_damage_complaint_flow_id()
     data = {
         "recipient_type": "individual",
         "messaging_product": "whatsapp",
