@@ -89,6 +89,22 @@ def is_pure_greeting(text: str) -> bool:
     return False
 
 
+def is_menu_request(text: str) -> bool:
+    """True when the user explicitly asks to open/show the menu/options."""
+    normalized = " ".join((text or "").strip().lower().split())
+    if not normalized:
+        return False
+
+    if normalized in ("menu", "options"):
+        return True
+
+    # Strict: must explicitly mention "menu" plus an action verb.
+    if "menu" in normalized and any(v in normalized for v in ("open", "show", "send")):
+        return True
+
+    return False
+
+
 def is_new_session(chat_history: list) -> bool:
     """True when the user has no prior turns stored (first interaction)."""
     return len(chat_history or []) == 0
@@ -102,12 +118,31 @@ def build_greeting_welcome_bot_responses() -> list[dict]:
     ]
 
 
+def build_main_menu_bot_response() -> dict:
+    """Public menu builder used by other processors."""
+    return _build_main_menu_list()
+
+
 def build_complaint_flow_bot_response() -> dict:
     """WhatsApp Flow payload for damage / quality complaints."""
     return {
         "type": "flow",
         "flow": "damage_complaint",
         "text": "Please provide your order details and describe the issue.",
+    }
+
+
+def build_complaint_entry_cta_bot_response() -> dict:
+    """Quick reply CTA that opens the complaint flow on click."""
+    return {
+        "type": "quickreply",
+        "text": (
+            "To register a complaint, tap *Register Complaint* below. "
+            "It will open a form to capture your order details."
+        ),
+        "caption": "",
+        "options": [{"title": "Register Complaint"}],
+        "msgid": QuickReplyId.COMPLAINT_REGISTER.value,
     }
 
 
@@ -161,12 +196,6 @@ def _build_main_menu_list() -> dict:
                         "description": "Returns, delivery, care & contact",
                         "postbackText": "faqs_help",
                     },
-                    {
-                        "type": "text",
-                        "title": "Rate Us",
-                        "description": "Share your experience with Kisna",
-                        "postbackText": "rate_us",
-                    },
                 ],
             }
         ],
@@ -214,7 +243,6 @@ def _normalize_menu_key(title: str, postback: str) -> str:
         "view offers": "view_offers",
         "track my order": "track_order",
         "faqs & help": "faqs_help",
-        "rate us": "rate_us",
     }
     return aliases.get(title_key, title_key)
 
@@ -261,16 +289,15 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
 
     if key in ("raise_complaint", "damage_complaint", "complaint"):
         user_profile["service_selected"] = SL.COMPLAINT.value
-        data["bot_response"] = [build_complaint_flow_bot_response()]
+        data["bot_response"] = [
+            {"type": "text", "text": "Sure — I can help you raise a complaint."},
+            build_complaint_entry_cta_bot_response(),
+        ]
         return
 
     if key in ("faqs_help",):
         user_profile["service_selected"] = SL.GENERAL.value
         data["bot_response"] = [{"type": "text", "text": _FAQ_TEXT}]
-        return
-
-    if key in ("rate_us",):
-        data["bot_response"] = [_build_rating_quickreply()]
         return
 
     logger.warning(
@@ -355,6 +382,10 @@ class ServiceList(Processor):
 
                 if btn_msgid == QuickReplyId.RATING_REQUEST.value:
                     _handle_rating_button(button_reply, data, phone_number)
+                    return data
+
+                if btn_msgid == QuickReplyId.COMPLAINT_REGISTER.value:
+                    data["bot_response"] = [build_complaint_flow_bot_response()]
                     return data
 
                 if _is_delegated_button(btn_msgid):

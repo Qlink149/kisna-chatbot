@@ -12,6 +12,7 @@ class QuickReplyId(Enum):
 
     EVENT_TYPE = "event_type"
     RATING_REQUEST = "rating_request"
+    COMPLAINT_REGISTER = "complaint_register"
 
 
 class FlowId(Enum):

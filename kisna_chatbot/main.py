@@ -4,14 +4,18 @@ import json
 import os
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pymongo import ASCENDING
+from pymongo.errors import DuplicateKeyError
 
 from kisna_chatbot.config.clients import get_client_config
 from kisna_chatbot.config.gupshup import build_phone_number_id_map
 from kisna_chatbot.constants import DEFAULT_CLIENT_ID
+from kisna_chatbot.database.collections import processed_inbound_messages
 from kisna_chatbot.database.db_utils import (
     get_takeover_status,
     save_response_time,
@@ -41,6 +45,35 @@ ALLOWED_ORIGINS = [
     "https://kisna-dashboard.example.com",
 ]
 
+
+def mark_inbound_processed(
+    *,
+    client_id: str,
+    phone_number: str,
+    message_id: str,
+) -> bool:
+    """
+    Best-effort idempotency gate for inbound WhatsApp messages.
+
+    Returns True if we marked this message_id as newly processed; False if it was
+    already processed (duplicate delivery).
+    """
+    if not message_id:
+        return True
+    try:
+        processed_inbound_messages.insert_one(
+            {
+                "client_id": client_id,
+                "phone_number": phone_number,
+                "message_id": message_id,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+        return True
+    except DuplicateKeyError:
+        return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Validate Gupshup configuration on application startup."""
@@ -57,6 +90,16 @@ async def lifespan(app: FastAPI):
             )
         else:
             raise
+
+    # Ensure idempotency indexes exist (safe to call repeatedly).
+    try:
+        processed_inbound_messages.create_index(
+            [("client_id", ASCENDING), ("message_id", ASCENDING)],
+            unique=True,
+            name="uniq_client_message_id",
+        )
+    except Exception:
+        logger.exception("Failed to create processed_inbound_messages indexes")
     yield
 
 
@@ -159,6 +202,28 @@ async def process_message(request_data: dict) -> None:
         )
 
         client_id = detect_client_id(request_data)
+        message_id = str(messages.get("id", "") or "")
+        if not message_id:
+            logger.warning(
+                "Inbound message missing id; cannot dedupe",
+                extra={"phone_number": phone_number, "client_id": client_id},
+            )
+        else:
+            if not mark_inbound_processed(
+                client_id=client_id,
+                phone_number=phone_number,
+                message_id=message_id,
+            ):
+                logger.info(
+                    "Duplicate inbound message ignored",
+                    extra={
+                        "phone_number": phone_number,
+                        "client_id": client_id,
+                        "message_id": message_id,
+                    },
+                )
+                return
+
         try:
             phone_number_id = (
                 request_data["entry"][0]["changes"][0]["value"]

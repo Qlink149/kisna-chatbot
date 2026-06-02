@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import unittest
+from unittest.mock import Mock
 
 # Minimal env before kisna_chatbot imports (database connects at import time).
 os.environ.setdefault("ENV_MODE", "dev")
@@ -30,7 +31,14 @@ from kisna_chatbot.config.gupshup import (
     get_gupshup_source,
     refresh_phone_number_id_map,
 )
-from kisna_chatbot.main import verify_gupshup_signature, verify_webhook_request
+from pymongo.errors import DuplicateKeyError
+
+import kisna_chatbot.main as main_mod
+from kisna_chatbot.main import (
+    mark_inbound_processed,
+    verify_gupshup_signature,
+    verify_webhook_request,
+)
 
 
 class GupshupSignatureTests(unittest.TestCase):
@@ -82,6 +90,39 @@ class PhoneNumberIdMapTests(unittest.TestCase):
         os.environ["GUPSHUP_PHONE_NUMBER"] = "919111111111"
         os.environ["GUPSHUP_SOURCE"] = "919222222222"
         self.assertEqual(get_gupshup_source(), "919111111111")
+
+
+class InboundDedupTests(unittest.TestCase):
+    def test_mark_inbound_processed_returns_true_on_insert(self):
+        mock_collection = Mock()
+        mock_collection.insert_one.return_value = {"ok": 1}
+        old = main_mod.processed_inbound_messages
+        try:
+            main_mod.processed_inbound_messages = mock_collection
+            ok = mark_inbound_processed(
+                client_id="kisna",
+                phone_number="919999999999",
+                message_id="wamid.test",
+            )
+            self.assertTrue(ok)
+            self.assertTrue(mock_collection.insert_one.called)
+        finally:
+            main_mod.processed_inbound_messages = old
+
+    def test_mark_inbound_processed_returns_false_on_duplicate(self):
+        mock_collection = Mock()
+        mock_collection.insert_one.side_effect = DuplicateKeyError("dup")
+        old = main_mod.processed_inbound_messages
+        try:
+            main_mod.processed_inbound_messages = mock_collection
+            ok = mark_inbound_processed(
+                client_id="kisna",
+                phone_number="919999999999",
+                message_id="wamid.dup",
+            )
+            self.assertFalse(ok)
+        finally:
+            main_mod.processed_inbound_messages = old
 
 
 def _build_test_payload(phone_number_id: str) -> dict:
