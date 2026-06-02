@@ -9,7 +9,6 @@ from kisna_chatbot.models.service_list import ServiceList
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.service_list import (
     build_complaint_flow_bot_response,
-    build_complaint_entry_cta_bot_response,
     build_greeting_welcome_bot_responses,
     build_main_menu_bot_response,
     is_new_session,
@@ -176,15 +175,9 @@ class Classifier(Processor):
 
                 if category == "complaint":
                     user_profile["service_selected"] = ServiceList.COMPLAINT.value
-                    data["bot_response"] = [
-                        {
-                            "type": "text",
-                            "text": "I understand. To register a complaint, please use the form below.",
-                        },
-                        build_complaint_entry_cta_bot_response(),
-                    ]
+                    data["bot_response"] = [build_complaint_flow_bot_response()]
                     logger.info(
-                        "Complaint intent — offering complaint registration CTA",
+                        "Complaint intent — launching complaint flow",
                         extra={"phone_number": phone_number},
                     )
                     return data

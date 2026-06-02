@@ -83,8 +83,8 @@ class TestMenuGreeting(unittest.TestCase):
         data = {}
         _handle_menu_selection("Raise Complaint", user_profile, data, "damage_complaint")
         self.assertEqual(user_profile["service_selected"], "complaint")
-        self.assertEqual(data["bot_response"][0]["type"], "text")
-        self.assertEqual(data["bot_response"][1]["type"], "quickreply")
+        self.assertEqual(data["bot_response"][0]["type"], "flow")
+        self.assertEqual(data["bot_response"][0]["flow"], "damage_complaint")
 
     def test_complaint_cta_click_opens_flow(self):
         processor = ServiceList()
@@ -118,6 +118,20 @@ class TestMenuGreeting(unittest.TestCase):
             result = asyncio.run(processor.process(data))
         self.assertEqual(result["bot_response"][0]["type"], "list")
         self.assertEqual(result["classified_category"], "menu_help")
+
+    def test_classifier_complaint_category_sends_flow(self):
+        processor = Classifier()
+        data = {
+            "phone_number": "919999999999",
+            "client_id": "kisna",
+            "user_profile": {"service_selected": "", "chat_history": []},
+            "messages": {"text": {"body": "My order arrived damaged"}},
+        }
+        with patch("kisna_chatbot.processors.classifier.complete_chat") as mocked:
+            mocked.return_value = '{"category":"complaint"}'
+            result = asyncio.run(processor.process(data))
+        self.assertEqual(result["bot_response"][0]["type"], "flow")
+        self.assertEqual(result["bot_response"][0]["flow"], "damage_complaint")
 
 
 if __name__ == "__main__":

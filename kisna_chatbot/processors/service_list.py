@@ -289,10 +289,7 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
 
     if key in ("raise_complaint", "damage_complaint", "complaint"):
         user_profile["service_selected"] = SL.COMPLAINT.value
-        data["bot_response"] = [
-            {"type": "text", "text": "Sure — I can help you raise a complaint."},
-            build_complaint_entry_cta_bot_response(),
-        ]
+        data["bot_response"] = [build_complaint_flow_bot_response()]
         return
 
     if key in ("faqs_help",):
