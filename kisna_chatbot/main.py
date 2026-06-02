@@ -45,6 +45,14 @@ ALLOWED_ORIGINS = [
     "https://kisna-dashboard.example.com",
 ]
 
+def _log_webhook_payload_enabled() -> bool:
+    return os.getenv("LOG_GUPSHUP_WEBHOOK_PAYLOAD", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
 
 def mark_inbound_processed(
     *,
@@ -203,6 +211,26 @@ async def process_message(request_data: dict) -> None:
 
         client_id = detect_client_id(request_data)
         message_id = str(messages.get("id", "") or "")
+
+        if _log_webhook_payload_enabled():
+            try:
+                phone_number_id = (
+                    whatsapp_event.get("metadata", {}).get("phone_number_id", "")
+                )
+                logger.info(
+                    "Inbound webhook payload (process_message)",
+                    extra={
+                        "client_id": client_id,
+                        "phone_number": phone_number,
+                        "phone_number_id": phone_number_id,
+                        "message_id": message_id,
+                        "message_type": messages.get("type"),
+                        "messages": messages,
+                    },
+                )
+            except Exception:
+                logger.exception("Failed to log inbound webhook payload")
+
         if not message_id:
             logger.warning(
                 "Inbound message missing id; cannot dedupe",
@@ -338,6 +366,12 @@ async def messages_kisna(
     request_data = json.loads(body)
     logger.info("Webhook received", extra={"keys": list(request_data.keys())})
 
+    if _log_webhook_payload_enabled():
+        try:
+            logger.info("Inbound webhook payload (raw)", extra={"request_data": request_data})
+        except Exception:
+            logger.exception("Failed to log raw webhook payload")
+
     if "payload" in request_data:
         logger.info("Payload wrapper found, ignoring")
         return JSONResponse(content={"success": True}, status_code=200)
@@ -346,6 +380,24 @@ async def messages_kisna(
         whatsapp_event = request_data["entry"][0]["changes"][0]["value"]
     except (KeyError, IndexError, TypeError):
         return JSONResponse(content={"success": True}, status_code=200)
+
+    if _log_webhook_payload_enabled():
+        try:
+            messages0 = None
+            if "messages" in whatsapp_event and whatsapp_event["messages"]:
+                messages0 = whatsapp_event["messages"][0]
+            logger.info(
+                "Inbound webhook payload (value)",
+                extra={
+                    "metadata": whatsapp_event.get("metadata", {}),
+                    "has_statuses": "statuses" in whatsapp_event,
+                    "has_messages": "messages" in whatsapp_event,
+                    "messages0": messages0,
+                    "value": whatsapp_event,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to log whatsapp_event payload")
 
     if "statuses" in whatsapp_event:
         status_item = whatsapp_event["statuses"][0]
