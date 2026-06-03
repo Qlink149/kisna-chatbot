@@ -36,7 +36,7 @@ def send_store_locator_flow(phone_number: str, name: str = "there"):
                     "and assist in scheduling your visit."
                 )
             },
-            "footer": {"text": "Managed by Nilkamal."},
+            "footer": {"text": "KISNA Diamond & Gold"},
             "action": {
                 "name": "flow",
                 "parameters": {

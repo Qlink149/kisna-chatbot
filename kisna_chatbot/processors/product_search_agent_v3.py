@@ -1,28 +1,34 @@
 import json
-from urllib.parse import urlparse
+import os
 
-from kisna_chatbot.integrations.client_api_adapter import ClientAPIAdapter, ClientAPIError
+from kisna_chatbot.integrations.clara_api import ClaraAPIError, search_products
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.processors.entity_extractor import (
+    build_search_context,
+    entities_to_api_params,
+    extract_entities,
+)
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.product_formatter import (
+    format_product_image_caption,
+    format_product_list_message,
+    format_zero_results_message,
+    get_product_image_url,
+)
 
-_MAX_RESULTS = 10
-_PRODUCT_LIST_MSGID = "product_select$results"
+_MAX_IMAGE_PRODUCTS = 3
 
 _GENERIC_ERROR = (
-    "Sorry, we couldn't search the catalog right now. Please try again in a moment."
+    "Sorry, we couldn't search the catalogue right now. Please try again in a moment."
 )
 _CATALOG_NOT_CONFIGURED = (
-    "Our product catalog isn't connected yet. You can still ask design questions, "
-    "check offers, or track an order from the menu — type *hi* to open it."
-)
-_EMPTY_RESULTS = (
-    "No products matched your search. Try different keywords — e.g. *sofa*, "
-    "*dining table*, or *bed*."
+    "Our jewellery catalogue isn't connected yet. You can still check offers, "
+    "find a store, or track an order from the menu — type *hi* to open it."
 )
 _PROMPT_TEXT = (
-    "Tell me what you're looking for — e.g. *3-seater sofa*, "
-    "*dining table*, or *bedroom set* — and I'll find options for you."
+    "Tell me what you're looking for — e.g. *gold ring*, "
+    "*diamond necklace under 50k*, or *rivaah collection*."
 )
 
 
@@ -59,64 +65,38 @@ def _parse_list_reply(messages: dict) -> tuple[str, str] | None:
     return list_msgid, title
 
 
-def _format_price(price) -> str:
-    if price is None or price == "":
-        return "View details"
-    return f"₹{price}"
-
-
-def _build_product_list_response(products: list[dict], query: str) -> dict:
-    options = []
-    for product in products[:_MAX_RESULTS]:
-        product_id = str(product.get("id") or "")
-        if not product_id:
-            continue
-        title = (product.get("title") or "Product")[:24]
-        options.append(
-            {
-                "type": "text",
-                "title": title,
-                "description": _format_price(product.get("price"))[:72],
-                "postbackText": product_id,
-            }
-        )
-
-    body = (
-        f"Here are top matches for *{query}*:\n\n"
-        "Tap a product to see full details."
-    )
-    return {
-        "type": "list",
-        "list": "list",
-        "body": body,
-        "footer": "Kisna",
-        "msgid": _PRODUCT_LIST_MSGID,
-        "globalButtons": [{"type": "text", "title": "View Products"}],
-        "items": [{"title": "Results", "subtitle": "", "options": options}],
-    }
-
-
 def _build_prompt_response() -> list:
     return [{"type": "text", "text": _PROMPT_TEXT}]
-
-
-def _build_error_response() -> list:
-    return [{"type": "text", "text": _GENERIC_ERROR}]
 
 
 def _build_catalog_not_configured_response() -> list:
     return [{"type": "text", "text": _CATALOG_NOT_CONFIGURED}]
 
 
-def _catalog_api_host(client_config) -> str:
-    base = getattr(client_config, "product_api_base", "") or ""
-    if not isinstance(base, str):
-        return ""
-    base = base.strip()
-    if not base:
-        return ""
-    host = urlparse(base).netloc or base
-    return host.split("@")[-1]
+def _clara_configured() -> bool:
+    return bool(
+        (os.getenv("KISNA_CLARA_BASE_URL") or "").strip()
+        and (os.getenv("CLARA_API_KEY") or "").strip()
+    )
+
+
+_MATERIAL_BUTTON_MSGIDS = frozenset({"search$material$gold", "search$material$diamond"})
+
+
+def _material_button_msgid(messages: dict) -> str | None:
+    interactive = messages.get("interactive", {})
+    if interactive.get("type") != "button_reply":
+        return None
+    btn_msgid = _parse_button_msgid(interactive.get("button_reply", {}).get("id", ""))
+    if btn_msgid in _MATERIAL_BUTTON_MSGIDS:
+        return btn_msgid
+    return None
+
+
+def _material_type_from_msgid(msgid: str) -> str:
+    if msgid == "search$material$diamond":
+        return "diamond"
+    return "gold"
 
 
 def _extract_search_query(messages: dict) -> str | None:
@@ -133,20 +113,83 @@ def _extract_search_query(messages: dict) -> str | None:
     return None
 
 
+def _build_search_success_response(
+    products: list[dict],
+    total_count: int,
+    page: int,
+    entities: dict,
+) -> list[dict]:
+    bot_response: list[dict] = []
+    search_context = build_search_context(entities)
+    images_sent = 0
+
+    for product in products:
+        if images_sent >= _MAX_IMAGE_PRODUCTS:
+            break
+        url = get_product_image_url(product)
+        if not url:
+            continue
+        bot_response.append(
+            {
+                "type": "media",
+                "media_type": "image",
+                "url": url,
+                "caption": format_product_image_caption(product),
+            }
+        )
+        images_sent += 1
+
+    if total_count > _MAX_IMAGE_PRODUCTS:
+        bot_response.append(
+            {
+                "type": "quickreply",
+                "text": f"We found *{total_count}* pieces matching your search.",
+                "caption": "",
+                "options": [{"title": "Show More"}],
+                "msgid": "search$more",
+            }
+        )
+        bot_response.append(
+            format_product_list_message(
+                products,
+                total_count,
+                page,
+                search_context=search_context,
+            )
+        )
+    elif images_sent == 0 and products:
+        bot_response.append(
+            format_product_list_message(
+                products,
+                total_count,
+                page,
+                search_context=search_context,
+            )
+        )
+
+    return bot_response
+
+
 class ProductSearchAgentV3(Processor):
-    """Product catalog search via ClientAPIAdapter and WhatsApp list UI."""
+    """Product catalog search via Clara API and WhatsApp media/list UI."""
 
     def should_run(self, data: dict) -> bool:
         if "bot_response" in data:
             return False
 
         messages = data.get("messages", {})
+        if _material_button_msgid(messages):
+            return True
+
         user_profile = data.get("user_profile", {})
 
         if user_profile.get("service_selected") not in (
             SL.PRODUCT_SEARCH.value,
             SL.PRE_ORDER.value,
-        ) and data.get("classified_category") != "product_search":
+        ) and data.get("classified_category") not in (
+            "product_search",
+            "product_info",
+        ):
             return False
 
         parsed = _parse_list_reply(messages)
@@ -159,7 +202,7 @@ class ProductSearchAgentV3(Processor):
         interactive = messages.get("interactive", {})
         if interactive.get("type") == "button_reply":
             btn_msgid = _parse_button_msgid(interactive.get("button_reply", {}).get("id", ""))
-            if btn_msgid == "search$back":
+            if btn_msgid in ("search$back", "search$more"):
                 return True
 
         return False
@@ -167,10 +210,23 @@ class ProductSearchAgentV3(Processor):
     async def process(self, data: dict) -> dict:
         phone_number = data["phone_number"]
         messages = data.get("messages", {})
-        client_config = data["client_config"]
 
         if not self.should_run(data):
             return data
+
+        user_profile = data.get("user_profile", {})
+        material_msgid = _material_button_msgid(messages)
+        if material_msgid:
+            if not _clara_configured():
+                data["bot_response"] = _build_catalog_not_configured_response()
+                return data
+            user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+            material = _material_type_from_msgid(material_msgid)
+            entities = {"material_type": material, "category": None, "min_price": None,
+                        "max_price": None, "title": None, "city": None, "pincode": None}
+            return await self._execute_search(
+                data, phone_number, entities, query_label=material
+            )
 
         interactive = messages.get("interactive", {})
         if interactive.get("type") == "button_reply":
@@ -188,75 +244,95 @@ class ProductSearchAgentV3(Processor):
         if not query:
             return data
 
-        api_host = _catalog_api_host(client_config)
-        if not api_host:
+        if not _clara_configured():
             logger.warning(
-                "Product search skipped — KISNA_PRODUCT_API not configured",
+                "Product search skipped — KISNA_CLARA_BASE_URL / CLARA_API_KEY not configured",
                 extra={"phone_number": phone_number, "query": query},
             )
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
+        entities = extract_entities(query)
+        return await self._execute_search(
+            data, phone_number, entities, query_label=query
+        )
+
+    async def _execute_search(
+        self,
+        data: dict,
+        phone_number: str,
+        entities: dict,
+        *,
+        query_label: str,
+    ) -> dict:
+        api_params = entities_to_api_params(entities)
+        search_context = build_search_context(entities)
+
         logger.info(
             "Product search",
             extra={
                 "phone_number": phone_number,
-                "query": query,
-                "catalog_host": api_host,
+                "query": query_label,
+                "entities": entities,
+                "api_params": api_params,
             },
         )
 
-        adapter = ClientAPIAdapter(client_config)
         try:
-            products = await adapter.search_products(query=query, limit=_MAX_RESULTS)
-        except ValueError as e:
-            logger.warning(
-                "Product search configuration error",
-                extra={
-                    "phone_number": phone_number,
-                    "query": query,
-                    "catalog_host": api_host,
-                    "error": str(e),
-                },
-            )
-            data["bot_response"] = _build_catalog_not_configured_response()
-            return data
-        except (ClientAPIError, NotImplementedError) as e:
+            result = await search_products(**api_params, page_no=1, page_size=5)
+        except ClaraAPIError as e:
             logger.exception(
                 "Product search failed",
                 extra={
                     "phone_number": phone_number,
-                    "query": query,
-                    "catalog_host": api_host,
+                    "query": query_label,
                     "error": str(e),
                 },
             )
-            data["bot_response"] = _build_error_response()
+            data["bot_response"] = [{"type": "text", "text": e.args[0]}]
             return data
         except Exception as e:
             logger.exception(
                 "Unexpected product search error",
                 extra={
                     "phone_number": phone_number,
-                    "catalog_host": api_host,
                     "error": str(e),
                 },
             )
-            data["bot_response"] = _build_error_response()
+            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
             return data
-        finally:
-            await adapter.aclose()
 
-        if not products:
-            data["bot_response"] = [{"type": "text", "text": _EMPTY_RESULTS}]
-            return data
+        products = result.get("products") or []
+        total_count = result.get("total_count", 0)
+        page = result.get("page", 1)
 
         user_profile = data.get("user_profile", {})
+        user_profile["last_search_filters"] = entities
+        user_profile["last_search_page"] = page
+        user_profile["last_search_total"] = total_count
+
+        if not products:
+            data["bot_response"] = [
+                {"type": "text", "text": format_zero_results_message(entities)}
+            ]
+            return data
+
         shown = user_profile.setdefault("shown_product_ids", [])
         for product in products:
-            pid = product.get("id")
+            pid = product.get("_id") or product.get("id")
             if pid and pid not in shown:
                 shown.append(pid)
 
-        data["bot_response"] = [_build_product_list_response(products, query)]
+        data["bot_response"] = _build_search_success_response(
+            products, total_count, page, entities
+        )
+        logger.info(
+            "Product search results sent",
+            extra={
+                "phone_number": phone_number,
+                "search_context": search_context,
+                "total_count": total_count,
+                "returned": len(products),
+            },
+        )
         return data

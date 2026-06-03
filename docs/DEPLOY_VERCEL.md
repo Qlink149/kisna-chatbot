@@ -29,6 +29,19 @@ Set **Root Directory** to `kisna-chatbot` if deploying from Git in the Vercel UI
 | `MONGO_DB_NAME` | e.g. `Kisna_Chatbot` |
 | `WEBHOOK_URL` | `https://<host>/gupshup/message/kisna` — for setup script |
 
+### Logging (Vercel Runtime Logs)
+
+| Variable | Example / notes |
+|----------|-----------------|
+| `LOG_LEVEL` | `DEBUG` for troubleshooting; `INFO` in steady state |
+| `LOG_HTTP_BODIES` | `true` to log sanitized webhook/API bodies; defaults on when `ENV_MODE=dev` |
+| `LOG_PRETTY` | Ignored on Vercel (always single-line JSON) |
+| `LOG_GUPSHUP_WEBHOOK_PAYLOAD` | Deprecated alias for `LOG_HTTP_BODIES` |
+
+Recommended for Vercel testing: `LOG_LEVEL=DEBUG`, `LOG_HTTP_BODIES=true`, `ENV_MODE=dev`.
+
+Filter logs by `request_id`, `event` (e.g. `http_request`, `http_response`, `inbound_message`, `pipeline_start`), or `phone_number`.
+
 `KISNA_PHONE_NUMBER_ID` is **optional** for a single Kisna number (defaults to client `kisna`).
 
 ## Register Gupshup webhook
@@ -55,7 +68,7 @@ python tests/test_gupshup_webhook.py integration
 
 ## Notes
 
-- On Vercel, messages are processed **synchronously** (`VERCEL=1`); Docker still uses background tasks.
+- Webhook always returns 200 immediately and processes messages via FastAPI background tasks (avoids Gupshup retries on timeout).
 - `vercel.json` uses `functions` + `rewrites` only (do not add legacy `builds` — Vercel rejects `builds` + `functions` together).
 - Hobby plan: default timeout may be 10s; this project sets `maxDuration: 60` on `api/index.py` (Pro may be required for 60s on some plans).
 - Production should use Docker/long-running hosting, not Vercel serverless.

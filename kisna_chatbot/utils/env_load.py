@@ -5,14 +5,17 @@ Copy .env.example to .env at the project root
 before running the app so load_dotenv() can read it.
 """
 
-import logging
 import os
 
 from dotenv import load_dotenv
 
-logger = logging.getLogger(__name__)
-
 load_dotenv()
+
+
+def _log_warning(message: str) -> None:
+    from kisna_chatbot.utils.logger_config import logger
+
+    logger.warning(message, extra={"event": "env_validation"})
 
 REQUIRED_IN_PROD = (
     "OPENAI_API_KEY",
@@ -100,7 +103,7 @@ def validate_env() -> None:
     message = f"Missing required environment variables: {', '.join(missing)}"
     if is_production:
         raise RuntimeError(message)
-    logger.warning(message)
+    _log_warning(message)
 
 
 def validate_gupshup_config() -> None:
@@ -126,7 +129,7 @@ def validate_gupshup_config() -> None:
         message = f"Missing Gupshup configuration: {', '.join(missing)}"
         if is_production:
             raise RuntimeError(message)
-        logger.warning(message)
+        _log_warning(message)
 
     if not _getenv("GUPSHUP_PHONE_NUMBER") and not _getenv("GUPSHUP_SOURCE"):
         message = (
@@ -135,7 +138,7 @@ def validate_gupshup_config() -> None:
         )
         if is_production:
             raise RuntimeError(message)
-        logger.warning(message)
+        _log_warning(message)
 
     if not _getenv("GUPSHUP_WEBHOOK_SECRET"):
         if is_production:
@@ -175,7 +178,7 @@ def validate_ai_config() -> None:
         message = f"Missing AI configuration: {', '.join(missing)}"
         if is_production:
             raise RuntimeError(message)
-        logger.warning(message)
+        _log_warning(message)
 
 
 validate_env()

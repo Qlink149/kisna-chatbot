@@ -1,9 +1,8 @@
 from kisna_chatbot.config.clients import get_client_config
-from kisna_chatbot.integrations.client_api_adapter import ClientAPIAdapter
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.processors.product_search_agent_v3 import _material_button_msgid
+from kisna_chatbot.utils.clara_cache import get_cached_promotions
 from kisna_chatbot.utils.logger_config import logger
-
-_MAX_OFFERS = 5
 
 _EMPTY_OFFERS_TEXT = (
     "No active offers right now. Check back soon — we've got fresh deals coming!"
@@ -12,84 +11,149 @@ _ERROR_TEXT = (
     "Sorry, we couldn't load offers right now. Please try again in a moment."
 )
 
-
-def _format_validity(start_date, end_date) -> str:
-    if start_date and end_date:
-        return f"Valid: {start_date} – {end_date}"
-    if start_date:
-        return f"Valid from: {start_date}"
-    if end_date:
-        return f"Valid until: {end_date}"
-    return "See terms for validity"
+_FOOTER_LINES = (
+    "Making charges are the craftsmanship cost added to gold rate.\n"
+    "These offers apply to the making charges portion of your order."
+)
 
 
-def _format_offer_block(offer: dict) -> str:
-    title = offer.get("title") or "Offer"
-    lines = [f"*{title}*"]
-
-    description = (offer.get("description") or "").strip()
-    if description:
-        lines.append(description)
-
-    code = offer.get("code")
-    if code:
-        lines.append(f"Code: `{code}`")
-
-    discount = offer.get("discount_percent")
-    if discount is not None:
-        lines.append(f"Discount: {discount}% off")
-
-    min_order = offer.get("min_order_value")
-    if min_order is not None:
-        lines.append(f"Min order: ₹{min_order}")
-
-    lines.append(_format_validity(offer.get("start_date"), offer.get("end_date")))
-    return "\n".join(lines)
+def _promo_text_blob(promo: dict) -> str:
+    parts = []
+    for key in ("materialType", "productType", "type", "category", "name", "title"):
+        val = promo.get(key)
+        if val:
+            parts.append(str(val).lower())
+    return " ".join(parts)
 
 
-def _build_offers_text(offers: list) -> str:
-    blocks = [_format_offer_block(offer) for offer in offers[:_MAX_OFFERS]]
-    body = "\n\n".join(blocks)
-    return f"🎉 *Active offers for you*\n\n🎁 {body}"
+def _is_labour_promo(promo: dict) -> bool:
+    disc_on = promo.get("discOn")
+    if disc_on is None:
+        return True
+    return disc_on == "Labour"
 
 
-def _build_ctas() -> list:
+def _classify_material(promo: dict) -> set[str]:
+    blob = _promo_text_blob(promo)
+    buckets: set[str] = set()
+    if "gold" in blob or "sona" in blob:
+        buckets.add("gold")
+    if "diamond" in blob or "heera" in blob or "solitaire" in blob:
+        buckets.add("diamond")
+    if not buckets:
+        buckets.update({"gold", "diamond"})
+    return buckets
+
+
+def _tier_sort_key(promo: dict) -> float:
+    try:
+        return float(promo.get("toAmt", 0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _format_tier_line(promo: dict) -> str | None:
+    disc = promo.get("disc")
+    if disc is None:
+        return None
+    try:
+        disc_val = float(disc)
+        disc_str = str(int(disc_val)) if disc_val == int(disc_val) else str(disc_val)
+    except (TypeError, ValueError):
+        return None
+
+    try:
+        to_amt = int(float(promo.get("toAmt", 0)))
+    except (TypeError, ValueError):
+        to_amt = 0
+
+    return f"• {disc_str}% off making charges — orders below ₹{to_amt:,}"
+
+
+def _unique_sorted_tiers(promos: list[dict]) -> list[str]:
+    seen: set[str] = set()
+    lines: list[str] = []
+    for promo in sorted(promos, key=_tier_sort_key):
+        line = _format_tier_line(promo)
+        if line and line not in seen:
+            seen.add(line)
+            lines.append(line)
+    return lines
+
+
+def _build_offers_text(promotions: list) -> str:
+    gold_promos: list[dict] = []
+    diamond_promos: list[dict] = []
+
+    for promo in promotions:
+        if not isinstance(promo, dict) or not _is_labour_promo(promo):
+            continue
+        buckets = _classify_material(promo)
+        if "gold" in buckets:
+            gold_promos.append(promo)
+        if "diamond" in buckets:
+            diamond_promos.append(promo)
+
+    parts = ["*Current KISNA Offers* 🎁", ""]
+
+    gold_lines = _unique_sorted_tiers(gold_promos)
+    parts.append("*Gold Jewellery*")
+    if gold_lines:
+        parts.extend(gold_lines)
+    else:
+        parts.append("• No active gold offers at the moment")
+    parts.append("")
+
+    diamond_lines = _unique_sorted_tiers(diamond_promos)
+    parts.append("*Diamond Jewellery*")
+    if diamond_lines:
+        parts.extend(diamond_lines)
+    else:
+        parts.append("• No active diamond offers at the moment")
+    parts.append("")
+    parts.append(_FOOTER_LINES)
+
+    return "\n".join(parts)
+
+
+def _build_material_ctas() -> list[dict]:
     return [
         {
             "type": "quickreply",
-            "text": "Ready to browse our collection?",
+            "text": "Want to see pieces with these offers?",
             "caption": "",
-            "options": [{"title": "Explore Products"}],
-            "msgid": "search$explore",
+            "options": [{"title": "Browse Gold"}],
+            "msgid": "search$material$gold",
         },
         {
             "type": "quickreply",
-            "text": "Need something else?",
+            "text": "Or browse diamond pieces:",
             "caption": "",
-            "options": [{"title": "Back"}],
-            "msgid": "menu$back",
+            "options": [{"title": "Browse Diamond"}],
+            "msgid": "search$material$diamond",
         },
     ]
 
 
 def _build_bot_response(offers_text: str) -> list:
-    return [{"type": "text", "text": offers_text}, *_build_ctas()]
+    return [{"type": "text", "text": offers_text}, *_build_material_ctas()]
 
 
 def _build_empty_response() -> list:
-    return [{"type": "text", "text": _EMPTY_OFFERS_TEXT}, *_build_ctas()]
+    return [{"type": "text", "text": _EMPTY_OFFERS_TEXT}, *_build_material_ctas()]
 
 
 def _build_error_response() -> list:
-    return [{"type": "text", "text": _ERROR_TEXT}, *_build_ctas()]
+    return [{"type": "text", "text": _ERROR_TEXT}]
 
 
 class OffersAgent(Processor):
-    """Fetches and formats active promotions when the user asks about offers."""
+    """Fetches and formats active promotions from Clara API (cached)."""
 
     def should_run(self, data: dict) -> bool:
-        """Run when classifier routed to offers and no response yet."""
         if "bot_response" in data:
+            return False
+        if _material_button_msgid(data.get("messages", {})):
             return False
         user_profile = data.get("user_profile", {})
         if (
@@ -104,10 +168,9 @@ class OffersAgent(Processor):
         return client_config.has_offers
 
     async def process(self, data: dict) -> dict:
-        """Fetch active offers and return formatted WhatsApp response."""
         phone_number = data["phone_number"]
         client_id = data.get("client_id", "kisna")
-        client_config = data.get("client_config") or get_client_config(client_id)
+        app_state = data.get("app_state")
 
         if not self.should_run(data):
             logger.info(
@@ -119,32 +182,30 @@ class OffersAgent(Processor):
             )
             return data
 
-        adapter = ClientAPIAdapter(client_config)
         try:
             logger.info(
                 "Offers requested",
                 extra={"phone_number": phone_number, "client_id": client_id},
             )
 
-            offers = await adapter.get_active_offers()
+            promotions = await get_cached_promotions(app_state)
 
-            if not offers:
+            if not promotions:
                 data["bot_response"] = _build_empty_response()
                 logger.info(
-                    "No active offers returned",
+                    "No active promotions returned",
                     extra={"phone_number": phone_number, "client_id": client_id},
                 )
                 return data
 
-            data["bot_response"] = _build_bot_response(
-                _build_offers_text(offers)
-            )
+            offers_text = _build_offers_text(promotions)
+            data["bot_response"] = _build_bot_response(offers_text)
             logger.info(
                 "Offers loaded successfully",
                 extra={
                     "phone_number": phone_number,
                     "client_id": client_id,
-                    "offer_count": min(len(offers), _MAX_OFFERS),
+                    "promotion_count": len(promotions),
                 },
             )
             return data
@@ -156,5 +217,3 @@ class OffersAgent(Processor):
             )
             data["bot_response"] = _build_error_response()
             return data
-        finally:
-            await adapter.aclose()

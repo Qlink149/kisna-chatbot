@@ -28,8 +28,8 @@ class ProductSearchAgent(Processor):
             {
                 "type": "text",
                 "text": (
-                    "Tell me what you're looking for — e.g. *3-seater sofa*, "
-                    "*dining table*, or *bedroom set* — and I'll find options for you."
+                    "Tell me what you're looking for — e.g. *gold ring*, "
+                    "*diamond necklace*, or *gold bangles* — and I'll find options for you."
                 ),
             }
         ]

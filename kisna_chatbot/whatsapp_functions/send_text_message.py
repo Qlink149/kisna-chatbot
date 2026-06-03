@@ -6,7 +6,8 @@ import httpx
 from kisna_chatbot.config.gupshup import get_gupshup_source
 from kisna_chatbot.constants import GUPSHUP_URL
 from kisna_chatbot.utils.env_load import gupshup_api_key, gupshup_app_name
-from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.http_log import log_http_request, log_http_response
+from kisna_chatbot.utils.logger_config import log_event, logger
 
 
 def _should_retry(status_code: int | None) -> bool:
@@ -34,9 +35,11 @@ def send_text_message(phone_number: str, bot_response: dict) -> dict:
         Exception: On HTTP or network failure.
     """
     source = get_gupshup_source()
-    logger.info(
-        "Sending text message to phone number",
-        extra={"phone_number": phone_number, "bot_response": bot_response},
+    log_event(
+        "gupshup_send",
+        "Sending text message",
+        phone_number=phone_number,
+        bot_response=bot_response,
     )
 
     headers = {
@@ -51,16 +54,34 @@ def send_text_message(phone_number: str, bot_response: dict) -> dict:
         "src.name": gupshup_app_name,
     }
 
+    start = log_http_request("gupshup", "POST", GUPSHUP_URL)
     try:
         response = httpx.post(GUPSHUP_URL, headers=headers, data=data)
         response.raise_for_status()
         result = response.json()
-        logger.info(
+        log_http_response(
+            "gupshup",
+            "POST",
+            GUPSHUP_URL,
+            start=start,
+            status_code=response.status_code,
+            body_preview=result,
+        )
+        log_event(
+            "gupshup_send_done",
             "Text message sent",
-            extra={"phone_number": phone_number, "response": result},
+            phone_number=phone_number,
         )
         return result
     except Exception as e:
+        log_http_response(
+            "gupshup",
+            "POST",
+            GUPSHUP_URL,
+            start=start,
+            status_code=getattr(getattr(e, "response", None), "status_code", None),
+            error=str(e),
+        )
         logger.exception(
             "Error sending text message",
             extra={"phone_number": phone_number, "error": str(e)},

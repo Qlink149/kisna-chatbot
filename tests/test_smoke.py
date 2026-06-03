@@ -12,6 +12,8 @@ os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt")
 os.environ.setdefault("SYSTEM_API_KEY", "test-api")
 os.environ.setdefault("KISNA_PRODUCT_API", "https://example.com/products")
+os.environ.setdefault("KISNA_CLARA_BASE_URL", "https://clara.example.com")
+os.environ.setdefault("CLARA_API_KEY", "test-clara-key")
 os.environ.setdefault("KISNA_OFFERS_API", "https://example.com/offers")
 os.environ.setdefault("KISNA_STORE_API", "https://example.com/stores")
 os.environ.setdefault("KISNA_VTIGER_BASE", "https://example.com/crm")
@@ -32,10 +34,8 @@ from kisna_chatbot.processors.complaint_agent import (
     _parse_complaint_flow,
 )
 from kisna_chatbot.processors.product_details_agent import _parse_product_list_selection
-from kisna_chatbot.processors.product_search_agent_v3 import (
-    ProductSearchAgentV3,
-    _build_product_list_response,
-)
+from kisna_chatbot.processors.product_search_agent_v3 import ProductSearchAgentV3
+from kisna_chatbot.utils.product_formatter import format_product_list_message
 
 
 class ComplaintFlowTokenTests(unittest.TestCase):
@@ -70,12 +70,24 @@ class RoutingTests(unittest.TestCase):
 
 
 class ProductSearchTests(unittest.TestCase):
-    def test_build_product_list_response(self):
+    def test_format_product_list_message(self):
         products = [
-            {"id": "p1", "title": "Sofa", "price": 19999},
-            {"id": "p2", "title": "Table", "price": 8999},
+            {
+                "_id": "p1",
+                "title": "Gold Ring",
+                "price": {"variantPrice": 19999},
+                "materialType": "gold",
+                "shipping": {"edd": 5},
+            },
+            {
+                "_id": "p2",
+                "title": "Diamond Pendant",
+                "price": {"variantPrice": 89999},
+                "materialType": "diamond",
+                "shipping": {"edd": 7},
+            },
         ]
-        payload = _build_product_list_response(products, "sofa")
+        payload = format_product_list_message(products, 2, 1, search_context="gold rings")
         self.assertEqual(payload["type"], "list")
         self.assertEqual(payload["msgid"], "product_select$results")
         self.assertEqual(len(payload["items"][0]["options"]), 2)
@@ -93,29 +105,40 @@ class ProductSearchTests(unittest.TestCase):
         }
         self.assertEqual(_parse_product_list_selection(messages), "prod-42")
 
-    def test_search_agent_calls_adapter(self):
+    def test_search_agent_calls_clara_api(self):
         async def _run():
             agent = ProductSearchAgentV3()
             data = {
                 "phone_number": "919999999999",
-                "messages": {"text": {"body": "sofa"}},
+                "messages": {"text": {"body": "gold ring under 50k"}},
                 "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
-                "client_config": MagicMock(
-                    client_id="kisna",
-                    product_api_base="https://api.example.com/catalog",
-                ),
+                "client_config": MagicMock(client_id="kisna"),
             }
-            mock_products = [{"id": "1", "title": "Sofa", "price": 100}]
+            mock_product = {
+                "_id": "1",
+                "title": "Gold Ring",
+                "price": {"variantPrice": 45000},
+                "variant": {"title": "18KT Yellow Gold"},
+                "materialType": "gold",
+                "shipping": {"edd": 5},
+                "seos": {"slug": "gold-ring"},
+                "mediaUrl": [{"isDefault": True, "url": "https://img.example/r.jpg"}],
+            }
             with patch(
-                "kisna_chatbot.processors.product_search_agent_v3.ClientAPIAdapter"
-            ) as adapter_cls:
-                adapter = adapter_cls.return_value
-                adapter.search_products = AsyncMock(return_value=mock_products)
-                adapter.aclose = AsyncMock()
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+            ) as search_mock:
+                search_mock.return_value = {
+                    "products": [mock_product],
+                    "total_count": 1,
+                    "page": 1,
+                }
                 result = await agent.process(data)
             self.assertIn("bot_response", result)
-            adapter.search_products.assert_awaited_once()
-            adapter.aclose.assert_awaited_once()
+            search_mock.assert_awaited_once()
+            self.assertEqual(result["user_profile"]["last_search_page"], 1)
+            self.assertEqual(result["user_profile"]["last_search_total"], 1)
+            self.assertIn("last_search_filters", result["user_profile"])
 
         import asyncio
 

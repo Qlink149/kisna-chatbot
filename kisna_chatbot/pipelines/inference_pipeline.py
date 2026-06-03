@@ -41,7 +41,7 @@ class OffersPipeline(Pipeline):
     """Pipeline for active offers and promotions."""
 
     def __init__(self) -> None:
-        processors = [OffersAgent()]
+        processors = [OffersAgent(), ProductSearchAgentV3()]
         super().__init__(processors)
 
 

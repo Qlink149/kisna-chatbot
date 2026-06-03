@@ -27,12 +27,15 @@ CONTEXT = kisna_classifier
 
 _CATEGORY_TO_SERVICE = {
     "general": ServiceList.GENERAL,
+    "greeting": ServiceList.GENERAL,
     "product_search": ServiceList.PRODUCT_SEARCH,
+    "product_info": ServiceList.PRODUCT_SEARCH,
     "offers": ServiceList.OFFERS,
     "pre_order": ServiceList.PRE_ORDER,
     "order_tracking": ServiceList.ORDER_TRACKING,
     "returns_refund": ServiceList.RETURNS_REFUND,
     "complaint": ServiceList.COMPLAINT,
+    "store_info": ServiceList.AD_FLOW,
 }
 
 
@@ -82,7 +85,10 @@ class Classifier(Processor):
                 if is_pure_greeting(user_query) and is_new_session(chat_history):
                     user_profile["service_selected"] = ""
                     data["classified_category"] = "greeting"
-                    data["bot_response"] = build_greeting_welcome_bot_responses()
+                    data["bot_response"] = build_greeting_welcome_bot_responses(
+                        phone_number=phone_number,
+                        chat_history=chat_history,
+                    )
                     logger.info(
                         "Greeting on new session — welcome and main menu",
                         extra={"phone_number": phone_number},
@@ -137,19 +143,35 @@ class Classifier(Processor):
                     },
                 )
 
-                classifier_response = json.loads(classifier_response)
-                category = classifier_response["category"].strip().lower()
-                data["classified_category"] = category
+                parsed = json.loads(classifier_response)
+                intent = (
+                    parsed.get("intent") or parsed.get("category", "menu_help")
+                ).strip().lower()
+                data["classified_category"] = intent
 
                 logger.info(
-                    "Classifier category",
+                    "Classifier intent",
                     extra={
-                        "category": category,
+                        "intent": intent,
+                        "confidence": parsed.get("confidence"),
                         "phone_number": phone_number,
                     },
                 )
 
-                if category == "human_handoff":
+                if intent == "greeting":
+                    user_profile["service_selected"] = ""
+                    data["classified_category"] = "greeting"
+                    data["bot_response"] = build_greeting_welcome_bot_responses(
+                        phone_number=phone_number,
+                        chat_history=chat_history,
+                    )
+                    logger.info(
+                        "Classifier greeting intent — welcome and main menu",
+                        extra={"phone_number": phone_number},
+                    )
+                    return data
+
+                if intent == "human_handoff":
                     user_profile["live_agent_requested_at"] = int(time.time())
                     user_profile["live_agent_required"] = True
                     for admin in ADMINS:
@@ -173,7 +195,7 @@ class Classifier(Processor):
                     )
                     return data
 
-                if category == "complaint":
+                if intent == "complaint":
                     user_profile["service_selected"] = ServiceList.COMPLAINT.value
                     data["bot_response"] = [build_complaint_flow_bot_response()]
                     logger.info(
@@ -182,7 +204,7 @@ class Classifier(Processor):
                     )
                     return data
 
-                if category == "menu_help":
+                if intent == "menu_help":
                     data["bot_response"] = [build_main_menu_bot_response()]
                     logger.info(
                         "Classifier menu_help — sending main menu",
@@ -190,17 +212,18 @@ class Classifier(Processor):
                     )
                     return data
 
-                service = _CATEGORY_TO_SERVICE.get(category)
+                service = _CATEGORY_TO_SERVICE.get(intent)
                 if service:
                     user_profile["service_selected"] = service.value
                 else:
                     logger.warning(
-                        "Unknown classifier category",
+                        "Unknown classifier intent",
                         extra={
-                            "category": category,
+                            "intent": intent,
                             "phone_number": phone_number,
                         },
                     )
+                    data["bot_response"] = [build_main_menu_bot_response()]
 
             return data
         except json.JSONDecodeError as e:

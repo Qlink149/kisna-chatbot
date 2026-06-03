@@ -19,7 +19,7 @@ def send_cta_url(phone_number, bot_response):
 
     source = GUPSHUP_SOURCE
     app_name = gupshup_app_name
-    footer = "Managed by Nilkamal."
+    footer = "KISNA Diamond & Gold"
 
     destination = f"{phone_number}"
     url = GUPSHUP_URL

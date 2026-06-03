@@ -51,11 +51,25 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertEqual(menu["type"], "list")
         self.assertEqual(menu["list"], "list")
 
-    def test_greeting_responses_shape(self):
-        responses = build_greeting_welcome_bot_responses()
+    def test_greeting_responses_returning_user(self):
+        responses = build_greeting_welcome_bot_responses(
+            chat_history=[{"role": "user", "content": "hi"}],
+        )
         self.assertEqual(len(responses), 2)
         self.assertEqual(responses[0]["type"], "text")
         self.assertEqual(responses[1]["type"], "list")
+
+    def test_greeting_responses_new_session(self):
+        with patch(
+            "kisna_chatbot.whatsapp_functions.send_kisna_welcome_template.send_kisna_welcome_template"
+        ) as mock_welcome:
+            responses = build_greeting_welcome_bot_responses(
+                phone_number="919999999999",
+                chat_history=[],
+            )
+            mock_welcome.assert_called_once_with("919999999999")
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0]["type"], "list")
 
     def test_complaint_flow_shape(self):
         flow = build_complaint_flow_bot_response()

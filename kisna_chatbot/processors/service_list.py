@@ -8,14 +8,14 @@ from kisna_chatbot.utils.logger_config import logger
 _GENERIC_ERROR = "Something went wrong. Please try again."
 
 _MENU_BODY = (
-    "Hello! I'm your Kisna design assistant.\n\n"
-    "I can help you explore furniture, check offers, find stores, track orders, "
+    "Hello! I'm your KISNA jewellery assistant.\n\n"
+    "I can help you explore jewellery, check offers, find stores, track orders, "
     "and more. Pick an option below or just type your question."
 )
 
 _EXPLORE_PRODUCTS_TEXT = (
     "What are you looking for today?\n\n"
-    "Sofas, dining sets, bedroom furniture, decor — just type what you need "
+    "Rings, earrings, necklaces, bangles — just type what you need "
     "and I'll find the best pieces for you."
 )
 
@@ -33,7 +33,12 @@ _TRACK_ORDER_TEXT = (
 )
 
 _WELCOME_TEXT = (
-    "Welcome to Kisna! I'm your design assistant.\n"
+    "Welcome to KISNA! I'm your jewellery assistant.\n"
+    "Pick an option from the menu below, or type your question anytime."
+)
+
+_WELCOME_BACK_TEXT = (
+    "Welcome back to KISNA! Great to see you again.\n"
     "Pick an option from the menu below, or type your question anytime."
 )
 
@@ -110,10 +115,23 @@ def is_new_session(chat_history: list) -> bool:
     return len(chat_history or []) == 0
 
 
-def build_greeting_welcome_bot_responses() -> list[dict]:
-    """Welcome text plus main menu list (Option A)."""
+def build_greeting_welcome_bot_responses(
+    phone_number: str | None = None,
+    chat_history: list | None = None,
+) -> list[dict]:
+    """Welcome for new users (template + menu) or returning users (text + menu)."""
+    history = chat_history if chat_history is not None else []
+    if is_new_session(history):
+        if phone_number:
+            from kisna_chatbot.whatsapp_functions.send_kisna_welcome_template import (
+                send_kisna_welcome_template,
+            )
+
+            send_kisna_welcome_template(phone_number)
+        return [_build_main_menu_list()]
+
     return [
-        {"type": "text", "text": _WELCOME_TEXT},
+        {"type": "text", "text": _WELCOME_BACK_TEXT},
         _build_main_menu_list(),
     ]
 
@@ -163,7 +181,7 @@ def _build_main_menu_list() -> dict:
                     {
                         "type": "text",
                         "title": "Explore Products",
-                        "description": "Browse sofas, dining, bedroom & decor",
+                        "description": "Browse rings, earrings, necklaces & more",
                         "postbackText": "explore_products",
                     },
                     {
@@ -231,13 +249,17 @@ def _normalize_menu_key(title: str, postback: str) -> str:
     """Map list title or postbackText to a stable menu action key."""
     postback = (postback or "").strip().lower()
     if postback:
-        return postback
+        legacy_postbacks = {
+            "locate_store": "find_store",
+        }
+        return legacy_postbacks.get(postback, postback)
 
     title_key = " ".join((title or "").strip().lower().split())
     aliases = {
         "raise complaint": "raise_complaint",
         "raise a complaint": "raise_complaint",
         "locate store": "find_store",
+        "locate_store": "find_store",
         "find store near me": "find_store",
         "explore products": "explore_products",
         "view offers": "view_offers",
@@ -264,7 +286,7 @@ def _build_rating_quickreply() -> dict:
 
 
 def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback: str = "") -> None:
-    """Route main menu selection by postbackText and title (Kisna + legacy Nilkamal labels)."""
+    """Route Kisna main menu selection (legacy postbacks mapped via aliases)."""
     key = _normalize_menu_key(title, postback)
 
     if key in ("explore_products",):
@@ -277,7 +299,7 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
         data["bot_response"] = [{"type": "text", "text": _VIEW_OFFERS_TEXT}]
         return
 
-    if key in ("find_store", "locate_store"):
+    if key in ("find_store", "store_info"):
         user_profile["service_selected"] = SL.AD_FLOW.value
         data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
         return

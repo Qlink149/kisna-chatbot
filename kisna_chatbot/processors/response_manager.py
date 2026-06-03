@@ -135,7 +135,7 @@ class ResponseManager:
         """
         list_name = bot_response["list"]
         if list_name == "service_list":
-            # Legacy alias: send inline Kisna menu payload (not Nilkamal hardcoded list).
+            # Legacy alias: inline Kisna menu when list name is service_list.
             from kisna_chatbot.processors.service_list import _build_main_menu_list
 
             legacy = _build_main_menu_list()

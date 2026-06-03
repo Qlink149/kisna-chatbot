@@ -6,7 +6,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pymongo import ASCENDING
@@ -34,9 +34,17 @@ from kisna_chatbot.pipelines.inference_pipeline import (
     ProductCheckoutPipeline,
     ProductSearchPipeline,
 )
+from kisna_chatbot.middleware.logging_middleware import LoggingMiddleware
 from kisna_chatbot.processors.response_manager import ResponseManager
 from kisna_chatbot.routes import system as system_router
-from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.logger_config import (
+    clear_request_context,
+    log_event,
+    log_http_bodies_enabled,
+    logger,
+    sanitize_for_log,
+    set_request_context,
+)
 from kisna_chatbot.utils.pubsub import pubsub
 
 ALLOWED_ORIGINS = [
@@ -46,12 +54,7 @@ ALLOWED_ORIGINS = [
 ]
 
 def _log_webhook_payload_enabled() -> bool:
-    return os.getenv("LOG_GUPSHUP_WEBHOOK_PAYLOAD", "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
+    return log_http_bodies_enabled()
 
 
 def mark_inbound_processed(
@@ -108,6 +111,17 @@ async def lifespan(app: FastAPI):
         )
     except Exception:
         logger.exception("Failed to create processed_inbound_messages indexes")
+
+    from kisna_chatbot.database.database import ping_database
+
+    try:
+        ping_database()
+    except Exception:
+        logger.exception("MongoDB connectivity check failed on startup")
+
+    from kisna_chatbot.utils.clara_cache import warm_clara_caches
+
+    await warm_clara_caches(app.state)
     yield
 
 
@@ -127,8 +141,47 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(LoggingMiddleware)
 
 app.include_router(system_router.router)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    request_id = getattr(request.state, "request_id", None)
+    log_event(
+        "http_exception",
+        str(exc.detail),
+        level="warning",
+        request_id=request_id,
+        status_code=exc.status_code,
+        path=request.url.path,
+        detail=exc.detail,
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers={"X-Request-Id": request_id or ""},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    request_id = getattr(request.state, "request_id", None)
+    logger.exception(
+        "Unhandled exception",
+        extra={
+            "event": "unhandled_exception",
+            "request_id": request_id,
+            "path": request.url.path,
+            "error": str(exc),
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+        headers={"X-Request-Id": request_id or ""},
+    )
 
 
 def detect_client_id(request_data: dict) -> str:
@@ -195,10 +248,18 @@ async def _save_and_send(data: dict, phone_number: str, pipeline_start: float) -
     ResponseManager().handle_responses(data=data)
 
 
-async def process_message(request_data: dict) -> None:
+async def process_message(
+    request_data: dict,
+    app_state=None,
+    *,
+    request_id: str | None = None,
+) -> None:
     """Process incoming WhatsApp message in the background."""
     phone_number = None
     data: dict = {}
+
+    if request_id:
+        set_request_context(request_id=request_id)
 
     try:
         whatsapp_event = request_data["entry"][0]["changes"][0]["value"]
@@ -211,6 +272,16 @@ async def process_message(request_data: dict) -> None:
 
         client_id = detect_client_id(request_data)
         message_id = str(messages.get("id", "") or "")
+        set_request_context(phone_number=phone_number, client_id=client_id)
+
+        log_event(
+            "inbound_message",
+            "Processing WhatsApp message",
+            phone_number=phone_number,
+            client_id=client_id,
+            message_id=message_id,
+            message_type=messages.get("type"),
+        )
 
         if _log_webhook_payload_enabled():
             try:
@@ -278,6 +349,7 @@ async def process_message(request_data: dict) -> None:
             "whatsapp_username": whatsapp_username,
             "client_id": client_id,
             "client_config": client_config,
+            "app_state": app_state,
         }
         logger.info(
             "Data object to pipeline",
@@ -342,6 +414,8 @@ async def process_message(request_data: dict) -> None:
                     "Failed to save error response",
                     extra={"exception": save_err},
                 )
+    finally:
+        clear_request_context()
 
 
 @app.get("/ping")
@@ -368,7 +442,13 @@ async def messages_kisna(
 
     if _log_webhook_payload_enabled():
         try:
-            logger.info("Inbound webhook payload (raw)", extra={"request_data": request_data})
+            logger.info(
+                "Inbound webhook payload (raw)",
+                extra={
+                    "event": "webhook_payload_raw",
+                    "request_data": sanitize_for_log(request_data),
+                },
+            )
         except Exception:
             logger.exception("Failed to log raw webhook payload")
 
@@ -408,8 +488,11 @@ async def messages_kisna(
     if "messages" not in whatsapp_event:
         return JSONResponse(content={"success": True}, status_code=200)
 
-    if os.getenv("VERCEL"):
-        await process_message(request_data)
-    else:
-        background_tasks.add_task(process_message, request_data)
+    request_id = getattr(request.state, "request_id", None)
+    background_tasks.add_task(
+        process_message,
+        request_data,
+        request.app.state,
+        request_id=request_id,
+    )
     return JSONResponse(content={"success": True}, status_code=200)
