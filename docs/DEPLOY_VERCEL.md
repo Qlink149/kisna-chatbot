@@ -23,7 +23,11 @@ Set **Root Directory** to `kisna-chatbot` if deploying from Git in the Vercel UI
 | `VERCEL` | Auto-set by Vercel (`1`); enables sync webhook + stderr logging |
 | `ENV_MODE` | `dev` |
 | `MONGO_URI` | Atlas connection string |
-| `OPENAI_API_KEY` | |
+| `GROQ_API_KEY` or `GROQ_API_KEYS` | Chat LLM (Groq-first). Use comma-separated `GROQ_API_KEYS` for rate-limit rotation |
+| `OPENAI_API_KEY` | Required for **KB embeddings** (Chroma), not for chat when using Groq |
+| `AI_PROVIDER` | `groq` (default) |
+| `AI_PROVIDER_GENERAL` | `groq` |
+| `AI_FALLBACK_ENABLED` | `false` recommended on Groq-only |
 | `GUPSHUP_*` | App ID, token, app name, API key, phone/source |
 | `GUPSHUP_SOURCE` | E.164 without `+` (or `GUPSHUP_PHONE_NUMBER`) |
 | `MONGO_DB_NAME` | e.g. `Kisna_Chatbot` |

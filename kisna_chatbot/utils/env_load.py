@@ -18,7 +18,6 @@ def _log_warning(message: str) -> None:
     logger.warning(message, extra={"event": "env_validation"})
 
 REQUIRED_IN_PROD = (
-    "OPENAI_API_KEY",
     "MONGO_URI",
     "GUPSHUP_APP_ID",
     "GUPSHUP_TOKEN",
@@ -45,6 +44,44 @@ GUPSHUP_REQUIRED_KEYS = (
 def _getenv(key: str, default: str = "") -> str:
     """Read an environment variable, defaulting to empty string if unset."""
     return os.getenv(key, default)
+
+
+def is_kb_enabled() -> bool:
+    """True when Knowledge Base (Chroma embeddings) is expected to be used."""
+    if _getenv("KB_ENABLED", "").strip().lower() in ("1", "true", "yes", "on"):
+        return True
+    return bool(_getenv("CHROMA_API_KEY", "").strip())
+
+
+def get_missing_ai_env_keys() -> list[str]:
+    """
+    Return env var names missing for configured AI providers and KB.
+
+    OPENAI_API_KEY is required only when OpenAI is used for chat or KB is enabled.
+    GROQ_API_KEY / GROQ_API_KEYS required when Groq is used for chat.
+    """
+    from kisna_chatbot.ai.config import get_ai_settings, refresh_ai_settings
+
+    refresh_ai_settings()
+    settings = get_ai_settings()
+
+    providers_needed: set[str] = {settings["default_provider"].value}
+    providers_needed.add(settings["classifier_provider"].value)
+    providers_needed.add(settings["general_provider"].value)
+    if settings["fallback_enabled"]:
+        providers_needed.add(settings["fallback_provider"].value)
+
+    missing: list[str] = []
+    if "openai" in providers_needed and not settings["openai_api_key"]:
+        missing.append("OPENAI_API_KEY")
+    if "groq" in providers_needed and not settings["groq_api_keys"]:
+        missing.append("GROQ_API_KEY or GROQ_API_KEYS")
+    if is_kb_enabled() and not settings["openai_api_key"]:
+        label = "OPENAI_API_KEY (required for KB embeddings, not chat)"
+        if label not in missing and "OPENAI_API_KEY" not in missing:
+            missing.append(label)
+
+    return missing
 
 
 openai_api_key = _getenv("OPENAI_API_KEY")
@@ -79,9 +116,9 @@ kisna_vtiger_token = _getenv("KISNA_VTIGER_TOKEN")
 nkl_vtiger_base = _getenv("NKL_VTIGER_BASE")
 nkl_vtiger_token = _getenv("NKL_VTIGER_TOKEN")
 
-ai_provider = _getenv("AI_PROVIDER", "openai")
+ai_provider = _getenv("AI_PROVIDER", "groq")
 ai_provider_classifier = _getenv("AI_PROVIDER_CLASSIFIER")
-ai_provider_general = _getenv("AI_PROVIDER_GENERAL", "openai")
+ai_provider_general = _getenv("AI_PROVIDER_GENERAL", "groq")
 groq_api_key = _getenv("GROQ_API_KEY")
 
 is_production = _getenv("ENV_MODE", "dev").lower() == "prod"
@@ -98,6 +135,8 @@ def validate_env() -> None:
     Logs warnings in non-production when keys are missing.
     """
     missing = [key for key in REQUIRED_IN_PROD if not _getenv(key)]
+    missing.extend(get_missing_ai_env_keys())
+
     if not missing:
         return
     message = f"Missing required environment variables: {', '.join(missing)}"
@@ -143,7 +182,7 @@ def validate_gupshup_config() -> None:
     if not _getenv("GUPSHUP_WEBHOOK_SECRET"):
         if is_production:
             raise RuntimeError("GUPSHUP_WEBHOOK_SECRET is required in production")
-        logger.warning("GUPSHUP_WEBHOOK_SECRET not set, skipping webhook verification")
+        _log_warning("GUPSHUP_WEBHOOK_SECRET not set, skipping webhook verification")
 
 
 def validate_ai_config() -> None:
@@ -157,28 +196,16 @@ def validate_ai_config() -> None:
         return
     _ai_startup_validated = True
 
-    from kisna_chatbot.ai.config import get_ai_settings, refresh_ai_settings
+    from kisna_chatbot.ai.config import refresh_ai_settings
 
     refresh_ai_settings()
-    settings = get_ai_settings()
-
-    providers_needed: set[str] = {settings["default_provider"].value}
-    providers_needed.add(settings["classifier_provider"].value)
-    providers_needed.add(settings["general_provider"].value)
-    if settings["fallback_enabled"]:
-        providers_needed.add(settings["fallback_provider"].value)
-
-    missing: list[str] = []
-    if "openai" in providers_needed and not settings["openai_api_key"]:
-        missing.append("OPENAI_API_KEY")
-    if "groq" in providers_needed and not settings["groq_api_key"]:
-        missing.append("GROQ_API_KEY")
-
-    if missing:
-        message = f"Missing AI configuration: {', '.join(missing)}"
-        if is_production:
-            raise RuntimeError(message)
-        _log_warning(message)
+    missing = get_missing_ai_env_keys()
+    if not missing:
+        return
+    message = f"Missing AI configuration: {', '.join(missing)}"
+    if is_production:
+        raise RuntimeError(message)
+    _log_warning(message)
 
 
 validate_env()

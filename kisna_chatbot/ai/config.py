@@ -3,6 +3,7 @@
 import os
 from functools import lru_cache
 
+from kisna_chatbot.ai.groq_keys import parse_groq_api_keys
 from kisna_chatbot.ai.types import AgentName, ProviderName
 
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
@@ -27,9 +28,10 @@ def _parse_provider(value: str) -> ProviderName:
 @lru_cache(maxsize=1)
 def get_ai_settings() -> dict:
     """Load AI settings from environment (cached until process restart)."""
-    default_provider = _parse_provider(_env("AI_PROVIDER", "openai"))
+    default_provider = _parse_provider(_env("AI_PROVIDER", "groq"))
     classifier_override = _env("AI_PROVIDER_CLASSIFIER")
-    general_override = _env("AI_PROVIDER_GENERAL", "openai")
+    general_override = _env("AI_PROVIDER_GENERAL", "groq")
+    groq_api_keys = parse_groq_api_keys()
 
     return {
         "default_provider": default_provider,
@@ -37,16 +39,19 @@ def get_ai_settings() -> dict:
         if classifier_override
         else default_provider,
         "general_provider": _parse_provider(general_override),
-        "fallback_enabled": _env("AI_FALLBACK_ENABLED", "true").lower()
+        "fallback_enabled": _env("AI_FALLBACK_ENABLED", "false").lower()
         in ("1", "true", "yes"),
         "fallback_provider": _parse_provider(
-            _env("AI_FALLBACK_PROVIDER", "openai")
+            _env("AI_FALLBACK_PROVIDER", "groq")
         ),
         "openai_api_key": _env("OPENAI_API_KEY"),
         "openai_chat_model": _env("OPENAI_CHAT_MODEL", DEFAULT_OPENAI_MODEL),
-        "groq_api_key": _env("GROQ_API_KEY"),
+        "groq_api_keys": groq_api_keys,
+        "groq_api_key": groq_api_keys[0] if groq_api_keys else "",
         "groq_chat_model": _env("GROQ_CHAT_MODEL", DEFAULT_GROQ_MODEL),
         "groq_base_url": _env("GROQ_BASE_URL", DEFAULT_GROQ_BASE_URL),
+        "groq_rate_limit_retry_keys": _env("GROQ_RATE_LIMIT_RETRY_KEYS", "true").lower()
+        in ("1", "true", "yes"),
         "max_tokens_classifier": int(
             _env("AI_MAX_TOKENS_CLASSIFIER", str(MAX_OUTPUT_TOKENS_CLASSIFIER))
         ),
