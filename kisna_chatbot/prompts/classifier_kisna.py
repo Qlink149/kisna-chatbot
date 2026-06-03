@@ -110,4 +110,7 @@ Fallback for unclear or spam: {"intent": "menu_help", "confidence": 0.3}
 23. "mujhe jhumka dikhao" → {"intent": "product_search", "confidence": 0.93}
 24. "Sure" | active: product_search → {"intent": "product_search", "confidence": 0.7}
 25. "asdfghjkl" → {"intent": "menu_help", "confidence": 0.3}
+26. "EMI available hai?" → {"intent": "general", "confidence": 0.9}
+27. "kya loan pe mil sakta hai?" → {"intent": "general", "confidence": 0.88}
+28. "easy installment available?" → {"intent": "general", "confidence": 0.88}
 """

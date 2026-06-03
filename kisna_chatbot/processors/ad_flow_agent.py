@@ -39,19 +39,29 @@ def _store_name(store: dict) -> str:
     return (store.get("name") or store.get("title") or "KISNA Store").strip()
 
 
-def _store_address(store: dict) -> str:
+def _store_address_line(store: dict) -> str:
     addr = store.get("address")
     if isinstance(addr, str) and addr.strip():
         return addr.strip()
+    if not isinstance(addr, dict):
+        return (store.get("fullAddress") or store.get("location") or "Address on request").strip()
+
+    line1 = addr.get("line1") or addr.get("street") or ""
+    city_raw = addr.get("city")
+    if isinstance(city_raw, dict):
+        city = city_raw.get("name", "")
+    else:
+        city = city_raw or ""
+    pin = addr.get("pincode") or addr.get("zip") or ""
+    location = ", ".join(p for p in (line1, f"{city} {pin}".strip()) if p)
+    return location or (store.get("fullAddress") or store.get("location") or "Address on request").strip()
+
+
+def _store_map_link(store: dict) -> str:
+    addr = store.get("address")
     if isinstance(addr, dict):
-        parts = [
-            addr.get("line1") or addr.get("street"),
-            addr.get("city"),
-            addr.get("state"),
-            addr.get("pincode") or addr.get("zip"),
-        ]
-        return ", ".join(p for p in parts if p)
-    return (store.get("fullAddress") or store.get("location") or "Address on request").strip()
+        return str(addr.get("mapLink") or "").strip()
+    return ""
 
 
 def _format_stores_message(stores: list, total_count: int) -> str:
@@ -60,10 +70,13 @@ def _format_stores_message(stores: list, total_count: int) -> str:
         if not isinstance(store, dict):
             continue
         lines.append(f"*{_store_name(store)}*")
-        lines.append(f"📍 {_store_address(store)}")
+        lines.append(f"📍 {_store_address_line(store)}")
         phone = _store_phone(store)
         if phone:
             lines.append(f"📞 {phone}")
+        maplink = _store_map_link(store)
+        if maplink:
+            lines.append(f"🗺 {maplink}")
         lines.append("")
 
     if total_count > _MAX_STORES_SHOWN:
@@ -91,7 +104,7 @@ def _filter_cached_stores(
         for s in stores:
             if not isinstance(s, dict):
                 continue
-            blob = f"{_store_address(s)} {_store_name(s)}".lower()
+            blob = f"{_store_address_line(s)} {_store_name(s)}".lower()
             if pincode in blob or pincode in str(s.get("pincode", "")):
                 filtered.append(s)
         stores = filtered or stores
@@ -103,7 +116,7 @@ def _filter_cached_stores(
             if isinstance(s, dict)
             and (
                 city_l in _store_name(s).lower()
-                or city_l in _store_address(s).lower()
+                or city_l in _store_address_line(s).lower()
             )
         ]
         stores = filtered

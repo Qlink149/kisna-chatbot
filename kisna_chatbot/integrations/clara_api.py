@@ -191,11 +191,7 @@ async def get_promotions() -> list:
         data = body.get("data")
         if isinstance(data, list):
             return data
-        if isinstance(data, dict):
-            nested = data.get("data")
-            if isinstance(nested, list):
-                return nested
-    return _extract_list_payload(body)
+    return []
 
 
 async def get_stores(

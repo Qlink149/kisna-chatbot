@@ -1,11 +1,25 @@
 import json
 
-from kisna_chatbot.config.clients import get_client_config
-from kisna_chatbot.integrations.client_api_adapter import ClientAPIAdapter, ClientAPIError
+from kisna_chatbot.integrations.clara_api import ClaraAPIError, search_products
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.processors.product_search_agent_v3 import (
+    _build_search_success_response,
+    build_product_media_message,
+)
+from kisna_chatbot.processors.entity_extractor import (
+    entities_to_api_params,
+    extract_entities,
+)
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.product_formatter import format_product_image_caption
 
-_MAX_MESSAGE_CHARS = 600
+_RETRY_SEARCH_TEXT = "Let me search for that again."
+_SEARCH_ERROR_TEXT = (
+    "Sorry, we couldn't search the catalogue right now. Please try again."
+)
+_CACHE_MISS_TEXT = (
+    "Sorry, we couldn't find that product. Try searching again from the menu."
+)
 
 
 def _parse_details_button_id(raw_id: str) -> str | None:
@@ -23,14 +37,15 @@ def _parse_details_button_id(raw_id: str) -> str | None:
     return None
 
 
-def _parse_product_list_selection(messages: dict) -> str | None:
-    """Extract product_id when user picks a row from product search results list."""
+def _parse_product_list_selection(messages: dict) -> tuple[str | None, str]:
+    """Extract product_id and list row title from product search results list."""
     interactive = messages.get("interactive", {})
     if interactive.get("type") != "list_reply":
-        return None
+        return None, ""
 
     list_reply = interactive.get("list_reply", {})
     raw_id = list_reply.get("id", "")
+    title = (list_reply.get("title") or "").strip()
     list_msgid = raw_id
     product_id = ""
 
@@ -43,101 +58,70 @@ def _parse_product_list_selection(messages: dict) -> str | None:
         pass
 
     if not isinstance(list_msgid, str) or not list_msgid.startswith("product_select$"):
-        return None
+        return None, title
     if product_id:
-        return str(product_id)
+        return str(product_id), title
+    return None, title
+
+
+def _find_cached_product(user_profile: dict, product_id: str) -> dict | None:
+    for product in user_profile.get("last_search_products") or []:
+        if not isinstance(product, dict):
+            continue
+        pid = product.get("_id") or product.get("id")
+        if pid and str(pid) == str(product_id):
+            return product
     return None
 
 
-def _format_price(price) -> str:
-    if price is None or price == "":
-        return "Price on request"
-    return f"₹{price}"
+def _build_cached_product_response(product: dict) -> list:
+    media = build_product_media_message(product)
+    if media:
+        return [media]
+    caption = format_product_image_caption(product)
+    return [{"type": "text", "text": caption}]
 
 
-def _format_availability(availability) -> str:
-    if availability is True:
-        return "In stock"
-    if availability is False:
-        return "Out of stock"
-    if availability:
-        return str(availability)
-    return "Check with us"
+async def _retry_product_search(
+    data: dict,
+    query: str,
+) -> list | None:
+    """Run a fresh catalog search and return bot_response items."""
+    if not query.strip():
+        return None
 
+    try:
+        entities = extract_entities(query)
+        api_params = entities_to_api_params(entities)
+        if not api_params.get("title") and query.strip():
+            api_params = {**api_params, "title": query.strip()}
 
-def _format_specs(specs: dict, limit: int = 5) -> str:
-    if not specs:
-        return ""
-    lines = []
-    for key, value in list(specs.items())[:limit]:
-        lines.append(f"• {key}: {value}")
-    if not lines:
-        return ""
-    return "*Key specs:*\n" + "\n".join(lines)
+        result = await search_products(**api_params, page_no=1, page_size=5)
+    except ClaraAPIError:
+        return [{"type": "text", "text": _SEARCH_ERROR_TEXT}]
+    except Exception:
+        logger.exception("Product details retry search failed")
+        return [{"type": "text", "text": _SEARCH_ERROR_TEXT}]
 
+    products = result.get("products") or []
+    total_count = result.get("total_count", 0)
+    page = result.get("page", 1)
 
-def _build_details_text(product: dict) -> str:
-    """Build WhatsApp markdown product details body (max 600 characters)."""
-    title = product.get("title") or "Product"
-    description = (product.get("description") or "").strip()
-    price_line = _format_price(product.get("price"))
-    rating = product.get("rating")
-    reviews_count = product.get("reviews_count")
-    availability_line = _format_availability(product.get("availability"))
+    user_profile = data.get("user_profile", {})
+    user_profile["last_search_products"] = products[:5]
+    user_profile["last_search_filters"] = entities
+    user_profile["last_search_page"] = page
+    user_profile["last_search_total"] = total_count
 
-    rating_line = "Not rated yet"
-    if rating is not None:
-        if reviews_count:
-            rating_line = f"{rating} ({reviews_count} reviews)"
-        else:
-            rating_line = str(rating)
+    if not products:
+        return [{"type": "text", "text": "No matching pieces found. Try another search."}]
 
-    parts = [
-        f"*{title}*",
-        "",
-        description,
-        "",
-        f"💰 *Price:* {price_line}",
-        f"⭐ *Rating:* {rating_line}",
-        f"📦 *Availability:* {availability_line}",
-    ]
-
-    specs_block = _format_specs(product.get("specs") or {})
-    if specs_block:
-        parts.extend(["", specs_block])
-
-    parts.extend(["", "_Tap below to continue._"])
-
-    text = "\n".join(parts).strip()
-    if len(text) > _MAX_MESSAGE_CHARS:
-        text = text[: _MAX_MESSAGE_CHARS - 3].rstrip() + "..."
-    return text
-
-
-def _build_bot_response(product: dict, product_id: str) -> list:
-    """Build bot_response list with details text and CTA quick replies."""
-    details_text = _build_details_text(product)
-    return [
-        {"type": "text", "text": details_text},
-        {
-            "type": "quickreply",
-            "text": "Ready to order this piece?",
-            "caption": "",
-            "options": [{"title": "Pre-Order Now"}],
-            "msgid": f"preorder${product_id}",
-        },
-        {
-            "type": "quickreply",
-            "text": "Want to see more options?",
-            "caption": "",
-            "options": [{"title": "Back to Search"}],
-            "msgid": "search$back",
-        },
-    ]
+    search_items = _build_search_success_response(products, total_count, page, entities)
+    return [{"type": "text", "text": _RETRY_SEARCH_TEXT}, *search_items]
 
 
 class ProductDetailsAgent(Processor):
-    """Handles product detail view when user taps a View Details button."""
+    """Handles product detail view when user taps a product from search results."""
 
     def should_run(self, data: dict) -> bool:
         """Run for details$ buttons or product search list selections."""
@@ -145,7 +129,8 @@ class ProductDetailsAgent(Processor):
             return False
 
         messages = data.get("messages", {})
-        if _parse_product_list_selection(messages):
+        product_id, _ = _parse_product_list_selection(messages)
+        if product_id:
             return True
 
         interactive = messages.get("interactive", {})
@@ -157,12 +142,9 @@ class ProductDetailsAgent(Processor):
         return _parse_details_button_id(raw_id) is not None
 
     async def process(self, data: dict) -> dict:
-        """Fetch product details and return formatted WhatsApp response."""
+        """Serve product details from cached search results (no GET by product ID)."""
         phone_number = data["phone_number"]
         messages = data.get("messages", {})
-        client_config = data.get("client_config") or get_client_config(
-            data.get("client_id", "kisna")
-        )
 
         if not self.should_run(data):
             logger.info(
@@ -175,12 +157,16 @@ class ProductDetailsAgent(Processor):
             return data
 
         try:
-            product_id = _parse_product_list_selection(messages)
+            list_product_id, list_title = _parse_product_list_selection(messages)
+            product_id = list_product_id
+            is_list_selection = bool(list_product_id)
+
             if not product_id:
                 interactive = messages.get("interactive", {})
                 if interactive.get("type") == "button_reply":
                     raw_id = interactive["button_reply"]["id"]
                     product_id = _parse_details_button_id(raw_id)
+
             if not product_id:
                 logger.warning(
                     "Could not parse product id from interactive message",
@@ -188,51 +174,32 @@ class ProductDetailsAgent(Processor):
                 )
                 return data
 
-            logger.info(
-                "Product details requested",
-                extra={
-                    "phone_number": phone_number,
-                    "product_id": product_id,
-                    "client_id": client_config.client_id,
-                },
-            )
+            user_profile = data.get("user_profile", {})
+            cached = _find_cached_product(user_profile, product_id)
 
-            adapter = ClientAPIAdapter(client_config)
-            try:
-                product = await adapter.get_product_details(product_id)
-                data["bot_response"] = _build_bot_response(product, product_id)
+            if cached:
+                data["bot_response"] = _build_cached_product_response(cached)
                 logger.info(
-                    "Product details loaded",
+                    "Product details from cache",
                     extra={
                         "phone_number": phone_number,
                         "product_id": product_id,
                     },
                 )
-            finally:
-                await adapter.aclose()
+                return data
 
+            if is_list_selection:
+                retry = await _retry_product_search(data, list_title)
+                if retry:
+                    data["bot_response"] = retry
+                    return data
+
+            data["bot_response"] = [{"type": "text", "text": _CACHE_MISS_TEXT}]
             return data
-        except ClientAPIError as e:
-            logger.exception(
-                "Product details API error",
-                extra={
-                    "phone_number": phone_number,
-                    "error": str(e),
-                },
-            )
-            data["bot_response"] = [
-                {
-                    "type": "text",
-                    "text": (
-                        "Sorry, we couldn't load product details right now. "
-                        "Please try again."
-                    ),
-                }
-            ]
-            return data
+
         except Exception as e:
             logger.exception(
-                "Exception occured while loading product details.",
+                "Exception occurred while loading product details.",
                 extra={"exception": e, "phone_number": phone_number},
             )
             data["bot_response"] = [

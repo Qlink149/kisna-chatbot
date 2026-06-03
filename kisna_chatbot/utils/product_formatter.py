@@ -34,6 +34,8 @@ def _extract_karat(variant_title: str) -> str:
 
 def _material_label(product: dict) -> str:
     material = product.get("materialType") or product.get("material") or ""
+    if isinstance(material, list):
+        return " + ".join(m.title() for m in material if m) or "Jewellery"
     if isinstance(material, dict):
         material = material.get("name") or material.get("title") or ""
     return str(material).strip() or "Jewellery"

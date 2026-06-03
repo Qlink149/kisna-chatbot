@@ -12,18 +12,9 @@ _ERROR_TEXT = (
 )
 
 _FOOTER_LINES = (
-    "Making charges are the craftsmanship cost added to gold rate.\n"
-    "These offers apply to the making charges portion of your order."
+    "_Making charges are the craftsmanship cost added to the gold rate._\n"
+    "_These offers apply to the making charges portion of your order._"
 )
-
-
-def _promo_text_blob(promo: dict) -> str:
-    parts = []
-    for key in ("materialType", "productType", "type", "category", "name", "title"):
-        val = promo.get(key)
-        if val:
-            parts.append(str(val).lower())
-    return " ".join(parts)
 
 
 def _is_labour_promo(promo: dict) -> bool:
@@ -33,83 +24,80 @@ def _is_labour_promo(promo: dict) -> bool:
     return disc_on == "Labour"
 
 
-def _classify_material(promo: dict) -> set[str]:
-    blob = _promo_text_blob(promo)
-    buckets: set[str] = set()
-    if "gold" in blob or "sona" in blob:
-        buckets.add("gold")
-    if "diamond" in blob or "heera" in blob or "solitaire" in blob:
-        buckets.add("diamond")
-    if not buckets:
-        buckets.update({"gold", "diamond"})
-    return buckets
-
-
-def _tier_sort_key(promo: dict) -> float:
+def _format_amount_range(promo: dict) -> str:
     try:
-        return float(promo.get("toAmt", 0))
+        from_amt = int(float(promo.get("fromAmt", 0)))
     except (TypeError, ValueError):
-        return 0.0
-
-
-def _format_tier_line(promo: dict) -> str | None:
-    disc = promo.get("disc")
-    if disc is None:
-        return None
-    try:
-        disc_val = float(disc)
-        disc_str = str(int(disc_val)) if disc_val == int(disc_val) else str(disc_val)
-    except (TypeError, ValueError):
-        return None
-
+        from_amt = 0
     try:
         to_amt = int(float(promo.get("toAmt", 0)))
     except (TypeError, ValueError):
         to_amt = 0
 
-    return f"• {disc_str}% off making charges — orders below ₹{to_amt:,}"
+    if from_amt == 0:
+        return f"up to ₹{to_amt:,}"
+    if to_amt >= 999999999:
+        return f"₹{from_amt:,} and above"
+    return f"₹{from_amt:,} – ₹{to_amt:,}"
 
 
-def _unique_sorted_tiers(promos: list[dict]) -> list[str]:
-    seen: set[str] = set()
-    lines: list[str] = []
-    for promo in sorted(promos, key=_tier_sort_key):
-        line = _format_tier_line(promo)
-        if line and line not in seen:
-            seen.add(line)
-            lines.append(line)
-    return lines
+def _format_promo_line(promo: dict) -> str | None:
+    label = promo.get("discountLable") or promo.get("discountLabel")
+    if not label:
+        disc = promo.get("discount")
+        disc_on = promo.get("discOn") or "Making Charges"
+        if disc is None:
+            return None
+        try:
+            disc_val = int(float(disc))
+        except (TypeError, ValueError):
+            return None
+        label = f"{disc_val}% off on {disc_on}"
+    return f"• {label} — {_format_amount_range(promo)}"
+
+
+def _sorted_category_promos(promos: list[dict], category: str) -> list[dict]:
+    return sorted(
+        [
+            p
+            for p in promos
+            if isinstance(p, dict)
+            and p.get("category", "").lower() == category
+        ],
+        key=lambda p: p.get("fromAmt", 0),
+    )
 
 
 def _build_offers_text(promotions: list) -> str:
-    gold_promos: list[dict] = []
-    diamond_promos: list[dict] = []
+    labour_promos = [
+        p for p in promotions if isinstance(p, dict) and _is_labour_promo(p)
+    ]
 
-    for promo in promotions:
-        if not isinstance(promo, dict) or not _is_labour_promo(promo):
-            continue
-        buckets = _classify_material(promo)
-        if "gold" in buckets:
-            gold_promos.append(promo)
-        if "diamond" in buckets:
-            diamond_promos.append(promo)
+    diamond_promos = _sorted_category_promos(labour_promos, "diamond")
+    gold_promos = _sorted_category_promos(labour_promos, "gold")
 
     parts = ["*Current KISNA Offers* 🎁", ""]
 
-    gold_lines = _unique_sorted_tiers(gold_promos)
-    parts.append("*Gold Jewellery*")
-    if gold_lines:
-        parts.extend(gold_lines)
-    else:
-        parts.append("• No active gold offers at the moment")
-    parts.append("")
-
-    diamond_lines = _unique_sorted_tiers(diamond_promos)
     parts.append("*Diamond Jewellery*")
+    diamond_lines = [
+        line
+        for p in diamond_promos
+        if (line := _format_promo_line(p)) is not None
+    ]
     if diamond_lines:
         parts.extend(diamond_lines)
     else:
         parts.append("• No active diamond offers at the moment")
+    parts.append("")
+
+    parts.append("*Gold Jewellery*")
+    gold_lines = [
+        line for p in gold_promos if (line := _format_promo_line(p)) is not None
+    ]
+    if gold_lines:
+        parts.extend(gold_lines)
+    else:
+        parts.append("• No active gold offers at the moment")
     parts.append("")
     parts.append(_FOOTER_LINES)
 
@@ -196,6 +184,13 @@ class OffersAgent(Processor):
                     "No active promotions returned",
                     extra={"phone_number": phone_number, "client_id": client_id},
                 )
+                return data
+
+            labour_promos = [
+                p for p in promotions if isinstance(p, dict) and _is_labour_promo(p)
+            ]
+            if not labour_promos:
+                data["bot_response"] = _build_empty_response()
                 return data
 
             offers_text = _build_offers_text(promotions)

@@ -30,18 +30,23 @@ from kisna_chatbot.models.enums import FLowId, FlowId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.pipelines.inference_pipeline import GeneralPipeline
 from kisna_chatbot.processors.complaint_agent import (
-    COMPLAINT_FLOW_IDS,
+    _complaint_flow_ids,
     _parse_complaint_flow,
 )
-from kisna_chatbot.processors.product_details_agent import _parse_product_list_selection
+from kisna_chatbot.processors.product_details_agent import (
+    ProductDetailsAgent,
+    _parse_product_list_selection,
+)
+from kisna_chatbot.prompts.general_agent_kisna import build_general_agent_prompt
 from kisna_chatbot.processors.product_search_agent_v3 import ProductSearchAgentV3
 from kisna_chatbot.utils.product_formatter import format_product_list_message
 
 
 class ComplaintFlowTokenTests(unittest.TestCase):
     def test_damage_complaint_token_in_allowed_set(self):
-        self.assertIn(FLowId.DAMAGE_COMPLAINT.value, COMPLAINT_FLOW_IDS)
-        self.assertIn(FlowId.COMPLAINT_FLOW.value, COMPLAINT_FLOW_IDS)
+        flow_ids = _complaint_flow_ids()
+        self.assertIn(FLowId.DAMAGE_COMPLAINT.value, flow_ids)
+        self.assertIn(FlowId.COMPLAINT_FLOW.value, flow_ids)
 
     def test_parse_complaint_flow_accepts_damage_complaint_token(self):
         messages = {
@@ -93,6 +98,21 @@ class ProductSearchTests(unittest.TestCase):
         self.assertEqual(len(payload["items"][0]["options"]), 2)
         self.assertEqual(payload["items"][0]["options"][0]["postbackText"], "p1")
 
+    def test_format_product_list_material_type_list(self):
+        products = [
+            {
+                "_id": "p1",
+                "title": "Diamond Ring",
+                "price": {"variantPrice": 25311},
+                "materialType": ["diamond"],
+                "shipping": {"edd": 7},
+            }
+        ]
+        payload = format_product_list_message(products, 1, 1)
+        desc = payload["items"][0]["options"][0]["description"]
+        self.assertIn("Diamond", desc)
+        self.assertNotIn("['diamond']", desc)
+
     def test_parse_product_list_selection(self):
         list_id = json.dumps(
             {"msgid": "product_select$results", "postbackText": "prod-42"}
@@ -103,7 +123,46 @@ class ProductSearchTests(unittest.TestCase):
                 "list_reply": {"id": list_id, "title": "Sofa"},
             }
         }
-        self.assertEqual(_parse_product_list_selection(messages), "prod-42")
+        product_id, title = _parse_product_list_selection(messages)
+        self.assertEqual(product_id, "prod-42")
+        self.assertEqual(title, "Sofa")
+
+    def test_build_general_agent_prompt_returns_string(self):
+        prompt = build_general_agent_prompt()
+        self.assertIn("KISNA", prompt)
+
+    def test_product_details_from_cache(self):
+        async def _run():
+            agent = ProductDetailsAgent()
+            list_id = json.dumps(
+                {"msgid": "product_select$results", "postbackText": "prod-42"}
+            )
+            cached_product = {
+                "_id": "prod-42",
+                "title": "Gold Ring",
+                "price": {"variantPrice": 45000},
+                "materialType": ["gold"],
+                "shipping": {"edd": 5},
+                "mediaUrl": [{"isDefault": True, "url": "https://img.example/r.jpg"}],
+            }
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "interactive": {
+                        "type": "list_reply",
+                        "list_reply": {"id": list_id, "title": "Gold Ring"},
+                    }
+                },
+                "user_profile": {"last_search_products": [cached_product]},
+            }
+            result = await agent.process(data)
+            self.assertIn("bot_response", result)
+            self.assertEqual(result["bot_response"][0]["type"], "media")
+            self.assertEqual(result["bot_response"][0]["media_type"], "image")
+
+        import asyncio
+
+        asyncio.run(_run())
 
     def test_search_agent_calls_clara_api(self):
         async def _run():
@@ -139,6 +198,10 @@ class ProductSearchTests(unittest.TestCase):
             self.assertEqual(result["user_profile"]["last_search_page"], 1)
             self.assertEqual(result["user_profile"]["last_search_total"], 1)
             self.assertIn("last_search_filters", result["user_profile"])
+            self.assertEqual(
+                result["user_profile"]["last_search_products"],
+                [mock_product],
+            )
 
         import asyncio
 

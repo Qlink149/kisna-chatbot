@@ -81,3 +81,55 @@ Don't invent return windows, warranty periods, or delivery charges — use web s
 Don't discuss competitors.
 Don't answer off-topic questions.
 """
+
+
+def build_general_agent_prompt() -> str:
+    return general_agent_prompt
+
+
+web_search_tool = {
+    "type": "web_search",
+    "user_location": {"type": "approximate"},
+    "search_context_size": "medium",
+    "filters": {"allowed_domains": [_KISNA_DOMAIN]},
+}
+
+request_live_agent_tool = {
+    "type": "function",
+    "name": "request_live_agent",
+    "description": (
+        "Flag this conversation for a human agent. Call ONLY when the user explicitly "
+        "requests a human — e.g. 'talk to a person', 'connect me to an agent', "
+        "'I want a human'. Do NOT call this just because you cannot find an answer — "
+        "use web search instead."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": False,
+    },
+}
+
+output_schema = {
+    "format": {
+        "type": "json_schema",
+        "name": "whatsapp_message",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": (
+                        "A single WhatsApp-style message. Use WhatsApp markdown: *bold*, "
+                        "_italic_, ~strikethrough~, - for bullets, 1. for numbered lists, "
+                        "\\n for new lines. Keep it concise and scannable."
+                    ),
+                }
+            },
+            "required": ["message"],
+            "additionalProperties": False,
+        },
+    }
+}

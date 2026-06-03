@@ -170,6 +170,19 @@ def _build_search_success_response(
     return bot_response
 
 
+def build_product_media_message(product: dict) -> dict | None:
+    """Single image + caption for a product (used by search and details agents)."""
+    url = get_product_image_url(product)
+    if not url:
+        return None
+    return {
+        "type": "media",
+        "media_type": "image",
+        "url": url,
+        "caption": format_product_image_caption(product),
+    }
+
+
 class ProductSearchAgentV3(Processor):
     """Product catalog search via Clara API and WhatsApp media/list UI."""
 
@@ -310,6 +323,7 @@ class ProductSearchAgentV3(Processor):
         user_profile["last_search_filters"] = entities
         user_profile["last_search_page"] = page
         user_profile["last_search_total"] = total_count
+        user_profile["last_search_products"] = products[:5]
 
         if not products:
             data["bot_response"] = [
