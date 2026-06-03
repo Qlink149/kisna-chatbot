@@ -23,8 +23,7 @@ def _store_locator_url() -> str:
     url = (os.getenv("KISNA_STORE_LOCATOR_URL") or "").strip()
     if url:
         return url
-    domain = (os.getenv("KISNA_WEBSITE_DOMAIN") or "www.kisna.com").strip()
-    return f"https://{domain}/stores"
+    return os.getenv("KISNA_STORE_LOCATOR_URL", "https://www.kisna.com/store")
 
 
 def _store_phone(store: dict) -> str | None:

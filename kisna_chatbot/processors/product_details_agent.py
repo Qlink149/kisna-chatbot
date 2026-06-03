@@ -1,17 +1,22 @@
 import json
+import re
 
 from kisna_chatbot.integrations.clara_api import ClaraAPIError, search_products
+from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.product_search_agent_v3 import (
     _build_search_success_response,
-    build_product_media_message,
 )
 from kisna_chatbot.processors.entity_extractor import (
     entities_to_api_params,
     extract_entities,
 )
 from kisna_chatbot.utils.logger_config import logger
-from kisna_chatbot.utils.product_formatter import format_product_image_caption
+from kisna_chatbot.utils.product_formatter import (
+    build_product_url,
+    format_product_buy_caption,
+    get_product_image_url,
+)
 
 _RETRY_SEARCH_TEXT = "Let me search for that again."
 _SEARCH_ERROR_TEXT = (
@@ -19,6 +24,18 @@ _SEARCH_ERROR_TEXT = (
 )
 _CACHE_MISS_TEXT = (
     "Sorry, we couldn't find that product. Try searching again from the menu."
+)
+_BUY_CTA_TEXT = (
+    "Tap below to view full details and place your order on the KISNA website."
+)
+_SIZE_VARIANT_REPLY = (
+    "Sizes and variants are available on the product page. "
+    "Tap 'Buy on KISNA' above to select your size and place your order."
+)
+
+_SIZE_QUERY_RE = re.compile(
+    r"\b(size|sizes|variant|variants|karat|kt\b|available)\b",
+    re.I,
 )
 
 
@@ -74,12 +91,68 @@ def _find_cached_product(user_profile: dict, product_id: str) -> dict | None:
     return None
 
 
-def _build_cached_product_response(product: dict) -> list:
-    media = build_product_media_message(product)
-    if media:
-        return [media]
-    caption = format_product_image_caption(product)
-    return [{"type": "text", "text": caption}]
+def _save_last_viewed_product(user_profile: dict, product: dict) -> None:
+    user_profile["last_viewed_product"] = {
+        "_id": product.get("_id") or product.get("id"),
+        "title": product.get("title"),
+        "category": product.get("category"),
+        "materialType": product.get("materialType"),
+    }
+
+
+def _build_buy_now_response(product: dict) -> list:
+    """Image + Buy CTA + action quick replies for a cached product."""
+    responses: list = []
+    image_url = get_product_image_url(product)
+    if image_url:
+        responses.append(
+            {
+                "type": "media",
+                "media_type": "image",
+                "url": image_url,
+                "caption": format_product_buy_caption(product),
+            }
+        )
+    else:
+        responses.append(
+            {"type": "text", "text": format_product_buy_caption(product)}
+        )
+
+    responses.append(
+        {
+            "type": "cta_url",
+            "text": _BUY_CTA_TEXT,
+            "display_text": "Buy on KISNA",
+            "url": build_product_url(product),
+        }
+    )
+
+    responses.extend(
+        [
+            {
+                "type": "quickreply",
+                "text": "What would you like to do next?",
+                "caption": "",
+                "options": [{"title": "🔍 See Similar"}],
+                "msgid": "product$similar",
+            },
+            {
+                "type": "quickreply",
+                "text": "Need a showroom?",
+                "caption": "",
+                "options": [{"title": "🏪 Find a Store"}],
+                "msgid": "product$store",
+            },
+            {
+                "type": "quickreply",
+                "text": "Back to your search results:",
+                "caption": "",
+                "options": [{"title": "◀ Browse More"}],
+                "msgid": "product$browse",
+            },
+        ]
+    )
+    return responses
 
 
 async def _retry_product_search(
@@ -124,7 +197,7 @@ class ProductDetailsAgent(Processor):
     """Handles product detail view when user taps a product from search results."""
 
     def should_run(self, data: dict) -> bool:
-        """Run for details$ buttons or product search list selections."""
+        """Run for details$ buttons, list selections, or size questions after view."""
         if "bot_response" in data:
             return False
 
@@ -134,17 +207,24 @@ class ProductDetailsAgent(Processor):
             return True
 
         interactive = messages.get("interactive", {})
-        if interactive.get("type") != "button_reply":
-            return False
+        if interactive.get("type") == "button_reply":
+            raw_id = interactive.get("button_reply", {}).get("id", "")
+            if _parse_details_button_id(raw_id):
+                return True
 
-        button_reply = interactive.get("button_reply", {})
-        raw_id = button_reply.get("id", "")
-        return _parse_details_button_id(raw_id) is not None
+        user_profile = data.get("user_profile", {})
+        if user_profile.get("last_viewed_product") and data.get("classified_category") == "product_info":
+            text = (messages.get("text", {}) or {}).get("body", "") or ""
+            if text.strip() and _SIZE_QUERY_RE.search(text):
+                return True
+
+        return False
 
     async def process(self, data: dict) -> dict:
         """Serve product details from cached search results (no GET by product ID)."""
         phone_number = data["phone_number"]
         messages = data.get("messages", {})
+        user_profile = data.get("user_profile", {})
 
         if not self.should_run(data):
             logger.info(
@@ -157,6 +237,17 @@ class ProductDetailsAgent(Processor):
             return data
 
         try:
+            text_body = (messages.get("text", {}) or {}).get("body", "") or ""
+            if (
+                user_profile.get("last_viewed_product")
+                and data.get("classified_category") == "product_info"
+                and text_body.strip()
+                and _SIZE_QUERY_RE.search(text_body)
+                and not _parse_product_list_selection(messages)[0]
+            ):
+                data["bot_response"] = [{"type": "text", "text": _SIZE_VARIANT_REPLY}]
+                return data
+
             list_product_id, list_title = _parse_product_list_selection(messages)
             product_id = list_product_id
             is_list_selection = bool(list_product_id)
@@ -174,13 +265,14 @@ class ProductDetailsAgent(Processor):
                 )
                 return data
 
-            user_profile = data.get("user_profile", {})
             cached = _find_cached_product(user_profile, product_id)
 
             if cached:
-                data["bot_response"] = _build_cached_product_response(cached)
+                _save_last_viewed_product(user_profile, cached)
+                user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                data["bot_response"] = _build_buy_now_response(cached)
                 logger.info(
-                    "Product details from cache",
+                    "Product Buy Now flow from cache",
                     extra={
                         "phone_number": phone_number,
                         "product_id": product_id,

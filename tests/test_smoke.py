@@ -143,6 +143,7 @@ class ProductSearchTests(unittest.TestCase):
                 "price": {"variantPrice": 45000},
                 "materialType": ["gold"],
                 "shipping": {"edd": 5},
+                "seos": {"slug": "products_elysia-ring"},
                 "mediaUrl": [{"isDefault": True, "url": "https://img.example/r.jpg"}],
             }
             data = {
@@ -157,8 +158,21 @@ class ProductSearchTests(unittest.TestCase):
             }
             result = await agent.process(data)
             self.assertIn("bot_response", result)
-            self.assertEqual(result["bot_response"][0]["type"], "media")
-            self.assertEqual(result["bot_response"][0]["media_type"], "image")
+            response = result["bot_response"]
+            self.assertEqual(len(response), 5)
+            self.assertEqual(response[0]["type"], "media")
+            self.assertEqual(response[0]["media_type"], "image")
+            self.assertNotIn("products_elysia", response[0]["caption"])
+            self.assertEqual(response[1]["type"], "cta_url")
+            self.assertEqual(response[1]["display_text"], "Buy on KISNA")
+            self.assertEqual(
+                response[1]["url"],
+                "https://www.kisna.com/products/elysia-ring",
+            )
+            self.assertEqual(response[2]["msgid"], "product$similar")
+            self.assertEqual(response[3]["msgid"], "product$store")
+            self.assertEqual(response[4]["msgid"], "product$browse")
+            self.assertIn("last_viewed_product", result["user_profile"])
 
         import asyncio
 

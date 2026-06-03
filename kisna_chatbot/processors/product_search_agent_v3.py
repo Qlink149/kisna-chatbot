@@ -1,8 +1,10 @@
 import json
 import os
+import re
 
 from kisna_chatbot.integrations.clara_api import ClaraAPIError, search_products
 from kisna_chatbot.models.service_list import ServiceList as SL
+from kisna_chatbot.processors.ad_flow_agent import _ASK_PINCODE_TEXT
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import (
     build_search_context,
@@ -81,6 +83,46 @@ def _clara_configured() -> bool:
 
 
 _MATERIAL_BUTTON_MSGIDS = frozenset({"search$material$gold", "search$material$diamond"})
+_PRODUCT_BUTTON_MSGIDS = frozenset(
+    {"product$similar", "product$store", "product$browse"}
+)
+_SIZE_QUERY_RE = re.compile(
+    r"\b(size|sizes|variant|variants|karat|kt\b|available)\b",
+    re.I,
+)
+
+
+def _product_button_msgid(messages: dict) -> str | None:
+    interactive = messages.get("interactive", {})
+    if interactive.get("type") != "button_reply":
+        return None
+    btn_msgid = _parse_button_msgid(interactive.get("button_reply", {}).get("id", ""))
+    if btn_msgid in _PRODUCT_BUTTON_MSGIDS:
+        return btn_msgid
+    return None
+
+
+def _entities_from_last_viewed(last: dict) -> dict:
+    material = last.get("materialType")
+    material_type = None
+    if isinstance(material, list) and material:
+        material_type = str(material[0]).lower()
+    elif isinstance(material, str) and material:
+        material_type = material.lower()
+
+    category = last.get("category")
+    if isinstance(category, str):
+        category = category.lower().rstrip("s") if category else None
+
+    return {
+        "category": category,
+        "material_type": material_type,
+        "min_price": None,
+        "max_price": None,
+        "title": None,
+        "city": None,
+        "pincode": None,
+    }
 
 
 def _material_button_msgid(messages: dict) -> str | None:
@@ -97,6 +139,16 @@ def _material_type_from_msgid(msgid: str) -> str:
     if msgid == "search$material$diamond":
         return "diamond"
     return "gold"
+
+
+def _size_query_with_last_viewed(data: dict) -> bool:
+    user_profile = data.get("user_profile", {})
+    if not user_profile.get("last_viewed_product"):
+        return False
+    if data.get("classified_category") != "product_info":
+        return False
+    text = (data.get("messages", {}).get("text", {}) or {}).get("body", "") or ""
+    return bool(text.strip() and _SIZE_QUERY_RE.search(text))
 
 
 def _extract_search_query(messages: dict) -> str | None:
@@ -193,6 +245,8 @@ class ProductSearchAgentV3(Processor):
         messages = data.get("messages", {})
         if _material_button_msgid(messages):
             return True
+        if _product_button_msgid(messages):
+            return True
 
         user_profile = data.get("user_profile", {})
 
@@ -207,6 +261,9 @@ class ProductSearchAgentV3(Processor):
 
         parsed = _parse_list_reply(messages)
         if parsed and parsed[0].startswith("product_select$"):
+            return False
+
+        if _size_query_with_last_viewed(data):
             return False
 
         if _extract_search_query(messages) is not None:
@@ -228,6 +285,47 @@ class ProductSearchAgentV3(Processor):
             return data
 
         user_profile = data.get("user_profile", {})
+        product_msgid = _product_button_msgid(messages)
+        if product_msgid:
+            if product_msgid == "product$store":
+                user_profile["service_selected"] = SL.AD_FLOW.value
+                user_profile["awaiting_store_pincode"] = True
+                data["bot_response"] = [{"type": "text", "text": _ASK_PINCODE_TEXT}]
+                return data
+
+            if product_msgid == "product$browse":
+                products = user_profile.get("last_search_products") or []
+                if not products:
+                    data["bot_response"] = _build_prompt_response()
+                    return data
+                entities = user_profile.get("last_search_filters") or {}
+                total = user_profile.get("last_search_total", len(products))
+                page = user_profile.get("last_search_page", 1)
+                data["bot_response"] = [
+                    format_product_list_message(
+                        products,
+                        total,
+                        page,
+                        search_context=build_search_context(entities),
+                    )
+                ]
+                return data
+
+            if product_msgid == "product$similar":
+                last = user_profile.get("last_viewed_product") or {}
+                if not last:
+                    data["bot_response"] = _build_prompt_response()
+                    return data
+                if not _clara_configured():
+                    data["bot_response"] = _build_catalog_not_configured_response()
+                    return data
+                entities = _entities_from_last_viewed(last)
+                user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                label = last.get("title") or "similar pieces"
+                return await self._execute_search(
+                    data, phone_number, entities, query_label=f"similar:{label}"
+                )
+
         material_msgid = _material_button_msgid(messages)
         if material_msgid:
             if not _clara_configured():

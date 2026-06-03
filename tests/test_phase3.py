@@ -21,6 +21,18 @@ from kisna_chatbot.utils.clara_cache import (
 
 
 class OffersFormatTests(unittest.TestCase):
+    def test_promo_line_strips_space_before_percent(self):
+        line = _format_promo_line(
+            {
+                "discountLable": "20 % off on Making Charges",
+                "fromAmt": 0,
+                "toAmt": 49999,
+                "discOn": "Labour",
+            }
+        )
+        self.assertIn("20% off on Making Charges", line)
+        self.assertNotIn("20 %", line)
+
     def test_promo_line_uses_discount_lable_and_range(self):
         line = _format_promo_line(
             {
@@ -107,10 +119,10 @@ class StoreFormatTests(unittest.TestCase):
         self.assertIn("🗺 https://www.google.com/maps/example", text)
 
     def test_zero_results_includes_locator(self):
-        os.environ["KISNA_STORE_LOCATOR_URL"] = "https://kisna.com/stores"
+        os.environ["KISNA_STORE_LOCATOR_URL"] = "https://www.kisna.com/store"
         text = _zero_results_message()
         self.assertIn("No KISNA stores found", text)
-        self.assertIn("https://kisna.com/stores", text)
+        self.assertIn("https://www.kisna.com/store", text)
 
 
 class MenuKeyTests(unittest.TestCase):

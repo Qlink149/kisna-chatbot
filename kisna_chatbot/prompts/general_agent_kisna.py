@@ -3,7 +3,7 @@ import os
 _KISNA_DOMAIN = os.getenv("KISNA_WEBSITE_DOMAIN", "www.kisna.com")
 _SUPPORT_PHONE = os.getenv("KISNA_SUPPORT_PHONE", "1800-XXX-XXXX")
 _SUPPORT_EMAIL = os.getenv("KISNA_SUPPORT_EMAIL", "support@kisna.com")
-_STORE_LOCATOR_URL = os.getenv("KISNA_STORE_LOCATOR_URL", f"https://{_KISNA_DOMAIN}/stores")
+_STORE_LOCATOR_URL = os.getenv("KISNA_STORE_LOCATOR_URL", "https://www.kisna.com/store")
 _TRACK_ORDER_URL = os.getenv("KISNA_TRACK_ORDER_URL", f"https://{_KISNA_DOMAIN}/track-order")
 _CARE_URL = os.getenv("KISNA_CARE_URL", f"https://{_KISNA_DOMAIN}/care")
 

@@ -41,28 +41,21 @@ def _material_label(product: dict) -> str:
     return str(material).strip() or "Jewellery"
 
 
-def get_product_image_url(product: dict) -> Optional[str]:
-    """Return default mediaUrl or first image URL."""
-    media = product.get("mediaUrl") or product.get("media") or []
-    if not isinstance(media, list):
-        return None
-
-    for item in media:
-        if isinstance(item, dict) and item.get("isDefault"):
-            url = item.get("url") or item.get("mediaUrl")
-            if url:
-                return str(url)
-
-    for item in media:
-        if isinstance(item, dict):
-            url = item.get("url") or item.get("mediaUrl")
-            if url:
-                return str(url)
-    return None
+def build_product_url(product: dict) -> str:
+    """Build canonical KISNA product page URL from API seo slug."""
+    base = "https://www.kisna.com"
+    slug = (product.get("seos") or {}).get("slug", "")
+    if slug.startswith("products_"):
+        path = "products/" + slug[len("products_") :]
+    elif slug:
+        path = slug.replace("_", "/", 1)
+    else:
+        return base
+    return f"{base}/{path}"
 
 
-def format_product_image_caption(product: dict) -> str:
-    """WhatsApp image caption for a single product."""
+def _product_caption_lines(product: dict) -> list[str]:
+    """Shared caption body for product image messages."""
     title = product.get("title") or "Product"
     price_block = product.get("price") or {}
     variant_price = price_block.get("variantPrice", 0)
@@ -92,16 +85,40 @@ def format_product_image_caption(product: dict) -> str:
 
     discount = get_discount_for_product(product)
     if discount:
-        lines.append(f"🏷 {discount}")
+        lines.append(f"🏷 {discount.replace(' %', '%')}")
 
-    seos = product.get("seos") or {}
-    slug = seos.get("slug") or ""
-    lines.append("")
-    if slug:
-        lines.append(f"🔗 https://kisna.com/{slug}")
-    else:
-        lines.append("🔗 https://kisna.com")
+    return lines
 
+
+def format_product_buy_caption(product: dict) -> str:
+    """Image caption for product detail / Buy Now (no URL — CTA carries link)."""
+    return "\n".join(_product_caption_lines(product))
+
+
+def get_product_image_url(product: dict) -> Optional[str]:
+    """Return default mediaUrl or first image URL."""
+    media = product.get("mediaUrl") or product.get("media") or []
+    if not isinstance(media, list):
+        return None
+
+    for item in media:
+        if isinstance(item, dict) and item.get("isDefault"):
+            url = item.get("url") or item.get("mediaUrl")
+            if url:
+                return str(url)
+
+    for item in media:
+        if isinstance(item, dict):
+            url = item.get("url") or item.get("mediaUrl")
+            if url:
+                return str(url)
+    return None
+
+
+def format_product_image_caption(product: dict) -> str:
+    """WhatsApp image caption for search carousel (includes product link)."""
+    lines = _product_caption_lines(product)
+    lines.extend(["", f"🔗 {build_product_url(product)}"])
     return "\n".join(lines)
 
 

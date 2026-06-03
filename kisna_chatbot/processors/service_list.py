@@ -350,7 +350,7 @@ def _handle_rating_button(button_reply: dict, data: dict, phone_number: str) -> 
 
 def _is_delegated_button(msgid: str) -> bool:
     """True if another processor should handle this button."""
-    prefixes = ("buy$", "preorder$", "track$", "details$")
+    prefixes = ("buy$", "preorder$", "track$", "details$", "product$")
     return any(msgid.startswith(p) for p in prefixes)
 
 

@@ -42,7 +42,8 @@ def _format_amount_range(promo: dict) -> str:
 
 
 def _format_promo_line(promo: dict) -> str | None:
-    label = promo.get("discountLable") or promo.get("discountLabel")
+    label = promo.get("discountLable") or promo.get("discountLabel") or ""
+    label = label.replace(" %", "%")
     if not label:
         disc = promo.get("discount")
         disc_on = promo.get("discOn") or "Making Charges"
