@@ -438,6 +438,30 @@ class ProductSearchAgentV3(Processor):
         data["bot_response"] = _build_search_success_response(
             products, total_count, page, entities
         )
+
+        has_media = any(r.get("type") == "media" for r in data["bot_response"])
+        if products and not has_media:
+            missing = []
+            for product in products[:5]:
+                pid = product.get("_id") or product.get("id")
+                missing.append(
+                    {
+                        "product_id": pid,
+                        "has_mediaUrl": bool(product.get("mediaUrl")),
+                        "mediaUrl_len": len(product.get("mediaUrl") or [])
+                        if isinstance(product.get("mediaUrl"), list)
+                        else 0,
+                    }
+                )
+            logger.warning(
+                "Product search returned items but no image URLs resolved",
+                extra={
+                    "phone_number": phone_number,
+                    "query": query_label,
+                    "products_without_image": missing,
+                },
+            )
+
         logger.info(
             "Product search results sent",
             extra={
@@ -445,6 +469,9 @@ class ProductSearchAgentV3(Processor):
                 "search_context": search_context,
                 "total_count": total_count,
                 "returned": len(products),
+                "images_in_response": sum(
+                    1 for r in data["bot_response"] if r.get("type") == "media"
+                ),
             },
         )
         return data

@@ -8,6 +8,13 @@ from kisna_chatbot.utils.logger_config import logger
 
 
 def _send_single_image(phone_number: str, url: str, caption: str = "") -> dict:
+    if not url or not str(url).strip():
+        logger.error(
+            "Skipping image send — empty URL",
+            extra={"phone_number": phone_number},
+        )
+        return {"status": "submitted"}
+
     destination = f"{phone_number}"
     api_url = "https://api.gupshup.io/wa/api/v1/msg"
 
@@ -55,10 +62,11 @@ def send_image_message(phone_number: str, bot_response: dict):
         result = None
         for i, item in enumerate(urls):
             try:
+                item_url = item.get("url") if isinstance(item, dict) else None
                 result = _send_single_image(
                     phone_number=phone_number,
-                    url=item["url"],
-                    caption=item.get("caption", ""),
+                    url=item_url or "",
+                    caption=item.get("caption", "") if isinstance(item, dict) else "",
                 )
             except Exception as e:
                 logger.error(

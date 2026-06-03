@@ -187,6 +187,10 @@ class ProductSearchTests(unittest.TestCase):
                 "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
                 "client_config": MagicMock(client_id="kisna"),
             }
+            clara_image = (
+                "https://kisna-assets.blr1.cdn.digitaloceanspaces.com/"
+                "compressed/assets/test-ring.webp"
+            )
             mock_product = {
                 "_id": "1",
                 "title": "Gold Ring",
@@ -195,7 +199,14 @@ class ProductSearchTests(unittest.TestCase):
                 "materialType": "gold",
                 "shipping": {"edd": 5},
                 "seos": {"slug": "gold-ring"},
-                "mediaUrl": [{"isDefault": True, "url": "https://img.example/r.jpg"}],
+                "mediaUrl": [
+                    {
+                        "isDefault": True,
+                        "image": clara_image,
+                        "color": "Yellow",
+                        "type": "image",
+                    }
+                ],
             }
             with patch(
                 "kisna_chatbot.processors.product_search_agent_v3.search_products",
@@ -208,6 +219,12 @@ class ProductSearchTests(unittest.TestCase):
                 }
                 result = await agent.process(data)
             self.assertIn("bot_response", result)
+            media_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "media"
+            ]
+            self.assertEqual(len(media_msgs), 1)
+            self.assertEqual(media_msgs[0]["url"], clara_image)
+            self.assertTrue(media_msgs[0]["url"].startswith("https://"))
             search_mock.assert_awaited_once()
             self.assertEqual(result["user_profile"]["last_search_page"], 1)
             self.assertEqual(result["user_profile"]["last_search_total"], 1)

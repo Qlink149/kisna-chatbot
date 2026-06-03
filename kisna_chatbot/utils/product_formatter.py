@@ -95,23 +95,90 @@ def format_product_buy_caption(product: dict) -> str:
     return "\n".join(_product_caption_lines(product))
 
 
-def get_product_image_url(product: dict) -> Optional[str]:
-    """Return default mediaUrl or first image URL."""
-    media = product.get("mediaUrl") or product.get("media") or []
-    if not isinstance(media, list):
+def _normalize_image_url(url: Any) -> Optional[str]:
+    """Return a usable HTTPS image URL, or None."""
+    if url is None:
         return None
+    text = str(url).strip()
+    if not text:
+        return None
+    if text.startswith("//"):
+        text = "https:" + text
+    if text.startswith("http://"):
+        text = "https://" + text[len("http://") :]
+    if not text.startswith("https://"):
+        return None
+    return text
+
+
+def _url_from_media_item(item: dict) -> Optional[str]:
+    """Extract image URL from a single mediaUrl[] entry (Clara uses ``image``)."""
+    media_type = item.get("type")
+    if media_type is not None and str(media_type).lower() != "image":
+        return None
+    raw = item.get("image") or item.get("url") or item.get("mediaUrl")
+    return _normalize_image_url(raw)
+
+
+def _url_from_media_list(media: list) -> Optional[str]:
+    """Prefer isDefault image entry, else first valid image in the list."""
+    default_url: Optional[str] = None
+    fallback_url: Optional[str] = None
 
     for item in media:
-        if isinstance(item, dict) and item.get("isDefault"):
-            url = item.get("url") or item.get("mediaUrl")
-            if url:
-                return str(url)
+        if isinstance(item, str):
+            normalized = _normalize_image_url(item)
+            if normalized and fallback_url is None:
+                fallback_url = normalized
+            continue
+        if not isinstance(item, dict):
+            continue
+        url = _url_from_media_item(item)
+        if not url:
+            continue
+        if item.get("isDefault"):
+            default_url = url
+        elif fallback_url is None:
+            fallback_url = url
 
-    for item in media:
-        if isinstance(item, dict):
-            url = item.get("url") or item.get("mediaUrl")
+    return default_url or fallback_url
+
+
+def get_product_image_url(product: dict) -> Optional[str]:
+    """Return primary product image URL from Clara ``mediaUrl[].image`` or fallbacks."""
+    media = product.get("mediaUrl") or product.get("media")
+    if isinstance(media, list) and media:
+        url = _url_from_media_list(media)
+        if url:
+            return url
+
+    if isinstance(media, str):
+        url = _normalize_image_url(media)
+        if url:
+            return url
+
+    for key in ("image", "image_url", "thumbnail"):
+        url = _normalize_image_url(product.get(key))
+        if url:
+            return url
+
+    images = product.get("images")
+    if isinstance(images, list):
+        url = _url_from_media_list(images)
+        if url:
+            return url
+
+    variant = product.get("variant")
+    if isinstance(variant, dict):
+        variant_media = variant.get("mediaUrl") or variant.get("media")
+        if isinstance(variant_media, list):
+            url = _url_from_media_list(variant_media)
             if url:
-                return str(url)
+                return url
+        url = _normalize_image_url(variant.get("image"))
+        if url:
+            return url
+
     return None
 
 

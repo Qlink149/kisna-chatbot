@@ -141,6 +141,7 @@ async def search_products(
     Returns:
         {"products": [...], "total_count": int, "page": int}
     """
+    # searchUrl=true returns full product objects including mediaUrl[].image for WhatsApp.
     params: dict[str, Any] = {
         "pageNo": page_no,
         "pageSize": page_size,
