@@ -155,14 +155,7 @@ class OrderTrackingAgent(Processor):
             )
             return data
 
-        order_id = _resolve_order_id(data, messages)
-        if not order_id:
-            logger.info(
-                "Order tracking requested without order ID",
-                extra={"phone_number": phone_number, "client_id": client_id},
-            )
-            data["bot_response"] = _build_prompt_response()
-            return data
+        order_id = _resolve_order_id(data, messages) or "your order"
 
         adapter = ClientAPIAdapter(client_config)
         try:

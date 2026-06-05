@@ -8,7 +8,7 @@ from kisna_chatbot.processors.order_tracking_agent import OrderTrackingAgent
 from kisna_chatbot.processors.pre_order_agent import PreOrderAgent
 from kisna_chatbot.processors.product_checkout_agent import ProductCheckoutAgent
 from kisna_chatbot.processors.product_details_agent import ProductDetailsAgent
-from kisna_chatbot.processors.product_search_agent_v3 import ProductSearchAgentV3
+from kisna_chatbot.processors.returns_refund_agent import ReturnsRefundAgent
 from kisna_chatbot.processors.service_list import ServiceList
 from kisna_chatbot.processors.user_registration import UserRegistration
 
@@ -50,6 +50,14 @@ class PreOrderPipeline(Pipeline):
 
     def __init__(self) -> None:
         processors = [ProductSearchAgentV3(), PreOrderAgent()]
+        super().__init__(processors)
+
+
+class ReturnsRefundPipeline(Pipeline):
+    """Pipeline for return and refund requests — registers complaints."""
+
+    def __init__(self) -> None:
+        processors = [ReturnsRefundAgent()]
         super().__init__(processors)
 
 

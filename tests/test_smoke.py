@@ -28,7 +28,7 @@ from kisna_chatbot.config.clients import get_client_config, refresh_client_regis
 from kisna_chatbot.main import _pipeline_for_service
 from kisna_chatbot.models.enums import FLowId, FlowId
 from kisna_chatbot.models.service_list import ServiceList as SL
-from kisna_chatbot.pipelines.inference_pipeline import GeneralPipeline
+from kisna_chatbot.pipelines.inference_pipeline import ReturnsRefundPipeline
 from kisna_chatbot.processors.complaint_agent import (
     _complaint_flow_ids,
     _parse_complaint_flow,
@@ -69,9 +69,9 @@ class ComplaintFlowTokenTests(unittest.TestCase):
 
 
 class RoutingTests(unittest.TestCase):
-    def test_returns_refund_uses_general_pipeline(self):
+    def test_returns_refund_uses_returns_refund_pipeline(self):
         pipeline = _pipeline_for_service(SL.RETURNS_REFUND.value)
-        self.assertIsInstance(pipeline, GeneralPipeline)
+        self.assertIsInstance(pipeline, ReturnsRefundPipeline)
 
 
 class ProductSearchTests(unittest.TestCase):

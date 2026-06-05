@@ -33,6 +33,7 @@ from kisna_chatbot.pipelines.inference_pipeline import (
     PreOrderPipeline,
     ProductCheckoutPipeline,
     ProductSearchPipeline,
+    ReturnsRefundPipeline,
 )
 from kisna_chatbot.middleware.logging_middleware import LoggingMiddleware
 from kisna_chatbot.processors.response_manager import ResponseManager
@@ -51,6 +52,9 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://kisna-dashboard.example.com",
+    "https://kisna-dashboard.vercel.app",
+    "https://kisna-chatbot-dashboard.vercel.app",
+    "https://dash.kisna-wa.claraai.tech",
 ]
 
 def _log_webhook_payload_enabled() -> bool:
@@ -224,7 +228,7 @@ def _pipeline_for_service(service_selected: str):
     """Return pipeline instance for service_selected value."""
     mapping = {
         SL.GENERAL.value: GeneralPipeline,
-        SL.RETURNS_REFUND.value: GeneralPipeline,
+        SL.RETURNS_REFUND.value: ReturnsRefundPipeline,
         SL.PRODUCT_SEARCH.value: ProductSearchPipeline,
         SL.OFFERS.value: OffersPipeline,
         SL.PRE_ORDER.value: PreOrderPipeline,

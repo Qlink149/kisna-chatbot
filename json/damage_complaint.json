@@ -22,20 +22,28 @@
                     "title": "Order Cancellation"
                   },
                   {
-                    "id": "2_Wrong_Product_Delivered",
-                    "title": "Wrong Product Delivered"
+                    "id": "2_Wrong_Item_Delivered",
+                    "title": "Wrong Item Delivered"
                   },
                   {
-                    "id": "3_Partial_Order_Received",
-                    "title": "Partial Order Received"
+                    "id": "3_Damaged_Defective_Product",
+                    "title": "Damaged / Defective Item"
                   },
                   {
-                    "id": "4_Return-Defective/Damaged_Product",
-                    "title": "Return-Defective/Damaged Product"
+                    "id": "4_Making_Charges_Dispute",
+                    "title": "Making Charges Dispute"
                   },
                   {
-                    "id": "5_30_Nights_Trial",
-                    "title": "30 Nights Trial"
+                    "id": "5_Return_Refund_Request",
+                    "title": "Return & Refund"
+                  },
+                  {
+                    "id": "6_Modification_Request",
+                    "title": "Order Modification"
+                  },
+                  {
+                    "id": "7_Order_Tracking_Escalation",
+                    "title": "Tracking Escalation"
                   }
                 ],
                 "label": "Complaint Type",
@@ -76,8 +84,8 @@
         "type": "SingleColumnLayout"
       },
       "terminal": true,
-      "title": "Damage Product Complaint"
+      "title": "KISNA Complaint"
     }
   ],
-  "version": "7.3"
+  "version": "7.0"
 }

@@ -18,13 +18,14 @@ def list_users(
     agent_requested: bool | None = Query(
         None, description="Filter to only users who requested a live agent"
     ),
+    client_id: str = Query("kisna", description="Tenant client id"),
 ):
     """List all users — sorted by most recently updated, with pagination. Pass agent_requested=true to filter to live-agent requests only."""
     try:
         return get_all_users(
             page=page,
             limit=limit,
-            client_id="kisna",
+            client_id=client_id,
             agent_requested=agent_requested,
         )
     except Exception:
@@ -36,10 +37,11 @@ def list_users(
 def search(
     q: str = Query(..., min_length=1, description="Search term — matches phone number or username"),
     limit: int = Query(20, ge=1, le=100),
+    client_id: str = Query("kisna", description="Tenant client id"),
 ):
     """Search users by phone number or username (partial, case-insensitive)."""
     try:
-        results = search_users(q=q, limit=limit, client_id="kisna")
+        results = search_users(q=q, limit=limit, client_id=client_id)
         return {"results": results, "count": len(results)}
     except Exception:
         logger.exception("Failed to search users", extra={"q": q})
@@ -47,10 +49,13 @@ def search(
 
 
 @router.get("/{phone_number}")
-def get_user(phone_number: str):
+def get_user(
+    phone_number: str,
+    client_id: str = Query("kisna", description="Tenant client id"),
+):
     """Get complete user document by phone number."""
     try:
-        user = get_user_by_phone(phone_number, client_id="kisna")
+        user = get_user_by_phone(phone_number, client_id=client_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return user

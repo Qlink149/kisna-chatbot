@@ -473,14 +473,18 @@ class ClientAPIAdapter:
         """
         Build the order tracking URL for the configured client.
 
-        Args:
-            order_id: Order identifier.
-
-        Returns:
-            Tracking URL string.
-
-        Raises:
-            ValueError: If product_api_base is not configured.
+        Uses KISNA_ORDER_TRACKING_URL or KISNA_TRACK_ORDER_URL when set;
+        otherwise falls back to the Kisna website track-order page.
         """
+        import os
+
+        for key in ("KISNA_ORDER_TRACKING_URL", "KISNA_TRACK_ORDER_URL"):
+            url = os.getenv(key, "").strip()
+            if url:
+                return url
+
+        if self._config.client_id == "kisna":
+            return "https://www.kisna.com/pages/track-order"
+
         base = self._require_base(self._config.product_api_base, "product_api_base")
         return f"{base}/track/{order_id}"
