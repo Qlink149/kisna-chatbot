@@ -233,6 +233,19 @@ class ProductSearchTests(unittest.TestCase):
                 result["user_profile"]["last_search_products"],
                 [mock_product],
             )
+            self.assertIn("jewellery_profile", result["user_profile"])
+            self.assertEqual(
+                result["user_profile"]["jewellery_profile"]["material_preference"],
+                "gold",
+            )
+            self.assertEqual(
+                result["user_profile"]["jewellery_profile"]["category_preference"],
+                "ring",
+            )
+            self.assertEqual(
+                result["user_profile"]["jewellery_profile"]["budget_range"],
+                "under ₹50,000",
+            )
 
         import asyncio
 

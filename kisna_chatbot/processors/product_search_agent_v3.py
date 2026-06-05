@@ -11,6 +11,10 @@ from kisna_chatbot.processors.entity_extractor import (
     entities_to_api_params,
     extract_entities,
 )
+from kisna_chatbot.utils.jewellery_profile import (
+    entities_to_jewellery_profile,
+    merge_jewellery_profile,
+)
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.product_formatter import (
     format_product_image_caption,
@@ -419,6 +423,16 @@ class ProductSearchAgentV3(Processor):
 
         user_profile = data.get("user_profile", {})
         user_profile["last_search_filters"] = entities
+        profile_updates = entities_to_jewellery_profile(
+            entities,
+            source_text=query_label,
+        )
+        if profile_updates:
+            existing_profile = user_profile.get("jewellery_profile") or {}
+            user_profile["jewellery_profile"] = merge_jewellery_profile(
+                existing_profile,
+                profile_updates,
+            )
         user_profile["last_search_page"] = page
         user_profile["last_search_total"] = total_count
         user_profile["last_search_products"] = products[:5]

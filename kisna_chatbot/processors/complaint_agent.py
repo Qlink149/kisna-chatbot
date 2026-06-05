@@ -184,6 +184,7 @@ class ComplaintAgent(Processor):
                         "issue": issue_description,
                         "type": complaint_type,
                         "case_id": case_id,
+                        "customer_name": customer_name,
                         "created_at": int(time.time()),
                         "status": "registered" if case_id else "crm_pending",
                     }

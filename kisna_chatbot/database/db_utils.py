@@ -151,6 +151,7 @@ def save_complaint(
     case_id: str,
     client_id: str = "kisna",
     order_id: str = "",
+    customer_name: str = "",
 ) -> None:
     """Insert a complaint record into the complaints collection."""
     try:
@@ -161,6 +162,7 @@ def save_complaint(
             "issue": issue,
             "type": complaint_type,
             "case_id": case_id,
+            "customer_name": customer_name,
             "created_at": int(time.time()),
             "status": "registered" if case_id else "crm_pending",
         }

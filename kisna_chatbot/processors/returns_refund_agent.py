@@ -44,6 +44,7 @@ class ReturnsRefundAgent(Processor):
             return data
 
         issue = _extract_issue_summary(data)
+        customer_name = user_profile.get("username") or data.get("whatsapp_username", "")
 
         try:
             save_complaint(
@@ -53,6 +54,7 @@ class ReturnsRefundAgent(Processor):
                 case_id="",
                 client_id=client_id,
                 order_id="",
+                customer_name=customer_name,
             )
             data["bot_response"] = [
                 {
