@@ -138,6 +138,12 @@ async def search_products(
     """
     Search products via Clara API. Never cached — pricing changes daily.
 
+    Query params: pageNo, pageSize, materialType, minPrice, maxPrice, category,
+    title, searchUrl=true.
+
+    List prices use price.variantPrice; WhatsApp display/MRP use API fields only
+    via utils.price_calculator (no computed MRP).
+
     Returns:
         {"products": [...], "total_count": int, "page": int}
     """
@@ -234,39 +240,16 @@ def get_discount_for_product(product: dict) -> Optional[str]:
     Pure function: match variant price against promotion labour discount ranges.
     Returns e.g. '10% off making charges' or None.
     """
-    price_block = product.get("price") or {}
-    variant_price = price_block.get("variantPrice")
-    if variant_price is None:
-        return None
+    from kisna_chatbot.utils.price_calculator import (
+        base_listing_price,
+        find_matching_labour_promo,
+        format_promo_label,
+    )
 
-    try:
-        price = float(variant_price)
-    except (TypeError, ValueError):
+    listing = base_listing_price(product)
+    if not listing:
         return None
-
-    promotions = product.get("promotions") or []
-    if not isinstance(promotions, list):
+    promo = find_matching_labour_promo(product, float(listing))
+    if not promo:
         return None
-
-    for promo in promotions:
-        if not isinstance(promo, dict):
-            continue
-        disc_on = promo.get("discOn")
-        if disc_on != "Labour":
-            continue
-        try:
-            from_amt = float(promo.get("fromAmt", 0))
-            to_amt = float(promo.get("toAmt", float("inf")))
-        except (TypeError, ValueError):
-            continue
-        if from_amt <= price <= to_amt:
-            disc = promo.get("disc")
-            if disc is not None:
-                try:
-                    disc_val = float(disc)
-                    if disc_val == int(disc_val):
-                        return f"{int(disc_val)}% off making charges"
-                    return f"{disc_val}% off making charges"
-                except (TypeError, ValueError):
-                    pass
-    return None
+    return format_promo_label(promo)

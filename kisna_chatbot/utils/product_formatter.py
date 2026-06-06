@@ -1,12 +1,15 @@
 """
 Format Clara API product objects for WhatsApp messages.
+
+Prices and MRP come only from Clara API fields via utils.price_calculator.
+Promo labels use embedded promotions[]; no estimated or computed rupee amounts.
 """
 
 import re
 from typing import Any, Optional
 
-from kisna_chatbot.integrations.clara_api import get_discount_for_product
 from kisna_chatbot.processors.entity_extractor import build_search_context
+from kisna_chatbot.utils.price_calculator import resolve_product_prices
 
 _PRODUCT_LIST_MSGID = "product_select$results"
 BROWSE_PRODUCTS_GLOBAL_TITLE = "Browse Products"
@@ -14,6 +17,8 @@ _KARAT_RE = re.compile(
     r"(\d{1,2})\s*(?:kt|karat|carat|k\b)",
     re.I,
 )
+_SIZE_RE = re.compile(r"\b(?:size\s*)?(\d{1,2}(?:\.\d)?)\b")
+_COLOR_WORDS = ("yellow", "white", "rose", "pink", "silver")
 
 
 def _truncate(text: str, max_len: int, ellipsis: str = "…") -> str:
@@ -24,13 +29,62 @@ def _truncate(text: str, max_len: int, ellipsis: str = "…") -> str:
     return text[: max_len - len(ellipsis)] + ellipsis
 
 
-def _extract_karat(variant_title: str) -> str:
+def _int_price(val: Any) -> int | None:
+    if val is None:
+        return None
+    try:
+        parsed = int(float(val))
+        return parsed if parsed > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_variant_attributes(variant_title: str) -> dict[str, str]:
+    """Parse karat, metal color, and ring size from Clara variant.title."""
+    attrs: dict[str, str] = {}
     if not variant_title:
-        return ""
+        return attrs
+
     m = _KARAT_RE.search(variant_title)
     if m:
-        return f"{m.group(1)}KT"
-    return variant_title.strip()[:20]
+        attrs["karat"] = f"{m.group(1)}KT"
+
+    lower = variant_title.lower()
+    for color in _COLOR_WORDS:
+        if color in lower:
+            attrs["color"] = color.title()
+            break
+
+    size_m = _SIZE_RE.search(variant_title)
+    if size_m:
+        attrs["size"] = size_m.group(1)
+
+    return attrs
+
+
+def _extract_karat(variant_title: str) -> str:
+    return _parse_variant_attributes(variant_title).get("karat", "")
+
+
+def _variant_attributes_line(product: dict) -> str:
+    """Material + karat/color/size for captions and list rows."""
+    variant = product.get("variant") or {}
+    variant_title = variant.get("title") or ""
+    attrs = _parse_variant_attributes(variant_title)
+    material = _material_label(product)
+
+    parts = [material]
+    if attrs.get("karat"):
+        parts.append(attrs["karat"])
+    if attrs.get("color"):
+        parts.append(attrs["color"])
+    if attrs.get("size"):
+        parts.append(f"Size {attrs['size']}")
+
+    if len(parts) == 1 and variant_title:
+        karat = _extract_karat(variant_title)
+        return f"{material} · {karat}" if karat else material
+    return " · ".join(parts)
 
 
 def _material_label(product: dict) -> str:
@@ -40,6 +94,15 @@ def _material_label(product: dict) -> str:
     if isinstance(material, dict):
         material = material.get("name") or material.get("title") or ""
     return str(material).strip() or "Jewellery"
+
+
+def _product_sku(product: dict) -> str | None:
+    inventory = product.get("inventory") or {}
+    if isinstance(inventory, dict):
+        sku = inventory.get("skuId") or inventory.get("sku")
+        if sku:
+            return str(sku).strip()
+    return None
 
 
 def build_product_url(product: dict) -> str:
@@ -55,45 +118,73 @@ def build_product_url(product: dict) -> str:
     return f"{base}/{path}"
 
 
-def _product_caption_lines(product: dict) -> list[str]:
+def get_product_mrp_price(product: dict) -> int | None:
+    """Compare-at MRP from API only when strictly above display price."""
+    return get_product_price_bundle(product).get("mrp_price")
+
+
+def get_product_display_price(product: dict) -> int:
+    """Return customer-facing listing price from current Clara API fields."""
+    return get_product_price_bundle(product)["display_price"]
+
+
+def get_product_price_bundle(product: dict) -> dict[str, Any]:
+    """Structured price info for captions and dashboard snapshots (API-only)."""
+    resolved = resolve_product_prices(product)
+    return {
+        "display_price": resolved["display_price"],
+        "mrp_price": resolved["mrp_price"],
+        "promo_label": resolved["promo_label"],
+        "has_dynamic_pricing": resolved["has_dynamic_pricing"],
+        "sku": _product_sku(product),
+    }
+
+
+def format_price_line(product: dict) -> str:
+    """Single price line; strikethrough MRP only when API sends mrp > display."""
+    bundle = get_product_price_bundle(product)
+    display = bundle["display_price"]
+    mrp = bundle["mrp_price"]
+    if mrp and display and mrp > display:
+        return f"₹{display:,}  ~₹{mrp:,}~"
+    return f"₹{display:,}"
+
+
+def _product_caption_lines(product: dict, *, include_sku: bool = False) -> list[str]:
     """Shared caption body for product image messages."""
     title = product.get("title") or "Product"
-    price_block = product.get("price") or {}
-    variant_price = price_block.get("variantPrice", 0)
-    try:
-        price_int = int(float(variant_price))
-    except (TypeError, ValueError):
-        price_int = 0
-
-    variant = product.get("variant") or {}
-    variant_title = variant.get("title") or ""
-    material = _material_label(product)
-    karat = _extract_karat(variant_title)
-    material_line = f"{material} · {karat}" if karat else material
+    bundle = get_product_price_bundle(product)
+    material_line = _variant_attributes_line(product)
 
     shipping = product.get("shipping") or {}
     edd = shipping.get("edd", "?")
 
     lines = [
         f"*{title}*",
-        f"₹{price_int:,}",
+        format_price_line(product),
         material_line,
         f"🚚 Delivery in {edd} days",
     ]
 
+    if include_sku and bundle.get("sku"):
+        lines.append(f"SKU: {bundle['sku']}")
+
     if product.get("withChain") == "noChain":
         lines.append("⚠️ Chain not included")
 
-    discount = get_discount_for_product(product)
-    if discount:
-        lines.append(f"🏷 {discount.replace(' %', '%')}")
+    promo = bundle.get("promo_label")
+    if promo:
+        lines.append(f"🏷 {promo.replace(' %', '%')}")
+
+    if bundle.get("has_dynamic_pricing"):
+        lines.append("_Confirm exact total on kisna.com (gold rate may update)._")
 
     return lines
 
 
 def format_product_buy_caption(product: dict) -> str:
     """Image caption for product detail / Buy Now (no URL — CTA carries link)."""
-    return "\n".join(_product_caption_lines(product))
+    return "\n".join(_product_caption_lines(product, include_sku=True))
 
 
 def _normalize_image_url(url: Any) -> Optional[str]:
@@ -145,40 +236,48 @@ def _url_from_media_list(media: list) -> Optional[str]:
     return default_url or fallback_url
 
 
+def _webp_jpg_fallback(url: str) -> Optional[str]:
+    """Try a .jpg sibling URL when CDN may not serve .webp to WhatsApp."""
+    lower = url.lower().split("?")[0]
+    if not lower.endswith(".webp"):
+        return None
+    return _normalize_image_url(url[: lower.rindex(".webp")] + ".jpg")
+
+
 def get_product_image_url(product: dict) -> Optional[str]:
     """Return primary product image URL from Clara ``mediaUrl[].image`` or fallbacks."""
+    candidates: list[Optional[str]] = []
+
     media = product.get("mediaUrl") or product.get("media")
     if isinstance(media, list) and media:
-        url = _url_from_media_list(media)
-        if url:
-            return url
+        candidates.append(_url_from_media_list(media))
 
     if isinstance(media, str):
-        url = _normalize_image_url(media)
-        if url:
-            return url
+        candidates.append(_normalize_image_url(media))
 
     for key in ("image", "image_url", "thumbnail"):
-        url = _normalize_image_url(product.get(key))
-        if url:
-            return url
+        candidates.append(_normalize_image_url(product.get(key)))
 
     images = product.get("images")
     if isinstance(images, list):
-        url = _url_from_media_list(images)
-        if url:
-            return url
+        candidates.append(_url_from_media_list(images))
 
     variant = product.get("variant")
     if isinstance(variant, dict):
         variant_media = variant.get("mediaUrl") or variant.get("media")
         if isinstance(variant_media, list):
-            url = _url_from_media_list(variant_media)
-            if url:
-                return url
-        url = _normalize_image_url(variant.get("image"))
+            candidates.append(_url_from_media_list(variant_media))
+        candidates.append(_normalize_image_url(variant.get("image")))
+
+    for url in candidates:
         if url:
             return url
+
+    for candidate in candidates:
+        if candidate:
+            jpg = _webp_jpg_fallback(candidate)
+            if jpg:
+                return jpg
 
     return None
 
@@ -193,15 +292,11 @@ def format_product_image_caption(product: dict) -> str:
 def format_product_list_row(product: dict) -> dict:
     """Single row for WhatsApp interactive list."""
     title = _truncate(product.get("title") or "Product", 24)
-    price_block = product.get("price") or {}
-    try:
-        price_int = int(float(price_block.get("variantPrice", 0)))
-    except (TypeError, ValueError):
-        price_int = 0
-    material = _material_label(product)
+    material_line = _variant_attributes_line(product)
     shipping = product.get("shipping") or {}
     edd = shipping.get("edd", "?")
-    description = _truncate(f"₹{price_int:,} · {material} · {edd}d delivery", 72)
+    price_line = format_price_line(product)
+    description = _truncate(f"{price_line} · {material_line} · {edd}d delivery", 72)
     return {
         "title": title,
         "description": description,

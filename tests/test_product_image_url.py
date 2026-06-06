@@ -22,7 +22,12 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
 os.environ.setdefault("KISNA_PHONE_NUMBER_ID", "850788844795304")
 
 from kisna_chatbot.main import app  # noqa: F401 — initializes app env before formatter import
-from kisna_chatbot.utils.product_formatter import get_product_image_url
+from kisna_chatbot.utils.product_formatter import (
+    format_price_line,
+    get_product_display_price,
+    get_product_image_url,
+    get_product_price_bundle,
+)
 
 _CLARA_CDN_WEBP = (
     "https://kisna-assets.blr1.cdn.digitaloceanspaces.com/compressed/assets/"
@@ -108,6 +113,51 @@ class ProductImageUrlTests(unittest.TestCase):
     def test_empty_media_returns_none(self):
         self.assertIsNone(get_product_image_url({"mediaUrl": []}))
         self.assertIsNone(get_product_image_url({}))
+
+    def test_missing_type_still_returns_image(self):
+        product = {
+            "mediaUrl": [{"image": "https://kisna-assets.example/no-type.webp"}],
+        }
+        self.assertEqual(
+            get_product_image_url(product),
+            "https://kisna-assets.example/no-type.webp",
+        )
+
+    def test_display_price_prefers_final_price(self):
+        product = {"price": {"variantPrice": 100000, "finalPrice": 95000}}
+        self.assertEqual(get_product_display_price(product), 95000)
+
+    def test_price_bundle_api_mrp_only_when_above_display(self):
+        product = {
+            "price": {"variantPrice": 50000},
+            "variant": {"salePrice": 48000, "mrpPrice": 55000, "title": "Gold 14KT Yellow 7"},
+            "materialType": ["diamond"],
+            "promotions": [],
+        }
+        bundle = get_product_price_bundle(product)
+        self.assertEqual(bundle["display_price"], 48000)
+        self.assertEqual(bundle["mrp_price"], 55000)
+        line = format_price_line(product)
+        self.assertIn("~₹55,000~", line)
+
+    def test_stale_mrp_no_strikethrough(self):
+        product = {
+            "price": {"variantPrice": 64892, "dynamicPricing": True},
+            "variant": {"salePrice": 64892, "mrpPrice": 64892},
+            "materialType": ["diamond"],
+            "promotions": [
+                {
+                    "discOn": "Labour",
+                    "fromAmt": 50000,
+                    "toAmt": 99999,
+                    "disc": 30,
+                    "category": "Diamond",
+                }
+            ],
+        }
+        bundle = get_product_price_bundle(product)
+        self.assertIsNone(bundle["mrp_price"])
+        self.assertNotIn("~₹", format_price_line(product))
 
 
 if __name__ == "__main__":

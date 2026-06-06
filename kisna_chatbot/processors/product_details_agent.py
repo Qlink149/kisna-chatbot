@@ -9,7 +9,9 @@ from kisna_chatbot.processors.product_search_agent_v3 import (
 )
 from kisna_chatbot.processors.entity_extractor import (
     entities_to_api_params,
+    extract_category_from_product,
     extract_entities,
+    normalize_material_for_api,
 )
 from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
@@ -20,6 +22,7 @@ from kisna_chatbot.utils.product_formatter import (
     build_product_url,
     format_product_buy_caption,
     get_product_image_url,
+    get_product_price_bundle,
 )
 
 _RETRY_SEARCH_TEXT = "Let me search for that again."
@@ -30,7 +33,7 @@ _CACHE_MISS_TEXT = (
     "Sorry, we couldn't find that product. Try searching again from the menu."
 )
 _BUY_CTA_TEXT = (
-    "Tap below to view full details and place your order on the KISNA website."
+    "Tap below to choose size, metal & colour and place your order on kisna.com."
 )
 _SIZE_VARIANT_REPLY = (
     "Sizes and variants are available on the product page. "
@@ -39,6 +42,14 @@ _SIZE_VARIANT_REPLY = (
 
 _SIZE_QUERY_RE = re.compile(
     r"\b(size|sizes|variant|variants|karat|kt\b|available)\b",
+    re.I,
+)
+_PRICE_AVAILABILITY_RE = re.compile(
+    r"\b("
+    r"price|cost|kitna|rate|mrp|how\s+much|"
+    r"available|in\s+stock|stock|delivery\s+time|edd"
+    r")\b|"
+    r"(isme|is\s+me|iska|is\s+ka)\s+(kitna|price|cost)",
     re.I,
 )
 
@@ -96,11 +107,16 @@ def _find_cached_product(user_profile: dict, product_id: str) -> dict | None:
 
 
 def _save_last_viewed_product(user_profile: dict, product: dict) -> None:
+    bundle = get_product_price_bundle(product)
     user_profile["last_viewed_product"] = {
         "_id": product.get("_id") or product.get("id"),
         "title": product.get("title"),
-        "category": product.get("category"),
-        "materialType": product.get("materialType"),
+        "category": extract_category_from_product(product),
+        "materialType": normalize_material_for_api(product.get("materialType"))
+        or product.get("materialType"),
+        "price": bundle["display_price"],
+        "mrp_price": bundle.get("mrp_price"),
+        "sku": bundle.get("sku"),
     }
 
 
@@ -159,9 +175,33 @@ def _build_buy_now_response(product: dict) -> list:
     return responses
 
 
+def _product_from_last_viewed(user_profile: dict) -> dict | None:
+    """Rebuild a minimal product dict from last_viewed_product snapshot."""
+    snapshot = user_profile.get("last_viewed_product")
+    if not isinstance(snapshot, dict):
+        return None
+    product_id = snapshot.get("_id")
+    if not product_id:
+        return None
+    cached = _find_cached_product(user_profile, str(product_id))
+    if cached:
+        return cached
+    price = snapshot.get("price")
+    if price is None:
+        return None
+    return {
+        "_id": product_id,
+        "title": snapshot.get("title"),
+        "materialType": snapshot.get("materialType"),
+        "price": {"variantPrice": price},
+        "variant": {"mrpPrice": snapshot.get("mrp_price")},
+    }
+
+
 async def _retry_product_search(
     data: dict,
     query: str,
+    product_id: str | None = None,
 ) -> list | None:
     """Run a fresh catalog search and return bot_response items."""
     if not query.strip():
@@ -203,6 +243,14 @@ async def _retry_product_search(
     if not products:
         return [{"type": "text", "text": "No matching pieces found. Try another search."}]
 
+    matched = None
+    if product_id:
+        matched = _find_cached_product(user_profile, product_id)
+    if not matched and products:
+        matched = products[0]
+    if matched:
+        _save_last_viewed_product(user_profile, matched)
+
     search_items = _build_search_success_response(products, total_count, page, entities)
     return [{"type": "text", "text": _RETRY_SEARCH_TEXT}, *search_items]
 
@@ -227,9 +275,13 @@ class ProductDetailsAgent(Processor):
                 return True
 
         user_profile = data.get("user_profile", {})
-        if user_profile.get("last_viewed_product") and data.get("classified_category") == "product_info":
-            text = (messages.get("text", {}) or {}).get("body", "") or ""
-            if text.strip() and _SIZE_QUERY_RE.search(text):
+        text = (messages.get("text", {}) or {}).get("body", "") or ""
+        if user_profile.get("last_viewed_product") and text.strip():
+            if data.get("classified_category") == "product_info" and _SIZE_QUERY_RE.search(
+                text
+            ):
+                return True
+            if _PRICE_AVAILABILITY_RE.search(text):
                 return True
 
         return False
@@ -254,13 +306,29 @@ class ProductDetailsAgent(Processor):
             text_body = (messages.get("text", {}) or {}).get("body", "") or ""
             if (
                 user_profile.get("last_viewed_product")
-                and data.get("classified_category") == "product_info"
                 and text_body.strip()
-                and _SIZE_QUERY_RE.search(text_body)
                 and not _parse_product_list_selection(messages)[0]
+                and not _parse_details_button_id(
+                    (messages.get("interactive", {}) or {})
+                    .get("button_reply", {})
+                    .get("id", "")
+                )
             ):
-                data["bot_response"] = [{"type": "text", "text": _SIZE_VARIANT_REPLY}]
-                return data
+                if _PRICE_AVAILABILITY_RE.search(text_body):
+                    product = _product_from_last_viewed(user_profile)
+                    if product:
+                        _save_last_viewed_product(user_profile, product)
+                        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                        data["bot_response"] = [
+                            {"type": "text", "text": format_product_buy_caption(product)}
+                        ]
+                        return data
+                if (
+                    data.get("classified_category") == "product_info"
+                    and _SIZE_QUERY_RE.search(text_body)
+                ):
+                    data["bot_response"] = [{"type": "text", "text": _SIZE_VARIANT_REPLY}]
+                    return data
 
             list_product_id, list_title = _parse_product_list_selection(messages)
             product_id = list_product_id
@@ -277,6 +345,7 @@ class ProductDetailsAgent(Processor):
                     "Could not parse product id from interactive message",
                     extra={"phone_number": phone_number},
                 )
+                data["bot_response"] = [{"type": "text", "text": _CACHE_MISS_TEXT}]
                 return data
 
             cached = _find_cached_product(user_profile, product_id)
@@ -295,7 +364,7 @@ class ProductDetailsAgent(Processor):
                 return data
 
             if is_list_selection:
-                retry = await _retry_product_search(data, list_title)
+                retry = await _retry_product_search(data, list_title, product_id)
                 if retry:
                     data["bot_response"] = retry
                     return data

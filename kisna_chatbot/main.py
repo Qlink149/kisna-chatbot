@@ -37,6 +37,7 @@ from kisna_chatbot.pipelines.inference_pipeline import (
 )
 from kisna_chatbot.middleware.logging_middleware import LoggingMiddleware
 from kisna_chatbot.processors.response_manager import ResponseManager
+from kisna_chatbot.processors.service_list import build_main_menu_bot_response
 from kisna_chatbot.routes import system as system_router
 from kisna_chatbot.utils.logger_config import (
     clear_request_context,
@@ -398,8 +399,19 @@ async def process_message(
         pipeline = _pipeline_for_service(service_selected)
         if pipeline:
             data = await pipeline.run(data=data)
-            if "bot_response" in data:
-                await _save_and_send(data, phone_number, pipeline_start)
+
+        if "bot_response" not in data:
+            logger.warning(
+                "Pipeline completed without bot_response — sending main menu",
+                extra={
+                    "phone_number": phone_number,
+                    "service_selected": service_selected,
+                },
+            )
+            data["bot_response"] = [build_main_menu_bot_response()]
+
+        if "bot_response" in data:
+            await _save_and_send(data, phone_number, pipeline_start)
 
     except Exception as e:
         logger.exception(

@@ -38,10 +38,20 @@ def _send_single_image(phone_number: str, url: str, caption: str = "") -> dict:
     }
 
     response = httpx.post(api_url, headers=headers, data=data)
-    logger.info(
-        "Response",
-        extra={"phone_number": phone_number, "response": response.json()},
-    )
+    if response.status_code >= 400:
+        logger.error(
+            "Gupshup image send failed",
+            extra={
+                "phone_number": phone_number,
+                "status_code": response.status_code,
+                "response_body": response.text,
+            },
+        )
+    else:
+        logger.info(
+            "Response",
+            extra={"phone_number": phone_number, "response": response.json()},
+        )
     return response.json()
 
 

@@ -10,6 +10,9 @@ from kisna_chatbot.processors.entity_extractor import (
     build_search_context,
     entities_to_api_params,
     extract_entities,
+    merge_search_entities,
+    normalize_category_for_api,
+    normalize_material_for_api,
 )
 from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
@@ -21,6 +24,7 @@ from kisna_chatbot.utils.product_formatter import (
     format_product_image_caption,
     format_product_list_message,
     format_zero_results_message,
+    get_product_display_price,
     get_product_image_url,
 )
 
@@ -146,14 +150,8 @@ def _has_more_pages(page: int, total_count: int, page_size: int = PAGE_SIZE) -> 
 
 
 def _lowest_price(products: list[dict]) -> int | None:
-    prices = []
-    for product in products:
-        price = (product.get("price") or {}).get("variantPrice")
-        if price is not None:
-            try:
-                prices.append(int(price))
-            except (TypeError, ValueError):
-                pass
+    prices = [get_product_display_price(product) for product in products]
+    prices = [p for p in prices if p > 0]
     return min(prices) if prices else None
 
 
@@ -193,16 +191,8 @@ def _search_button_msgid(messages: dict) -> str | None:
 
 
 def _entities_from_last_viewed(last: dict) -> dict:
-    material = last.get("materialType")
-    material_type = None
-    if isinstance(material, list) and material:
-        material_type = str(material[0]).lower()
-    elif isinstance(material, str) and material:
-        material_type = material.lower()
-
-    category = last.get("category")
-    if isinstance(category, str):
-        category = category.lower().rstrip("s") if category else None
+    material_type = normalize_material_for_api(last.get("materialType"))
+    category = normalize_category_for_api(last.get("category"))
 
     return {
         "category": category,
@@ -272,12 +262,7 @@ def _build_fallback_strategies(
         add(no_price, "budget", "drop_price")
 
     if entities.get("material_type"):
-        no_material = {
-            **entities,
-            "material_type": None,
-            "min_price": None,
-            "max_price": None,
-        }
+        no_material = {**entities, "material_type": None}
         add(no_material, "material", "drop_material")
 
     if entities.get("title"):
@@ -330,12 +315,16 @@ def _build_search_success_response(
 
     search_context = build_search_context(entities)
     images_sent = 0
+    skipped_product_ids: list[str] = []
 
     for product in products:
         if images_sent >= _MAX_IMAGE_PRODUCTS:
             break
         url = get_product_image_url(product)
         if not url:
+            pid = product.get("_id") or product.get("id")
+            if pid:
+                skipped_product_ids.append(str(pid))
             continue
         bot_response.append(
             {
@@ -346,6 +335,22 @@ def _build_search_success_response(
             }
         )
         images_sent += 1
+
+    if images_sent == 0 and products:
+        bot_response.append(
+            {
+                "type": "text",
+                "text": "Here are your results (images unavailable for some items):",
+            }
+        )
+    elif skipped_product_ids:
+        logger.warning(
+            "Search carousel skipped products without image URLs",
+            extra={
+                "images_sent": images_sent,
+                "skipped_product_ids": skipped_product_ids,
+            },
+        )
 
     if products:
         if _has_more_pages(page, total_count, page_size):
@@ -540,8 +545,13 @@ class ProductSearchAgentV3(Processor):
                 entities = _entities_from_last_viewed(last)
                 user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
                 label = last.get("title") or "similar pieces"
+                exclude_id = str(last.get("_id") or "")
                 return await self._execute_search(
-                    data, phone_number, entities, query_label=f"similar:{label}"
+                    data,
+                    phone_number,
+                    entities,
+                    query_label=f"similar:{label}",
+                    exclude_product_id=exclude_id or None,
                 )
 
         material_msgid = _material_button_msgid(messages)
@@ -576,7 +586,25 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
-        entities = extract_entities(query)
+        extracted = extract_entities(query)
+        prior = user_profile.get("last_search_filters")
+        entities = merge_search_entities(prior, extracted, query)
+        if extracted.get("max_price") is not None or extracted.get("min_price") is not None:
+            user_profile["user_stated_budget"] = {
+                "min_price": extracted.get("min_price"),
+                "max_price": extracted.get("max_price"),
+            }
+        logger.info(
+            "Search entity merge",
+            extra={
+                "phone_number": phone_number,
+                "query": query,
+                "prior_filters": prior,
+                "extracted": extracted,
+                "merged": entities,
+                "api_params": entities_to_api_params(entities),
+            },
+        )
         return await self._execute_search(
             data, phone_number, entities, query_label=query
         )
@@ -660,6 +688,7 @@ class ProductSearchAgentV3(Processor):
         entities: dict,
         *,
         query_label: str,
+        exclude_product_id: str | None = None,
     ) -> dict:
         user_profile = data.get("user_profile", {})
         last_filters = user_profile.get("last_search_filters") or {}
@@ -737,6 +766,15 @@ class ProductSearchAgentV3(Processor):
                 {"type": "text", "text": format_zero_results_message(entities)}
             ]
             return data
+
+        if exclude_product_id:
+            filtered = [
+                p for p in products if _product_id(p) != str(exclude_product_id)
+            ]
+            if filtered:
+                products = filtered
+            elif total_count > 1:
+                total_count = max(len(products), total_count - 1)
 
         user_profile["last_search_filters"] = winning_entities
         profile_updates = entities_to_jewellery_profile(

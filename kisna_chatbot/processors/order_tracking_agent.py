@@ -77,18 +77,6 @@ def _resolve_order_id(data: dict, messages: dict) -> str | None:
     return None
 
 
-def _build_prompt_response() -> list:
-    return [
-        {
-            "type": "text",
-            "text": (
-                "📦 Please share your order ID (e.g. #KIS12345) "
-                "so I can pull up tracking for you."
-            ),
-        }
-    ]
-
-
 def _build_tracking_response(order_id: str, tracking_url: str) -> list:
     return [
         {
@@ -107,6 +95,38 @@ def _build_tracking_response(order_id: str, tracking_url: str) -> list:
             "url": tracking_url,
         },
     ]
+
+
+def _build_generic_tracking_response(tracking_url: str) -> list:
+    return [
+        {
+            "type": "text",
+            "text": (
+                "📦 *Order tracking*\n\n"
+                "Click below to track your order in real-time. 🚚\n\n"
+                "✅ We'll keep you updated on every step."
+            ),
+        },
+        {
+            "type": "cta_url",
+            "text": "Click below to track your order in real-time.",
+            "display_text": "Track Your Order",
+            "url": tracking_url,
+        },
+    ]
+
+
+def build_track_order_bot_response(
+    order_id: str | None = None,
+    client_id: str = "kisna",
+) -> list:
+    """Shared tracking CTA for menu taps and order_tracking agent."""
+    client_config = get_client_config(client_id)
+    adapter = ClientAPIAdapter(client_config)
+    tracking_url = adapter.get_order_tracking_url(order_id or "")
+    if order_id:
+        return _build_tracking_response(order_id, tracking_url)
+    return _build_generic_tracking_response(tracking_url)
 
 
 def _build_error_response(text: str) -> list:
@@ -155,7 +175,7 @@ class OrderTrackingAgent(Processor):
             )
             return data
 
-        order_id = _resolve_order_id(data, messages) or "your order"
+        order_id = _resolve_order_id(data, messages)
 
         adapter = ClientAPIAdapter(client_config)
         try:
@@ -168,8 +188,11 @@ class OrderTrackingAgent(Processor):
                 },
             )
 
-            tracking_url = adapter.get_order_tracking_url(order_id)
-            data["bot_response"] = _build_tracking_response(order_id, tracking_url)
+            tracking_url = adapter.get_order_tracking_url(order_id or "")
+            if order_id:
+                data["bot_response"] = _build_tracking_response(order_id, tracking_url)
+            else:
+                data["bot_response"] = _build_generic_tracking_response(tracking_url)
 
             logger.info(
                 "Order tracking URL generated",

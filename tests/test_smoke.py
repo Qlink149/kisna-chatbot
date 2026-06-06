@@ -39,14 +39,23 @@ from kisna_chatbot.processors.product_details_agent import (
 )
 from kisna_chatbot.prompts.general_agent_kisna import build_general_agent_prompt
 from kisna_chatbot.processors.classifier import Classifier
+from kisna_chatbot.processors.ad_flow_agent import (
+    _filter_cached_stores,
+    _UNPARSEABLE_STORE_TEXT,
+)
+from kisna_chatbot.processors.entity_extractor import normalize_category_for_api
+from kisna_chatbot.processors.offers_agent import _is_labour_promo
+from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
 from kisna_chatbot.processors.product_search_agent_v3 import (
     ProductSearchAgentV3,
     _build_search_success_response,
+    _entities_from_last_viewed,
 )
 from kisna_chatbot.processors.service_list import (
     _build_explore_products_list,
     _handle_menu_selection,
 )
+from kisna_chatbot.utils.product_formatter import get_product_display_price
 from kisna_chatbot.utils.product_formatter import format_product_list_message
 
 
@@ -521,6 +530,172 @@ class ClassifierSkipTests(unittest.TestCase):
         }
         self.assertTrue(clf.should_run(data))
 
+    def test_classifier_skips_awaiting_store_pincode(self):
+        clf = Classifier()
+        data = {
+            "messages": {"text": {"body": "400001"}},
+            "user_profile": {
+                "awaiting_store_pincode": True,
+                "chat_history": [{"role": "user", "content": "find store"}],
+            },
+        }
+        self.assertFalse(clf.should_run(data))
+
+    def test_classifier_skips_bare_pincode_when_ad_flow_active(self):
+        clf = Classifier()
+        data = {
+            "messages": {"text": {"body": "400001"}},
+            "user_profile": {
+                "service_selected": SL.AD_FLOW.value,
+                "chat_history": [{"role": "user", "content": "find store"}],
+            },
+        }
+        self.assertFalse(clf.should_run(data))
+
+    def test_classifier_store_shortcut_routes_ad_flow(self):
+        clf = Classifier()
+
+        async def _run():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "400001"}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            return await clf.process(data)
+
+        import asyncio
+
+        result = asyncio.run(_run())
+        self.assertEqual(result["classified_category"], "store_info")
+        self.assertEqual(result["user_profile"]["service_selected"], SL.AD_FLOW.value)
+        self.assertNotIn("bot_response", result)
+
+
+class SeeSimilarTests(unittest.TestCase):
+    def test_normalize_category_earring_not_corrupted(self):
+        self.assertEqual(normalize_category_for_api("earring"), "earring")
+        self.assertEqual(normalize_category_for_api("earrings"), "earring")
+
+    def test_entities_from_last_viewed_uses_canonical_category(self):
+        entities = _entities_from_last_viewed({"category": "earring"})
+        self.assertEqual(entities["category"], "earring")
+
+
+class StoreFlowTests(unittest.TestCase):
+    def test_filter_cached_stores_no_unrelated_fallback(self):
+        cached = {
+            "stores": [
+                {"name": "Mumbai Store", "address": {"line1": "Mumbai", "pincode": "400001"}},
+            ]
+        }
+        result = _filter_cached_stores(cached, pincode="999999")
+        self.assertEqual(result["stores"], [])
+
+    def test_find_store_menu_sets_awaiting_pincode(self):
+        user_profile = {}
+        data = {}
+        _handle_menu_selection("Find Store", user_profile, data, "find_store")
+        self.assertTrue(user_profile["awaiting_store_pincode"])
+        self.assertEqual(user_profile["service_selected"], SL.AD_FLOW.value)
+
+    def test_unparseable_store_input_message_defined(self):
+        self.assertIn("6-digit pincode", _UNPARSEABLE_STORE_TEXT)
+
+
+class TrackOrderTests(unittest.TestCase):
+    def test_track_order_menu_returns_cta_url(self):
+        user_profile = {}
+        data = {}
+        _handle_menu_selection("Track Order", user_profile, data, "track_order")
+        self.assertEqual(user_profile["service_selected"], SL.ORDER_TRACKING.value)
+        self.assertTrue(any(item.get("type") == "cta_url" for item in data["bot_response"]))
+
+    def test_build_track_order_bot_response_has_cta(self):
+        response = build_track_order_bot_response()
+        self.assertEqual(response[-1]["type"], "cta_url")
+        self.assertIn("track-order", response[-1]["url"])
+
+
+class OffersMenuTests(unittest.TestCase):
+    def test_view_offers_delegates_without_prompt(self):
+        user_profile = {}
+        data = {}
+        _handle_menu_selection("View Offers", user_profile, data, "view_offers")
+        self.assertEqual(user_profile["service_selected"], SL.OFFERS.value)
+        self.assertEqual(data["classified_category"], "offers")
+        self.assertNotIn("bot_response", data)
+
+    def test_making_charges_promo_counts_as_labour(self):
+        self.assertTrue(_is_labour_promo({"discOn": "Making Charges"}))
+
+
+class SearchImageCarouselTests(unittest.TestCase):
+    def test_carousel_sends_available_images_only(self):
+        products = [
+            {"_id": "1", "title": "A", "mediaUrl": [{"image": "https://ex.com/a.jpg"}]},
+            {"_id": "2", "title": "B"},
+            {"_id": "3", "title": "C", "mediaUrl": [{"image": "https://ex.com/c.jpg"}]},
+            {"_id": "4", "title": "D", "mediaUrl": [{"image": "https://ex.com/d.jpg"}]},
+            {"_id": "5", "title": "E", "mediaUrl": [{"image": "https://ex.com/e.jpg"}]},
+        ]
+        response = _build_search_success_response(products, 5, 1, {})
+        media_items = [r for r in response if r.get("type") == "media"]
+        self.assertEqual(len(media_items), 3)
+
+    def test_carousel_no_images_shows_fallback_text(self):
+        products = [{"_id": "1", "title": "A"}]
+        response = _build_search_success_response(products, 1, 1, {})
+        texts = [r["text"] for r in response if r.get("type") == "text"]
+        self.assertTrue(any("images unavailable" in t for t in texts))
+
+
+class DisplayPriceTests(unittest.TestCase):
+    def test_sale_price_takes_priority(self):
+        product = {"price": {"variantPrice": 50000, "salePrice": 45000}}
+        self.assertEqual(get_product_display_price(product), 45000)
+
+    def test_display_uses_variant_price_when_api_mrp_stale(self):
+        product = {
+            "price": {"variantPrice": 64892},
+            "variant": {"salePrice": 64892, "mrpPrice": 64892},
+            "materialType": ["diamond"],
+            "promotions": [
+                {
+                    "discOn": "Labour",
+                    "fromAmt": 50000,
+                    "toAmt": 99999,
+                    "disc": 30,
+                    "category": "Diamond",
+                }
+            ],
+        }
+        self.assertEqual(get_product_display_price(product), 64892)
+
+
+class FilterMergeTests(unittest.TestCase):
+    def test_merge_keeps_earring_on_under_10k(self):
+        from kisna_chatbot.processors.entity_extractor import merge_search_entities
+
+        prior = {"category": "earring", "material_type": None, "max_price": None}
+        new = {"category": None, "max_price": 10000.0}
+        merged = merge_search_entities(prior, new, "I want them under 10,000")
+        self.assertEqual(merged["category"], "earring")
+        self.assertEqual(merged["max_price"], 10000.0)
+
+
+class OffersClassifierSkipTests(unittest.TestCase):
+    def test_classifier_skips_offers_go_ahead(self):
+        clf = Classifier()
+        data = {
+            "messages": {"text": {"body": "go ahead"}},
+            "user_profile": {
+                "service_selected": SL.OFFERS.value,
+                "chat_history": [{"role": "user", "content": "offers"}],
+            },
+        }
+        self.assertFalse(clf.should_run(data))
+
 
 class ClientConfigTests(unittest.TestCase):
     def test_kisna_product_api_from_env(self):
@@ -528,6 +703,166 @@ class ClientConfigTests(unittest.TestCase):
         refresh_client_registry()
         config = get_client_config("kisna")
         self.assertEqual(config.product_api_base, "https://api.example.com/products")
+
+
+class HardeningAuditTests(unittest.TestCase):
+    def test_product_details_cache_miss_retry(self):
+        async def _run():
+            agent = ProductDetailsAgent()
+            list_id = json.dumps(
+                {"msgid": "product_select$results", "postbackText": "prod-miss"}
+            )
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "interactive": {
+                        "type": "list_reply",
+                        "list_reply": {"id": list_id, "title": "Gold Ring"},
+                    }
+                },
+                "user_profile": {"last_search_products": []},
+            }
+            mock_result = {
+                "products": [
+                    {
+                        "_id": "prod-miss",
+                        "title": "Gold Ring",
+                        "price": {"variantPrice": 45000},
+                        "materialType": ["gold"],
+                    }
+                ],
+                "total_count": 1,
+                "page": 1,
+            }
+            with patch(
+                "kisna_chatbot.processors.product_details_agent.search_products",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ):
+                result = await agent.process(data)
+            self.assertIn("bot_response", result)
+            self.assertTrue(len(result["bot_response"]) >= 1)
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_price_followup_from_last_viewed(self):
+        async def _run():
+            agent = ProductDetailsAgent()
+            cached_product = {
+                "_id": "prod-42",
+                "title": "Gold Ring",
+                "price": {"variantPrice": 45000},
+                "materialType": ["gold"],
+                "shipping": {"edd": 5},
+            }
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "isme kitna hai?"}},
+                "user_profile": {
+                    "last_viewed_product": {
+                        "_id": "prod-42",
+                        "title": "Gold Ring",
+                        "price": 45000,
+                    },
+                    "last_search_products": [cached_product],
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                },
+            }
+            result = await agent.process(data)
+            self.assertIn("bot_response", result)
+            self.assertIn("₹45,000", result["bot_response"][0]["text"])
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_classifier_escapes_offers_state_for_search(self):
+        clf = Classifier()
+        data = {
+            "messages": {"text": {"body": "gold ring under 50k"}},
+            "user_profile": {
+                "service_selected": SL.OFFERS.value,
+                "chat_history": [{"role": "user", "content": "offers"}],
+            },
+        }
+        self.assertTrue(clf.should_run(data))
+
+    def test_classifier_json_fallback_menu(self):
+        async def _run():
+            clf = Classifier()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "tell me about care"}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value="not valid json",
+            ):
+                result = await clf.process(data)
+            self.assertIn("bot_response", result)
+            self.assertEqual(result["bot_response"][0]["type"], "list")
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_ad_flow_cancel_returns_menu(self):
+        async def _run():
+            from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
+
+            agent = AdFlowAgent()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "cancel"}},
+                "user_profile": {"awaiting_store_pincode": True},
+            }
+            result = await agent.process(data)
+            self.assertIn("bot_response", result)
+            self.assertEqual(result["user_profile"]["awaiting_store_pincode"], False)
+            self.assertEqual(result["user_profile"]["service_selected"], "")
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_offers_api_error_not_empty_message(self):
+        async def _run():
+            from kisna_chatbot.integrations.clara_api import ClaraAPIError
+            from kisna_chatbot.processors.offers_agent import OffersAgent, _ERROR_TEXT
+
+            agent = OffersAgent()
+            data = {
+                "phone_number": "919999999999",
+                "user_profile": {"service_selected": SL.OFFERS.value},
+                "client_config": get_client_config("kisna"),
+                "classified_category": "offers",
+            }
+            with patch(
+                "kisna_chatbot.processors.offers_agent.get_cached_promotions",
+                new_callable=AsyncMock,
+                return_value=[],
+            ), patch(
+                "kisna_chatbot.processors.offers_agent.get_promotions",
+                new_callable=AsyncMock,
+                side_effect=ClaraAPIError("down"),
+            ):
+                result = await agent.process(data)
+            self.assertIn("bot_response", result)
+            self.assertIn(_ERROR_TEXT, result["bot_response"][0]["text"])
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_general_prompt_omits_placeholder_phone(self):
+        prompt = build_general_agent_prompt()
+        self.assertNotIn("1800-XXX-XXXX", prompt)
+        self.assertIn("do not invent", prompt.lower())
 
 
 if __name__ == "__main__":

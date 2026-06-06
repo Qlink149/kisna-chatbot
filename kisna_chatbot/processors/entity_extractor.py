@@ -16,6 +16,7 @@ _CATEGORY_SYNONYMS: dict[str, list[str]] = {
     ],
     "earring": [
         "earring",
+        "earrings",
         "bali",
         "jhumka",
         "jhhumka",
@@ -104,7 +105,7 @@ _RANGE_PATTERNS = [
 
 _MAX_PATTERNS = [
     re.compile(
-        r"(?:under|below|upto|up to|max|budget|within|kam|se kam)\s*"
+        r"(?:under|below|upto|up to|max|maximum|budget|within|less than|kam|se kam)\s*"
         r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
         re.I,
     ),
@@ -113,7 +114,11 @@ _MAX_PATTERNS = [
         re.I,
     ),
     re.compile(
-        r"budget\s*₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
+        r"budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
+        re.I,
+    ),
+    re.compile(
+        r"within\s*(?:my\s*)?budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
         re.I,
     ),
 ]
@@ -223,6 +228,129 @@ def _extract_city(text: str) -> str | None:
 def _extract_pincode(text: str) -> str | None:
     m = _PINCODE_RE.search(text)
     return m.group(1) if m else None
+
+
+def normalize_category_for_api(raw: str | list | None) -> str | None:
+    """Map product/category labels to Clara API category values."""
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        raw = raw[0] if raw else None
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+
+    text = raw.strip().lower()
+    if text in _CATEGORY_SYNONYMS:
+        return text
+
+    for api_value, synonyms in _CATEGORY_SYNONYMS.items():
+        if text == api_value or text == f"{api_value}s":
+            return api_value
+        for syn in synonyms:
+            if text == syn or text == f"{syn}s":
+                return api_value
+
+    matched = _match_synonym(text, _CATEGORY_SYNONYMS)
+    return matched
+
+
+_SEARCH_RESET_RE = re.compile(
+    r"\b(new search|start over|browse all|fresh search|reset search)\b",
+    re.I,
+)
+
+_REFINEMENT_ONLY_RE = re.compile(
+    r"\b(under|below|upto|up to|less than|maximum|max|budget|within|cheaper|affordable|"
+    r"above|over|more than|them|those|these|it|ones)\b",
+    re.I,
+)
+
+
+def extract_category_from_product(product: dict) -> str | None:
+    """Read Clara category from productType.category.name or top-level category."""
+    if not isinstance(product, dict):
+        return None
+    top = product.get("category")
+    if top:
+        return normalize_category_for_api(top)
+    product_type = product.get("productType") or {}
+    if isinstance(product_type, dict):
+        cat_block = product_type.get("category") or {}
+        if isinstance(cat_block, dict):
+            return normalize_category_for_api(cat_block.get("name"))
+    return None
+
+
+def merge_search_entities(
+    prior: dict[str, Any] | None,
+    new: dict[str, Any],
+    query: str,
+) -> dict[str, Any]:
+    """
+    Merge prior search filters with newly extracted entities for follow-up refinements.
+
+    e.g. after earrings search, "I want them under 10,000" keeps category=earring.
+    """
+    merged = {
+        "category": new.get("category"),
+        "material_type": new.get("material_type"),
+        "min_price": new.get("min_price"),
+        "max_price": new.get("max_price"),
+        "title": new.get("title"),
+        "city": new.get("city"),
+        "pincode": new.get("pincode"),
+    }
+
+    if not prior:
+        return merged
+
+    normalized_query = _normalize_text(query)
+    if _SEARCH_RESET_RE.search(normalized_query):
+        return merged
+
+    prior = prior or {}
+    new_has_category = merged.get("category") is not None
+    new_has_material = merged.get("material_type") is not None
+    new_has_title = merged.get("title") is not None
+    new_has_price = (
+        merged.get("min_price") is not None or merged.get("max_price") is not None
+    )
+
+    refinement_only = (
+        not new_has_category
+        and not new_has_material
+        and not new_has_title
+        and (new_has_price or _REFINEMENT_ONLY_RE.search(normalized_query))
+    )
+
+    if refinement_only:
+        for key in ("category", "material_type", "title"):
+            if merged.get(key) is None and prior.get(key) is not None:
+                merged[key] = prior[key]
+
+    elif not new_has_category and prior.get("category") and not _SEARCH_RESET_RE.search(
+        normalized_query
+    ):
+        if not new_has_material and not new_has_title and new_has_price:
+            merged["category"] = prior.get("category")
+            if merged.get("material_type") is None:
+                merged["material_type"] = prior.get("material_type")
+
+    return merged
+
+
+def normalize_material_for_api(raw: str | list | None) -> str | None:
+    """Map material labels to Clara API material_type values."""
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        raw = raw[0] if raw else None
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    text = raw.strip().lower()
+    if text in _MATERIAL_SYNONYMS:
+        return text
+    return _match_synonym(text, _MATERIAL_SYNONYMS)
 
 
 def extract_entities(text: str) -> dict[str, Any]:

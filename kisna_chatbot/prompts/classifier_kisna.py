@@ -96,21 +96,23 @@ Fallback for unclear or spam: {"intent": "menu_help", "confidence": 0.3}
 9. "ye ring available hai kya" → {"intent": "product_info", "confidence": 0.9}
 10. "koi offer hai kya?" → {"intent": "offers", "confidence": 0.95}
 11. "making charges pe discount" → {"intent": "offers", "confidence": 0.85}
-12. "400001 mein store" → {"intent": "store_info", "confidence": 0.92}
-13. "Mumbai me store kahan hai" → {"intent": "store_info", "confidence": 0.9}
-14. "mera order kahan hai?" → {"intent": "order_tracking", "confidence": 0.95}
-15. "track order KIS123" → {"intent": "order_tracking", "confidence": 0.93}
-16. "return karna hai" → {"intent": "returns_refund", "confidence": 0.9}
-17. "refund kab milega" → {"intent": "returns_refund", "confidence": 0.88}
-18. "product damage ho gaya" → {"intent": "complaint", "confidence": 0.95}
-19. "galat item deliver hua" → {"intent": "complaint", "confidence": 0.92}
-20. "human se baat karo" → {"intent": "human_handoff", "confidence": 0.95}
-21. "return policy kya hai" → {"intent": "general", "confidence": 0.9}
-22. "gold kaise maintain kare" → {"intent": "general", "confidence": 0.85}
-23. "mujhe jhumka dikhao" → {"intent": "product_search", "confidence": 0.93}
-24. "Sure" | active: product_search → {"intent": "product_search", "confidence": 0.7}
-25. "asdfghjkl" → {"intent": "menu_help", "confidence": 0.3}
-26. "EMI available hai?" → {"intent": "general", "confidence": 0.9}
-27. "kya loan pe mil sakta hai?" → {"intent": "general", "confidence": 0.88}
-28. "easy installment available?" → {"intent": "general", "confidence": 0.88}
+12. "400001" → {"intent": "store_info", "confidence": 0.92}
+13. "400001 mein store" → {"intent": "store_info", "confidence": 0.92}
+14. "400001" | active: store_info → {"intent": "store_info", "confidence": 0.95}
+15. "Mumbai me store kahan hai" → {"intent": "store_info", "confidence": 0.9}
+16. "mera order kahan hai?" → {"intent": "order_tracking", "confidence": 0.95}
+17. "track order KIS123" → {"intent": "order_tracking", "confidence": 0.93}
+18. "return karna hai" → {"intent": "returns_refund", "confidence": 0.9}
+19. "refund kab milega" → {"intent": "returns_refund", "confidence": 0.88}
+20. "product damage ho gaya" → {"intent": "complaint", "confidence": 0.95}
+21. "galat item deliver hua" → {"intent": "complaint", "confidence": 0.92}
+22. "human se baat karo" → {"intent": "human_handoff", "confidence": 0.95}
+23. "return policy kya hai" → {"intent": "general", "confidence": 0.9}
+24. "gold kaise maintain kare" → {"intent": "general", "confidence": 0.85}
+25. "mujhe jhumka dikhao" → {"intent": "product_search", "confidence": 0.93}
+26. "Sure" | active: product_search → {"intent": "product_search", "confidence": 0.7}
+27. "asdfghjkl" → {"intent": "menu_help", "confidence": 0.3}
+28. "EMI available hai?" → {"intent": "general", "confidence": 0.9}
+29. "kya loan pe mil sakta hai?" → {"intent": "general", "confidence": 0.88}
+30. "easy installment available?" → {"intent": "general", "confidence": 0.88}
 """

@@ -4,6 +4,10 @@
 !.env.example
 .gupshup_flow_state.json
 
+# Clara API JSON data (sensitive / generated)
+json/Clara_WhatsApp_API.json
+json/api/
+
 # Python
 __pycache__/
 *.py[cod]

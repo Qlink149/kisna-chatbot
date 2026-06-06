@@ -5,6 +5,7 @@ from kisna_chatbot.integrations.clara_api import ClaraAPIError, get_stores
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import extract_entities
+from kisna_chatbot.processors.service_list import build_main_menu_bot_response
 from kisna_chatbot.utils.clara_cache import get_cached_stores
 from kisna_chatbot.utils.logger_config import logger
 
@@ -14,6 +15,11 @@ _PINCODE_ONLY_RE = re.compile(r"^\s*([1-9]\d{5})\s*$")
 _ASK_PINCODE_TEXT = (
     "Please share your 6-digit pincode and I'll find the nearest KISNA store."
 )
+_UNPARSEABLE_STORE_TEXT = (
+    "I couldn't read that pincode or city. Please send a 6-digit pincode "
+    "(e.g. 400001) or a city name like Mumbai."
+)
+_ESCAPE_RE = re.compile(r"^(menu|cancel|back)$", re.I)
 _GENERIC_ERROR = (
     "Sorry, we couldn't look up stores right now. Please try again in a moment."
 )
@@ -106,7 +112,7 @@ def _filter_cached_stores(
             blob = f"{_store_address_line(s)} {_store_name(s)}".lower()
             if pincode in blob or pincode in str(s.get("pincode", "")):
                 filtered.append(s)
-        stores = filtered or stores
+        stores = filtered
     elif city:
         city_l = city.lower()
         filtered = [
@@ -180,6 +186,12 @@ class AdFlowAgent(Processor):
 
         try:
             if user_profile.get("awaiting_store_pincode"):
+                if _ESCAPE_RE.match(user_message):
+                    user_profile["awaiting_store_pincode"] = False
+                    user_profile["service_selected"] = ""
+                    data["bot_response"] = [build_main_menu_bot_response()]
+                    return data
+
                 user_profile["awaiting_store_pincode"] = False
                 m = _PINCODE_ONLY_RE.match(user_message)
                 if m:
@@ -189,7 +201,9 @@ class AdFlowAgent(Processor):
                     pincode = entities.get("pincode")
                     city = entities.get("city")
                 if not pincode and not city:
-                    data["bot_response"] = [{"type": "text", "text": _ASK_PINCODE_TEXT}]
+                    data["bot_response"] = [
+                        {"type": "text", "text": _UNPARSEABLE_STORE_TEXT}
+                    ]
                     user_profile["awaiting_store_pincode"] = True
                     return data
             else:
@@ -248,16 +262,7 @@ class AdFlowAgent(Processor):
             total_count = int(result.get("total_count") or len(stores))
 
             if not stores:
-                fallback = await self._fetch_stores(
-                    pincode=pincode,
-                    city=city,
-                    app_state=app_state,
-                    use_cache_fallback=True,
-                )
-                stores = fallback.get("stores") or []
-                total_count = int(fallback.get("total_count") or len(stores))
-
-            if not stores:
+                user_profile["awaiting_store_pincode"] = False
                 data["bot_response"] = [{"type": "text", "text": _zero_results_message()}]
                 return data
 

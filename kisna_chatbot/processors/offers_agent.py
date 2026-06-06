@@ -1,4 +1,7 @@
+import os
+
 from kisna_chatbot.config.clients import get_client_config
+from kisna_chatbot.integrations.clara_api import ClaraAPIError, get_promotions
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.product_search_agent_v3 import _material_button_msgid
 from kisna_chatbot.utils.clara_cache import get_cached_promotions
@@ -6,6 +9,10 @@ from kisna_chatbot.utils.logger_config import logger
 
 _EMPTY_OFFERS_TEXT = (
     "No active offers right now. Check back soon — we've got fresh deals coming!"
+)
+_PARTIAL_OFFERS_TEXT = (
+    "We have promotions available but none match making-charge offers right now. "
+    "Browse pieces below:"
 )
 _ERROR_TEXT = (
     "Sorry, we couldn't load offers right now. Please try again in a moment."
@@ -18,10 +25,10 @@ _FOOTER_LINES = (
 
 
 def _is_labour_promo(promo: dict) -> bool:
-    disc_on = promo.get("discOn")
-    if disc_on is None:
+    disc_on = (promo.get("discOn") or "").strip().lower()
+    if not disc_on:
         return True
-    return disc_on == "Labour"
+    return disc_on in ("labour", "making charges", "making charge")
 
 
 def _format_amount_range(promo: dict) -> str:
@@ -45,7 +52,7 @@ def _format_promo_line(promo: dict) -> str | None:
     label = promo.get("discountLable") or promo.get("discountLabel") or ""
     label = label.replace(" %", "%")
     if not label:
-        disc = promo.get("discount")
+        disc = promo.get("disc") or promo.get("discount")
         disc_on = promo.get("discOn") or "Making Charges"
         if disc is None:
             return None
@@ -132,8 +139,19 @@ def _build_empty_response() -> list:
     return [{"type": "text", "text": _EMPTY_OFFERS_TEXT}, *_build_material_ctas()]
 
 
+def _build_partial_response() -> list:
+    return [{"type": "text", "text": _PARTIAL_OFFERS_TEXT}, *_build_material_ctas()]
+
+
+def _clara_configured() -> bool:
+    return bool(
+        (os.getenv("KISNA_CLARA_BASE_URL") or "").strip()
+        and (os.getenv("CLARA_API_KEY") or "").strip()
+    )
+
+
 def _build_error_response() -> list:
-    return [{"type": "text", "text": _ERROR_TEXT}]
+    return [{"type": "text", "text": _ERROR_TEXT}, *_build_material_ctas()]
 
 
 class OffersAgent(Processor):
@@ -177,7 +195,25 @@ class OffersAgent(Processor):
                 extra={"phone_number": phone_number, "client_id": client_id},
             )
 
+            if not _clara_configured():
+                data["bot_response"] = _build_error_response()
+                logger.warning(
+                    "Offers requested but Clara API is not configured",
+                    extra={"phone_number": phone_number, "client_id": client_id},
+                )
+                return data
+
             promotions = await get_cached_promotions(app_state)
+
+            if not promotions:
+                try:
+                    promotions = await get_promotions() or []
+                except ClaraAPIError:
+                    data["bot_response"] = _build_error_response()
+                    return data
+                except Exception:
+                    data["bot_response"] = _build_error_response()
+                    return data
 
             if not promotions:
                 data["bot_response"] = _build_empty_response()
@@ -190,8 +226,20 @@ class OffersAgent(Processor):
             labour_promos = [
                 p for p in promotions if isinstance(p, dict) and _is_labour_promo(p)
             ]
+            logger.info(
+                "Offers promotion filter",
+                extra={
+                    "phone_number": phone_number,
+                    "client_id": client_id,
+                    "raw_promotion_count": len(promotions),
+                    "labour_promotion_count": len(labour_promos),
+                },
+            )
             if not labour_promos:
-                data["bot_response"] = _build_empty_response()
+                if promotions:
+                    data["bot_response"] = _build_partial_response()
+                else:
+                    data["bot_response"] = _build_empty_response()
                 return data
 
             offers_text = _build_offers_text(promotions)
@@ -202,6 +250,7 @@ class OffersAgent(Processor):
                     "phone_number": phone_number,
                     "client_id": client_id,
                     "promotion_count": len(promotions),
+                    "labour_promotion_count": len(labour_promos),
                 },
             )
             return data

@@ -10,7 +10,11 @@ os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 from kisna_chatbot.processors.ad_flow_agent import _format_stores_message, _zero_results_message
-from kisna_chatbot.processors.offers_agent import _build_offers_text, _format_promo_line
+from kisna_chatbot.processors.offers_agent import (
+    _build_offers_text,
+    _format_promo_line,
+    _is_labour_promo,
+)
 from kisna_chatbot.processors.service_list import _normalize_menu_key
 from kisna_chatbot.utils.clara_cache import (
     PROMOTIONS_TTL_SECONDS,
@@ -83,6 +87,20 @@ class OffersFormatTests(unittest.TestCase):
             }
         )
         self.assertIn("up to ₹49,999", line)
+
+    def test_making_charges_disc_on_is_labour_promo(self):
+        self.assertTrue(_is_labour_promo({"discOn": "Making Charges"}))
+
+    def test_promo_line_uses_discount_field(self):
+        line = _format_promo_line(
+            {
+                "discount": 15,
+                "fromAmt": 0,
+                "toAmt": 99999,
+                "discOn": "Making Charges",
+            }
+        )
+        self.assertIn("15% off on Making Charges", line)
 
 
 class StoreFormatTests(unittest.TestCase):

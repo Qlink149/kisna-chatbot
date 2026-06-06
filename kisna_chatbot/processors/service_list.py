@@ -3,6 +3,7 @@ import json
 from kisna_chatbot.models.enums import ListIds, QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
 from kisna_chatbot.utils.logger_config import logger
 
 _GENERIC_ERROR = "Something went wrong. Please try again."
@@ -15,17 +16,8 @@ _MENU_BODY = (
 
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
 
-_VIEW_OFFERS_TEXT = (
-    'Great choice! Ask me about current discounts, bank offers, or promo codes — '
-    'e.g. "What offers are running?"'
-)
-
 _FIND_STORE_TEXT = (
     "Share your pincode or city and I'll help you find the nearest Kisna store."
-)
-
-_TRACK_ORDER_TEXT = (
-    "Please share your order ID (e.g. #KIS12345) so I can pull up tracking for you."
 )
 
 _WELCOME_TEXT = (
@@ -369,17 +361,18 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
 
     if key in ("view_offers",):
         user_profile["service_selected"] = SL.OFFERS.value
-        data["bot_response"] = [{"type": "text", "text": _VIEW_OFFERS_TEXT}]
+        data["classified_category"] = "offers"
         return
 
     if key in ("find_store", "store_info"):
         user_profile["service_selected"] = SL.AD_FLOW.value
+        user_profile["awaiting_store_pincode"] = True
         data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
         return
 
     if key in ("track_order",):
         user_profile["service_selected"] = SL.ORDER_TRACKING.value
-        data["bot_response"] = [{"type": "text", "text": _TRACK_ORDER_TEXT}]
+        data["bot_response"] = build_track_order_bot_response()
         return
 
     if key in ("raise_complaint", "damage_complaint", "complaint"):
