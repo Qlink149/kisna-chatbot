@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from zoneinfo import ZoneInfo
 
@@ -25,6 +26,11 @@ india_tz = ZoneInfo("Asia/Kolkata")
 
 CONTEXT = kisna_classifier
 
+_REROUTE_RE = re.compile(
+    r"\b(offers|store|order|complaint|return|refund|help|hi|hello|namaste|menu|back|cancel)\b",
+    re.I,
+)
+
 _CATEGORY_TO_SERVICE = {
     "general": ServiceList.GENERAL,
     "greeting": ServiceList.GENERAL,
@@ -46,7 +52,24 @@ class Classifier(Processor):
         """Determine whether the processor should run based on the input data."""
         if "bot_response" in data:
             return False
-        return True
+
+        messages = data.get("messages", {})
+        if "text" not in messages:
+            return True
+
+        user_profile = data.get("user_profile", {})
+        if user_profile.get("service_selected") != ServiceList.PRODUCT_SEARCH.value:
+            return True
+
+        chat_history = user_profile.get("chat_history", [])
+        if not chat_history:
+            return True
+
+        user_query = messages["text"].get("body", "") or ""
+        if _REROUTE_RE.search(user_query):
+            return True
+
+        return False
 
     async def process(self, data: dict) -> dict:
         """Process the input data and return the processed data."""

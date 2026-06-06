@@ -13,11 +13,7 @@ _MENU_BODY = (
     "and more. Pick an option below or just type your question."
 )
 
-_EXPLORE_PRODUCTS_TEXT = (
-    "What are you looking for today?\n\n"
-    "Rings, earrings, necklaces, bangles — just type what you need "
-    "and I'll find the best pieces for you."
-)
+_EXPLORE_CAT_LIST_MSGID = "search$cat$list"
 
 _VIEW_OFFERS_TEXT = (
     'Great choice! Ask me about current discounts, bank offers, or promo codes — '
@@ -269,6 +265,73 @@ def _normalize_menu_key(title: str, postback: str) -> str:
     return aliases.get(title_key, title_key)
 
 
+def _build_explore_products_list() -> dict:
+    """Category browse list shown when user taps Explore Products."""
+    return {
+        "type": "list",
+        "list": "list",
+        "body": "What are you looking for? Tap a category to browse 💎",
+        "footer": "KISNA Diamond & Gold",
+        "msgid": _EXPLORE_CAT_LIST_MSGID,
+        "items": [
+            {
+                "title": "Categories",
+                "subtitle": "",
+                "options": [
+                    {
+                        "type": "text",
+                        "title": "Rings",
+                        "description": "Gold & diamond rings",
+                        "postbackText": "search$cat$ring",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Earrings",
+                        "description": "Studs, hoops & jhumkas",
+                        "postbackText": "search$cat$earring",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Necklaces",
+                        "description": "Chains & haars",
+                        "postbackText": "search$cat$necklace",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Pendants",
+                        "description": "Lockets & charms",
+                        "postbackText": "search$cat$pendant",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Bracelets",
+                        "description": "Kadas & cuffs",
+                        "postbackText": "search$cat$bracelet",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Bangles",
+                        "description": "Traditional bangles",
+                        "postbackText": "search$cat$bangle",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Mangalsutra",
+                        "description": "Bridal mangalsutra",
+                        "postbackText": "search$cat$mangalsutra",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Browse All",
+                        "description": "Top picks across categories",
+                        "postbackText": "search$explore",
+                    },
+                ],
+            }
+        ],
+    }
+
+
 def _build_rating_quickreply() -> dict:
     return {
         "type": "quickreply",
@@ -291,7 +354,7 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
 
     if key in ("explore_products",):
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-        data["bot_response"] = [{"type": "text", "text": _EXPLORE_PRODUCTS_TEXT}]
+        data["bot_response"] = [_build_explore_products_list()]
         return
 
     if key in ("view_offers",):

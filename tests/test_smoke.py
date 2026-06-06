@@ -38,7 +38,15 @@ from kisna_chatbot.processors.product_details_agent import (
     _parse_product_list_selection,
 )
 from kisna_chatbot.prompts.general_agent_kisna import build_general_agent_prompt
-from kisna_chatbot.processors.product_search_agent_v3 import ProductSearchAgentV3
+from kisna_chatbot.processors.classifier import Classifier
+from kisna_chatbot.processors.product_search_agent_v3 import (
+    ProductSearchAgentV3,
+    _build_search_success_response,
+)
+from kisna_chatbot.processors.service_list import (
+    _build_explore_products_list,
+    _handle_menu_selection,
+)
 from kisna_chatbot.utils.product_formatter import format_product_list_message
 
 
@@ -246,10 +254,255 @@ class ProductSearchTests(unittest.TestCase):
                 result["user_profile"]["jewellery_profile"]["budget_range"],
                 "under ₹50,000",
             )
+            list_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "list"
+            ]
+            self.assertEqual(len(list_msgs), 1)
 
         import asyncio
 
         asyncio.run(_run())
+
+    def test_build_search_success_response_always_includes_list(self):
+        product = {
+            "_id": "p1",
+            "title": "Gold Ring",
+            "price": {"variantPrice": 45000},
+            "materialType": "gold",
+            "shipping": {"edd": 5},
+            "seos": {"slug": "gold-ring"},
+            "mediaUrl": [
+                {
+                    "isDefault": True,
+                    "image": "https://img.example/ring.webp",
+                    "type": "image",
+                }
+            ],
+        }
+        entities = {
+            "category": "ring",
+            "material_type": "gold",
+            "min_price": None,
+            "max_price": None,
+            "title": None,
+            "city": None,
+            "pincode": None,
+        }
+        response = _build_search_success_response(
+            [product], total_count=1, page=1, entities=entities
+        )
+        types = [r["type"] for r in response]
+        self.assertIn("media", types)
+        self.assertIn("list", types)
+        self.assertNotIn("quickreply", types)
+
+    def test_show_more_pagination(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            list_id = json.dumps({"msgid": "search$more"})
+            mock_product_page2 = {
+                "_id": "p6",
+                "title": "Diamond Ring",
+                "price": {"variantPrice": 55000},
+                "materialType": "diamond",
+                "shipping": {"edd": 5},
+                "seos": {"slug": "diamond-ring"},
+                "mediaUrl": [
+                    {
+                        "isDefault": True,
+                        "image": "https://img.example/diamond.webp",
+                        "type": "image",
+                    }
+                ],
+            }
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "interactive": {
+                        "type": "button_reply",
+                        "button_reply": {"id": list_id, "title": "Show More"},
+                    }
+                },
+                "user_profile": {
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "last_search_filters": {
+                        "category": "ring",
+                        "material_type": "diamond",
+                        "min_price": None,
+                        "max_price": None,
+                        "title": None,
+                        "city": None,
+                        "pincode": None,
+                    },
+                    "last_search_page": 1,
+                    "last_search_total": 10,
+                    "shown_product_ids": ["p1", "p2", "p3", "p4", "p5"],
+                },
+            }
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+            ) as search_mock:
+                search_mock.return_value = {
+                    "products": [mock_product_page2],
+                    "total_count": 10,
+                    "page": 2,
+                }
+                result = await agent.process(data)
+            self.assertIn("bot_response", result)
+            self.assertEqual(result["user_profile"]["last_search_page"], 2)
+            self.assertIn("p6", result["user_profile"]["shown_product_ids"])
+            list_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "list"
+            ]
+            self.assertEqual(len(list_msgs), 1)
+            search_mock.assert_awaited_once()
+            call_kwargs = search_mock.await_args.kwargs
+            self.assertEqual(call_kwargs["page_no"], 2)
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_search_fallback_drops_price(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "gold ring under 10k"}},
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+            }
+            mock_product = {
+                "_id": "p1",
+                "title": "Gold Ring",
+                "price": {"variantPrice": 25000},
+                "materialType": "gold",
+                "shipping": {"edd": 5},
+                "seos": {"slug": "gold-ring"},
+                "mediaUrl": [
+                    {
+                        "isDefault": True,
+                        "image": "https://img.example/ring.webp",
+                        "type": "image",
+                    }
+                ],
+            }
+
+            async def side_effect(**kwargs):
+                if kwargs.get("max_price") == 10000:
+                    return {"products": [], "total_count": 0, "page": 1}
+                return {
+                    "products": [mock_product],
+                    "total_count": 1,
+                    "page": 1,
+                }
+
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                side_effect=side_effect,
+            ) as search_mock:
+                result = await agent.process(data)
+            self.assertGreaterEqual(search_mock.await_count, 2)
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("outside your budget", result["bot_response"][0]["text"])
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_category_list_triggers_ring_search(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            list_id = json.dumps(
+                {
+                    "msgid": "search$cat$list",
+                    "postbackText": "search$cat$ring",
+                }
+            )
+            mock_product = {
+                "_id": "r1",
+                "title": "Ring",
+                "price": {"variantPrice": 30000},
+                "materialType": "gold",
+                "shipping": {"edd": 5},
+                "seos": {"slug": "ring"},
+                "mediaUrl": [
+                    {
+                        "isDefault": True,
+                        "image": "https://img.example/ring.webp",
+                        "type": "image",
+                    }
+                ],
+            }
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "interactive": {
+                        "type": "list_reply",
+                        "list_reply": {"id": list_id, "title": "Rings"},
+                    }
+                },
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+            }
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+            ) as search_mock:
+                search_mock.return_value = {
+                    "products": [mock_product],
+                    "total_count": 1,
+                    "page": 1,
+                }
+                result = await agent.process(data)
+            call_kwargs = search_mock.await_args.kwargs
+            self.assertEqual(call_kwargs["category"], "ring")
+            self.assertIn("bot_response", result)
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_explore_products_menu_is_category_list(self):
+        user_profile = {}
+        data = {}
+        _handle_menu_selection("Explore Products", user_profile, data, "explore_products")
+        self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
+        self.assertEqual(data["bot_response"][0]["type"], "list")
+        self.assertEqual(data["bot_response"][0]["msgid"], "search$cat$list")
+
+    def test_explore_products_list_builder(self):
+        payload = _build_explore_products_list()
+        postbacks = [
+            opt["postbackText"]
+            for opt in payload["items"][0]["options"]
+        ]
+        self.assertIn("search$cat$ring", postbacks)
+        self.assertIn("search$explore", postbacks)
+
+
+class ClassifierSkipTests(unittest.TestCase):
+    def test_classifier_skips_product_search_followup(self):
+        clf = Classifier()
+        data = {
+            "messages": {"text": {"body": "show earrings"}},
+            "user_profile": {
+                "service_selected": SL.PRODUCT_SEARCH.value,
+                "chat_history": [{"role": "user", "content": "hi"}],
+            },
+        }
+        self.assertFalse(clf.should_run(data))
+
+    def test_classifier_runs_for_offers_reroute(self):
+        clf = Classifier()
+        data = {
+            "messages": {"text": {"body": "what offers do you have"}},
+            "user_profile": {
+                "service_selected": SL.PRODUCT_SEARCH.value,
+                "chat_history": [{"role": "user", "content": "hi"}],
+            },
+        }
+        self.assertTrue(clf.should_run(data))
 
 
 class ClientConfigTests(unittest.TestCase):

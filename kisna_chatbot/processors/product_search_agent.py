@@ -1,3 +1,5 @@
+# DEPRECATED - not wired. Use product_search_agent_v3.py
+
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger

@@ -9,6 +9,7 @@ from kisna_chatbot.integrations.clara_api import get_discount_for_product
 from kisna_chatbot.processors.entity_extractor import build_search_context
 
 _PRODUCT_LIST_MSGID = "product_select$results"
+BROWSE_PRODUCTS_GLOBAL_TITLE = "Browse Products"
 _KARAT_RE = re.compile(
     r"(\d{1,2})\s*(?:kt|karat|carat|k\b)",
     re.I,
@@ -245,7 +246,7 @@ def format_product_list_message(
         "body": body,
         "footer": "KISNA Diamond & Gold",
         "msgid": _PRODUCT_LIST_MSGID,
-        "globalButtons": [{"type": "text", "title": "Browse Products"}],
+        "globalButtons": [{"type": "text", "title": BROWSE_PRODUCTS_GLOBAL_TITLE}],
         "items": [{"title": "Results", "subtitle": "", "options": options}],
     }
 
