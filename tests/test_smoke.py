@@ -473,6 +473,9 @@ class ProductSearchTests(unittest.TestCase):
 
     def test_explore_products_list_builder(self):
         payload = _build_explore_products_list()
+        self.assertEqual(payload["type"], "list")
+        self.assertIn("globalButtons", payload)
+        self.assertEqual(payload["globalButtons"][0]["title"], "Select Category")
         postbacks = [
             opt["postbackText"]
             for opt in payload["items"][0]["options"]

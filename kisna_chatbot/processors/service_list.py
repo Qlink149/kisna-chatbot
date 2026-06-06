@@ -273,6 +273,7 @@ def _build_explore_products_list() -> dict:
         "body": "What are you looking for? Tap a category to browse 💎",
         "footer": "KISNA Diamond & Gold",
         "msgid": _EXPLORE_CAT_LIST_MSGID,
+        "globalButtons": [{"type": "text", "title": "Select Category"}],
         "items": [
             {
                 "title": "Categories",
