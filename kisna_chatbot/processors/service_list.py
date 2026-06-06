@@ -349,8 +349,17 @@ def _build_rating_quickreply() -> dict:
     }
 
 
+def _is_product_search_postback(postback: str) -> bool:
+    """True if list postback should be handled by ProductSearchAgentV3."""
+    return (postback or "").strip().startswith("search$")
+
+
 def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback: str = "") -> None:
     """Route Kisna main menu selection (legacy postbacks mapped via aliases)."""
+    if _is_product_search_postback(postback):
+        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        return
+
     key = _normalize_menu_key(title, postback)
 
     if key in ("explore_products",):
@@ -492,6 +501,10 @@ class ServiceList(Processor):
                     return data
 
                 if list_msgid.startswith("product_select$"):
+                    user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                    return data
+
+                if list_msgid == _EXPLORE_CAT_LIST_MSGID:
                     user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
                     return data
 

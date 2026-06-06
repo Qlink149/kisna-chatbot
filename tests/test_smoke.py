@@ -483,6 +483,20 @@ class ProductSearchTests(unittest.TestCase):
         self.assertIn("search$cat$ring", postbacks)
         self.assertIn("search$explore", postbacks)
 
+    def test_handle_menu_selection_delegates_search_cat_postback(self):
+        user_profile = {}
+        data = {}
+        _handle_menu_selection("Rings", user_profile, data, "search$cat$ring")
+        self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
+        self.assertNotIn("bot_response", data)
+
+    def test_handle_menu_selection_delegates_search_explore(self):
+        user_profile = {}
+        data = {}
+        _handle_menu_selection("Browse All", user_profile, data, "search$explore")
+        self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
+        self.assertNotIn("bot_response", data)
+
 
 class ClassifierSkipTests(unittest.TestCase):
     def test_classifier_skips_product_search_followup(self):
