@@ -6,8 +6,24 @@ For multiple uvicorn workers, use a shared store (e.g. Redis).
 """
 
 import time
+from collections import deque
 
 from kisna_chatbot.utils.logger_config import logger
+
+INBOUND_RATE_LIMIT = 10
+INBOUND_RATE_WINDOW = 60
+_INBOUND_COUNTS: dict[str, deque] = {}
+
+
+def is_rate_limited(phone: str) -> bool:
+    now = time.time()
+    window = _INBOUND_COUNTS.setdefault(phone, deque())
+    while window and now - window[0] > INBOUND_RATE_WINDOW:
+        window.popleft()
+    if len(window) >= INBOUND_RATE_LIMIT:
+        return True
+    window.append(now)
+    return False
 
 
 class OutboundRateLimiter:

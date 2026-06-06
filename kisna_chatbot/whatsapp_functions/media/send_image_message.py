@@ -5,9 +5,17 @@ import httpx
 from kisna_chatbot.constants import GUPSHUP_SOURCE
 from kisna_chatbot.utils.env_load import gupshup_api_key, gupshup_app_name
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.product_formatter import webp_jpg_fallback
 
 
-def _send_single_image(phone_number: str, url: str, caption: str = "") -> dict:
+def _response_json(response: httpx.Response) -> dict:
+    try:
+        return response.json()
+    except Exception:
+        return {"status": "error", "status_code": response.status_code}
+
+
+def _post_image(phone_number: str, url: str, caption: str = "") -> httpx.Response | dict:
     if not url or not str(url).strip():
         logger.error(
             "Skipping image send — empty URL",
@@ -45,6 +53,7 @@ def _send_single_image(phone_number: str, url: str, caption: str = "") -> dict:
                 "phone_number": phone_number,
                 "status_code": response.status_code,
                 "response_body": response.text,
+                "url": url,
             },
         )
     else:
@@ -52,7 +61,37 @@ def _send_single_image(phone_number: str, url: str, caption: str = "") -> dict:
             "Response",
             extra={"phone_number": phone_number, "response": response.json()},
         )
-    return response.json()
+    return response
+
+
+def _send_with_jpg_retry(
+    phone_number: str,
+    url: str,
+    caption: str = "",
+) -> dict:
+    result = _post_image(phone_number, url, caption)
+    if isinstance(result, dict):
+        return result
+
+    if result.status_code < 400:
+        return _response_json(result)
+
+    fallback_url = webp_jpg_fallback(url or "")
+    if fallback_url and fallback_url != url:
+        logger.warning(
+            "Retrying image send with jpg fallback",
+            extra={
+                "phone_number": phone_number,
+                "original_url": url,
+                "fallback_url": fallback_url,
+            },
+        )
+        retry = _post_image(phone_number, fallback_url, caption)
+        if isinstance(retry, dict):
+            return retry
+        return _response_json(retry)
+
+    return _response_json(result)
 
 
 def send_image_message(phone_number: str, bot_response: dict):
@@ -69,14 +108,15 @@ def send_image_message(phone_number: str, bot_response: dict):
 
     urls = bot_response.get("urls")
     if urls:
-        result = None
+        result: dict = {"status": "submitted"}
         for i, item in enumerate(urls):
             try:
                 item_url = item.get("url") if isinstance(item, dict) else None
-                result = _send_single_image(
+                item_caption = item.get("caption", "") if isinstance(item, dict) else ""
+                result = _send_with_jpg_retry(
                     phone_number=phone_number,
                     url=item_url or "",
-                    caption=item.get("caption", "") if isinstance(item, dict) else "",
+                    caption=item_caption,
                 )
             except Exception as e:
                 logger.error(
@@ -86,9 +126,8 @@ def send_image_message(phone_number: str, bot_response: dict):
                 raise e
         return result
 
-    # Single image fallback
     try:
-        return _send_single_image(
+        return _send_with_jpg_retry(
             phone_number=phone_number,
             url=bot_response.get("url"),
             caption=bot_response.get("caption", ""),

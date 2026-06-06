@@ -21,7 +21,10 @@ from kisna_chatbot.processors.classifier import Classifier
 from kisna_chatbot.processors.entity_extractor import (
     entities_to_api_params,
     extract_category_from_product,
+    extract_entities,
+    filter_products_by_entities,
     merge_search_entities,
+    normalize_entities_for_clara,
 )
 from kisna_chatbot.processors.product_search_agent_v3 import _build_fallback_strategies
 from kisna_chatbot.utils.product_formatter import (
@@ -50,6 +53,39 @@ class ClaraFixtureTests(unittest.TestCase):
     def test_nitara_category_from_product_type(self):
         product = _nitara_ring()
         self.assertEqual(extract_category_from_product(product), "ring")
+
+    def test_filter_rings_below_10k_fixture_returns_zero(self):
+        rings = [
+            p for p in _load_products() if extract_category_from_product(p) == "ring"
+        ]
+        self.assertGreater(len(rings), 0)
+        filtered = filter_products_by_entities(
+            rings,
+            {"category": "ring", "max_price": 10000.0},
+        )
+        self.assertEqual(filtered, [])
+
+    def test_filter_drops_non_ring_when_category_ring(self):
+        bracelet = next(
+            p
+            for p in _load_products()
+            if extract_category_from_product(p) == "bracelet"
+        )
+        ring = _nitara_ring()
+        filtered = filter_products_by_entities(
+            [bracelet, ring],
+            {"category": "ring"},
+        )
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["title"], "Nitara Ring")
+
+    def test_filter_drops_wrong_material(self):
+        ring = _nitara_ring()
+        filtered = filter_products_by_entities(
+            [ring],
+            {"category": "ring", "material_type": "gold"},
+        )
+        self.assertEqual(filtered, [])
 
     def test_nitara_price_bundle_api_only_no_estimated_mrp(self):
         product = _nitara_ring()
@@ -95,6 +131,19 @@ class ClaraFixtureTests(unittest.TestCase):
         drop_material = next(s for s in strategies if s[2] == "drop_material")
         self.assertIsNone(drop_material[0]["material_type"])
         self.assertEqual(drop_material[0]["max_price"], 50000)
+
+    def test_clara_normalization_maps_nosewear(self):
+        entities = extract_entities("gold nose pin")
+        params = entities_to_api_params(entities)
+        self.assertEqual(params["category"], "nose wear")
+        self.assertEqual(params["material_type"], "gold")
+
+    def test_clara_normalization_omits_unsupported_anklet(self):
+        entities = extract_entities("payal")
+        params = entities_to_api_params(entities)
+        self.assertNotIn("category", params)
+        norm = normalize_entities_for_clara(entities)
+        self.assertTrue(norm["unsupported_category"])
 
     def test_classifier_skips_offers_followup(self):
         clf = Classifier()

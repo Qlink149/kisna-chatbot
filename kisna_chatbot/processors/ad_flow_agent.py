@@ -1,3 +1,4 @@
+import math
 import os
 import re
 
@@ -14,6 +15,11 @@ _PINCODE_ONLY_RE = re.compile(r"^\s*([1-9]\d{5})\s*$")
 
 _ASK_PINCODE_TEXT = (
     "Please share your 6-digit pincode and I'll find the nearest KISNA store."
+)
+_LOCATION_PINCODE_FALLBACK = (
+    "Thanks for sharing your location! To find the nearest "
+    "KISNA store, please share your PIN code and I'll search "
+    "for you. 📍"
 )
 _UNPARSEABLE_STORE_TEXT = (
     "I couldn't read that pincode or city. Please send a 6-digit pincode "
@@ -129,6 +135,63 @@ def _filter_cached_stores(
     return {"stores": stores[:_MAX_STORES_SHOWN], "total_count": len(stores)}
 
 
+def _store_coordinates(store: dict) -> tuple[float, float] | None:
+    if not isinstance(store, dict):
+        return None
+    for lat_key, lng_key in (
+        ("latitude", "longitude"),
+        ("lat", "lng"),
+        ("lat", "lon"),
+    ):
+        lat = store.get(lat_key)
+        lng = store.get(lng_key)
+        if lat is not None and lng is not None:
+            try:
+                return float(lat), float(lng)
+            except (TypeError, ValueError):
+                continue
+    addr = store.get("address")
+    if isinstance(addr, dict):
+        for lat_key, lng_key in (
+            ("latitude", "longitude"),
+            ("lat", "lng"),
+            ("lat", "lon"),
+        ):
+            lat = addr.get(lat_key)
+            lng = addr.get(lng_key)
+            if lat is not None and lng is not None:
+                try:
+                    return float(lat), float(lng)
+                except (TypeError, ValueError):
+                    continue
+    return None
+
+
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    radius = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lng2 - lng1)
+    a = (
+        math.sin(d_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    )
+    return radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _nearest_stores_from_cache(cached: dict, lat: float, lng: float) -> dict:
+    ranked: list[tuple[float, dict]] = []
+    for store in cached.get("stores") or []:
+        coords = _store_coordinates(store)
+        if coords is None:
+            continue
+        distance = _haversine_km(lat, lng, coords[0], coords[1])
+        ranked.append((distance, store))
+    ranked.sort(key=lambda item: item[0])
+    stores = [store for _distance, store in ranked[:_MAX_STORES_SHOWN]]
+    return {"stores": stores, "total_count": len(ranked)}
+
+
 class AdFlowAgent(Processor):
     """Store locator via Clara API with pincode/city entity extraction."""
 
@@ -176,6 +239,36 @@ class AdFlowAgent(Processor):
         app_state = data.get("app_state")
 
         if not self.should_run(data):
+            return data
+
+        inbound_location = data.get("inbound_location")
+        if inbound_location:
+            lat = inbound_location.get("lat")
+            lng = inbound_location.get("lng")
+            if lat is not None and lng is not None and app_state is not None:
+                try:
+                    cached = await get_cached_stores(app_state)
+                    result = _nearest_stores_from_cache(cached, float(lat), float(lng))
+                    stores = result.get("stores") or []
+                    if stores:
+                        total_count = int(result.get("total_count") or len(stores))
+                        data["bot_response"] = [
+                            {
+                                "type": "text",
+                                "text": _format_stores_message(stores, total_count),
+                            }
+                        ]
+                        data.pop("inbound_location", None)
+                        return data
+                except Exception as e:
+                    logger.warning(
+                        "Location store lookup failed",
+                        extra={"phone_number": phone_number, "error": str(e)},
+                    )
+
+            user_profile["awaiting_store_pincode"] = True
+            data["bot_response"] = [{"type": "text", "text": _LOCATION_PINCODE_FALLBACK}]
+            data.pop("inbound_location", None)
             return data
 
         user_message = (messages.get("text", {}) or {}).get("body", "") or ""

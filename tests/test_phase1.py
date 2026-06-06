@@ -34,9 +34,25 @@ class EntityExtractorTests(unittest.TestCase):
         self.assertIsNone(entities["min_price"])
         self.assertEqual(entities["max_price"], 30000)
 
+    def test_rings_below_10000(self):
+        entities = extract_entities("I want all the rings below 10,000")
+        self.assertEqual(entities["category"], "ring")
+        self.assertIsNone(entities["min_price"])
+        self.assertEqual(entities["max_price"], 10000.0)
+
     def test_collection_title(self):
         entities = extract_entities("show rivaah collection")
         self.assertEqual(entities["title"], "rivaah")
+
+    def test_heere_ki_jhumki(self):
+        entities = extract_entities("heere ki jhumki")
+        self.assertEqual(entities["category"], "earring")
+        self.assertEqual(entities["material_type"], "diamond")
+
+    def test_das_hazaar_tak_rings(self):
+        entities = extract_entities("das hazaar tak rings")
+        self.assertEqual(entities["category"], "ring")
+        self.assertEqual(entities["max_price"], 10000)
 
     def test_pincode(self):
         entities = extract_entities("store in 400001")

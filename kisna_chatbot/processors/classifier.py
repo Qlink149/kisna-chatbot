@@ -9,8 +9,12 @@ from kisna_chatbot.constants import ADMINS
 from kisna_chatbot.models.service_list import ServiceList
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.ad_flow_agent import _PINCODE_ONLY_RE
-from kisna_chatbot.processors.entity_extractor import extract_entities
+from kisna_chatbot.processors.entity_extractor import (
+    extract_entities,
+    is_unrecognizable_input,
+)
 from kisna_chatbot.processors.service_list import (
+    build_clarification_bot_response,
     build_complaint_flow_bot_response,
     build_greeting_welcome_bot_responses,
     build_main_menu_bot_response,
@@ -28,6 +32,9 @@ india_tz = ZoneInfo("Asia/Kolkata")
 
 CONTEXT = kisna_classifier
 
+CLARIFICATION_CONFIDENCE_THRESHOLD = 0.45
+COMPLETELY_UNCLEAR_THRESHOLD = 0.3
+
 _REROUTE_RE = re.compile(
     r"\b("
     r"menu|back|cancel|hi|hello|namaste|"
@@ -43,7 +50,7 @@ _REROUTE_RE = re.compile(
 
 _OFFERS_INTENT_RE = re.compile(
     r"\b("
-    r"offers?|promo(?:tion)?s?|discounts?|deals?|sale|"
+    r"offers?|promo(?:tion)?s?|discounts?|deals?|sale|cashback|"
     r"koi\s+offer|offer\s+hai|making\s+charge\s+off"
     r")\b",
     re.I,
@@ -51,41 +58,177 @@ _OFFERS_INTENT_RE = re.compile(
 
 _ORDER_TRACKING_RE = re.compile(
     r"\b(track\s+(my\s+)?order|order\s+status|where\s+is\s+my\s+order|"
-    r"delivery\s+status|shipment\s+status)\b",
+    r"delivery\s+status|shipment\s+status|mera\s+order|order\s+track)\b",
+    re.I,
+)
+
+_ORDER_DELIVERY_RE = re.compile(
+    r"\b(mera\s+order|order.*delivery|delivery\s+kab|dispatch|shipment)\b",
+    re.I,
+)
+
+_EXCHANGE_RE = re.compile(r"\b(exchange|badal|swap)\b", re.I)
+
+_RETURNS_RE = re.compile(r"\b(return|refund|wapas)\b", re.I)
+
+_POLICY_FAQ_RE = re.compile(
+    r"\b(policy|hallmark|bis|certificate|guarantee|emi|installment|loan)\b",
+    re.I,
+)
+
+_HUMAN_HANDOFF_RE = re.compile(
+    r"\b(human|agent\s+se|customer\s+care|live\s+agent|support\s+chahiye|"
+    r"baat\s+karni\s+hai|kisi\s+se\s+baat)\b",
+    re.I,
+)
+
+_PRODUCT_REFERENCE_RE = re.compile(
+    r"\b(this|that|yeh|woh|isme|is\s+me|iska|is\s+ka)\b",
+    re.I,
+)
+
+_GIFT_BROWSE_RE = re.compile(
+    r"\b(for my|for\s+a|gift|anniversary|wife|husband|fiancee|something for)\b",
+    re.I,
+)
+
+_PRODUCT_EDD_RE = re.compile(
+    r"\b(how many days|kitne din).*\bdelivery\b|\bdelivery.*\b(how many|kitne)\b",
+    re.I,
+)
+
+_COMPLAINT_RE = re.compile(
+    r"\b(complaint|damage|kharab|galat\s+item|wrong\s+item|defective)\b",
+    re.I,
+)
+
+_STORE_LOOKUP_RE = re.compile(
+    r"\b(nearest\s+store|showroom|store\s+near|kisna\s+showroom|outlet|"
+    r"store\s+locator|find\s+store)\b",
     re.I,
 )
 
 _PRICE_PRODUCT_INFO_RE = re.compile(
     r"\b("
-    r"price|cost|kitna|rate|mrp|how\s+much|"
-    r"available|in\s+stock|stock"
+    r"price|cost|kitna|rate|mrp|how\s+much|weight|"
+    r"available|in\s+stock|stock|delivery\s+days|edd|chain"
     r")\b|"
     r"(isme|is\s+me|iska|is\s+ka)\s+(kitna|price|cost)",
     re.I,
 )
 
-_CATALOG_SEARCH_RE = re.compile(
-    r"\b(ring|rings|necklace|earring|earrings|pendant|bracelet|bangle|"
-    r"chain|mangalsutra|nose\s+pin|anklet|jewel|jewellery|jewelry|"
-    r"gold|diamond|silver|platinum|under|below|budget)\b",
+_PRODUCT_NAME_RE = re.compile(
+    r"\b(elysia|maggio|rivaah|aadya|tanishta|evil\s+eye)\b",
     re.I,
 )
+
+_BROWSE_ACTION_RE = re.compile(
+    r"\b(dikhao|dikha|chahiye|show|find|browse|search|dekh|looking\s+for)\b",
+    re.I,
+)
+
+_CATEGORY_WORD_RE = re.compile(
+    r"\b(ring|rings|necklace|earring|earrings|pendant|bracelet|bangle|"
+    r"chain|mangalsutra|nose\s+pin|anklet|jewel|jewellery|jewelry|anguthi|bali|"
+    r"jhumka|haar|mala|kada|kangan)\b",
+    re.I,
+)
+
+_MATERIAL_WORD_RE = re.compile(
+    r"\b(gold|diamond|silver|platinum|sona|heera)\b",
+    re.I,
+)
+
+_BUDGET_BROWSE_RE = re.compile(
+    r"\b(under|below|upto|up to|budget|within|tak|kam|k\b|lakh|lac)\b",
+    re.I,
+)
+
+_COMPARATIVE_RE = re.compile(
+    r"\b(cheapest|cheaper|better|best|worst|compare|comparison|sabse\s+sasta|"
+    r"affordable|sasta|mehnga|expensive)\b",
+    re.I,
+)
+
+_SIZE_QUERY_RE = re.compile(
+    r"\b(size|sizes|variant|variants|karat|kt\b|18kt|14kt|22kt|chain)\b",
+    re.I,
+)
+
 
 def _looks_like_product_search_query(text: str) -> bool:
     """True when free text looks like a catalog search, not a menu tap."""
     normalized = (text or "").strip()
     if not normalized:
         return False
-    if _CATALOG_SEARCH_RE.search(normalized):
-        return True
+
     entities = extract_entities(normalized)
-    return bool(
-        entities.get("category")
-        or entities.get("material_type")
-        or entities.get("title")
-        or entities.get("min_price")
-        or entities.get("max_price")
-    )
+
+    if entities.get("category") or entities.get("title"):
+        return True
+
+    if entities.get("min_price") is not None or entities.get("max_price") is not None:
+        return True
+
+    if _CATEGORY_WORD_RE.search(normalized):
+        return True
+
+    if _BROWSE_ACTION_RE.search(normalized):
+        if _MATERIAL_WORD_RE.search(normalized) or entities.get("material_type"):
+            return True
+        if _CATEGORY_WORD_RE.search(normalized) or entities.get("title"):
+            return True
+        if _BUDGET_BROWSE_RE.search(normalized):
+            return True
+        if re.search(r"\bkuch\b", normalized, re.I):
+            return True
+
+    if _GIFT_BROWSE_RE.search(normalized) and re.search(
+        r"\b(something|gift|jewel|ring|present)\b", normalized, re.I
+    ):
+        return True
+
+    if _BUDGET_BROWSE_RE.search(normalized) and (
+        _MATERIAL_WORD_RE.search(normalized) or _CATEGORY_WORD_RE.search(normalized)
+    ):
+        return True
+
+    return False
+
+
+def _looks_like_product_info_query(text: str, user_profile: dict) -> bool:
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
+
+    if not _PRICE_PRODUCT_INFO_RE.search(normalized) and not _COMPARATIVE_RE.search(
+        normalized
+    ):
+        return False
+
+    entities = extract_entities(normalized)
+    last_viewed = user_profile.get("last_viewed_product")
+
+    if last_viewed:
+        return True
+
+    if _PRODUCT_REFERENCE_RE.search(normalized) and (
+        _PRICE_PRODUCT_INFO_RE.search(normalized) or _SIZE_QUERY_RE.search(normalized)
+    ):
+        return True
+
+    if _PRODUCT_NAME_RE.search(normalized) or entities.get("title"):
+        return True
+
+    if _CATEGORY_WORD_RE.search(normalized) and not _BUDGET_BROWSE_RE.search(
+        normalized
+    ):
+        return True
+
+    if _COMPARATIVE_RE.search(normalized) and user_profile.get("last_search_products"):
+        return True
+
+    return False
 
 
 def _parse_classifier_json(raw: str) -> dict:
@@ -102,25 +245,50 @@ def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | 
     if not normalized:
         return None
 
-    if _ORDER_TRACKING_RE.search(normalized):
-        return "order_tracking"
+    if is_unrecognizable_input(normalized):
+        return "general"
 
-    if _OFFERS_INTENT_RE.search(normalized) and not _CATALOG_SEARCH_RE.search(
+    if _HUMAN_HANDOFF_RE.search(normalized):
+        return "human_handoff"
+
+    if re.search(r"\b(return\s+policy|refund\s+policy)\b", normalized, re.I):
+        return "general"
+
+    if _POLICY_FAQ_RE.search(normalized) and not _BROWSE_ACTION_RE.search(
         normalized
     ):
+        if not _PRICE_PRODUCT_INFO_RE.search(normalized) or re.search(
+            r"\b(policy|hallmark|bis|certificate|guarantee|emi)\b", normalized, re.I
+        ):
+            return "general"
+
+    if _ORDER_TRACKING_RE.search(normalized) or _ORDER_DELIVERY_RE.search(normalized):
+        return "order_tracking"
+
+    if _EXCHANGE_RE.search(normalized):
+        return "returns_refund"
+
+    if _RETURNS_RE.search(normalized):
+        return "returns_refund"
+
+    if _COMPLAINT_RE.search(normalized):
+        return "complaint"
+
+    if _OFFERS_INTENT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(
+        normalized
+    ) and not _MATERIAL_WORD_RE.search(normalized):
         return "offers"
 
     if _looks_like_store_query(normalized):
         return "store_info"
 
-    last_viewed = user_profile.get("last_viewed_product")
-    if last_viewed and _PRICE_PRODUCT_INFO_RE.search(normalized):
-        return "product_info"
-
-    if _PRICE_PRODUCT_INFO_RE.search(normalized) and _CATALOG_SEARCH_RE.search(
+    if _PRODUCT_EDD_RE.search(normalized) and not _ORDER_DELIVERY_RE.search(
         normalized
     ):
-        return "product_search"
+        return "product_info"
+
+    if _looks_like_product_info_query(normalized, user_profile):
+        return "product_info"
 
     if _looks_like_product_search_query(normalized):
         return "product_search"
@@ -171,8 +339,23 @@ def _looks_like_store_query(text: str) -> bool:
         return False
     if _PINCODE_ONLY_RE.match(normalized):
         return True
+    if _STORE_LOOKUP_RE.search(normalized):
+        return True
     entities = extract_entities(normalized)
     return bool(entities.get("pincode") or entities.get("city"))
+
+
+def _should_offer_clarification(data: dict, user_query: str, user_profile: dict) -> bool:
+    if user_profile.get("pending_clarification"):
+        return False
+    if is_pure_greeting(user_query):
+        return False
+    service = user_profile.get("service_selected")
+    if service == ServiceList.PRODUCT_SEARCH.value:
+        chat_history = user_profile.get("chat_history", [])
+        if chat_history and not _REROUTE_RE.search(user_query):
+            return False
+    return True
 
 
 _CATEGORY_TO_SERVICE = {
@@ -187,6 +370,65 @@ _CATEGORY_TO_SERVICE = {
     "complaint": ServiceList.COMPLAINT,
     "store_info": ServiceList.AD_FLOW,
 }
+
+
+async def classify_query_for_audit(
+    user_query: str,
+    user_profile: dict | None = None,
+    *,
+    use_llm: bool = True,
+) -> dict:
+    """Classify a single query and return intent, confidence, and source."""
+    profile = dict(user_profile or {})
+    profile.setdefault("chat_history", [])
+    profile.setdefault("service_selected", "")
+
+    data = {
+        "phone_number": "919999999999",
+        "messages": {"text": {"body": user_query}},
+        "user_profile": profile,
+        "client_id": "kisna",
+    }
+
+    if is_pure_greeting(user_query) and is_new_session(profile.get("chat_history", [])):
+        return {"intent": "greeting", "confidence": 1.0, "source": "shortcut"}
+
+    if is_menu_request(user_query):
+        return {"intent": "menu_help", "confidence": 1.0, "source": "shortcut"}
+
+    if profile.get("awaiting_store_pincode") or _looks_like_store_query(user_query):
+        if user_query.strip().lower() not in ("cancel", "back"):
+            return {"intent": "store_info", "confidence": 1.0, "source": "shortcut"}
+
+    override = _programmatic_intent_override(user_query, profile)
+    if override:
+        return {"intent": override, "confidence": 1.0, "source": "programmatic"}
+
+    if not use_llm:
+        return {"intent": "unknown", "confidence": 0.0, "source": "none"}
+
+    chat_history = profile.get("chat_history", [])[-8:]
+    chat_history_str = ""
+    for chat in chat_history:
+        role = chat.get("role", "")
+        content = chat.get("content", "")
+        chat_history_str += f"{role.capitalize()}: {content}\n"
+
+    classifier_response = await complete_chat(
+        agent=AgentName.CLASSIFIER,
+        agent_display_name="Classifier Agent",
+        instruction=CONTEXT,
+        messages=[
+            {"role": "system", "content": f"Chat history: {chat_history_str}"},
+            {"role": "user", "content": f"User Query: {user_query}"},
+        ],
+        phone_number=data["phone_number"],
+        client_id=data["client_id"],
+    )
+    parsed = _parse_classifier_json(classifier_response)
+    intent = (parsed.get("intent") or parsed.get("category", "general")).strip().lower()
+    confidence = float(parsed.get("confidence", 0.5))
+    return {"intent": intent, "confidence": confidence, "source": "llm"}
 
 
 class Classifier(Processor):
@@ -224,13 +466,17 @@ class Classifier(Processor):
             last_viewed = user_profile.get("last_viewed_product")
             if last_viewed and _PRICE_PRODUCT_INFO_RE.search(user_query):
                 return False
-            if _OFFERS_INTENT_RE.search(user_query) and not _CATALOG_SEARCH_RE.search(
+            if _OFFERS_INTENT_RE.search(user_query) and not _CATEGORY_WORD_RE.search(
                 user_query
             ):
                 return True
-            if _ORDER_TRACKING_RE.search(user_query):
+            if _ORDER_TRACKING_RE.search(user_query) or _ORDER_DELIVERY_RE.search(
+                user_query
+            ):
                 return True
             if _looks_like_store_query(user_query):
+                return True
+            if is_unrecognizable_input(user_query):
                 return True
 
         if service != ServiceList.PRODUCT_SEARCH.value:
@@ -261,6 +507,16 @@ class Classifier(Processor):
         try:
             if "text" in data["messages"]:
                 user_query = data["messages"]["text"]["body"]
+
+                if user_profile.get("pending_clarification"):
+                    user_profile["pending_clarification"] = False
+                    user_profile["_skip_programmatic_once"] = True
+                    clarified = user_query.strip()
+                    user_query = (
+                        "Context: user was asked to clarify their previous message. "
+                        f"Their clarification: {clarified}"
+                    )
+                    data["messages"]["text"]["body"] = user_query
 
                 if user_query.strip().lower() == "stop":
                     data["bot_response"] = [
@@ -310,12 +566,16 @@ class Classifier(Processor):
                         )
                         return data
 
-                override_intent = _programmatic_intent_override(
-                    user_query,
-                    user_profile,
-                )
+                skip_programmatic = user_profile.pop("_skip_programmatic_once", False)
+                override_intent = None
+                if not skip_programmatic:
+                    override_intent = _programmatic_intent_override(
+                        user_query,
+                        user_profile,
+                    )
                 if override_intent:
                     data["classified_category"] = override_intent
+                    data["classifier_confidence"] = 1.0
                     logger.info(
                         "Programmatic classifier override",
                         extra={
@@ -370,13 +630,15 @@ class Classifier(Processor):
                 intent = (
                     parsed.get("intent") or parsed.get("category", "menu_help")
                 ).strip().lower()
+                confidence = float(parsed.get("confidence", 0.5))
                 data["classified_category"] = intent
+                data["classifier_confidence"] = confidence
 
                 logger.info(
                     "Classifier intent",
                     extra={
                         "intent": intent,
-                        "confidence": parsed.get("confidence"),
+                        "confidence": confidence,
                         "phone_number": phone_number,
                     },
                 )
@@ -397,13 +659,38 @@ class Classifier(Processor):
                 if intent in ("product_info", "product_search") and (
                     _PRICE_PRODUCT_INFO_RE.search(user_query)
                     or user_profile.get("last_viewed_product")
+                    or _COMPARATIVE_RE.search(user_query)
                 ):
                     if user_profile.get("last_viewed_product") and (
                         intent == "product_info"
                         or _PRICE_PRODUCT_INFO_RE.search(user_query)
+                        or _COMPARATIVE_RE.search(user_query)
                     ):
                         intent = "product_info"
                         data["classified_category"] = intent
+                    elif _PRODUCT_NAME_RE.search(user_query) and _PRICE_PRODUCT_INFO_RE.search(
+                        user_query
+                    ):
+                        intent = "product_info"
+                        data["classified_category"] = intent
+
+                if (
+                    confidence < CLARIFICATION_CONFIDENCE_THRESHOLD
+                    and _should_offer_clarification(data, user_query, user_profile)
+                ):
+                    user_profile["pending_clarification"] = True
+                    data["bot_response"] = build_clarification_bot_response(
+                        intent, confidence
+                    )
+                    logger.warning(
+                        "Low-confidence classification — asking clarification",
+                        extra={
+                            "phone_number": phone_number,
+                            "intent": intent,
+                            "confidence": confidence,
+                        },
+                    )
+                    return data
 
                 if intent == "human_handoff":
                     user_profile["live_agent_requested_at"] = int(time.time())

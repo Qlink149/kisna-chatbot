@@ -71,10 +71,17 @@ class GupshupSignatureTests(unittest.TestCase):
 
     def test_verify_webhook_request_requires_signature_when_secret_set(self):
         body = b'{"entry":[]}'
+        old = os.environ.get("GUPSHUP_WEBHOOK_SECRET")
         os.environ["GUPSHUP_WEBHOOK_SECRET"] = "webhook-secret"
-        self.assertFalse(verify_webhook_request(body, None))
-        sig = hmac.new(b"webhook-secret", body, hashlib.sha256).hexdigest()
-        self.assertTrue(verify_webhook_request(body, sig))
+        try:
+            self.assertFalse(verify_webhook_request(body, None))
+            sig = hmac.new(b"webhook-secret", body, hashlib.sha256).hexdigest()
+            self.assertTrue(verify_webhook_request(body, sig))
+        finally:
+            if old is None:
+                os.environ.pop("GUPSHUP_WEBHOOK_SECRET", None)
+            else:
+                os.environ["GUPSHUP_WEBHOOK_SECRET"] = old
 
 
 class PhoneNumberIdMapTests(unittest.TestCase):

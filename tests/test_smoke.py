@@ -43,12 +43,16 @@ from kisna_chatbot.processors.ad_flow_agent import (
     _filter_cached_stores,
     _UNPARSEABLE_STORE_TEXT,
 )
-from kisna_chatbot.processors.entity_extractor import normalize_category_for_api
+from kisna_chatbot.processors.entity_extractor import (
+    is_unrecognizable_input,
+    normalize_category_for_api,
+)
 from kisna_chatbot.processors.offers_agent import _is_labour_promo
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
 from kisna_chatbot.processors.product_search_agent_v3 import (
     ProductSearchAgentV3,
     _build_search_success_response,
+    _collect_carousel_products,
     _entities_from_last_viewed,
 )
 from kisna_chatbot.processors.service_list import (
@@ -214,6 +218,7 @@ class ProductSearchTests(unittest.TestCase):
                 "price": {"variantPrice": 45000},
                 "variant": {"title": "18KT Yellow Gold"},
                 "materialType": "gold",
+                "productType": {"category": {"name": "Rings"}},
                 "shipping": {"edd": 5},
                 "seos": {"slug": "gold-ring"},
                 "mediaUrl": [
@@ -228,7 +233,10 @@ class ProductSearchTests(unittest.TestCase):
             with patch(
                 "kisna_chatbot.processors.product_search_agent_v3.search_products",
                 new_callable=AsyncMock,
-            ) as search_mock:
+            ) as search_mock, patch(
+                "kisna_chatbot.utils.product_formatter.httpx.head",
+                return_value=MagicMock(status_code=200),
+            ):
                 search_mock.return_value = {
                     "products": [mock_product],
                     "total_count": 1,
@@ -240,7 +248,10 @@ class ProductSearchTests(unittest.TestCase):
                 r for r in result["bot_response"] if r.get("type") == "media"
             ]
             self.assertEqual(len(media_msgs), 1)
-            self.assertEqual(media_msgs[0]["url"], clara_image)
+            self.assertEqual(
+                media_msgs[0]["url"],
+                clara_image.replace(".webp", ".jpg"),
+            )
             self.assertTrue(media_msgs[0]["url"].startswith("https://"))
             search_mock.assert_awaited_once()
             self.assertEqual(result["user_profile"]["last_search_page"], 1)
@@ -314,6 +325,7 @@ class ProductSearchTests(unittest.TestCase):
                 "title": "Diamond Ring",
                 "price": {"variantPrice": 55000},
                 "materialType": "diamond",
+                "productType": {"category": {"name": "Rings"}},
                 "shipping": {"edd": 5},
                 "seos": {"slug": "diamond-ring"},
                 "mediaUrl": [
@@ -386,6 +398,7 @@ class ProductSearchTests(unittest.TestCase):
                 "title": "Gold Ring",
                 "price": {"variantPrice": 25000},
                 "materialType": "gold",
+                "productType": {"category": {"name": "Rings"}},
                 "shipping": {"edd": 5},
                 "seos": {"slug": "gold-ring"},
                 "mediaUrl": [
@@ -415,6 +428,116 @@ class ProductSearchTests(unittest.TestCase):
             self.assertGreaterEqual(search_mock.await_count, 2)
             self.assertEqual(result["bot_response"][0]["type"], "text")
             self.assertIn("outside your budget", result["bot_response"][0]["text"])
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_search_fallback_on_over_budget_api_results(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "text": {"body": "I want all the rings below 10,000"}
+                },
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+            }
+            over_budget_ring = {
+                "_id": "p1",
+                "title": "Elysia Ring",
+                "price": {"variantPrice": 24779},
+                "materialType": ["diamond"],
+                "shipping": {"edd": 5},
+                "seos": {"slug": "products_elysia-ring"},
+                "productType": {"category": {"name": "Rings"}},
+                "mediaUrl": [
+                    {
+                        "isDefault": True,
+                        "image": "https://img.example/elysia.webp",
+                        "type": "image",
+                    }
+                ],
+            }
+
+            async def side_effect(**kwargs):
+                if kwargs.get("max_price") == 10000:
+                    return {
+                        "products": [over_budget_ring],
+                        "total_count": 3390,
+                        "page": 1,
+                    }
+                return {
+                    "products": [over_budget_ring],
+                    "total_count": 1,
+                    "page": 1,
+                }
+
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                side_effect=side_effect,
+            ) as search_mock:
+                result = await agent.process(data)
+            self.assertGreaterEqual(search_mock.await_count, 2)
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("outside your budget", result["bot_response"][0]["text"])
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_search_filters_mixed_price_results(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "gold ring under 10k"}},
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+            }
+
+            def _ring(pid: str, price: int, title: str) -> dict:
+                return {
+                    "_id": pid,
+                    "title": title,
+                    "price": {"variantPrice": price},
+                    "materialType": "gold",
+                    "shipping": {"edd": 5},
+                    "seos": {"slug": f"ring-{pid}"},
+                    "productType": {"category": {"name": "Rings"}},
+                    "mediaUrl": [
+                        {
+                            "isDefault": True,
+                            "image": f"https://img.example/{pid}.webp",
+                            "type": "image",
+                        }
+                    ],
+                }
+
+            under = _ring("under", 8000, "Budget Ring")
+            over1 = _ring("over1", 25000, "Premium Ring")
+            over2 = _ring("over2", 35000, "Luxury Ring")
+
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+            ) as search_mock:
+                search_mock.return_value = {
+                    "products": [under, over1, over2],
+                    "total_count": 3,
+                    "page": 1,
+                }
+                result = await agent.process(data)
+
+            list_msgs = [r for r in result["bot_response"] if r.get("type") == "list"]
+            self.assertEqual(len(list_msgs), 1)
+            options = list_msgs[0]["items"][0]["options"]
+            self.assertEqual(len(options), 1)
+            self.assertEqual(options[0]["title"], "Budget Ring")
+            self.assertIn(
+                "matching your search",
+                list_msgs[0]["body"],
+            )
 
         import asyncio
 
@@ -863,6 +986,148 @@ class HardeningAuditTests(unittest.TestCase):
         prompt = build_general_agent_prompt()
         self.assertNotIn("1800-XXX-XXXX", prompt)
         self.assertIn("do not invent", prompt.lower())
+
+    def test_garbage_zeros_detected(self):
+        self.assertTrue(
+            is_unrecognizable_input(
+                "000000000000000000000000000000000000000000000000000000000"
+            )
+        )
+
+    def test_garbage_excludes_pincode(self):
+        self.assertFalse(is_unrecognizable_input("400001"))
+
+    def test_garbage_excludes_catalog_query(self):
+        self.assertFalse(is_unrecognizable_input("gold ring"))
+
+    def test_classifier_runs_for_garbage_mid_search(self):
+        clf = Classifier()
+        data = {
+            "messages": {
+                "text": {
+                    "body": "000000000000000000000000000000000000000000000000000000000"
+                }
+            },
+            "user_profile": {
+                "service_selected": SL.PRODUCT_SEARCH.value,
+                "chat_history": [{"role": "user", "content": "mangalsutra"}],
+            },
+        }
+        self.assertTrue(clf.should_run(data))
+
+    def test_classifier_routes_garbage_to_general(self):
+        async def _run():
+            clf = Classifier()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "text": {
+                        "body": "000000000000000000000000000000000000000000000000000000000"
+                    }
+                },
+                "user_profile": {
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "chat_history": [{"role": "user", "content": "mangalsutra"}],
+                },
+                "client_id": "kisna",
+            }
+            result = await clf.process(data)
+            self.assertEqual(result["classified_category"], "general")
+            self.assertEqual(result["user_profile"]["service_selected"], SL.GENERAL.value)
+            self.assertNotIn("bot_response", result)
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_search_skips_api_for_garbage(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "text": {
+                        "body": "000000000000000000000000000000000000000000000000000000000"
+                    }
+                },
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+                "client_config": MagicMock(client_id="kisna"),
+            }
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+            ) as mock_search:
+                result = await agent.process(data)
+            mock_search.assert_not_called()
+            self.assertEqual(result["classified_category"], "general")
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_carousel_scans_beyond_first_five(self):
+        products = []
+        for i in range(10):
+            product = {"_id": str(i), "title": f"P{i}"}
+            if i in (0, 6, 8):
+                product["mediaUrl"] = [
+                    {"image": f"https://ex.com/p{i}.jpg", "type": "image"}
+                ]
+            products.append(product)
+
+        carousel, skipped, scanned = _collect_carousel_products(products)
+        self.assertEqual(len(carousel), 3)
+        self.assertEqual(scanned, 9)
+
+        response = _build_search_success_response(
+            products[:5],
+            10,
+            1,
+            {"category": "mangalsutra"},
+            carousel_pool=products,
+        )
+        media_items = [r for r in response if r.get("type") == "media"]
+        self.assertEqual(len(media_items), 3)
+
+    def test_product_detail_enriches_missing_image(self):
+        async def _run():
+            agent = ProductDetailsAgent()
+            list_id = json.dumps(
+                {"msgid": "product_select$results", "postbackText": "prod-2"}
+            )
+            cached = {
+                "_id": "prod-2",
+                "title": "TriAmour Mangalsutra",
+                "price": {"variantPrice": 33850},
+            }
+            fresh = {
+                "_id": "prod-2",
+                "title": "TriAmour Mangalsutra",
+                "mediaUrl": [
+                    {"image": "https://ex.com/mangalsutra.jpg", "type": "image"}
+                ],
+            }
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "interactive": {
+                        "type": "list_reply",
+                        "list_reply": {"id": list_id, "title": "TriAmour Mangalsutra"},
+                    }
+                },
+                "user_profile": {"last_search_products": [cached]},
+            }
+            with patch(
+                "kisna_chatbot.processors.product_details_agent.search_products",
+                new_callable=AsyncMock,
+                return_value={"products": [fresh], "total_count": 1, "page": 1},
+            ):
+                result = await agent.process(data)
+            self.assertEqual(result["bot_response"][0]["type"], "media")
+
+        import asyncio
+
+        asyncio.run(_run())
 
 
 if __name__ == "__main__":

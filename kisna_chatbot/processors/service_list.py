@@ -88,7 +88,10 @@ def is_menu_request(text: str) -> bool:
     if not normalized:
         return False
 
-    if normalized in ("menu", "options"):
+    if normalized in ("menu", "options", "help"):
+        return True
+
+    if normalized in ("?", "??", "???"):
         return True
 
     # Strict: must explicitly mention "menu" plus an action verb.
@@ -107,21 +110,39 @@ def build_greeting_welcome_bot_responses(
     phone_number: str | None = None,
     chat_history: list | None = None,
 ) -> list[dict]:
-    """Welcome for new users (template + menu) or returning users (text + menu)."""
+    """Welcome for new users (menu) or returning users (text + menu)."""
     history = chat_history if chat_history is not None else []
     if is_new_session(history):
-        if phone_number:
-            from kisna_chatbot.whatsapp_functions.send_kisna_welcome_template import (
-                send_kisna_welcome_template,
-            )
-
-            send_kisna_welcome_template(phone_number)
         return [_build_main_menu_list()]
 
     return [
         {"type": "text", "text": _WELCOME_BACK_TEXT},
         _build_main_menu_list(),
     ]
+
+
+def handle_non_text_quick_reply(
+    btn_msgid: str, user_profile: dict, data: dict
+) -> bool:
+    """Route non-text quick-reply taps; return True if handled."""
+    if btn_msgid != QuickReplyId.NON_TEXT_BROWSE.value:
+        return False
+
+    title = (data.get("_non_text_button_title") or "").strip().lower()
+
+    if title in ("view offers",):
+        user_profile["service_selected"] = SL.OFFERS.value
+        data["classified_category"] = "offers"
+        return True
+
+    if title in ("open menu",):
+        data["bot_response"] = [build_main_menu_bot_response()]
+        return True
+
+    user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+    data["classified_category"] = "product_search"
+    data["bot_response"] = [build_explore_products_list_with_prompt()]
+    return True
 
 
 def build_main_menu_bot_response() -> dict:
@@ -255,6 +276,221 @@ def _normalize_menu_key(title: str, postback: str) -> str:
         "faqs & help": "faqs_help",
     }
     return aliases.get(title_key, title_key)
+
+
+def build_explore_products_list() -> dict:
+    """Public wrapper for the category browse list (Phase 3 explore menu)."""
+    return _build_explore_products_list()
+
+
+def build_explore_products_list_with_prompt() -> dict:
+    """Category menu with vague-browse prompt body."""
+    payload = _build_explore_products_list()
+    payload["body"] = "What type of jewellery are you looking for?"
+    return payload
+
+
+def build_clarification_bot_response(intent: str, confidence: float) -> list[dict]:
+    """Return one quick-reply clarification message for low-confidence classification."""
+    intent = (intent or "").strip().lower()
+    conf = float(confidence or 0)
+
+    if conf < 0.3:
+        return [
+            {
+                "type": "quickreply",
+                "text": (
+                    "I want to make sure I help you correctly!\n"
+                    "What would you like to do today?"
+                ),
+                "caption": "",
+                "options": [
+                    {"title": "Browse Jewellery"},
+                    {"title": "View Offers"},
+                    {"title": "Track Order"},
+                    {"title": "Find Store"},
+                    {"title": "Ask a Question"},
+                ],
+                "msgid": QuickReplyId.CLARIFY_BROWSE.value,
+            }
+        ]
+
+    if intent in ("store_info",):
+        return [
+            {
+                "type": "quickreply",
+                "text": "Are you looking for a KISNA store near you?",
+                "caption": "",
+                "options": [
+                    {"title": "Yes, find a store"},
+                    {"title": "No, something else"},
+                ],
+                "msgid": QuickReplyId.CLARIFY_STORE_YES.value,
+            }
+        ]
+
+    if intent in ("order_tracking", "complaint", "returns_refund"):
+        return [
+            {
+                "type": "quickreply",
+                "text": (
+                    "Is this about tracking an existing order, or reporting an issue?"
+                ),
+                "caption": "",
+                "options": [
+                    {"title": "Track my order"},
+                    {"title": "Report a problem"},
+                ],
+                "msgid": QuickReplyId.CLARIFY_TRACK.value,
+            }
+        ]
+
+    if intent in ("offers",) or (
+        intent == "product_search" and conf < 0.42
+    ):
+        return [
+            {
+                "type": "quickreply",
+                "text": "Are you looking for jewellery to browse, or current offers?",
+                "caption": "",
+                "options": [
+                    {"title": "Browse jewellery"},
+                    {"title": "See offers"},
+                ],
+                "msgid": QuickReplyId.CLARIFY_OFFERS.value,
+            }
+        ]
+
+    return [
+        {
+            "type": "quickreply",
+            "text": (
+                "Are you looking for a specific jewellery piece, or did you "
+                "have a question about KISNA's policies?"
+            ),
+            "caption": "",
+            "options": [
+                {"title": "Browse Jewellery"},
+                {"title": "Ask a Question"},
+            ],
+            "msgid": QuickReplyId.CLARIFY_BROWSE.value,
+        }
+    ]
+
+
+def handle_clarification_quick_reply(
+    btn_msgid: str, user_profile: dict, data: dict
+) -> bool:
+    """Route clarification quick-reply taps; return True if handled."""
+    user_profile["pending_clarification"] = False
+    title = (data.get("_clarify_button_title") or "").strip().lower()
+
+    if btn_msgid == QuickReplyId.CLARIFY_BROWSE.value:
+        if title in ("ask a question",):
+            user_profile["service_selected"] = SL.GENERAL.value
+            data["classified_category"] = "general"
+            return True
+        if title in ("view offers",):
+            user_profile["service_selected"] = SL.OFFERS.value
+            data["classified_category"] = "offers"
+            return True
+        if title in ("track order",):
+            user_profile["service_selected"] = SL.ORDER_TRACKING.value
+            data["classified_category"] = "order_tracking"
+            data["bot_response"] = build_track_order_bot_response()
+            return True
+        if title in ("find store",):
+            user_profile["service_selected"] = SL.AD_FLOW.value
+            user_profile["awaiting_store_pincode"] = True
+            data["classified_category"] = "store_info"
+            data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
+            return True
+        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        data["classified_category"] = "product_search"
+        data["bot_response"] = [build_explore_products_list_with_prompt()]
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_ASK.value:
+        user_profile["service_selected"] = SL.GENERAL.value
+        data["classified_category"] = "general"
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_STORE_YES.value:
+        if "no" in title:
+            data["bot_response"] = [build_main_menu_bot_response()]
+            return True
+        user_profile["service_selected"] = SL.AD_FLOW.value
+        user_profile["awaiting_store_pincode"] = True
+        data["classified_category"] = "store_info"
+        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_STORE_NO.value:
+        data["bot_response"] = [build_main_menu_bot_response()]
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_TRACK.value:
+        if "report" in title or "problem" in title:
+            user_profile["service_selected"] = SL.COMPLAINT.value
+            data["classified_category"] = "complaint"
+            data["bot_response"] = [build_complaint_flow_bot_response()]
+            return True
+        user_profile["service_selected"] = SL.ORDER_TRACKING.value
+        data["classified_category"] = "order_tracking"
+        data["bot_response"] = build_track_order_bot_response()
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_COMPLAINT.value:
+        user_profile["service_selected"] = SL.COMPLAINT.value
+        data["classified_category"] = "complaint"
+        data["bot_response"] = [build_complaint_flow_bot_response()]
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_OFFERS.value:
+        if "offer" in title:
+            user_profile["service_selected"] = SL.OFFERS.value
+            data["classified_category"] = "offers"
+            return True
+        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        data["classified_category"] = "product_search"
+        data["bot_response"] = [build_explore_products_list_with_prompt()]
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_VIEW_OFFERS.value:
+        user_profile["service_selected"] = SL.OFFERS.value
+        data["classified_category"] = "offers"
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_FIND_STORE.value:
+        user_profile["service_selected"] = SL.AD_FLOW.value
+        user_profile["awaiting_store_pincode"] = True
+        data["classified_category"] = "store_info"
+        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
+        return True
+
+    if btn_msgid == QuickReplyId.CLARIFY_ASK_QUESTION.value:
+        user_profile["service_selected"] = SL.GENERAL.value
+        data["classified_category"] = "general"
+        return True
+
+    return False
+
+
+_CLARIFY_MSGIDS = frozenset(
+    {
+        QuickReplyId.CLARIFY_BROWSE.value,
+        QuickReplyId.CLARIFY_ASK.value,
+        QuickReplyId.CLARIFY_STORE_YES.value,
+        QuickReplyId.CLARIFY_STORE_NO.value,
+        QuickReplyId.CLARIFY_TRACK.value,
+        QuickReplyId.CLARIFY_COMPLAINT.value,
+        QuickReplyId.CLARIFY_OFFERS.value,
+        QuickReplyId.CLARIFY_VIEW_OFFERS.value,
+        QuickReplyId.CLARIFY_FIND_STORE.value,
+        QuickReplyId.CLARIFY_ASK_QUESTION.value,
+        QuickReplyId.NON_TEXT_BROWSE.value,
+    }
+)
 
 
 def _build_explore_products_list() -> dict:
@@ -455,6 +691,15 @@ class ServiceList(Processor):
                 button_reply = interactive.get("button_reply", {})
                 raw_id = button_reply.get("id", "")
                 btn_msgid = _parse_button_msgid(raw_id)
+
+                if btn_msgid in _CLARIFY_MSGIDS:
+                    data["_clarify_button_title"] = button_reply.get("title", "")
+                    if btn_msgid == QuickReplyId.NON_TEXT_BROWSE.value:
+                        data["_non_text_button_title"] = button_reply.get("title", "")
+                        if handle_non_text_quick_reply(btn_msgid, user_profile, data):
+                            return data
+                    elif handle_clarification_quick_reply(btn_msgid, user_profile, data):
+                        return data
 
                 if btn_msgid == "menu$back":
                     user_profile["service_selected"] = ""

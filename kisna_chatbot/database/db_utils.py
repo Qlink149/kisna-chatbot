@@ -31,6 +31,7 @@ def save_to_mongo(data: dict) -> dict | None:
         current_history = user_profile_data.get("chat_history", [])
         user_profile_data["chat_history"] = current_history + new_chat
         user_profile_data["updated_at"] = int(time.time())
+        user_profile_data["last_message_at"] = int(time.time())
         user_profile_data["client_id"] = client_id
         if data.get("whatsapp_username"):
             user_profile_data["username"] = data["whatsapp_username"]
@@ -84,6 +85,23 @@ def save_user_message_silent(
         logger.exception(
             "Failed to save silent message",
             extra={"phone_number": phone_number, "client_id": client_id},
+        )
+        raise
+
+
+def touch_last_message_at(phone_number: str, client_id: str = "kisna") -> None:
+    """Update last inbound message timestamp without a full profile save."""
+    try:
+        now = int(time.time())
+        users.update_one(
+            _user_filter(phone_number, client_id),
+            {"$set": {"last_message_at": now, "updated_at": now}},
+            upsert=True,
+        )
+    except Exception as e:
+        logger.exception(
+            "Failed to touch last_message_at",
+            extra={"phone_number": phone_number, "client_id": client_id, "error": str(e)},
         )
         raise
 

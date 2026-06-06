@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import json
@@ -21,6 +22,7 @@ from kisna_chatbot.database.db_utils import (
     save_response_time,
     save_to_mongo,
     save_user_message_silent,
+    touch_last_message_at,
 )
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.pipelines.inference_pipeline import (
@@ -37,7 +39,10 @@ from kisna_chatbot.pipelines.inference_pipeline import (
 )
 from kisna_chatbot.middleware.logging_middleware import LoggingMiddleware
 from kisna_chatbot.processors.response_manager import ResponseManager
+from kisna_chatbot.processors.non_text_handler import handle_non_text_message
 from kisna_chatbot.processors.service_list import build_main_menu_bot_response
+from kisna_chatbot.processors.user_registration import UserRegistration
+from kisna_chatbot.utils.format_chathistory import format_user
 from kisna_chatbot.routes import system as system_router
 from kisna_chatbot.utils.logger_config import (
     clear_request_context,
@@ -48,6 +53,16 @@ from kisna_chatbot.utils.logger_config import (
     set_request_context,
 )
 from kisna_chatbot.utils.pubsub import pubsub
+from kisna_chatbot.utils.rate_limiter import INBOUND_RATE_LIMIT, is_rate_limited
+
+# TODO: Upgrade to Redis distributed lock for multi-instance safety.
+_USER_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+async def _get_user_lock(phone: str) -> asyncio.Lock:
+    if phone not in _USER_LOCKS:
+        _USER_LOCKS[phone] = asyncio.Lock()
+    return _USER_LOCKS[phone]
 
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
@@ -242,7 +257,9 @@ def _pipeline_for_service(service_selected: str):
     return pipeline_cls() if pipeline_cls else None
 
 
-async def _save_and_send(data: dict, phone_number: str, pipeline_start: float) -> None:
+async def _persist_session(
+    data: dict, phone_number: str, pipeline_start: float
+) -> None:
     client_id = data.get("client_id", DEFAULT_CLIENT_ID)
     save_to_mongo(data=data)
     save_response_time(
@@ -250,7 +267,6 @@ async def _save_and_send(data: dict, phone_number: str, pipeline_start: float) -
         round((time.time() - pipeline_start) * 1000),
         client_id=client_id,
     )
-    ResponseManager().handle_responses(data=data)
 
 
 async def process_message(
@@ -262,6 +278,7 @@ async def process_message(
     """Process incoming WhatsApp message in the background."""
     phone_number = None
     data: dict = {}
+    responses_to_send: dict | None = None
 
     if request_id:
         set_request_context(request_id=request_id)
@@ -307,6 +324,13 @@ async def process_message(
             except Exception:
                 logger.exception("Failed to log inbound webhook payload")
 
+        if is_rate_limited(phone_number):
+            logger.warning(
+                "Inbound rate limit exceeded — dropping message",
+                extra={"phone_number": phone_number, "count": INBOUND_RATE_LIMIT},
+            )
+            return
+
         if not message_id:
             logger.warning(
                 "Inbound message missing id; cannot dedupe",
@@ -328,90 +352,125 @@ async def process_message(
                 )
                 return
 
-        try:
-            phone_number_id = (
-                request_data["entry"][0]["changes"][0]["value"]
-                .get("metadata", {})
-                .get("phone_number_id", "")
+        lock = await _get_user_lock(phone_number)
+        async with lock:
+            try:
+                phone_number_id = (
+                    request_data["entry"][0]["changes"][0]["value"]
+                    .get("metadata", {})
+                    .get("phone_number_id", "")
+                )
+                if phone_number_id and phone_number_id not in build_phone_number_id_map():
+                    logger.debug(
+                        "Webhook phone_number_id not in env map; using default client "
+                        "(optional: set KISNA_PHONE_NUMBER_ID for explicit routing)",
+                        extra={
+                            "phone_number_id": phone_number_id,
+                            "client_id": client_id,
+                        },
+                    )
+            except (KeyError, IndexError, TypeError):
+                pass
+
+            client_config = get_client_config(client_id)
+
+            data = {
+                "phone_number": phone_number,
+                "messages": messages,
+                "whatsapp_username": whatsapp_username,
+                "client_id": client_id,
+                "client_config": client_config,
+                "app_state": app_state,
+            }
+            logger.info(
+                "Data object to pipeline",
+                extra={"phone_number": phone_number, "client_id": client_id},
             )
-            if phone_number_id and phone_number_id not in build_phone_number_id_map():
-                logger.debug(
-                    "Webhook phone_number_id not in env map; using default client "
-                    "(optional: set KISNA_PHONE_NUMBER_ID for explicit routing)",
+
+            takeover = get_takeover_status(phone_number, client_id)
+            if takeover and takeover.get("active"):
+                logger.info(
+                    "Human takeover active — saving message silently",
+                    extra={"phone_number": phone_number},
+                )
+                content = format_user(messages, phone_number)
+                if content:
+                    save_user_message_silent(phone_number, content, client_id)
+                    await pubsub.publish(
+                        phone_number,
+                        {"type": "user_message", "content": content},
+                    )
+                touch_last_message_at(phone_number, client_id)
+                return
+
+            data = await UserRegistration().process(data)
+
+            non_text_result = handle_non_text_message(data)
+            if non_text_result == "silent":
+                touch_last_message_at(phone_number, client_id)
+                return
+
+            if non_text_result == "route_store" or "bot_response" in data:
+                pipeline_start = time.time()
+                if non_text_result == "route_store":
+                    data = await AdFlowPipeline().run(data=data)
+                if "bot_response" not in data and non_text_result == "route_store":
+                    data["bot_response"] = [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Sorry, we couldn't look up stores right now. "
+                                "Please try again in a moment."
+                            ),
+                        }
+                    ]
+                if "bot_response" in data:
+                    await _persist_session(data, phone_number, pipeline_start)
+                    responses_to_send = data
+                if responses_to_send:
+                    ResponseManager().handle_responses(data=responses_to_send)
+                return
+
+            pipeline_start = time.time()
+            data = await InitialPipeline().run(data=data)
+
+            if "bot_response" in data:
+                logger.info(
+                    "Bot response from initial pipeline",
+                    extra={"phone_number": phone_number},
+                )
+            else:
+                service_selected = data.get("user_profile", {}).get(
+                    "service_selected", ""
+                )
+                logger.info(
+                    "Routing to service pipeline",
                     extra={
-                        "phone_number_id": phone_number_id,
-                        "client_id": client_id,
+                        "phone_number": phone_number,
+                        "service_selected": service_selected,
                     },
                 )
-        except (KeyError, IndexError, TypeError):
-            pass
 
-        client_config = get_client_config(client_id)
+                pipeline = _pipeline_for_service(service_selected)
+                if pipeline:
+                    data = await pipeline.run(data=data)
 
-        data = {
-            "phone_number": phone_number,
-            "messages": messages,
-            "whatsapp_username": whatsapp_username,
-            "client_id": client_id,
-            "client_config": client_config,
-            "app_state": app_state,
-        }
-        logger.info(
-            "Data object to pipeline",
-            extra={"phone_number": phone_number, "client_id": client_id},
-        )
+                if "bot_response" not in data:
+                    logger.warning(
+                        "Pipeline completed without bot_response — sending main menu",
+                        extra={
+                            "phone_number": phone_number,
+                            "service_selected": service_selected,
+                        },
+                    )
+                    data["bot_response"] = [build_main_menu_bot_response()]
 
-        takeover = get_takeover_status(phone_number, client_id)
-        if takeover and takeover.get("active"):
-            logger.info(
-                "Human takeover active — saving message silently",
-                extra={"phone_number": phone_number},
-            )
-            text_body = messages.get("text", {}).get("body", "")
-            if text_body:
-                save_user_message_silent(phone_number, text_body, client_id)
-                await pubsub.publish(
-                    phone_number,
-                    {"type": "user_message", "content": text_body},
-                )
-            return
+            if "bot_response" in data:
+                await _persist_session(data, phone_number, pipeline_start)
+                responses_to_send = data
 
-        pipeline_start = time.time()
-        data = await InitialPipeline().run(data=data)
-
-        if "bot_response" in data:
-            logger.info(
-                "Bot response from initial pipeline",
-                extra={"phone_number": phone_number},
-            )
-            await _save_and_send(data, phone_number, pipeline_start)
-            return
-
-        service_selected = data.get("user_profile", {}).get("service_selected", "")
-        logger.info(
-            "Routing to service pipeline",
-            extra={
-                "phone_number": phone_number,
-                "service_selected": service_selected,
-            },
-        )
-
-        pipeline = _pipeline_for_service(service_selected)
-        if pipeline:
-            data = await pipeline.run(data=data)
-
-        if "bot_response" not in data:
-            logger.warning(
-                "Pipeline completed without bot_response — sending main menu",
-                extra={
-                    "phone_number": phone_number,
-                    "service_selected": service_selected,
-                },
-            )
-            data["bot_response"] = [build_main_menu_bot_response()]
-
-        if "bot_response" in data:
-            await _save_and_send(data, phone_number, pipeline_start)
+        if responses_to_send:
+            ResponseManager().handle_responses(data=responses_to_send)
 
     except Exception as e:
         logger.exception(
@@ -424,12 +483,19 @@ async def process_message(
             ]
             try:
                 save_to_mongo(data=data)
-                ResponseManager().handle_responses(data=data)
             except Exception as save_err:
                 logger.exception(
                     "Failed to save error response",
                     extra={"exception": save_err},
                 )
+            else:
+                try:
+                    ResponseManager().handle_responses(data=data)
+                except Exception as send_err:
+                    logger.exception(
+                        "Failed to send error response",
+                        extra={"exception": send_err},
+                    )
     finally:
         clear_request_context()
 

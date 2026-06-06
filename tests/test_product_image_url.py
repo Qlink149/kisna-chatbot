@@ -2,6 +2,7 @@
 
 import os
 import unittest
+from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -26,6 +27,7 @@ from kisna_chatbot.utils.product_formatter import (
     format_price_line,
     get_product_display_price,
     get_product_image_url,
+    get_product_image_url_for_whatsapp,
     get_product_price_bundle,
 )
 
@@ -121,6 +123,59 @@ class ProductImageUrlTests(unittest.TestCase):
         self.assertEqual(
             get_product_image_url(product),
             "https://kisna-assets.example/no-type.webp",
+        )
+
+    def test_plp_sort_preferred_over_other_media(self):
+        product = {
+            "mediaUrl": [
+                {"image": "https://ex.com/other.jpg", "type": "image"},
+                {
+                    "image": "https://ex.com/plp.jpg",
+                    "type": "image",
+                    "sort": "plp",
+                },
+            ]
+        }
+        self.assertEqual(get_product_image_url(product), "https://ex.com/plp.jpg")
+
+    def test_relative_compressed_path_resolves(self):
+        product = {
+            "mediaUrl": [
+                {"image": "compressed/assets/ring.webp", "type": "image"},
+            ]
+        }
+        url = get_product_image_url(product)
+        self.assertIsNotNone(url)
+        self.assertTrue(url.startswith("https://"))
+        self.assertIn("compressed/assets/ring.webp", url)
+
+    def test_whatsapp_url_prefers_jpg_over_webp(self):
+        product = {
+            "mediaUrl": [
+                {
+                    "image": "https://kisna-assets.example/item.webp",
+                    "type": "image",
+                }
+            ],
+        }
+        head_mock = MagicMock(status_code=200)
+        with patch("kisna_chatbot.utils.product_formatter.httpx.head", return_value=head_mock):
+            self.assertEqual(
+                get_product_image_url_for_whatsapp(product),
+                "https://kisna-assets.example/item.jpg",
+            )
+
+    def test_variant_only_image_fallback(self):
+        product = {
+            "variant": {
+                "mediaUrl": [
+                    {"image": "https://ex.com/variant.jpg", "type": "image"},
+                ]
+            }
+        }
+        self.assertEqual(
+            get_product_image_url(product),
+            "https://ex.com/variant.jpg",
         )
 
     def test_display_price_prefers_final_price(self):

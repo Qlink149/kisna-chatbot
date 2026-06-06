@@ -1,10 +1,22 @@
+import re
+
 from kisna_chatbot.ai import run_general_agent
+from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger
 
 _HANDOFF_MESSAGE = "Connecting you to our design consultant..."
 _GENERIC_ERROR = (
     "Sorry, I couldn't process your question right now. Please try again in a moment."
+)
+
+_CATALOG_FOLLOWUP_RE = re.compile(
+    r"\b("
+    r"price|cost|kitna|rate|sasta|mehnga|cheap|expensive|cheapest|cheaper|better|compare|"
+    r"difference|best|worst|affordable|"
+    r"this|that one|yeh|woh|third|first|second"
+    r")\b",
+    re.I,
 )
 
 
@@ -37,6 +49,19 @@ class GeneralAgent(Processor):
                 return data
 
             user_query = data["messages"]["text"]["body"]
+            last_viewed = user_profile.get("last_viewed_product")
+            last_search = user_profile.get("last_search_products") or []
+
+            if (last_viewed or last_search) and _CATALOG_FOLLOWUP_RE.search(
+                user_query or ""
+            ):
+                logger.info(
+                    "GeneralAgent rerouting catalog follow-up to product search",
+                    extra={"phone_number": phone_number, "query": user_query},
+                )
+                user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                data["classified_category"] = "product_info"
+                return data
 
             chat_history = user_profile.get("chat_history", [])[-10:]
             chat_history_str = "\n".join(

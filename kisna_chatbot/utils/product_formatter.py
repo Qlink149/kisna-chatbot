@@ -5,10 +5,14 @@ Prices and MRP come only from Clara API fields via utils.price_calculator.
 Promo labels use embedded promotions[]; no estimated or computed rupee amounts.
 """
 
+import os
 import re
 from typing import Any, Optional
 
+import httpx
+
 from kisna_chatbot.processors.entity_extractor import build_search_context
+from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.price_calculator import resolve_product_prices
 
 _PRODUCT_LIST_MSGID = "product_select$results"
@@ -187,6 +191,13 @@ def format_product_buy_caption(product: dict) -> str:
     return "\n".join(_product_caption_lines(product, include_sku=True))
 
 
+def _assets_cdn_base() -> str:
+    return (
+        os.getenv("KISNA_ASSETS_CDN_BASE")
+        or "https://kisna-assets.blr1.cdn.digitaloceanspaces.com"
+    ).rstrip("/")
+
+
 def _normalize_image_url(url: Any) -> Optional[str]:
     """Return a usable HTTPS image URL, or None."""
     if url is None:
@@ -196,6 +207,10 @@ def _normalize_image_url(url: Any) -> Optional[str]:
         return None
     if text.startswith("//"):
         text = "https:" + text
+    elif text.startswith("/"):
+        text = _assets_cdn_base() + text
+    elif text.startswith("compressed/"):
+        text = f"{_assets_cdn_base()}/{text}"
     if text.startswith("http://"):
         text = "https://" + text[len("http://") :]
     if not text.startswith("https://"):
@@ -213,7 +228,8 @@ def _url_from_media_item(item: dict) -> Optional[str]:
 
 
 def _url_from_media_list(media: list) -> Optional[str]:
-    """Prefer isDefault image entry, else first valid image in the list."""
+    """Prefer plp sort, then isDefault, else first valid image in the list."""
+    plp_url: Optional[str] = None
     default_url: Optional[str] = None
     fallback_url: Optional[str] = None
 
@@ -228,20 +244,42 @@ def _url_from_media_list(media: list) -> Optional[str]:
         url = _url_from_media_item(item)
         if not url:
             continue
+        sort_val = str(item.get("sort") or "").lower()
+        if sort_val == "plp" and plp_url is None:
+            plp_url = url
         if item.get("isDefault"):
             default_url = url
         elif fallback_url is None:
             fallback_url = url
 
-    return default_url or fallback_url
+    return plp_url or default_url or fallback_url
 
 
-def _webp_jpg_fallback(url: str) -> Optional[str]:
+def webp_jpg_fallback(url: str) -> Optional[str]:
     """Try a .jpg sibling URL when CDN may not serve .webp to WhatsApp."""
     lower = url.lower().split("?")[0]
     if not lower.endswith(".webp"):
         return None
-    return _normalize_image_url(url[: lower.rindex(".webp")] + ".jpg")
+    jpg_url = _normalize_image_url(
+        url[: lower.rindex(".webp")] + ".jpg"
+    )
+    if not jpg_url:
+        return None
+    try:
+        resp = httpx.head(jpg_url, timeout=2.0, follow_redirects=True)
+        if resp.status_code == 200:
+            return jpg_url
+        logger.warning(
+            "WebP jpg fallback HEAD returned non-200",
+            extra={
+                "original_url": url,
+                "jpg_url": jpg_url,
+                "status_code": resp.status_code,
+            },
+        )
+    except httpx.RequestError:
+        pass
+    return None
 
 
 def get_product_image_url(product: dict) -> Optional[str]:
@@ -255,7 +293,7 @@ def get_product_image_url(product: dict) -> Optional[str]:
     if isinstance(media, str):
         candidates.append(_normalize_image_url(media))
 
-    for key in ("image", "image_url", "thumbnail"):
+    for key in ("image", "image_url", "thumbnail", "previewImage"):
         candidates.append(_normalize_image_url(product.get(key)))
 
     images = product.get("images")
@@ -269,17 +307,36 @@ def get_product_image_url(product: dict) -> Optional[str]:
             candidates.append(_url_from_media_list(variant_media))
         candidates.append(_normalize_image_url(variant.get("image")))
 
+    product_type = product.get("productType")
+    if isinstance(product_type, dict):
+        type_media = product_type.get("mediaUrl") or product_type.get("media")
+        if isinstance(type_media, list):
+            candidates.append(_url_from_media_list(type_media))
+
+    snapshot_url = product.get("image_url_snapshot")
+    if snapshot_url:
+        candidates.append(_normalize_image_url(snapshot_url))
+
     for url in candidates:
         if url:
             return url
 
     for candidate in candidates:
         if candidate:
-            jpg = _webp_jpg_fallback(candidate)
+            jpg = webp_jpg_fallback(candidate)
             if jpg:
                 return jpg
 
     return None
+
+
+def get_product_image_url_for_whatsapp(product: dict) -> Optional[str]:
+    """Return image URL optimized for Gupshup/WhatsApp (jpg preferred over webp)."""
+    url = get_product_image_url(product)
+    if not url:
+        return None
+    jpg = webp_jpg_fallback(url)
+    return jpg or url
 
 
 def format_product_image_caption(product: dict) -> str:
@@ -310,15 +367,24 @@ def format_product_list_message(
     page: int,
     search_context: str = "",
     page_size: int = 5,
+    *,
+    client_filtered: bool = False,
 ) -> dict:
     """WhatsApp interactive list message dict."""
     header = f"💎 {search_context}" if search_context else "💎 KISNA Jewellery"
-    start = (page - 1) * page_size + 1 if total_count else 0
-    end = min(page * page_size, total_count)
-    body = (
-        f"Found *{total_count}* piece{'s' if total_count != 1 else ''}.\n"
-        f"Showing {start}–{end}. Tap to view details."
-    )
+    if client_filtered:
+        n = len(products)
+        body = (
+            f"Showing {n} piece{'s' if n != 1 else ''} matching your search.\n"
+            "Tap to view details."
+        )
+    else:
+        start = (page - 1) * page_size + 1 if total_count else 0
+        end = min(page * page_size, total_count)
+        body = (
+            f"Found *{total_count}* piece{'s' if total_count != 1 else ''}.\n"
+            f"Showing {start}–{end}. Tap to view details."
+        )
 
     options = []
     for product in products[:10]:

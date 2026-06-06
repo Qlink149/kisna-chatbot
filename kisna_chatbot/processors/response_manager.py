@@ -32,6 +32,10 @@ from kisna_chatbot.whatsapp_functions.send_text_message import (
 )
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.rate_limiter import outbound_rate_limiter
+from kisna_chatbot.utils.whatsapp_window import is_window_open
+from kisna_chatbot.whatsapp_functions.send_kisna_welcome_template import (
+    send_kisna_welcome_template,
+)
 import time
 
 
@@ -75,6 +79,14 @@ class ResponseManager:
         """Iterate through the list of bot responses and routes to its appropriate handler."""
         bot_responses = data.get("bot_response", [])
         phone_number = data["phone_number"]
+        user_profile = data.get("user_profile") or {}
+
+        if bot_responses and not is_window_open(user_profile):
+            template_result = send_kisna_welcome_template(phone_number)
+            if template_result is not None:
+                data["_window_reopened"] = True
+                time.sleep(0.4)
+
         for response in bot_responses:
             outbound_rate_limiter.wait_if_needed(phone_number)
             response_type = response.get("type")
@@ -89,8 +101,14 @@ class ResponseManager:
                         logger.info("message submitted")
                         time.sleep(0.4)
             else:
-                raise ValueError(
-                    f"No handler registered for response type: {response_type}"
+                logger.error(
+                    "Unknown bot_response type: %s — skipping send",
+                    response_type,
+                    extra={
+                        "phone_number": phone_number,
+                        "response_type": response_type,
+                        "response": response,
+                    },
                 )
 
     def _handle_text(self, phone_number, bot_response):
@@ -117,6 +135,10 @@ class ResponseManager:
         : phone_number: Contains the phone number of the user
         : bot_response: A dictionary containing the response details.
         """
+        logger.warning(
+            "Skipping bot_response send (type=skip)",
+            extra={"phone_number": phone_number},
+        )
         return {"status": "submitted"}
 
     def _handle_url(self, phone_number, bot_response):

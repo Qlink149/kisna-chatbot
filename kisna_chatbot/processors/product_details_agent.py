@@ -22,6 +22,7 @@ from kisna_chatbot.utils.product_formatter import (
     build_product_url,
     format_product_buy_caption,
     get_product_image_url,
+    get_product_image_url_for_whatsapp,
     get_product_price_bundle,
 )
 
@@ -34,6 +35,9 @@ _CACHE_MISS_TEXT = (
 )
 _BUY_CTA_TEXT = (
     "Tap below to choose size, metal & colour and place your order on kisna.com."
+)
+_IMAGE_UNAVAILABLE_LINE = (
+    "Image unavailable — view on kisna.com via the Buy button below."
 )
 _SIZE_VARIANT_REPLY = (
     "Sizes and variants are available on the product page. "
@@ -108,6 +112,7 @@ def _find_cached_product(user_profile: dict, product_id: str) -> dict | None:
 
 def _save_last_viewed_product(user_profile: dict, product: dict) -> None:
     bundle = get_product_price_bundle(product)
+    image_url = get_product_image_url(product)
     user_profile["last_viewed_product"] = {
         "_id": product.get("_id") or product.get("id"),
         "title": product.get("title"),
@@ -117,26 +122,73 @@ def _save_last_viewed_product(user_profile: dict, product: dict) -> None:
         "price": bundle["display_price"],
         "mrp_price": bundle.get("mrp_price"),
         "sku": bundle.get("sku"),
+        "image_url_snapshot": image_url,
+        "mediaUrl": product.get("mediaUrl"),
     }
+
+
+def _merge_product_media(target: dict, source: dict) -> dict:
+    """Copy media fields from a fresher API row into a cached product."""
+    merged = dict(target)
+    for key in ("mediaUrl", "media", "images", "image", "image_url", "thumbnail"):
+        if source.get(key):
+            merged[key] = source[key]
+    return merged
+
+
+async def _enrich_product_image(product: dict, *, title_hint: str = "") -> dict:
+    """Re-fetch media from Clara when cached product lacks a resolvable image."""
+    if get_product_image_url_for_whatsapp(product):
+        return product
+
+    search_title = (title_hint or product.get("title") or "").strip()
+    if not search_title:
+        return product
+
+    try:
+        result = await search_products(title=search_title, page_no=1, page_size=3)
+    except (ClaraAPIError, Exception):
+        logger.warning(
+            "Product image enrichment search failed",
+            extra={"title": search_title, "product_id": product.get("_id")},
+            exc_info=True,
+        )
+        return product
+
+    product_id = str(product.get("_id") or product.get("id") or "")
+    for row in result.get("products") or []:
+        if not isinstance(row, dict):
+            continue
+        row_id = str(row.get("_id") or row.get("id") or "")
+        if product_id and row_id and row_id != product_id:
+            continue
+        if get_product_image_url_for_whatsapp(row):
+            return _merge_product_media(product, row)
+
+    for row in result.get("products") or []:
+        if isinstance(row, dict) and get_product_image_url_for_whatsapp(row):
+            return _merge_product_media(product, row)
+
+    return product
 
 
 def _build_buy_now_response(product: dict) -> list:
     """Image + Buy CTA + action quick replies for a cached product."""
     responses: list = []
-    image_url = get_product_image_url(product)
+    image_url = get_product_image_url_for_whatsapp(product)
+    caption = format_product_buy_caption(product)
     if image_url:
         responses.append(
             {
                 "type": "media",
                 "media_type": "image",
                 "url": image_url,
-                "caption": format_product_buy_caption(product),
+                "caption": caption,
             }
         )
     else:
-        responses.append(
-            {"type": "text", "text": format_product_buy_caption(product)}
-        )
+        text = f"{caption}\n\n_{_IMAGE_UNAVAILABLE_LINE}_"
+        responses.append({"type": "text", "text": text})
 
     responses.append(
         {
@@ -351,9 +403,13 @@ class ProductDetailsAgent(Processor):
             cached = _find_cached_product(user_profile, product_id)
 
             if cached:
-                _save_last_viewed_product(user_profile, cached)
+                enriched = await _enrich_product_image(
+                    cached,
+                    title_hint=list_title,
+                )
+                _save_last_viewed_product(user_profile, enriched)
                 user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-                data["bot_response"] = _build_buy_now_response(cached)
+                data["bot_response"] = _build_buy_now_response(enriched)
                 logger.info(
                     "Product Buy Now flow from cache",
                     extra={

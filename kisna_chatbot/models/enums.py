@@ -13,6 +13,17 @@ class QuickReplyId(Enum):
     EVENT_TYPE = "event_type"
     RATING_REQUEST = "rating_request"
     COMPLAINT_REGISTER = "complaint_register"
+    CLARIFY_BROWSE = "clarify$browse"
+    CLARIFY_ASK = "clarify$ask"
+    CLARIFY_STORE_YES = "clarify$store_yes"
+    CLARIFY_STORE_NO = "clarify$store_no"
+    CLARIFY_TRACK = "clarify$track"
+    CLARIFY_COMPLAINT = "clarify$complaint"
+    CLARIFY_OFFERS = "clarify$offers"
+    CLARIFY_VIEW_OFFERS = "clarify$view_offers"
+    CLARIFY_FIND_STORE = "clarify$find_store"
+    CLARIFY_ASK_QUESTION = "clarify$ask_question"
+    NON_TEXT_BROWSE = "non_text$browse"
 
 
 class FlowId(Enum):

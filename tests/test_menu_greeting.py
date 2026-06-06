@@ -60,14 +60,10 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertEqual(responses[1]["type"], "list")
 
     def test_greeting_responses_new_session(self):
-        with patch(
-            "kisna_chatbot.whatsapp_functions.send_kisna_welcome_template.send_kisna_welcome_template"
-        ) as mock_welcome:
-            responses = build_greeting_welcome_bot_responses(
-                phone_number="919999999999",
-                chat_history=[],
-            )
-            mock_welcome.assert_called_once_with("919999999999")
+        responses = build_greeting_welcome_bot_responses(
+            phone_number="919999999999",
+            chat_history=[],
+        )
         self.assertEqual(len(responses), 1)
         self.assertEqual(responses[0]["type"], "list")
 
