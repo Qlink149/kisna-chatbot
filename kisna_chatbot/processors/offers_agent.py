@@ -174,8 +174,14 @@ class OffersAgent(Processor):
         )
         return client_config.has_offers
 
+    def _clear_offers_session(self, data: dict, user_profile: dict) -> None:
+        if _material_button_msgid(data.get("messages", {})):
+            return
+        user_profile["service_selected"] = ""
+
     async def process(self, data: dict) -> dict:
         phone_number = data["phone_number"]
+        user_profile = data.get("user_profile", {})
         client_id = data.get("client_id", "kisna")
         app_state = data.get("app_state")
 
@@ -197,6 +203,7 @@ class OffersAgent(Processor):
 
             if not _clara_configured():
                 data["bot_response"] = _build_error_response()
+                self._clear_offers_session(data, user_profile)
                 logger.warning(
                     "Offers requested but Clara API is not configured",
                     extra={"phone_number": phone_number, "client_id": client_id},
@@ -210,13 +217,16 @@ class OffersAgent(Processor):
                     promotions = await get_promotions() or []
                 except ClaraAPIError:
                     data["bot_response"] = _build_error_response()
+                    self._clear_offers_session(data, user_profile)
                     return data
                 except Exception:
                     data["bot_response"] = _build_error_response()
+                    self._clear_offers_session(data, user_profile)
                     return data
 
             if not promotions:
                 data["bot_response"] = _build_empty_response()
+                self._clear_offers_session(data, user_profile)
                 logger.info(
                     "No active promotions returned",
                     extra={"phone_number": phone_number, "client_id": client_id},
@@ -240,10 +250,12 @@ class OffersAgent(Processor):
                     data["bot_response"] = _build_partial_response()
                 else:
                     data["bot_response"] = _build_empty_response()
+                self._clear_offers_session(data, user_profile)
                 return data
 
             offers_text = _build_offers_text(promotions)
             data["bot_response"] = _build_bot_response(offers_text)
+            self._clear_offers_session(data, user_profile)
             logger.info(
                 "Offers loaded successfully",
                 extra={
@@ -261,4 +273,5 @@ class OffersAgent(Processor):
                 extra={"phone_number": phone_number, "exception": e},
             )
             data["bot_response"] = _build_error_response()
+            self._clear_offers_session(data, user_profile)
             return data

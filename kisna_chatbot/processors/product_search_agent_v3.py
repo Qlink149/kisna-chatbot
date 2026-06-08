@@ -1,18 +1,21 @@
 import json
 import os
 import re
+import time
 
 from kisna_chatbot.integrations.clara_api import ClaraAPIError, search_products
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.service_list import build_explore_products_list_with_prompt
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import (
+    apply_occasion_style_hints,
     build_search_context,
     entities_to_api_params,
     extract_entities,
     filter_products_by_entities,
     has_strict_product_filters,
     is_unrecognizable_input,
+    merge_llm_and_regex_entities,
     merge_search_entities,
     normalize_category_for_api,
     normalize_material_for_api,
@@ -771,7 +774,10 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
-        extracted = extract_entities(query)
+        regex_entities = extract_entities(query)
+        llm_entities = data.get("llm_extracted_entities") or {}
+        extracted = merge_llm_and_regex_entities(llm_entities, regex_entities)
+        extracted, occasion_prefix = apply_occasion_style_hints(extracted)
         prior = user_profile.get("last_search_filters")
         entities = merge_search_entities(prior, extracted, query)
         if extracted.get("max_price") is not None or extracted.get("min_price") is not None:
@@ -785,7 +791,11 @@ class ProductSearchAgentV3(Processor):
                 "phone_number": phone_number,
                 "query": query,
                 "prior_filters": prior,
+                "llm_entities": llm_entities,
+                "regex_entities": regex_entities,
                 "extracted": extracted,
+                "occasion": extracted.get("occasion"),
+                "style": extracted.get("style"),
                 "merged": entities,
                 "api_params": entities_to_api_params(entities),
             },
@@ -800,7 +810,11 @@ class ProductSearchAgentV3(Processor):
             return data
 
         return await self._execute_search(
-            data, phone_number, entities, query_label=query
+            data,
+            phone_number,
+            entities,
+            query_label=query,
+            occasion_prefix=occasion_prefix,
         )
 
     async def _handle_show_more(self, data: dict, phone_number: str) -> dict:
@@ -912,6 +926,7 @@ class ProductSearchAgentV3(Processor):
         *,
         query_label: str,
         exclude_product_id: str | None = None,
+        occasion_prefix: str | None = None,
     ) -> dict:
         user_profile = data.get("user_profile", {})
         last_filters = user_profile.get("last_search_filters") or {}
@@ -924,6 +939,8 @@ class ProductSearchAgentV3(Processor):
         page = 1
         winning_entities = entities
         prefix_parts: list[str] = []
+        if occasion_prefix:
+            prefix_parts.append(occasion_prefix)
         if entities.get("unsupported_category"):
             prefix_parts.append(_UNSUPPORTED_CATEGORY_NOTE)
         client_filtered = False
@@ -1055,6 +1072,7 @@ class ProductSearchAgentV3(Processor):
         user_profile["last_search_page"] = page
         user_profile["last_search_total"] = total_count
         user_profile["last_search_products"] = products[:PAGE_SIZE]
+        user_profile["last_search_at"] = int(time.time())
         _append_shown_product_ids(user_profile, products[:PAGE_SIZE])
 
         data["bot_response"] = _build_search_success_response(

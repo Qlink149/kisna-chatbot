@@ -161,6 +161,7 @@ class OrderTrackingAgent(Processor):
     async def process(self, data: dict) -> dict:
         """Resolve order ID and return tracking CTA URL."""
         phone_number = data["phone_number"]
+        user_profile = data.get("user_profile", {})
         messages = data.get("messages", {})
         client_id = data.get("client_id", "kisna")
         client_config = data.get("client_config") or get_client_config(client_id)
@@ -202,6 +203,7 @@ class OrderTrackingAgent(Processor):
                     "client_id": client_id,
                 },
             )
+            user_profile["service_selected"] = ""
             return data
 
         except ValueError as e:

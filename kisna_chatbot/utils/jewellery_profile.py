@@ -92,10 +92,13 @@ def entities_to_jewellery_profile(
     if budget:
         profile["budget_range"] = budget
 
-    if _should_extract_occasion(source_text):
-        occasion = extract_occasion(source_text or "")
-        if occasion:
-            profile["occasion"] = occasion
+    occasion = entities.get("occasion")
+    if occasion:
+        profile["occasion"] = str(occasion)
+    elif _should_extract_occasion(source_text):
+        extracted_occasion = extract_occasion(source_text or "")
+        if extracted_occasion:
+            profile["occasion"] = extracted_occasion
 
     return profile
 

@@ -5,6 +5,7 @@ Rule-based entity extraction from Hindi/English/Hinglish product search queries.
 import re
 from typing import Any
 
+from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.price_calculator import resolve_product_prices
 
 _CATEGORY_SYNONYMS: dict[str, list[str]] = {
@@ -828,6 +829,59 @@ def extract_entities(text: str) -> dict[str, Any]:
     }
 
 
+def merge_llm_and_regex_entities(
+    llm_entities: dict,
+    regex_entities: dict,
+) -> dict:
+    """
+    Merge LLM and regex entities.
+    LLM wins on all fields where it returned non-null.
+    Regex fills in any field where LLM returned null.
+    """
+    merged = dict(regex_entities or {})
+    for key, val in (llm_entities or {}).items():
+        if val is not None:
+            merged[key] = val
+    return merged
+
+
+_OCCASION_PREFIX_MESSAGES: dict[str, str] = {
+    "anniversary": "Here are some great anniversary gift ideas 💍",
+}
+
+
+def apply_occasion_style_hints(
+    entities: dict[str, Any],
+) -> tuple[dict[str, Any], str | None]:
+    """Apply occasion/style UX hints; return enhanced entities and optional prefix."""
+    enhanced = dict(entities or {})
+    occasion = enhanced.get("occasion")
+    style = enhanced.get("style")
+    prefix_note: str | None = None
+
+    if occasion or style:
+        logger.info(
+            "Occasion/style search hints",
+            extra={"occasion": occasion, "style": style},
+        )
+
+    if occasion == "wedding" and not enhanced.get("title"):
+        enhanced["title"] = "bridal"
+
+    if occasion == "anniversary":
+        prefix_note = _OCCASION_PREFIX_MESSAGES["anniversary"]
+
+    if occasion == "birthday" and not enhanced.get("category"):
+        enhanced["category"] = "earring"
+
+    if style == "traditional" and not enhanced.get("title"):
+        enhanced["title"] = "traditional"
+    elif style in ("modern", "minimal", "heavy") and not enhanced.get("title"):
+        enhanced["title"] = style
+
+    return enhanced, prefix_note
+
+
 def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
     """Convert entities dict to keyword args for clara_api.search_products."""
     normalized = normalize_entities_for_clara(entities)
@@ -939,3 +993,4 @@ def filter_products_by_entities(products: list[dict], entities: dict) -> list[di
     if not has_strict_product_filters(entities):
         return list(products)
     return [p for p in products if _product_matches_entities(p, entities)]
+

@@ -290,6 +290,115 @@ def build_explore_products_list_with_prompt() -> dict:
     return payload
 
 
+_SERVICE_LABELS = {
+    SL.PRODUCT_SEARCH.value: "jewellery browsing",
+    SL.OFFERS.value: "offers",
+    SL.ORDER_TRACKING.value: "order tracking",
+    SL.RETURNS_REFUND.value: "returns and refunds",
+    SL.COMPLAINT.value: "complaints",
+    SL.AD_FLOW.value: "store locator",
+    SL.GENERAL.value: "general help",
+}
+
+
+def build_flow_switch_bot_response(current_service: str, new_intent: str) -> list[dict]:
+    """Return a quick-reply confirmation when switching between active flows."""
+    new_intent = (new_intent or "").strip().lower()
+    current_service = (current_service or "").strip()
+
+    transitions: dict[tuple[str, str], tuple[str, str, str]] = {
+        (SL.PRODUCT_SEARCH.value, "offers"): (
+            "It looks like you're asking about offers!\n"
+            "Want me to show you current deals?\n"
+            "(Your jewellery browsing session will be saved)",
+            "Yes, show offers",
+            "No, keep browsing",
+        ),
+        (SL.PRODUCT_SEARCH.value, "order_tracking"): (
+            "Want me to help you track your order?\n"
+            "You can come back to browsing after.",
+            "Yes, track order",
+            "No, keep browsing",
+        ),
+        (SL.PRODUCT_SEARCH.value, "returns_refund"): (
+            "I can help with returns and refunds.\n"
+            "Should I switch to that?",
+            "Yes, help with return",
+            "No, keep browsing",
+        ),
+        (SL.PRODUCT_SEARCH.value, "complaint"): (
+            "I can help you report an issue with your order.\n"
+            "Should I switch to that?",
+            "Yes, report issue",
+            "No, keep browsing",
+        ),
+        (SL.PRODUCT_SEARCH.value, "store_info"): (
+            "Looking for a KISNA store near you?",
+            "Yes, find a store",
+            "No, keep browsing",
+        ),
+        (SL.OFFERS.value, "product_search"): (
+            "Want to browse jewellery?\n"
+            "I'll switch from offers to the catalogue.",
+            "Yes, browse jewellery",
+            "No, stay on offers",
+        ),
+    }
+
+    text, yes_label, no_label = transitions.get(
+        (current_service, new_intent),
+        (
+            f"Shall I switch from {_SERVICE_LABELS.get(current_service, current_service)} "
+            "to help with that?",
+            "Yes, switch",
+            "No, continue",
+        ),
+    )
+
+    return [
+        {
+            "type": "quickreply",
+            "text": text,
+            "caption": "",
+            "options": [{"title": yes_label}, {"title": no_label}],
+            "msgid": QuickReplyId.FLOW_SWITCH_CONFIRM.value,
+        }
+    ]
+
+
+def handle_flow_switch_quick_reply(
+    btn_msgid: str, user_profile: dict, data: dict
+) -> bool:
+    """Route flow-switch quick-reply taps; return True if handled."""
+    if btn_msgid != QuickReplyId.FLOW_SWITCH_CONFIRM.value:
+        return False
+
+    title = (data.get("_flow_switch_button_title") or "").strip().lower()
+    pending = user_profile.pop("pending_flow_switch", None) or {}
+
+    if "yes" in title:
+        new_service = pending.get("service", "")
+        new_intent = pending.get("intent", "")
+        if new_service:
+            if user_profile.get("service_selected") == SL.PRODUCT_SEARCH.value:
+                user_profile["last_search_filters"] = {}
+                user_profile["shown_product_ids"] = []
+            user_profile["service_selected"] = new_service
+            if new_intent:
+                data["classified_category"] = new_intent
+        return True
+
+    data["bot_response"] = [
+        {
+            "type": "text",
+            "text": "No problem, let's continue! What else would you like to see?",
+        }
+    ]
+    if user_profile.get("service_selected") == SL.PRODUCT_SEARCH.value:
+        data["bot_response"].append(build_explore_products_list_with_prompt())
+    return True
+
+
 def build_clarification_bot_response(intent: str, confidence: float) -> list[dict]:
     """Return one quick-reply clarification message for low-confidence classification."""
     intent = (intent or "").strip().lower()
@@ -691,6 +800,11 @@ class ServiceList(Processor):
                 button_reply = interactive.get("button_reply", {})
                 raw_id = button_reply.get("id", "")
                 btn_msgid = _parse_button_msgid(raw_id)
+
+                if btn_msgid == QuickReplyId.FLOW_SWITCH_CONFIRM.value:
+                    data["_flow_switch_button_title"] = button_reply.get("title", "")
+                    if handle_flow_switch_quick_reply(btn_msgid, user_profile, data):
+                        return data
 
                 if btn_msgid in _CLARIFY_MSGIDS:
                     data["_clarify_button_title"] = button_reply.get("title", "")

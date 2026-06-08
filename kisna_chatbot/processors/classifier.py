@@ -1,6 +1,7 @@
 import json
 import re
 import time
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from kisna_chatbot.ai import complete_chat
@@ -16,6 +17,7 @@ from kisna_chatbot.processors.entity_extractor import (
 from kisna_chatbot.processors.service_list import (
     build_clarification_bot_response,
     build_complaint_flow_bot_response,
+    build_flow_switch_bot_response,
     build_greeting_welcome_bot_responses,
     build_main_menu_bot_response,
     is_new_session,
@@ -34,6 +36,7 @@ CONTEXT = kisna_classifier
 
 CLARIFICATION_CONFIDENCE_THRESHOLD = 0.45
 COMPLETELY_UNCLEAR_THRESHOLD = 0.3
+PRODUCT_SEARCH_SESSION_EXPIRY_SECONDS = 2 * 60 * 60
 
 _REROUTE_RE = re.compile(
     r"\b("
@@ -43,7 +46,11 @@ _REROUTE_RE = re.compile(
     r"track\s+(my\s+)?order|order\s+status|where\s+is\s+my\s+order|"
     r"complaint|file\s+complaint|"
     r"return\s+policy|refund\s+policy|"
-    r"talk\s+to\s+(a\s+)?human|connect\s+me"
+    r"talk\s+to\s+(a\s+)?human|connect\s+me|"
+    r"wapas|wapas\s+karna|refund\s+chahiye|"
+    r"galat\s+item|kharab\s+nikla|kharab\s+product|"
+    r"kisi\s+se\s+baat|agent\s+chahiye|support\s+chahiye|"
+    r"agent\s+se\s+baat|human\s+chahiye"
     r")\b",
     re.I,
 )
@@ -231,12 +238,122 @@ def _looks_like_product_info_query(text: str, user_profile: dict) -> bool:
     return False
 
 
+_LLM_ENTITY_CATEGORIES = frozenset(
+    {
+        "ring",
+        "earring",
+        "necklace",
+        "pendant",
+        "bracelet",
+        "bangle",
+        "mangalsutra",
+        "anklet",
+        "nose_ring",
+        "nosewear",
+        "maang_tikka",
+    }
+)
+_LLM_ENTITY_MATERIALS = frozenset(
+    {
+        "gold",
+        "diamond",
+        "silver",
+        "platinum",
+        "white_gold",
+        "rose_gold",
+        "gemstone",
+    }
+)
+_LLM_ENTITY_OCCASIONS = frozenset(
+    {"wedding", "anniversary", "birthday", "daily_wear", "gift"}
+)
+_LLM_ENTITY_STYLES = frozenset({"traditional", "modern", "minimal", "heavy"})
+_LLM_CATEGORY_ALIASES = {"nose_ring": "nosewear"}
+
+
+def _coerce_null(val: Any) -> Any:
+    if val is None:
+        return None
+    if isinstance(val, str) and val.strip().lower() in ("", "null", "none"):
+        return None
+    return val
+
+
+def _sanitize_llm_entities(entities: dict) -> dict:
+    """Normalize LLM entity output to internal schema."""
+    raw = entities or {}
+    out: dict[str, Any] = {}
+
+    category = _coerce_null(raw.get("category"))
+    if isinstance(category, str):
+        category = category.strip().lower()
+        category = _LLM_CATEGORY_ALIASES.get(category, category)
+        category = category if category in _LLM_ENTITY_CATEGORIES else None
+    else:
+        category = None
+    out["category"] = category
+
+    material = _coerce_null(raw.get("material_type"))
+    if isinstance(material, str):
+        material = material.strip().lower()
+        material = material if material in _LLM_ENTITY_MATERIALS else None
+    else:
+        material = None
+    out["material_type"] = material
+
+    for price_key in ("min_price", "max_price"):
+        val = _coerce_null(raw.get(price_key))
+        if val is not None:
+            try:
+                out[price_key] = int(float(val))
+            except (TypeError, ValueError):
+                out[price_key] = None
+        else:
+            out[price_key] = None
+
+    title = _coerce_null(raw.get("title"))
+    out["title"] = title.strip() if isinstance(title, str) and title.strip() else None
+
+    occasion = _coerce_null(raw.get("occasion"))
+    if isinstance(occasion, str):
+        occasion = occasion.strip().lower()
+        occasion = occasion if occasion in _LLM_ENTITY_OCCASIONS else None
+    else:
+        occasion = None
+    out["occasion"] = occasion
+
+    style = _coerce_null(raw.get("style"))
+    if isinstance(style, str):
+        style = style.strip().lower()
+        style = style if style in _LLM_ENTITY_STYLES else None
+    else:
+        style = None
+    out["style"] = style
+
+    return out
+
+
+def _store_llm_entities(data: dict, user_profile: dict, entities: dict) -> None:
+    stored = dict(entities or {})
+    user_profile["llm_extracted_entities"] = stored
+    data["llm_extracted_entities"] = stored
+
+
 def _parse_classifier_json(raw: str) -> dict:
     text = (raw or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
         text = re.sub(r"\s*```$", "", text)
-    return json.loads(text)
+    parsed = json.loads(text)
+    entities = parsed.get("entities") or {}
+    intent = (
+        parsed.get("intent") or parsed.get("category") or "general"
+    ).strip().lower()
+    return {
+        "intent": intent,
+        "confidence": float(parsed.get("confidence", 0.5)),
+        "entities": entities,
+    }
 
 
 def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | None:
@@ -296,7 +413,84 @@ def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | 
     return None
 
 
-def _apply_intent_routing(data: dict, intent: str, user_profile: dict) -> bool:
+def _is_obvious_reset(query: str) -> bool:
+    return bool(
+        re.search(r"^\s*(hi|hello|menu|back|cancel|namaste)\s*$", query, re.I)
+    )
+
+
+def _maybe_expire_product_search_session(user_profile: dict) -> None:
+    if user_profile.get("service_selected") != ServiceList.PRODUCT_SEARCH.value:
+        return
+    last_at = user_profile.get("last_search_at")
+    if last_at and time.time() - last_at > PRODUCT_SEARCH_SESSION_EXPIRY_SECONDS:
+        user_profile["service_selected"] = ""
+
+
+def _flow_escape_should_classify(user_query: str) -> bool:
+    if _RETURNS_RE.search(user_query) or _EXCHANGE_RE.search(user_query):
+        return True
+    if _HUMAN_HANDOFF_RE.search(user_query):
+        return True
+    if _COMPLAINT_RE.search(user_query) and not _CATEGORY_WORD_RE.search(user_query):
+        return True
+    return False
+
+
+def _maybe_prompt_flow_switch(
+    data: dict,
+    intent: str,
+    user_profile: dict,
+    user_query: str,
+    confidence: float,
+) -> bool:
+    if intent in ("greeting", "menu_help", "human_handoff", "general"):
+        return False
+    current = user_profile.get("service_selected", "")
+    new_service = _CATEGORY_TO_SERVICE.get(intent)
+    if not (
+        current
+        and new_service
+        and current != new_service.value
+        and confidence >= 0.5
+        and not _is_obvious_reset(user_query)
+    ):
+        return False
+    data["bot_response"] = build_flow_switch_bot_response(current, intent)
+    user_profile["pending_flow_switch"] = {
+        "intent": intent,
+        "service": new_service.value,
+    }
+    return True
+
+
+def _handle_human_handoff(data: dict, user_profile: dict, phone_number: str) -> None:
+    user_profile["live_agent_requested_at"] = int(time.time())
+    user_profile["live_agent_required"] = True
+    for admin in ADMINS:
+        send_customer_support_template(
+            phone_number=admin,
+            customer_name=user_profile.get("username", "Customer"),
+            customer_phone=phone_number,
+        )
+    data["bot_response"] = [
+        {
+            "type": "text",
+            "text": (
+                "Sure! I'm connecting you to a live designer right now. "
+                "Someone from our team will be with you shortly."
+            ),
+        }
+    ]
+
+
+def _apply_intent_routing(
+    data: dict,
+    intent: str,
+    user_profile: dict,
+    user_query: str = "",
+    confidence: float = 1.0,
+) -> bool:
     """Set service_selected from intent; return True if bot_response was set."""
     phone_number = data["phone_number"]
     chat_history = user_profile.get("chat_history", [])
@@ -315,12 +509,20 @@ def _apply_intent_routing(data: dict, intent: str, user_profile: dict) -> bool:
         return True
 
     if intent == "complaint":
+        if _maybe_prompt_flow_switch(
+            data, intent, user_profile, user_query, confidence
+        ):
+            return True
         user_profile["service_selected"] = ServiceList.COMPLAINT.value
         data["bot_response"] = [build_complaint_flow_bot_response()]
         return True
 
     service = _CATEGORY_TO_SERVICE.get(intent)
     if service:
+        if _maybe_prompt_flow_switch(
+            data, intent, user_profile, user_query, confidence
+        ):
+            return True
         user_profile["service_selected"] = service.value
         return False
 
@@ -354,7 +556,14 @@ def _should_offer_clarification(data: dict, user_query: str, user_profile: dict)
     if service == ServiceList.PRODUCT_SEARCH.value:
         chat_history = user_profile.get("chat_history", [])
         if chat_history and not _REROUTE_RE.search(user_query):
-            return False
+            entities = extract_entities(user_query)
+            if (
+                entities.get("category")
+                or entities.get("material_type")
+                or entities.get("title")
+                or _BROWSE_ACTION_RE.search(user_query)
+            ):
+                return False
     return True
 
 
@@ -391,21 +600,31 @@ async def classify_query_for_audit(
     }
 
     if is_pure_greeting(user_query) and is_new_session(profile.get("chat_history", [])):
-        return {"intent": "greeting", "confidence": 1.0, "source": "shortcut"}
+        return {"intent": "greeting", "confidence": 1.0, "entities": {}, "source": "shortcut"}
 
     if is_menu_request(user_query):
-        return {"intent": "menu_help", "confidence": 1.0, "source": "shortcut"}
+        return {"intent": "menu_help", "confidence": 1.0, "entities": {}, "source": "shortcut"}
 
     if profile.get("awaiting_store_pincode") or _looks_like_store_query(user_query):
         if user_query.strip().lower() not in ("cancel", "back"):
-            return {"intent": "store_info", "confidence": 1.0, "source": "shortcut"}
+            return {
+                "intent": "store_info",
+                "confidence": 1.0,
+                "entities": {},
+                "source": "shortcut",
+            }
 
     override = _programmatic_intent_override(user_query, profile)
     if override:
-        return {"intent": override, "confidence": 1.0, "source": "programmatic"}
+        return {
+            "intent": override,
+            "confidence": 1.0,
+            "entities": {},
+            "source": "programmatic",
+        }
 
     if not use_llm:
-        return {"intent": "unknown", "confidence": 0.0, "source": "none"}
+        return {"intent": "unknown", "confidence": 0.0, "entities": {}, "source": "none"}
 
     chat_history = profile.get("chat_history", [])[-8:]
     chat_history_str = ""
@@ -426,9 +645,12 @@ async def classify_query_for_audit(
         client_id=data["client_id"],
     )
     parsed = _parse_classifier_json(classifier_response)
-    intent = (parsed.get("intent") or parsed.get("category", "general")).strip().lower()
-    confidence = float(parsed.get("confidence", 0.5))
-    return {"intent": intent, "confidence": confidence, "source": "llm"}
+    return {
+        "intent": parsed["intent"],
+        "confidence": parsed["confidence"],
+        "entities": _sanitize_llm_entities(parsed.get("entities") or {}),
+        "source": "llm",
+    }
 
 
 class Classifier(Processor):
@@ -446,6 +668,8 @@ class Classifier(Processor):
         user_profile = data.get("user_profile", {})
         user_query = messages["text"].get("body", "") or ""
 
+        _maybe_expire_product_search_session(user_profile)
+
         if _REROUTE_RE.search(user_query):
             return True
 
@@ -460,7 +684,11 @@ class Classifier(Processor):
             return _looks_like_product_search_query(user_query)
 
         if service == ServiceList.OFFERS.value:
-            return _looks_like_product_search_query(user_query)
+            if _looks_like_product_search_query(user_query):
+                return True
+            if _flow_escape_should_classify(user_query):
+                return True
+            return False
 
         if service == ServiceList.PRODUCT_SEARCH.value:
             last_viewed = user_profile.get("last_viewed_product")
@@ -477,6 +705,8 @@ class Classifier(Processor):
             if _looks_like_store_query(user_query):
                 return True
             if is_unrecognizable_input(user_query):
+                return True
+            if _flow_escape_should_classify(user_query):
                 return True
 
         if service != ServiceList.PRODUCT_SEARCH.value:
@@ -534,6 +764,7 @@ class Classifier(Processor):
                 chat_history = data["user_profile"].get("chat_history", [])
                 if is_pure_greeting(user_query) and is_new_session(chat_history):
                     user_profile["service_selected"] = ""
+                    _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "greeting"
                     data["bot_response"] = build_greeting_welcome_bot_responses(
                         phone_number=phone_number,
@@ -546,6 +777,7 @@ class Classifier(Processor):
                     return data
 
                 if is_menu_request(user_query):
+                    _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "menu_help"
                     data["bot_response"] = [build_main_menu_bot_response()]
                     logger.info(
@@ -558,6 +790,7 @@ class Classifier(Processor):
                     user_query
                 ):
                     if user_query.strip().lower() not in ("cancel", "back"):
+                        _store_llm_entities(data, user_profile, {})
                         user_profile["service_selected"] = ServiceList.AD_FLOW.value
                         data["classified_category"] = "store_info"
                         logger.info(
@@ -574,6 +807,7 @@ class Classifier(Processor):
                         user_profile,
                     )
                 if override_intent:
+                    _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = override_intent
                     data["classifier_confidence"] = 1.0
                     logger.info(
@@ -583,7 +817,20 @@ class Classifier(Processor):
                             "intent": override_intent,
                         },
                     )
-                    if _apply_intent_routing(data, override_intent, user_profile):
+                    if override_intent == "human_handoff":
+                        _handle_human_handoff(data, user_profile, phone_number)
+                        logger.info(
+                            "Human handoff triggered",
+                            extra={"phone_number": phone_number},
+                        )
+                        return data
+                    if _apply_intent_routing(
+                        data,
+                        override_intent,
+                        user_profile,
+                        user_query=user_query,
+                        confidence=1.0,
+                    ):
                         return data
                     return data
 
@@ -627,10 +874,13 @@ class Classifier(Processor):
                 )
 
                 parsed = _parse_classifier_json(classifier_response)
-                intent = (
-                    parsed.get("intent") or parsed.get("category", "menu_help")
-                ).strip().lower()
-                confidence = float(parsed.get("confidence", 0.5))
+                intent = parsed["intent"] or "menu_help"
+                confidence = parsed["confidence"]
+                _store_llm_entities(
+                    data,
+                    user_profile,
+                    _sanitize_llm_entities(parsed.get("entities") or {}),
+                )
                 data["classified_category"] = intent
                 data["classifier_confidence"] = confidence
 
@@ -639,6 +889,7 @@ class Classifier(Processor):
                     extra={
                         "intent": intent,
                         "confidence": confidence,
+                        "entities": data.get("llm_extracted_entities"),
                         "phone_number": phone_number,
                     },
                 )
@@ -693,39 +944,20 @@ class Classifier(Processor):
                     return data
 
                 if intent == "human_handoff":
-                    user_profile["live_agent_requested_at"] = int(time.time())
-                    user_profile["live_agent_required"] = True
-                    for admin in ADMINS:
-                        send_customer_support_template(
-                            phone_number=admin,
-                            customer_name=user_profile.get("username", "Customer"),
-                            customer_phone=phone_number,
-                        )
-                    data["bot_response"] = [
-                        {
-                            "type": "text",
-                            "text": (
-                                "Sure! I'm connecting you to a live designer right now. "
-                                "Someone from our team will be with you shortly."
-                            ),
-                        }
-                    ]
+                    _handle_human_handoff(data, user_profile, phone_number)
                     logger.info(
                         "Human handoff triggered",
                         extra={"phone_number": phone_number},
                     )
                     return data
 
-                if intent == "complaint":
-                    user_profile["service_selected"] = ServiceList.COMPLAINT.value
-                    data["bot_response"] = [build_complaint_flow_bot_response()]
-                    logger.info(
-                        "Complaint intent — launching complaint flow",
-                        extra={"phone_number": phone_number},
-                    )
-                    return data
-
-                if _apply_intent_routing(data, intent, user_profile):
+                if _apply_intent_routing(
+                    data,
+                    intent,
+                    user_profile,
+                    user_query=user_query,
+                    confidence=confidence,
+                ):
                     return data
 
             return data
@@ -734,6 +966,7 @@ class Classifier(Processor):
                 "Classifier returned invalid JSON",
                 extra={"exception": e, "phone_number": phone_number},
             )
+            _store_llm_entities(data, user_profile, {})
             user_profile["service_selected"] = ""
             data["bot_response"] = [build_main_menu_bot_response()]
             return data
@@ -742,6 +975,7 @@ class Classifier(Processor):
                 "Exception occured while running classifier.",
                 extra={"exception": e, "phone_number": phone_number},
             )
+            _store_llm_entities(data, user_profile, {})
             user_profile["service_selected"] = ""
             data["bot_response"] = [build_main_menu_bot_response()]
             return data

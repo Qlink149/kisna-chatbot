@@ -99,9 +99,44 @@ Examples of low-confidence inputs: bare "gold", "help", "kuch dikhao", "1 lakh" 
 
 ## Output format (JSON only, no explanation)
 
-{"intent": "<intent_name>", "confidence": <0.0 to 1.0>}
+{
+  "intent": "<intent_name>",
+  "confidence": <0.0 to 1.0>,
+  "entities": {
+    "category": "<ring|earring|necklace|pendant|bracelet|bangle|mangalsutra|anklet|nose_ring|maang_tikka|null>",
+    "material_type": "<gold|diamond|silver|platinum|white_gold|rose_gold|gemstone|null>",
+    "min_price": <integer or null>,
+    "max_price": <integer or null>,
+    "title": "<collection or product name or null>",
+    "occasion": "<wedding|anniversary|birthday|daily_wear|gift|null>",
+    "style": "<traditional|modern|minimal|heavy|null>"
+  }
+}
 
-Fallback for unclear or spam/gibberish: {"intent": "general", "confidence": 0.3}
+Fallback for unclear or spam/gibberish:
+{"intent": "general", "confidence": 0.3, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "occasion": null, "style": null}}
+
+---
+
+## Entity extraction rules
+
+- Extract entities ONLY when intent is product_search or product_info.
+- For all other intents, return entities with every field null.
+- category: map Hindi/Hinglish/English jewellery words to the closest value.
+  Examples: anguthi→ring, bali/jhumka/jhumki→earring, haar/mala→necklace,
+  latkan→pendant, kangan/chudi→bangle, payal→anklet, nath→nose_ring.
+- material_type: sona/sone ka→gold, heera/heere ka→diamond, chandi→silver.
+- Price: extract integer INR values. 50k→50000, 1.5 lakh→150000,
+  das hazaar→10000, ek lakh→100000. under X→max_price=X, above X→min_price=X,
+  between X and Y→min_price=X max_price=Y.
+- title: proper nouns that look like a collection or product name
+  (Rivaah, Elysia, Maggio, Evil Eye, Rosette).
+- occasion: infer from context — wife ka birthday→birthday,
+  anniversary gift→anniversary, shaadi→wedding, roz pehenna→daily_wear.
+- style: traditional→traditional, modern→modern, simple/minimal→minimal,
+  heavy/bold→heavy.
+- If a field cannot be confidently extracted, return null.
+- NEVER hallucinate entity values not present in the query.
 
 ---
 
@@ -167,4 +202,38 @@ Fallback for unclear or spam/gibberish: {"intent": "general", "confidence": 0.3}
 58. "which is cheapest?" | active: product_search → {"intent": "product_info", "confidence": 0.88}
 59. "sabse sasta kaun sa hai" | active: product_search → {"intent": "product_info", "confidence": 0.87}
 60. "rings aur earrings chahiye" → {"intent": "product_search", "confidence": 0.85}
+
+---
+
+## Entity extraction examples (full JSON)
+
+E1. "sone ki anguthi 50k tak" →
+{"intent": "product_search", "confidence": 0.93, "entities": {"category": "ring", "material_type": "gold", "min_price": null, "max_price": 50000, "title": null, "occasion": null, "style": null}}
+
+E2. "1.5 lakh tak necklace dikhao" →
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": "necklace", "material_type": null, "min_price": null, "max_price": 150000, "title": null, "occasion": null, "style": null}}
+
+E3. "anniversary ke liye kuch accha dikhao" →
+{"intent": "product_search", "confidence": 0.88, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "occasion": "anniversary", "style": null}}
+
+E4. "kuch dikhao" →
+{"intent": "product_search", "confidence": 0.38, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "occasion": null, "style": null}}
+
+E5. "EMI available hai?" →
+{"intent": "general", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "occasion": null, "style": null}}
+
+E6. "shaadi ke liye traditional mangalsutra" →
+{"intent": "product_search", "confidence": 0.91, "entities": {"category": "mangalsutra", "material_type": null, "min_price": null, "max_price": null, "title": null, "occasion": "wedding", "style": "traditional"}}
+
+E7. "wife ka birthday gift earrings" →
+{"intent": "product_search", "confidence": 0.89, "entities": {"category": "earring", "material_type": null, "min_price": null, "max_price": null, "title": null, "occasion": "birthday", "style": null}}
+
+E8. "Maggio ring ki price kya hai?" →
+{"intent": "product_info", "confidence": 0.91, "entities": {"category": "ring", "material_type": null, "min_price": null, "max_price": null, "title": "Maggio", "occasion": null, "style": null}}
+
+E9. "wapas karna hai" →
+{"intent": "returns_refund", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "occasion": null, "style": null}}
+
+E10. "das hazaar se bees hazaar tak gold bali" →
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": "earring", "material_type": "gold", "min_price": 10000, "max_price": 20000, "title": null, "occasion": null, "style": null}}
 """

@@ -24,6 +24,7 @@ class QuickReplyId(Enum):
     CLARIFY_FIND_STORE = "clarify$find_store"
     CLARIFY_ASK_QUESTION = "clarify$ask_question"
     NON_TEXT_BROWSE = "non_text$browse"
+    FLOW_SWITCH_CONFIRM = "flow_switch$confirm"
 
 
 class FlowId(Enum):

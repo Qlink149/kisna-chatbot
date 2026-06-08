@@ -258,6 +258,8 @@ class AdFlowAgent(Processor):
                                 "text": _format_stores_message(stores, total_count),
                             }
                         ]
+                        user_profile["awaiting_store_pincode"] = False
+                        user_profile["service_selected"] = ""
                         data.pop("inbound_location", None)
                         return data
                 except Exception as e:
@@ -356,11 +358,14 @@ class AdFlowAgent(Processor):
 
             if not stores:
                 user_profile["awaiting_store_pincode"] = False
+                user_profile["service_selected"] = ""
                 data["bot_response"] = [{"type": "text", "text": _zero_results_message()}]
                 return data
 
             text = _format_stores_message(stores, total_count)
             data["bot_response"] = [{"type": "text", "text": text}]
+            user_profile["awaiting_store_pincode"] = False
+            user_profile["service_selected"] = ""
             return data
 
         except ClaraAPIError as e:

@@ -19,7 +19,7 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
 from kisna_chatbot.main import app  # noqa: F401
 from kisna_chatbot.models.enums import QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
-from kisna_chatbot.processors.classifier import Classifier
+from kisna_chatbot.processors.classifier import Classifier, _should_offer_clarification
 from kisna_chatbot.processors.service_list import (
     ServiceList,
     build_clarification_bot_response,
@@ -68,6 +68,16 @@ class ClarificationFlowTests(unittest.TestCase):
             self.assertEqual(result["classified_category"], "product_search")
 
         asyncio.run(_run())
+
+    def test_off_topic_ambiguous_in_product_search_offers_clarification(self):
+        user_profile = {
+            "service_selected": SL.PRODUCT_SEARCH.value,
+            "chat_history": [{"role": "user", "content": "rings"}],
+        }
+        data = {}
+        self.assertTrue(
+            _should_offer_clarification(data, "hmm maybe something", user_profile)
+        )
 
     def test_service_list_handles_clarify_button(self):
         async def _run():
