@@ -2,7 +2,7 @@
 
 import os
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -29,6 +29,7 @@ from kisna_chatbot.utils.product_formatter import (
     get_product_image_url,
     get_product_image_url_for_whatsapp,
     get_product_price_bundle,
+    get_whatsapp_safe_image_url,
 )
 
 _CLARA_CDN_WEBP = (
@@ -149,7 +150,7 @@ class ProductImageUrlTests(unittest.TestCase):
         self.assertTrue(url.startswith("https://"))
         self.assertIn("compressed/assets/ring.webp", url)
 
-    def test_whatsapp_url_prefers_jpg_over_webp(self):
+    def test_whatsapp_url_returns_raw_webp_from_formatter(self):
         product = {
             "mediaUrl": [
                 {
@@ -158,12 +159,35 @@ class ProductImageUrlTests(unittest.TestCase):
                 }
             ],
         }
-        head_mock = MagicMock(status_code=200)
-        with patch("kisna_chatbot.utils.product_formatter.httpx.head", return_value=head_mock):
-            self.assertEqual(
-                get_product_image_url_for_whatsapp(product),
-                "https://kisna-assets.example/item.jpg",
-            )
+        self.assertEqual(
+            get_product_image_url_for_whatsapp(product),
+            "https://kisna-assets.example/item.webp",
+        )
+
+    def test_whatsapp_safe_image_url_wraps_webp_with_cloudinary(self):
+        webp = "https://kisna-assets.example/item.webp"
+        with patch.dict(os.environ, {"CLOUDINARY_CLOUD_NAME": "test-cloud"}):
+            result = get_whatsapp_safe_image_url(webp)
+        self.assertEqual(
+            result,
+            "https://res.cloudinary.com/test-cloud"
+            "/image/fetch/f_jpg,q_85,fl_progressive/"
+            f"{webp}",
+        )
+
+    def test_whatsapp_safe_image_url_unchanged_for_jpg(self):
+        jpg = "https://kisna-assets.example/item.jpg"
+        with patch.dict(os.environ, {"CLOUDINARY_CLOUD_NAME": "test-cloud"}):
+            self.assertEqual(get_whatsapp_safe_image_url(jpg), jpg)
+
+    def test_whatsapp_safe_image_url_empty_returns_none(self):
+        self.assertIsNone(get_whatsapp_safe_image_url(""))
+
+    def test_whatsapp_safe_image_url_fallback_without_cloud_name(self):
+        webp = "https://kisna-assets.example/item.webp"
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CLOUDINARY_CLOUD_NAME", None)
+            self.assertEqual(get_whatsapp_safe_image_url(webp), webp)
 
     def test_variant_only_image_fallback(self):
         product = {

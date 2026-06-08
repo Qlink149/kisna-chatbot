@@ -233,9 +233,8 @@ class ProductSearchTests(unittest.TestCase):
             with patch(
                 "kisna_chatbot.processors.product_search_agent_v3.search_products",
                 new_callable=AsyncMock,
-            ) as search_mock, patch(
-                "kisna_chatbot.utils.product_formatter.httpx.head",
-                return_value=MagicMock(status_code=200),
+            ) as search_mock, patch.dict(
+                os.environ, {"CLOUDINARY_CLOUD_NAME": "test-cloud"}
             ):
                 search_mock.return_value = {
                     "products": [mock_product],
@@ -248,10 +247,11 @@ class ProductSearchTests(unittest.TestCase):
                 r for r in result["bot_response"] if r.get("type") == "media"
             ]
             self.assertEqual(len(media_msgs), 1)
-            self.assertEqual(
+            self.assertIn(
+                "res.cloudinary.com/test-cloud/image/fetch/f_jpg",
                 media_msgs[0]["url"],
-                clara_image.replace(".webp", ".jpg"),
             )
+            self.assertIn(clara_image, media_msgs[0]["url"])
             self.assertTrue(media_msgs[0]["url"].startswith("https://"))
             search_mock.assert_awaited_once()
             self.assertEqual(result["user_profile"]["last_search_page"], 1)
@@ -427,7 +427,7 @@ class ProductSearchTests(unittest.TestCase):
                 result = await agent.process(data)
             self.assertGreaterEqual(search_mock.await_count, 2)
             self.assertEqual(result["bot_response"][0]["type"], "text")
-            self.assertIn("outside your budget", result["bot_response"][0]["text"])
+            self.assertIn("No pieces found under ₹10,000", result["bot_response"][0]["text"])
 
         import asyncio
 
@@ -462,10 +462,11 @@ class ProductSearchTests(unittest.TestCase):
 
             async def side_effect(**kwargs):
                 if kwargs.get("max_price") == 10000:
+                    page = kwargs.get("page_no", 1)
                     return {
                         "products": [over_budget_ring],
                         "total_count": 3390,
-                        "page": 1,
+                        "page": page,
                     }
                 return {
                     "products": [over_budget_ring],
@@ -481,7 +482,76 @@ class ProductSearchTests(unittest.TestCase):
                 result = await agent.process(data)
             self.assertGreaterEqual(search_mock.await_count, 2)
             self.assertEqual(result["bot_response"][0]["type"], "text")
-            self.assertIn("outside your budget", result["bot_response"][0]["text"])
+            self.assertIn("No pieces found under ₹10,000", result["bot_response"][0]["text"])
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_search_finds_budget_items_on_later_page(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "rings under 10,000"}},
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+            }
+
+            def _ring(pid: str, price: int, title: str) -> dict:
+                return {
+                    "_id": pid,
+                    "title": title,
+                    "price": {"variantPrice": price},
+                    "materialType": "gold",
+                    "shipping": {"edd": 5},
+                    "seos": {"slug": f"ring-{pid}"},
+                    "productType": {"category": {"name": "Rings"}},
+                    "mediaUrl": [
+                        {
+                            "isDefault": True,
+                            "image": f"https://img.example/{pid}.webp",
+                            "type": "image",
+                        }
+                    ],
+                }
+
+            over_budget = _ring("over", 25000, "Premium Ring")
+            under_budget = _ring("under", 8000, "Budget Ring")
+
+            async def side_effect(**kwargs):
+                if kwargs.get("max_price") == 10000:
+                    page = kwargs.get("page_no", 1)
+                    if page == 1:
+                        return {
+                            "products": [over_budget],
+                            "total_count": 20,
+                            "page": 1,
+                        }
+                    if page == 2:
+                        return {
+                            "products": [under_budget],
+                            "total_count": 20,
+                            "page": 2,
+                        }
+                    return {"products": [], "total_count": 20, "page": page}
+                raise AssertionError("drop_price fallback should not run")
+
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                side_effect=side_effect,
+            ) as search_mock:
+                result = await agent.process(data)
+
+            self.assertEqual(search_mock.await_count, 2)
+            list_msgs = [r for r in result["bot_response"] if r.get("type") == "list"]
+            self.assertEqual(len(list_msgs), 1)
+            options = list_msgs[0]["items"][0]["options"]
+            self.assertEqual(len(options), 1)
+            self.assertEqual(options[0]["title"], "Budget Ring")
+            body = list_msgs[0]["body"]
+            self.assertNotIn("outside your budget", body)
+            self.assertNotIn("No pieces found under", body)
 
         import asyncio
 

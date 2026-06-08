@@ -5,9 +5,6 @@ import httpx
 from kisna_chatbot.constants import GUPSHUP_SOURCE
 from kisna_chatbot.utils.env_load import gupshup_api_key, gupshup_app_name
 from kisna_chatbot.utils.logger_config import logger
-from kisna_chatbot.utils.product_formatter import webp_jpg_fallback
-
-
 def _response_json(response: httpx.Response) -> dict:
     try:
         return response.json()
@@ -69,28 +66,10 @@ def _send_with_jpg_retry(
     url: str,
     caption: str = "",
 ) -> dict:
+    # Image conversion handled by get_whatsapp_safe_image_url()
     result = _post_image(phone_number, url, caption)
     if isinstance(result, dict):
         return result
-
-    if result.status_code < 400:
-        return _response_json(result)
-
-    fallback_url = webp_jpg_fallback(url or "")
-    if fallback_url and fallback_url != url:
-        logger.warning(
-            "Retrying image send with jpg fallback",
-            extra={
-                "phone_number": phone_number,
-                "original_url": url,
-                "fallback_url": fallback_url,
-            },
-        )
-        retry = _post_image(phone_number, fallback_url, caption)
-        if isinstance(retry, dict):
-            return retry
-        return _response_json(retry)
-
     return _response_json(result)
 
 

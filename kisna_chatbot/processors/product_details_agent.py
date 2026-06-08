@@ -24,6 +24,7 @@ from kisna_chatbot.utils.product_formatter import (
     get_product_image_url,
     get_product_image_url_for_whatsapp,
     get_product_price_bundle,
+    get_whatsapp_safe_image_url,
 )
 
 _RETRY_SEARCH_TEXT = "Let me search for that again."
@@ -175,7 +176,8 @@ async def _enrich_product_image(product: dict, *, title_hint: str = "") -> dict:
 def _build_buy_now_response(product: dict) -> list:
     """Image + Buy CTA + action quick replies for a cached product."""
     responses: list = []
-    image_url = get_product_image_url_for_whatsapp(product)
+    raw_url = get_product_image_url_for_whatsapp(product)
+    image_url = get_whatsapp_safe_image_url(raw_url)
     caption = format_product_buy_caption(product)
     if image_url:
         responses.append(

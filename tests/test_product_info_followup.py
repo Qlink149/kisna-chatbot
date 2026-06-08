@@ -3,7 +3,7 @@
 import asyncio
 import os
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -54,11 +54,7 @@ class ProductInfoFollowupTests(unittest.TestCase):
                 "classified_category": "product_info",
                 "client_config": MagicMock(client_id="kisna"),
             }
-            with patch(
-                "kisna_chatbot.utils.product_formatter.httpx.head",
-                return_value=MagicMock(status_code=200),
-            ):
-                result = await agent.process(data)
+            result = await agent.process(data)
             self.assertIn("bot_response", result)
             texts = [
                 item.get("text", "")

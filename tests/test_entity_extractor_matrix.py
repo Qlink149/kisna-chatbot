@@ -67,6 +67,8 @@ MATRIX = [
     # Price — English
     ("earrings under 30k", {"category": "earring", "max_price": 30000}),
     ("rings below 10000", {"category": "ring", "max_price": 10000}),
+    ("show me rings between 0-10,000", {"category": "ring", "max_price": 10000}),
+    ("rings between 0 and 10000", {"category": "ring", "max_price": 10000}),
     ("gold necklace 20k to 50k", {"category": "necklace", "material_type": "gold", "min_price": 20000, "max_price": 50000}),
     ("50k budget", {"max_price": 50000}),
     ("budget 50k", {"max_price": 50000}),
@@ -172,3 +174,10 @@ class TestClaraNormalization:
         entities = extract_entities("payal")
         norm = normalize_entities_for_clara(entities)
         assert norm.get("_clara_search_note")
+
+    def test_zero_lower_bound_range_omits_min_price(self):
+        entities = extract_entities("show me rings between 0-10,000")
+        params = entities_to_api_params(entities)
+        assert params.get("category") == "ring"
+        assert params.get("max_price") == 10000
+        assert "min_price" not in params

@@ -464,13 +464,22 @@ def _extract_price_range(text: str) -> tuple[float | None, float | None]:
         m = pattern.search(text)
         if m:
             groups = m.groups()
-            low = _parse_amount(groups[0], groups[1] if len(groups) > 1 else None)
-            high = _parse_amount(groups[2], groups[3] if len(groups) > 3 else None)
+            low_suffix = groups[1] if len(groups) > 1 else None
+            high_suffix = groups[3] if len(groups) > 3 else None
+            low = _parse_amount(groups[0], low_suffix)
+            high = _parse_amount(groups[2], high_suffix)
             if low is not None and high is not None:
-                if _accept_extracted_price(text, low, groups[1], require_strong_hint=True) and _accept_extracted_price(
-                    text, high, groups[3] if len(groups) > 3 else None, require_strong_hint=True
-                ):
+                low_ok = _accept_extracted_price(
+                    text, low, low_suffix, require_strong_hint=True
+                )
+                high_ok = _accept_extracted_price(
+                    text, high, high_suffix, require_strong_hint=True
+                )
+                if low_ok and high_ok:
                     return min(low, high), max(low, high)
+                # "between 0-10,000" — zero lower bound means implicit floor (under X)
+                if not low_ok and low <= 0 and high_ok:
+                    return None, high
     return None, None
 
 
@@ -895,10 +904,15 @@ def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
     if clara_material:
         params["material_type"] = clara_material
 
-    for key in ("min_price", "max_price", "title"):
-        val = normalized.get(key)
-        if val is not None:
-            params[key] = val
+    min_p = normalized.get("min_price")
+    if min_p is not None and float(min_p) > 0:
+        params["min_price"] = min_p
+    max_p = normalized.get("max_price")
+    if max_p is not None:
+        params["max_price"] = max_p
+    title = normalized.get("title")
+    if title is not None:
+        params["title"] = title
     return params
 
 

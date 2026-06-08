@@ -33,12 +33,14 @@ from kisna_chatbot.utils.product_formatter import (
     format_zero_results_message,
     get_product_display_price,
     get_product_image_url_for_whatsapp,
+    get_whatsapp_safe_image_url,
 )
 
 _MAX_IMAGE_PRODUCTS = 3
 PAGE_SIZE = 5
 _CAROUSEL_SCAN_LIMIT = 15
 _API_FETCH_PAGE_SIZE = 15
+_BUDGET_SCAN_MAX_PAGES = 5
 _SHOW_MORE_PAGE_RETRIES = 2
 
 _SEARCH_CAT_LIST_MSGID = "search$cat$list"
@@ -127,7 +129,8 @@ def _handle_product_info_followup(data: dict, query: str) -> dict | None:
                 "text": "The most affordable from your recent search:",
             }
         ]
-        url = get_product_image_url_for_whatsapp(cheapest)
+        raw_url = get_product_image_url_for_whatsapp(cheapest)
+        url = get_whatsapp_safe_image_url(raw_url)
         if url:
             bot_response.append(
                 {
@@ -257,6 +260,46 @@ def _lowest_price(products: list[dict]) -> int | None:
     prices = [get_product_display_price(product) for product in products]
     prices = [p for p in prices if p > 0]
     return min(prices) if prices else None
+
+
+def _product_id_key(product: dict) -> str:
+    return str(product.get("_id") or product.get("id") or "")
+
+
+async def _fetch_budget_filtered_products(
+    api_params: dict,
+    strategy_entities: dict,
+    *,
+    max_pages: int = _BUDGET_SCAN_MAX_PAGES,
+) -> tuple[list[dict], int, int]:
+    """Scan multiple API pages with price filters before budget fallback."""
+    collected: list[dict] = []
+    seen_ids: set[str] = set()
+    api_total = 0
+    last_page = 1
+
+    for page_no in range(1, max_pages + 1):
+        result = await search_products(
+            **api_params, page_no=page_no, page_size=_API_FETCH_PAGE_SIZE
+        )
+        raw_products = result.get("products") or []
+        api_total = max(api_total, int(result.get("total_count") or 0))
+        last_page = int(result.get("page") or page_no)
+
+        for product in filter_products_by_entities(raw_products, strategy_entities):
+            pid = _product_id_key(product)
+            if pid and pid in seen_ids:
+                continue
+            if pid:
+                seen_ids.add(pid)
+            collected.append(product)
+
+        if collected:
+            break
+        if not _has_more_pages(page_no, api_total, _API_FETCH_PAGE_SIZE):
+            break
+
+    return collected, api_total, last_page
 
 
 def _build_prompt_response() -> list:
@@ -402,6 +445,18 @@ def _fallback_prefix_note(
     strategy_entities: dict,
 ) -> str | None:
     if note_kind == "budget":
+        max_p = original_entities.get("max_price")
+        if max_p is not None:
+            return (
+                f"No pieces found under ₹{int(max_p):,} right now.\n"
+                "Browse on our website: https://www.kisna.com"
+            )
+        min_p = original_entities.get("min_price")
+        if min_p is not None:
+            return (
+                f"No pieces found above ₹{int(min_p):,} right now.\n"
+                "Browse on our website: https://www.kisna.com"
+            )
         lowest = _lowest_price(products)
         if lowest is not None:
             return (
@@ -470,7 +525,8 @@ def _build_search_success_response(
     )
 
     for product in carousel_products:
-        url = get_product_image_url_for_whatsapp(product)
+        raw_url = get_product_image_url_for_whatsapp(product)
+        url = get_whatsapp_safe_image_url(raw_url)
         if not url:
             continue
         bot_response.append(
@@ -541,7 +597,8 @@ def _build_search_success_response(
 
 def build_product_media_message(product: dict) -> dict | None:
     """Single image + caption for a product (used by search and details agents)."""
-    url = get_product_image_url_for_whatsapp(product)
+    raw_url = get_product_image_url_for_whatsapp(product)
+    url = get_whatsapp_safe_image_url(raw_url)
     if not url:
         return None
     return {
@@ -966,10 +1023,41 @@ class ProductSearchAgentV3(Processor):
                     },
                 )
 
+            has_price_filter = (
+                strategy_entities.get("min_price") is not None
+                or strategy_entities.get("max_price") is not None
+            )
+
             try:
-                result = await search_products(
-                    **api_params, page_no=1, page_size=_API_FETCH_PAGE_SIZE
-                )
+                if log_label == "full" and has_price_filter:
+                    products, api_total, page = await _fetch_budget_filtered_products(
+                        api_params,
+                        strategy_entities,
+                    )
+                    raw_products = products
+                    result = {
+                        "products": products,
+                        "total_count": api_total,
+                        "page": page,
+                    }
+                    if not products:
+                        logger.warning(
+                            "api_price_filter_mismatch",
+                            extra={
+                                "phone_number": phone_number,
+                                "pages_scanned": _BUDGET_SCAN_MAX_PAGES,
+                                "entities": strategy_entities,
+                            },
+                        )
+                        continue
+                else:
+                    result = await search_products(
+                        **api_params, page_no=1, page_size=_API_FETCH_PAGE_SIZE
+                    )
+                    raw_products = result.get("products") or []
+                    products = filter_products_by_entities(
+                        raw_products, strategy_entities
+                    )
             except ClaraAPIError as e:
                 logger.exception(
                     "Product search failed",
@@ -991,35 +1079,6 @@ class ProductSearchAgentV3(Processor):
                 )
                 data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
                 return data
-
-            raw_products = result.get("products") or []
-            products = filter_products_by_entities(raw_products, strategy_entities)
-            has_price_filter = (
-                strategy_entities.get("min_price") is not None
-                or strategy_entities.get("max_price") is not None
-            )
-
-            without_price = filter_products_by_entities(
-                raw_products,
-                {**strategy_entities, "min_price": None, "max_price": None},
-            )
-            if (
-                log_label == "full"
-                and without_price
-                and not products
-                and has_price_filter
-            ):
-                logger.warning(
-                    "api_price_filter_mismatch",
-                    extra={
-                        "phone_number": phone_number,
-                        "raw_count": len(raw_products),
-                        "price_eligible_count": len(without_price),
-                        "filtered_count": 0,
-                        "entities": strategy_entities,
-                    },
-                )
-                continue
 
             if products:
                 api_total = result.get("total_count", 0)

@@ -9,8 +9,6 @@ import os
 import re
 from typing import Any, Optional
 
-import httpx
-
 from kisna_chatbot.processors.entity_extractor import build_search_context
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.price_calculator import resolve_product_prices
@@ -255,33 +253,6 @@ def _url_from_media_list(media: list) -> Optional[str]:
     return plp_url or default_url or fallback_url
 
 
-def webp_jpg_fallback(url: str) -> Optional[str]:
-    """Try a .jpg sibling URL when CDN may not serve .webp to WhatsApp."""
-    lower = url.lower().split("?")[0]
-    if not lower.endswith(".webp"):
-        return None
-    jpg_url = _normalize_image_url(
-        url[: lower.rindex(".webp")] + ".jpg"
-    )
-    if not jpg_url:
-        return None
-    try:
-        resp = httpx.head(jpg_url, timeout=2.0, follow_redirects=True)
-        if resp.status_code == 200:
-            return jpg_url
-        logger.warning(
-            "WebP jpg fallback HEAD returned non-200",
-            extra={
-                "original_url": url,
-                "jpg_url": jpg_url,
-                "status_code": resp.status_code,
-            },
-        )
-    except httpx.RequestError:
-        pass
-    return None
-
-
 def get_product_image_url(product: dict) -> Optional[str]:
     """Return primary product image URL from Clara ``mediaUrl[].image`` or fallbacks."""
     candidates: list[Optional[str]] = []
@@ -321,22 +292,50 @@ def get_product_image_url(product: dict) -> Optional[str]:
         if url:
             return url
 
-    for candidate in candidates:
-        if candidate:
-            jpg = webp_jpg_fallback(candidate)
-            if jpg:
-                return jpg
-
+    # Image conversion handled by get_whatsapp_safe_image_url()
     return None
 
 
 def get_product_image_url_for_whatsapp(product: dict) -> Optional[str]:
-    """Return image URL optimized for Gupshup/WhatsApp (jpg preferred over webp)."""
-    url = get_product_image_url(product)
-    if not url:
+    """Return raw product image URL (wrap with get_whatsapp_safe_image_url before send)."""
+    return get_product_image_url(product)
+
+
+def get_whatsapp_safe_image_url(raw_url: str) -> str | None:
+    """
+    Wraps a .webp URL with Cloudinary Fetch to return a
+    WhatsApp-compatible JPEG URL.
+    Returns the original URL unchanged if already JPEG.
+    Returns None if raw_url is empty.
+    Returns raw_url as fallback if CLOUDINARY_CLOUD_NAME not set.
+    """
+    # If Cloudinary free tier limits are hit (25k transforms/month)
+    # or client requests self-hosted storage, replace this with
+    # Cloudflare R2 (free 10GB, zero egress) or Vercel Blob.
+    # The interface stays identical — only this function changes.
+    if not raw_url:
         return None
-    jpg = webp_jpg_fallback(url)
-    return jpg or url
+
+    lower = raw_url.lower().split("?")[0]
+    if lower.endswith(".jpg") or lower.endswith(".jpeg"):
+        return raw_url
+
+    cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+    if not cloud_name:
+        logger.warning(
+            "CLOUDINARY_CLOUD_NAME not set — sending original webp URL"
+        )
+        return raw_url
+
+    cloudinary_url = (
+        f"https://res.cloudinary.com/{cloud_name}"
+        f"/image/fetch/f_jpg,q_85,fl_progressive/{raw_url}"
+    )
+    logger.debug(
+        "image: wrapping webp for WhatsApp delivery",
+        extra={"original": raw_url, "whatsapp_url": cloudinary_url},
+    )
+    return cloudinary_url
 
 
 def format_product_image_caption(product: dict) -> str:
