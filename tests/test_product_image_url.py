@@ -175,10 +175,16 @@ class ProductImageUrlTests(unittest.TestCase):
             f"{webp}",
         )
 
-    def test_whatsapp_safe_image_url_unchanged_for_jpg(self):
+    def test_whatsapp_safe_image_url_wraps_jpg_with_cloudinary(self):
         jpg = "https://kisna-assets.example/item.jpg"
         with patch.dict(os.environ, {"CLOUDINARY_CLOUD_NAME": "test-cloud"}):
-            self.assertEqual(get_whatsapp_safe_image_url(jpg), jpg)
+            result = get_whatsapp_safe_image_url(jpg)
+        self.assertEqual(
+            result,
+            "https://res.cloudinary.com/test-cloud"
+            "/image/fetch/f_jpg,q_85,fl_progressive/"
+            f"{jpg}",
+        )
 
     def test_whatsapp_safe_image_url_empty_returns_none(self):
         self.assertIsNone(get_whatsapp_safe_image_url(""))

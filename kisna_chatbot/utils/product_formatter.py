@@ -415,9 +415,7 @@ def get_product_image_url_for_whatsapp(product: dict) -> Optional[str]:
 
 def get_whatsapp_safe_image_url(raw_url: str) -> str | None:
     """
-    Wraps a .webp URL with Cloudinary Fetch to return a
-    WhatsApp-compatible JPEG URL.
-    Returns the original URL unchanged if already JPEG.
+    Wrap image URLs with Cloudinary Fetch for consistent WhatsApp delivery.
     Returns None if raw_url is empty.
     Returns raw_url as fallback if CLOUDINARY_CLOUD_NAME not set.
     """
@@ -428,14 +426,10 @@ def get_whatsapp_safe_image_url(raw_url: str) -> str | None:
     if not raw_url:
         return None
 
-    lower = raw_url.lower().split("?")[0]
-    if lower.endswith(".jpg") or lower.endswith(".jpeg"):
-        return raw_url
-
     cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
     if not cloud_name:
         logger.warning(
-            "CLOUDINARY_CLOUD_NAME not set — sending original webp URL"
+            "CLOUDINARY_CLOUD_NAME not set — sending original image URL"
         )
         return raw_url
 
@@ -444,7 +438,7 @@ def get_whatsapp_safe_image_url(raw_url: str) -> str | None:
         f"/image/fetch/f_jpg,q_85,fl_progressive/{raw_url}"
     )
     logger.debug(
-        "image: wrapping webp for WhatsApp delivery",
+        "image: wrapping for WhatsApp delivery",
         extra={"original": raw_url, "whatsapp_url": cloudinary_url},
     )
     return cloudinary_url

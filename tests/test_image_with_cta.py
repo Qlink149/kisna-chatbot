@@ -24,22 +24,20 @@ class ImageWithCtaTests(unittest.TestCase):
             "https://www.kisna.com/products/gold-ring",
             "Buy on KISNA",
         )
-        self.assertEqual(payload["type"], "interactive")
-        interactive = payload["interactive"]
-        self.assertEqual(interactive["type"], "cta_url")
+        self.assertEqual(payload["type"], "cta_url")
+        self.assertEqual(payload["body"], "Gold Ring\n₹45,000")
+        self.assertEqual(payload["display_text"], "Buy on KISNA")
         self.assertEqual(
-            interactive["header"]["image"]["link"],
-            "https://img.example/ring.jpg",
-        )
-        self.assertEqual(interactive["body"]["text"], "Gold Ring\n₹45,000")
-        self.assertEqual(
-            interactive["action"]["parameters"]["url"],
+            payload["url"],
             "https://www.kisna.com/products/gold-ring",
         )
+        self.assertEqual(payload["footer"], "KISNA Diamond & Gold")
+        self.assertEqual(payload["header"]["type"], "image")
         self.assertEqual(
-            interactive["action"]["parameters"]["display_text"],
-            "Buy on KISNA",
+            payload["header"]["image"]["link"],
+            "https://img.example/ring.jpg",
         )
+        self.assertNotIn("interactive", payload)
 
     def test_send_falls_back_to_plain_image_on_http_error(self):
         mock_response = MagicMock()

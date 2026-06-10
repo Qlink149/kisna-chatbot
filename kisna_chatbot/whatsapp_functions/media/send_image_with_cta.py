@@ -17,22 +17,17 @@ def _build_interactive_payload(
     button_title: str,
 ) -> dict:
     return {
-        "type": "interactive",
-        "interactive": {
-            "type": "cta_url",
-            "header": {
-                "type": "image",
-                "image": {"link": image_url},
-            },
-            "body": {"text": caption},
-            "action": {
-                "name": "cta_url",
-                "parameters": {
-                    "display_text": button_title,
-                    "url": product_url,
-                },
+        "type": "cta_url",
+        "body": caption,
+        "display_text": button_title,
+        "url": product_url,
+        "header": {
+            "type": "image",
+            "image": {
+                "link": image_url,
             },
         },
+        "footer": "KISNA Diamond & Gold",
     }
 
 
