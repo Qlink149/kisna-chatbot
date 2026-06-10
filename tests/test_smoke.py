@@ -244,7 +244,7 @@ class ProductSearchTests(unittest.TestCase):
                 result = await agent.process(data)
             self.assertIn("bot_response", result)
             media_msgs = [
-                r for r in result["bot_response"] if r.get("type") == "media"
+                r for r in result["bot_response"] if r.get("type") == "image_with_cta"
             ]
             self.assertEqual(len(media_msgs), 1)
             self.assertIn(
@@ -253,6 +253,8 @@ class ProductSearchTests(unittest.TestCase):
             )
             self.assertIn(clara_image, media_msgs[0]["url"])
             self.assertTrue(media_msgs[0]["url"].startswith("https://"))
+            self.assertEqual(media_msgs[0]["cta_title"], "Buy on KISNA")
+            self.assertIn("gold-ring", media_msgs[0]["cta_url"])
             search_mock.assert_awaited_once()
             self.assertEqual(result["user_profile"]["last_search_page"], 1)
             self.assertEqual(result["user_profile"]["last_search_total"], 1)
@@ -274,16 +276,18 @@ class ProductSearchTests(unittest.TestCase):
                 result["user_profile"]["jewellery_profile"]["budget_range"],
                 "under ₹50,000",
             )
-            list_msgs = [
-                r for r in result["bot_response"] if r.get("type") == "list"
+            cta_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "cta_url"
             ]
-            self.assertEqual(len(list_msgs), 1)
+            self.assertEqual(len(cta_msgs), 1)
+            self.assertIn("rings", cta_msgs[0]["url"])
+            self.assertNotIn("quickreply", [r.get("type") for r in result["bot_response"]])
 
         import asyncio
 
         asyncio.run(_run())
 
-    def test_build_search_success_response_always_includes_list(self):
+    def test_build_search_success_response_image_with_cta_sequence(self):
         product = {
             "_id": "p1",
             "title": "Gold Ring",
@@ -312,9 +316,15 @@ class ProductSearchTests(unittest.TestCase):
             [product], total_count=1, page=1, entities=entities
         )
         types = [r["type"] for r in response]
-        self.assertIn("media", types)
-        self.assertIn("list", types)
+        self.assertEqual(types, ["text", "image_with_cta", "cta_url"])
+        self.assertEqual(response[1]["cta_title"], "Buy on KISNA")
+        self.assertIn("gold-ring", response[1]["cta_url"])
+        self.assertEqual(
+            response[2]["url"],
+            "https://www.kisna.com/jewellery/rings+gold",
+        )
         self.assertNotIn("quickreply", types)
+        self.assertNotIn("list", types)
 
     def test_show_more_pagination(self):
         async def _run():
@@ -373,13 +383,72 @@ class ProductSearchTests(unittest.TestCase):
             self.assertIn("bot_response", result)
             self.assertEqual(result["user_profile"]["last_search_page"], 2)
             self.assertIn("p6", result["user_profile"]["shown_product_ids"])
-            list_msgs = [
-                r for r in result["bot_response"] if r.get("type") == "list"
+            image_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "image_with_cta"
             ]
-            self.assertEqual(len(list_msgs), 1)
+            self.assertEqual(len(image_msgs), 1)
+            cta_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "cta_url"
+            ]
+            self.assertEqual(len(cta_msgs), 1)
             search_mock.assert_awaited_once()
             call_kwargs = search_mock.await_args.kwargs
             self.assertEqual(call_kwargs["page_no"], 2)
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_show_more_natural_language(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            mock_product_page2 = {
+                "_id": "p6",
+                "title": "Diamond Ring",
+                "price": {"variantPrice": 55000},
+                "materialType": "diamond",
+                "productType": {"category": {"name": "Rings"}},
+                "shipping": {"edd": 5},
+                "seos": {"slug": "diamond-ring"},
+                "mediaUrl": [
+                    {
+                        "isDefault": True,
+                        "image": "https://img.example/diamond.webp",
+                        "type": "image",
+                    }
+                ],
+            }
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "aur dikhao"}},
+                "user_profile": {
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "last_search_filters": {
+                        "category": "ring",
+                        "material_type": "diamond",
+                        "min_price": None,
+                        "max_price": None,
+                        "title": None,
+                        "city": None,
+                        "pincode": None,
+                    },
+                    "last_search_page": 1,
+                    "last_search_total": 10,
+                    "shown_product_ids": ["p1", "p2", "p3", "p4", "p5"],
+                },
+            }
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+            ) as search_mock:
+                search_mock.return_value = {
+                    "products": [mock_product_page2],
+                    "total_count": 10,
+                    "page": 2,
+                }
+                result = await agent.process(data)
+            self.assertIn("bot_response", result)
+            self.assertEqual(result["user_profile"]["last_search_page"], 2)
 
         import asyncio
 
@@ -544,14 +613,17 @@ class ProductSearchTests(unittest.TestCase):
                 result = await agent.process(data)
 
             self.assertEqual(search_mock.await_count, 2)
-            list_msgs = [r for r in result["bot_response"] if r.get("type") == "list"]
-            self.assertEqual(len(list_msgs), 1)
-            options = list_msgs[0]["items"][0]["options"]
-            self.assertEqual(len(options), 1)
-            self.assertEqual(options[0]["title"], "Budget Ring")
-            body = list_msgs[0]["body"]
-            self.assertNotIn("outside your budget", body)
-            self.assertNotIn("No pieces found under", body)
+            image_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "image_with_cta"
+            ]
+            self.assertEqual(len(image_msgs), 1)
+            self.assertIn("Budget Ring", image_msgs[0]["caption"])
+            cta_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "cta_url"
+            ]
+            self.assertEqual(len(cta_msgs), 1)
+            self.assertNotIn("outside your budget", cta_msgs[0]["text"])
+            self.assertNotIn("No pieces found under", cta_msgs[0]["text"])
 
         import asyncio
 
@@ -599,14 +671,14 @@ class ProductSearchTests(unittest.TestCase):
                 }
                 result = await agent.process(data)
 
-            list_msgs = [r for r in result["bot_response"] if r.get("type") == "list"]
-            self.assertEqual(len(list_msgs), 1)
-            options = list_msgs[0]["items"][0]["options"]
-            self.assertEqual(len(options), 1)
-            self.assertEqual(options[0]["title"], "Budget Ring")
-            self.assertIn(
-                "matching your search",
-                list_msgs[0]["body"],
+            image_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "image_with_cta"
+            ]
+            self.assertEqual(len(image_msgs), 1)
+            self.assertIn("Budget Ring", image_msgs[0]["caption"])
+            self.assertEqual(
+                result["user_profile"]["last_search_products"],
+                [under],
             )
 
         import asyncio
@@ -665,13 +737,20 @@ class ProductSearchTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_explore_products_menu_is_category_list(self):
+    def test_explore_products_menu_shows_category_list(self):
         user_profile = {}
         data = {}
         _handle_menu_selection("Explore Products", user_profile, data, "explore_products")
         self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
         self.assertEqual(data["bot_response"][0]["type"], "list")
         self.assertEqual(data["bot_response"][0]["msgid"], "search$cat$list")
+        postbacks = [
+            opt["postbackText"]
+            for opt in data["bot_response"][0]["items"][0]["options"]
+        ]
+        self.assertIn("pref$cat$other", postbacks)
+        self.assertIn("pref$cat$any", postbacks)
+        self.assertEqual(len(postbacks), 9)
 
     def test_explore_products_list_builder(self):
         payload = _build_explore_products_list()
@@ -682,8 +761,16 @@ class ProductSearchTests(unittest.TestCase):
             opt["postbackText"]
             for opt in payload["items"][0]["options"]
         ]
-        self.assertIn("search$cat$ring", postbacks)
-        self.assertIn("search$explore", postbacks)
+        self.assertIn("pref$cat$ring", postbacks)
+        self.assertIn("pref$cat$any", postbacks)
+        self.assertIn("pref$cat$other", postbacks)
+
+    def test_handle_menu_selection_delegates_pref_cat_postback(self):
+        user_profile = {}
+        data = {}
+        _handle_menu_selection("Rings", user_profile, data, "pref$cat$ring")
+        self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
+        self.assertNotIn("bot_response", data)
 
     def test_handle_menu_selection_delegates_search_cat_postback(self):
         user_profile = {}
@@ -692,10 +779,10 @@ class ProductSearchTests(unittest.TestCase):
         self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
         self.assertNotIn("bot_response", data)
 
-    def test_handle_menu_selection_delegates_search_explore(self):
+    def test_handle_menu_selection_delegates_pref_cat_any(self):
         user_profile = {}
         data = {}
-        _handle_menu_selection("Browse All", user_profile, data, "search$explore")
+        _handle_menu_selection("Browse All", user_profile, data, "pref$cat$any")
         self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
         self.assertNotIn("bot_response", data)
 
@@ -833,8 +920,8 @@ class SearchImageCarouselTests(unittest.TestCase):
             {"_id": "5", "title": "E", "mediaUrl": [{"image": "https://ex.com/e.jpg"}]},
         ]
         response = _build_search_success_response(products, 5, 1, {})
-        media_items = [r for r in response if r.get("type") == "media"]
-        self.assertEqual(len(media_items), 3)
+        image_items = [r for r in response if r.get("type") == "image_with_cta"]
+        self.assertEqual(len(image_items), 3)
 
     def test_carousel_no_images_shows_fallback_text(self):
         products = [{"_id": "1", "title": "A"}]
@@ -971,7 +1058,8 @@ class HardeningAuditTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_classifier_escapes_offers_state_for_search(self):
+    def test_classifier_stays_in_offers_for_product_search(self):
+        """Product-search-shaped text in OFFERS no longer forces classifier escape."""
         clf = Classifier()
         data = {
             "messages": {"text": {"body": "gold ring under 50k"}},
@@ -980,7 +1068,7 @@ class HardeningAuditTests(unittest.TestCase):
                 "chat_history": [{"role": "user", "content": "offers"}],
             },
         }
-        self.assertTrue(clf.should_run(data))
+        self.assertFalse(clf.should_run(data))
 
     def test_classifier_json_fallback_menu(self):
         async def _run():
@@ -1156,7 +1244,7 @@ class HardeningAuditTests(unittest.TestCase):
             {"category": "mangalsutra"},
             carousel_pool=products,
         )
-        media_items = [r for r in response if r.get("type") == "media"]
+        media_items = [r for r in response if r.get("type") == "image_with_cta"]
         self.assertEqual(len(media_items), 3)
 
     def test_product_detail_enriches_missing_image(self):

@@ -107,6 +107,118 @@ def _product_sku(product: dict) -> str | None:
     return None
 
 
+_CATALOGUE_BASE = "https://www.kisna.com/jewellery"
+
+_CATEGORY_PLURALS = {
+    "ring": "rings",
+    "earring": "earrings",
+    "necklace": "necklaces",
+    "pendant": "pendants",
+    "bracelet": "bracelets",
+    "bangle": "bangles",
+    "mangalsutra": "mangalsutra",
+    "chain": "chains",
+    "nosewear": "nose-wear",
+    "watchwear": "watch-wear",
+    "maang_tikka": "maang-tikka",
+    "anklet": "anklets",
+}
+
+
+def _slugify_segment(text: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower().strip())
+    return slug.strip("-")
+
+
+def _category_catalogue_segment(category: str | None) -> str | None:
+    if not category:
+        return None
+    cat = category.strip().lower()
+    if cat in _CATEGORY_PLURALS:
+        return _CATEGORY_PLURALS[cat]
+    if cat.endswith("s"):
+        return cat.replace("_", "-")
+    return f"{cat.replace('_', '-')}s"
+
+
+def _price_band_segment(min_price: Any, max_price: Any) -> str | None:
+    min_p = _int_price(min_price)
+    max_p = _int_price(max_price)
+    if min_p is None and max_p is None:
+        return None
+    if min_p is not None and max_p is not None:
+        low_k = int(min_p) // 1000
+        high_k = int(max_p) // 1000
+        return f"{low_k}k-to-{high_k}k"
+    if max_p is not None:
+        low = max(0, int(max_p) - 10000)
+        return f"{low // 1000}k-to-{int(max_p) // 1000}k"
+    if min_p is not None:
+        high = int(min_p) + 10000
+        return f"{int(min_p) // 1000}k-to-{high // 1000}k"
+    return None
+
+
+def _material_catalogue_segment(material_type: str | None) -> str | None:
+    if not material_type:
+        return None
+    material = material_type.strip().lower()
+    if material in ("white_gold", "rose_gold"):
+        return "gold"
+    if material in ("silver", "platinum", "pearl"):
+        return None
+    return material
+
+
+def build_catalogue_url(entities: dict[str, Any]) -> str:
+    """Build KISNA jewellery catalogue deep-link from extracted entities."""
+    parts: list[str] = []
+
+    category_part = _category_catalogue_segment(entities.get("category"))
+    if category_part:
+        parts.append(category_part)
+
+    price_part = _price_band_segment(
+        entities.get("min_price"), entities.get("max_price")
+    )
+    if price_part:
+        parts.append(price_part)
+
+    material_part = _material_catalogue_segment(entities.get("material_type"))
+    if material_part:
+        parts.append(material_part)
+
+    karat = entities.get("karat")
+    if karat:
+        parts.append(str(karat).lower().replace(" ", ""))
+
+    colour = entities.get("metal_colour")
+    if colour:
+        parts.append(str(colour).lower())
+
+    collection = entities.get("collection") or entities.get("title")
+    if collection and str(collection).lower() not in (
+        "bridal",
+        "traditional",
+        "modern",
+        "minimal",
+        "heavy",
+    ):
+        coll_slug = _slugify_segment(
+            str(collection).replace(" Collection", "").replace(" collection", "")
+        )
+        if coll_slug:
+            parts.append(coll_slug)
+
+    occasion = entities.get("occasion")
+    if occasion:
+        parts.append(_slugify_segment(str(occasion).replace("_", " ")))
+
+    if not parts:
+        return _CATALOGUE_BASE
+    return f"{_CATALOGUE_BASE}/{'+'.join(parts)}"
+
+
 def build_product_url(product: dict) -> str:
     """Build canonical KISNA product page URL from API seo slug."""
     base = "https://www.kisna.com"

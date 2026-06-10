@@ -27,7 +27,8 @@ def test_extract_multi_category_flags():
     assert entities["secondary_category"] == "earring"
 
 
-def test_execute_search_appends_also_showing_quick_reply():
+def test_execute_search_no_also_showing_quick_reply():
+    """Multi-category search no longer appends quick reply after results."""
     async def _run():
         agent = ProductSearchAgentV3()
         entities = extract_entities("rings aur earrings")
@@ -54,6 +55,7 @@ def test_execute_search_appends_also_showing_quick_reply():
                     "price": {"variantPrice": 25000},
                     "mediaUrl": [{"image": "https://example.com/a.jpg"}],
                     "productType": {"category": {"name": "Rings"}},
+                    "seos": {"slug": "test-ring"},
                 }
             ],
             "total_count": 1,
@@ -63,11 +65,11 @@ def test_execute_search_appends_also_showing_quick_reply():
         result = asyncio.run(_run())
 
     quick_replies = [
-        item
-        for item in result["bot_response"]
-        if item.get("type") == "quickreply"
-        and item.get("msgid", "").startswith("search$also$")
+        item for item in result["bot_response"] if item.get("type") == "quickreply"
     ]
-    assert len(quick_replies) == 1
-    assert "earrings" in quick_replies[0]["text"].lower()
-    assert quick_replies[0]["msgid"] == "search$also$earring"
+    assert quick_replies == []
+    image_msgs = [
+        item for item in result["bot_response"] if item.get("type") == "image_with_cta"
+    ]
+    assert len(image_msgs) == 1
+    assert image_msgs[0]["cta_title"] == "Buy on KISNA"

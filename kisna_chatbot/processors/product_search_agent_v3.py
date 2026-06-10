@@ -5,7 +5,17 @@ import time
 
 from kisna_chatbot.integrations.clara_api import ClaraAPIError, search_products
 from kisna_chatbot.models.service_list import ServiceList as SL
-from kisna_chatbot.processors.service_list import build_explore_products_list_with_prompt
+from kisna_chatbot.processors.classifier import is_greeting_message
+from kisna_chatbot.processors.service_list import (
+    build_custom_budget_prompt,
+    build_explore_products_list_with_prompt,
+    build_main_category_list,
+    build_main_menu_bot_response,
+    build_other_jewellery_list,
+    build_pref_step2_type_list,
+    build_pref_step3_budget_list,
+    build_greeting_welcome_bot_responses,
+)
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import (
     apply_occasion_style_hints,
@@ -13,6 +23,7 @@ from kisna_chatbot.processors.entity_extractor import (
     entities_to_api_params,
     extract_entities,
     filter_products_by_entities,
+    filter_products_by_extracted_extras,
     has_strict_product_filters,
     is_unrecognizable_input,
     merge_llm_and_regex_entities,
@@ -27,6 +38,8 @@ from kisna_chatbot.utils.jewellery_profile import (
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.product_formatter import (
     BROWSE_PRODUCTS_GLOBAL_TITLE,
+    build_catalogue_url,
+    build_product_url,
     format_product_buy_caption,
     format_product_image_caption,
     format_product_list_message,
@@ -37,13 +50,35 @@ from kisna_chatbot.utils.product_formatter import (
 )
 
 _MAX_IMAGE_PRODUCTS = 3
-PAGE_SIZE = 5
+PAGE_SIZE = 3
 _CAROUSEL_SCAN_LIMIT = 15
 _API_FETCH_PAGE_SIZE = 15
 _BUDGET_SCAN_MAX_PAGES = 5
 _SHOW_MORE_PAGE_RETRIES = 2
 
 _SEARCH_CAT_LIST_MSGID = "search$cat$list"
+
+_PREF_CAT_REFINE_TITLES = {
+    "rings": "pref$cat$ring",
+    "earrings": "pref$cat$earring",
+    "necklaces": "pref$cat$necklace",
+}
+
+_PREF_CAT_ENTITY_MAP: dict[str, dict] = {
+    "ring": {"category": "ring"},
+    "earring": {"category": "earring"},
+    "necklace": {"category": "necklace"},
+    "pendant": {"category": "pendant"},
+    "bangle_bracelet": {"categories": ["bangle", "bracelet"]},
+    "mangalsutra": {"category": "mangalsutra"},
+    "maang_tikka": {"category": "maang_tikka"},
+    "solitaire": {"category": "ring", "title": "solitaire"},
+    "nose_wear": {"category": "nosewear"},
+    "watch_wear": {"category": "watchwear"},
+    "mangalsutra_bracelet": {"category": "mangalsutra", "title": "bracelet"},
+    "pendant_set": {"category": "pendant", "title": "set"},
+    "necklace_set": {"category": "necklace", "title": "set"},
+}
 
 _GENERIC_ERROR = (
     "Sorry, we couldn't search the catalogue right now. Please try again in a moment."
@@ -95,6 +130,59 @@ _BROWSE_ALL_RE = re.compile(
     r"\b(sab\s+dikhao|show\s+me\s+everything|browse\s+all)\b",
     re.I,
 )
+
+_SHOW_MORE_RE = re.compile(
+    r"\b(show\s+more|more|next|aur\s+dikhao|next\s+3|kuch\s+aur|show\s+next|and\s+more)\b",
+    re.I,
+)
+
+_ASK_PINCODE_TEXT = (
+    "Share your pincode or city and I'll help you find the nearest Kisna store."
+)
+
+_BUDGET_POSTBACK_RE = re.compile(r"^pref\$budget\$(\d+)-(\d+)$")
+_CUSTOM_BUDGET_RANGE_RE = re.compile(
+    r"^\s*([\d,]+)\s*-\s*([\d,]+)\s*$"
+)
+
+
+def _entities_from_pref_cat(cat_key: str) -> dict | None:
+    mapped = _PREF_CAT_ENTITY_MAP.get(cat_key)
+    if not mapped:
+        return None
+    entities = _empty_entities()
+    for key, val in mapped.items():
+        entities[key] = val
+    if entities.get("categories"):
+        entities["multi_category"] = len(entities["categories"]) >= 2
+    return entities
+
+
+def _parse_pref_cat_button_postback(messages: dict) -> str | None:
+    """Extract pref$cat$ postback from a quick-reply button tap."""
+    interactive = messages.get("interactive", {})
+    if interactive.get("type") != "button_reply":
+        return None
+    button_reply = interactive.get("button_reply", {})
+    raw_id = button_reply.get("id", "")
+    postback = ""
+    try:
+        parsed = json.loads(raw_id)
+        if isinstance(parsed, dict):
+            postback = str(parsed.get("postbackText") or "")
+    except (json.JSONDecodeError, TypeError):
+        pass
+    if postback.startswith("pref$cat$"):
+        return postback
+    title = (button_reply.get("title") or "").strip().lower()
+    return _PREF_CAT_REFINE_TITLES.get(title)
+
+
+def _build_search_intro_text(entities: dict) -> str:
+    context = build_search_context(entities)
+    if context == "KISNA Jewellery":
+        return "Here are top picks from our KISNA collection 💍"
+    return f"Here are top picks from our {context} collection 💍"
 
 
 def _entities_all_none(entities: dict) -> bool:
@@ -220,7 +308,115 @@ def _empty_entities() -> dict:
         "title": None,
         "city": None,
         "pincode": None,
+        "karat": None,
+        "metal_colour": None,
+        "size": None,
+        "collection": None,
+        "gender": None,
+        "occasion": None,
+        "style": None,
+        "action": None,
     }
+
+
+def _clear_preference_state(user_profile: dict) -> None:
+    for key in (
+        "preference_step",
+        "pref_material",
+        "pref_type",
+        "awaiting_custom_budget",
+    ):
+        user_profile.pop(key, None)
+
+
+def _entities_from_preferences(user_profile: dict) -> dict:
+    return {
+        **_empty_entities(),
+        "material_type": user_profile.get("pref_material"),
+        "category": user_profile.get("pref_type"),
+    }
+
+
+def _merge_explore_context(user_profile: dict, data: dict) -> dict:
+    llm = (
+        data.get("llm_extracted_entities")
+        or user_profile.get("llm_extracted_entities")
+        or {}
+    )
+    prior = user_profile.get("last_search_filters") or {}
+    merged = _empty_entities()
+    for key, val in prior.items():
+        if val is not None:
+            merged[key] = val
+    for key, val in llm.items():
+        if val is not None:
+            merged[key] = val
+    return merged
+
+
+def _snap_single_price_to_band(price: float) -> tuple[int, int]:
+    base = int(price // 10000) * 10000
+    return base, base + 10000
+
+
+def _parse_custom_budget_text(text: str) -> tuple[int | None, int | None]:
+    extracted = extract_entities(text or "")
+    min_p = extracted.get("min_price")
+    max_p = extracted.get("max_price")
+    if min_p is not None or max_p is not None:
+        if min_p is not None and max_p is not None:
+            return int(min_p), int(max_p)
+        if max_p is not None:
+            return _snap_single_price_to_band(float(max_p))
+        if min_p is not None:
+            return _snap_single_price_to_band(float(min_p))
+
+    normalized = (text or "").strip().replace(",", "")
+    range_match = _CUSTOM_BUDGET_RANGE_RE.match(normalized)
+    if range_match:
+        low = int(range_match.group(1))
+        high = int(range_match.group(2))
+        return min(low, high), max(low, high)
+
+    if normalized.isdigit():
+        return _snap_single_price_to_band(float(normalized))
+    return None, None
+
+
+def _is_show_more_request(query: str, data: dict) -> bool:
+    user_profile = data.get("user_profile", {})
+    filters = user_profile.get("last_search_filters")
+    if not filters:
+        return False
+    llm_entities = data.get("llm_extracted_entities") or {}
+    if llm_entities.get("action") == "more":
+        return True
+    return bool(_SHOW_MORE_RE.search(query or ""))
+
+
+def _sort_products_by_price_target(
+    products: list[dict], entities: dict
+) -> list[dict]:
+    min_p = entities.get("min_price")
+    max_p = entities.get("max_price")
+    target: float | None = None
+    if min_p is not None and max_p is not None:
+        target = (float(min_p) + float(max_p)) / 2
+    elif max_p is not None:
+        target = float(max_p)
+    elif min_p is not None:
+        target = float(min_p)
+
+    if target is None or not products:
+        return list(products)
+
+    def _distance(product: dict) -> float:
+        price = get_product_display_price(product)
+        if price <= 0:
+            return float("inf")
+        return abs(price - target)
+
+    return sorted(products, key=_distance)
 
 
 def _normalize_entities(entities: dict) -> dict:
@@ -512,31 +708,22 @@ def _build_search_success_response(
     show_more_intro: bool = True,
     page_size: int = PAGE_SIZE,
     carousel_pool: list[dict] | None = None,
-    client_filtered: bool = False,
 ) -> list[dict]:
     bot_response: list[dict] = []
     if prefix_note:
         bot_response.append({"type": "text", "text": prefix_note})
+    elif show_more_intro:
+        bot_response.append({"type": "text", "text": _build_search_intro_text(entities)})
 
-    search_context = build_search_context(entities)
     scan_pool = carousel_pool if carousel_pool is not None else products
     carousel_products, skipped_product_ids, scanned_count = _collect_carousel_products(
         scan_pool
     )
 
     for product in carousel_products:
-        raw_url = get_product_image_url_for_whatsapp(product)
-        url = get_whatsapp_safe_image_url(raw_url)
-        if not url:
-            continue
-        bot_response.append(
-            {
-                "type": "media",
-                "media_type": "image",
-                "url": url,
-                "caption": format_product_image_caption(product),
-            }
-        )
+        image_msg = build_product_image_with_cta_message(product)
+        if image_msg:
+            bot_response.append(image_msg)
 
     images_sent = len(carousel_products)
 
@@ -557,42 +744,32 @@ def _build_search_success_response(
             },
         )
 
-    list_products = products[:page_size]
-    if list_products:
-        if _has_more_pages(page, total_count, page_size):
-            if client_filtered:
-                qr_text = (
-                    "More matching results may be available."
-                    if show_more_intro
-                    else "Tap below for more results."
-                )
-            else:
-                qr_text = (
-                    f"We found *{total_count}* pieces matching your search."
-                    if show_more_intro
-                    else "Tap below for more results."
-                )
-            bot_response.append(
-                {
-                    "type": "quickreply",
-                    "text": qr_text,
-                    "caption": "",
-                    "options": [{"title": "Show More"}],
-                    "msgid": "search$more",
-                }
-            )
+    if products[:page_size]:
         bot_response.append(
-            format_product_list_message(
-                list_products,
-                total_count,
-                page,
-                search_context=search_context,
-                page_size=page_size,
-                client_filtered=client_filtered,
-            )
+            {
+                "type": "cta_url",
+                "text": "Want to explore more? See the full collection 👇",
+                "display_text": "See Full Collection →",
+                "url": build_catalogue_url(entities),
+            }
         )
 
     return bot_response
+
+
+def build_product_image_with_cta_message(product: dict) -> dict | None:
+    """Single product image with inline Buy on KISNA button."""
+    raw_url = get_product_image_url_for_whatsapp(product)
+    url = get_whatsapp_safe_image_url(raw_url)
+    if not url:
+        return None
+    return {
+        "type": "image_with_cta",
+        "url": url,
+        "caption": format_product_image_caption(product),
+        "cta_url": build_product_url(product),
+        "cta_title": "Buy on KISNA",
+    }
 
 
 def build_product_media_message(product: dict) -> dict | None:
@@ -634,14 +811,22 @@ class ProductSearchAgentV3(Processor):
             return False
 
         messages = data.get("messages", {})
+        user_profile = data.get("user_profile", {})
+
+        if user_profile.get("pending_explore_search"):
+            return True
+
         if _material_button_msgid(messages):
+            return True
+        if _parse_pref_cat_button_postback(messages):
             return True
         if _product_button_msgid(messages):
             return True
         if _search_button_msgid(messages):
             return True
 
-        user_profile = data.get("user_profile", {})
+        if user_profile.get("awaiting_custom_budget") and _extract_search_query(messages):
+            return True
 
         if user_profile.get("service_selected") not in (
             SL.PRODUCT_SEARCH.value,
@@ -654,6 +839,8 @@ class ProductSearchAgentV3(Processor):
 
         parsed = _parse_list_reply(messages)
         if parsed:
+            if parsed[0].startswith("pref$"):
+                return True
             if parsed[0] == _SEARCH_CAT_LIST_MSGID:
                 return True
             if _is_browse_products_global_tap(parsed):
@@ -664,7 +851,12 @@ class ProductSearchAgentV3(Processor):
         if _size_query_with_last_viewed(data):
             return False
 
-        if _extract_search_query(messages) is not None:
+        query = _extract_search_query(messages)
+        if query is not None:
+            if is_greeting_message(query):
+                return True
+            if _is_show_more_request(query, data):
+                return True
             return True
 
         return False
@@ -677,6 +869,25 @@ class ProductSearchAgentV3(Processor):
             return data
 
         user_profile = data.get("user_profile", {})
+
+        pref_postback = _parse_pref_cat_button_postback(messages)
+        if pref_postback:
+            return await self._handle_preference_list(
+                data, phone_number, pref_postback
+            )
+
+        if user_profile.pop("pending_explore_search", False):
+            if not _clara_configured():
+                data["bot_response"] = _build_catalog_not_configured_response()
+                return data
+            entities = _merge_explore_context(user_profile, data)
+            user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+            return await self._execute_search(
+                data,
+                phone_number,
+                entities,
+                query_label="explore_products",
+            )
 
         search_btn = _search_button_msgid(messages)
         if search_btn == "search$more":
@@ -715,7 +926,16 @@ class ProductSearchAgentV3(Processor):
         parsed = _parse_list_reply(messages)
         if parsed:
             list_msgid, _title, postback = parsed
+            if list_msgid.startswith("pref$") or (postback or "").startswith("pref$"):
+                return await self._handle_preference_list(
+                    data, phone_number, postback or ""
+                )
+
             if list_msgid == _SEARCH_CAT_LIST_MSGID:
+                if (postback or "").startswith("pref$cat$"):
+                    return await self._handle_preference_list(
+                        data, phone_number, postback
+                    )
                 if not _clara_configured():
                     data["bot_response"] = _build_catalog_not_configured_response()
                     return data
@@ -814,6 +1034,21 @@ class ProductSearchAgentV3(Processor):
         if not query:
             return data
 
+        if is_greeting_message(query):
+            user_profile["service_selected"] = ""
+            data["classified_category"] = "greeting"
+            data["bot_response"] = build_greeting_welcome_bot_responses(
+                phone_number=phone_number,
+                chat_history=user_profile.get("chat_history", []),
+            )
+            return data
+
+        if user_profile.get("awaiting_custom_budget"):
+            return await self._handle_custom_budget_input(data, phone_number, query)
+
+        if _is_show_more_request(query, data):
+            return await self._handle_show_more(data, phone_number)
+
         followup = _handle_product_info_followup(data, query)
         if followup is not None:
             return followup
@@ -863,6 +1098,19 @@ class ProductSearchAgentV3(Processor):
             and not _BROWSE_ALL_RE.search(query)
             and data.get("classified_category") == "product_search"
         ):
+            confidence = float(data.get("classifier_confidence") or 1.0)
+            if confidence < 0.45:
+                data["bot_response"] = [
+                    {
+                        "type": "text",
+                        "text": (
+                            "I'm not sure what you're looking for — "
+                            "let me show you what I can help with! 😊"
+                        ),
+                    },
+                    build_main_menu_bot_response(),
+                ]
+                return data
             data["bot_response"] = [build_explore_products_list_with_prompt()]
             return data
 
@@ -872,6 +1120,120 @@ class ProductSearchAgentV3(Processor):
             entities,
             query_label=query,
             occasion_prefix=occasion_prefix,
+        )
+
+    async def _handle_preference_list(
+        self, data: dict, phone_number: str, postback: str
+    ) -> dict:
+        user_profile = data.get("user_profile", {})
+        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        postback = (postback or "").strip()
+
+        if postback.startswith("pref$cat$"):
+            if postback == "pref$cat$other":
+                data["bot_response"] = [build_other_jewellery_list()]
+                return data
+            if postback == "pref$cat$back":
+                data["bot_response"] = [build_main_category_list()]
+                return data
+            if postback == "pref$cat$any":
+                if not _clara_configured():
+                    data["bot_response"] = _build_catalog_not_configured_response()
+                    return data
+                return await self._execute_search(
+                    data,
+                    phone_number,
+                    _empty_entities(),
+                    query_label="browse_all",
+                    response_mode="browse_all",
+                )
+            cat_key = postback.rsplit("$", 2)[-1]
+            entities = _entities_from_pref_cat(cat_key)
+            if entities is None:
+                data["bot_response"] = _build_prompt_response()
+                return data
+            if not _clara_configured():
+                data["bot_response"] = _build_catalog_not_configured_response()
+                return data
+            return await self._execute_search(
+                data,
+                phone_number,
+                entities,
+                query_label=f"pref_cat:{cat_key}",
+            )
+
+        if postback.startswith("pref$material$"):
+            material = postback.rsplit("$", 1)[-1]
+            user_profile["pref_material"] = material
+            user_profile["preference_step"] = 2
+            data["bot_response"] = [build_pref_step2_type_list()]
+            return data
+
+        if postback.startswith("pref$type$"):
+            category = postback.rsplit("$", 1)[-1]
+            user_profile["pref_type"] = category
+            user_profile["preference_step"] = 3
+            data["bot_response"] = [build_pref_step3_budget_list()]
+            return data
+
+        if postback == "pref$budget$custom":
+            user_profile["awaiting_custom_budget"] = True
+            data["bot_response"] = [build_custom_budget_prompt()]
+            return data
+
+        budget_match = _BUDGET_POSTBACK_RE.match(postback)
+        if budget_match:
+            if not _clara_configured():
+                data["bot_response"] = _build_catalog_not_configured_response()
+                return data
+            min_p = int(budget_match.group(1))
+            max_p = int(budget_match.group(2))
+            entities = _entities_from_preferences(user_profile)
+            entities["min_price"] = min_p
+            entities["max_price"] = max_p
+            _clear_preference_state(user_profile)
+            return await self._execute_search(
+                data,
+                phone_number,
+                entities,
+                query_label=f"pref:{entities.get('material_type')}:{entities.get('category')}",
+            )
+
+        data["bot_response"] = _build_prompt_response()
+        return data
+
+    async def _handle_custom_budget_input(
+        self, data: dict, phone_number: str, query: str
+    ) -> dict:
+        user_profile = data.get("user_profile", {})
+        min_p, max_p = _parse_custom_budget_text(query)
+        if min_p is None and max_p is None:
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": (
+                        "I couldn't understand that budget. Please try again, e.g. "
+                        "'25000', '15000-35000', or '50000 tak'."
+                    ),
+                },
+                build_custom_budget_prompt(),
+            ]
+            return data
+
+        if not _clara_configured():
+            data["bot_response"] = _build_catalog_not_configured_response()
+            return data
+
+        entities = _entities_from_preferences(user_profile)
+        entities["min_price"] = min_p
+        entities["max_price"] = max_p
+        user_profile["awaiting_custom_budget"] = False
+        _clear_preference_state(user_profile)
+        return await self._execute_search(
+            data,
+            phone_number,
+            entities,
+            query_label=f"custom_budget:{query}",
         )
 
     async def _handle_show_more(self, data: dict, phone_number: str) -> dict:
@@ -961,7 +1323,6 @@ class ProductSearchAgentV3(Processor):
             entities,
             show_more_intro=False,
             carousel_pool=products,
-            client_filtered=client_filtered,
         )
 
         logger.info(
@@ -984,6 +1345,7 @@ class ProductSearchAgentV3(Processor):
         query_label: str,
         exclude_product_id: str | None = None,
         occasion_prefix: str | None = None,
+        response_mode: str | None = None,
     ) -> dict:
         user_profile = data.get("user_profile", {})
         last_filters = user_profile.get("last_search_filters") or {}
@@ -998,6 +1360,8 @@ class ProductSearchAgentV3(Processor):
         prefix_parts: list[str] = []
         if occasion_prefix:
             prefix_parts.append(occasion_prefix)
+        if response_mode == "browse_all":
+            prefix_parts.insert(0, "Here's a look at our latest collection 💎")
         if entities.get("unsupported_category"):
             prefix_parts.append(_UNSUPPORTED_CATEGORY_NOTE)
         client_filtered = False
@@ -1082,11 +1446,18 @@ class ProductSearchAgentV3(Processor):
 
             if products:
                 api_total = result.get("total_count", 0)
+                products, extras_note = filter_products_by_extracted_extras(
+                    products, strategy_entities
+                )
+                if extras_note:
+                    prefix_parts.append(extras_note)
                 client_filtered = len(products) < len(raw_products) or (
                     has_strict_product_filters(strategy_entities)
                     and len(products) < api_total
                 )
-                if client_filtered and has_strict_product_filters(strategy_entities):
+                if extras_note or (
+                    client_filtered and has_strict_product_filters(strategy_entities)
+                ):
                     total_count = len(products)
                 else:
                     total_count = api_total
@@ -1099,7 +1470,6 @@ class ProductSearchAgentV3(Processor):
                     prefix_parts.append(fallback_note)
                 break
 
-        search_context = build_search_context(winning_entities)
         prefix_note = "\n".join(prefix_parts) if prefix_parts else None
 
         if not products:
@@ -1116,6 +1486,9 @@ class ProductSearchAgentV3(Processor):
                 products = filtered
             elif total_count > 1:
                 total_count = max(len(products), total_count - 1)
+
+        carousel_pool = _sort_products_by_price_target(products, winning_entities)
+        search_context = build_search_context(winning_entities)
 
         user_profile["last_search_filters"] = winning_entities
         profile_updates = entities_to_jewellery_profile(
@@ -1140,25 +1513,13 @@ class ProductSearchAgentV3(Processor):
             page,
             winning_entities,
             prefix_note=prefix_note,
-            carousel_pool=products,
-            client_filtered=client_filtered,
+            carousel_pool=carousel_pool,
         )
 
-        if entities.get("multi_category") and entities.get("secondary_category"):
-            secondary = entities["secondary_category"]
-            label = _humanize_category_label(secondary)
-            data["bot_response"].append(
-                {
-                    "type": "quickreply",
-                    "text": f"Also showing {label}?",
-                    "caption": "",
-                    "options": [{"title": f"Show {label}"}],
-                    "msgid": f"search$also${secondary}",
-                }
-            )
-
-        has_media = any(r.get("type") == "media" for r in data["bot_response"])
-        if products and not has_media:
+        has_product_images = any(
+            r.get("type") == "image_with_cta" for r in data["bot_response"]
+        )
+        if products and not has_product_images:
             missing = []
             for product in products[:PAGE_SIZE]:
                 missing.append(
@@ -1187,7 +1548,7 @@ class ProductSearchAgentV3(Processor):
                 "total_count": total_count,
                 "returned": len(products),
                 "images_in_response": sum(
-                    1 for r in data["bot_response"] if r.get("type") == "media"
+                    1 for r in data["bot_response"] if r.get("type") == "image_with_cta"
                 ),
             },
         )

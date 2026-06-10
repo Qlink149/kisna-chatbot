@@ -26,14 +26,6 @@ from kisna_chatbot.processors.classifier import (
 )
 
 PROGRAMMATIC_MATRIX = [
-    ("show me diamond rings", "product_search"),
-    ("gold earrings", "product_search"),
-    ("sone ki anguthi dikhao", "product_search"),
-    ("heere ki bali 50k tak", "product_search"),
-    ("necklace under 30000", "product_search"),
-    ("Rivaah collection", "product_search"),
-    ("mangalsutra dikhao", "product_search"),
-    ("Evil Eye bracelet", "product_search"),
     ("what is the price of Elysia ring?", "product_info"),
     ("Maggio ring ki price kya hai?", "product_info"),
     ("koi offer hai kya?", "offers"),
@@ -51,6 +43,25 @@ PROGRAMMATIC_MATRIX = [
     ("help", "menu_help"),
 ]
 
+LLM_DEFERRED_MATRIX = [
+    "show me diamond rings",
+    "gold earrings",
+    "sone ki anguthi dikhao",
+    "heere ki bali 50k tak",
+    "necklace under 30000",
+    "Rivaah collection",
+    "mangalsutra dikhao",
+    "Evil Eye bracelet",
+]
+
+GREETING_MATRIX = [
+    "hey",
+    "heyy!!!",
+    "good morning",
+    "ram ram",
+    "kaise ho",
+]
+
 
 class ClassifierMatrixTests(unittest.TestCase):
     def test_programmatic_matrix(self):
@@ -64,6 +75,21 @@ class ClassifierMatrixTests(unittest.TestCase):
                 actual,
                 expected,
                 msg=f"{text!r}: expected {expected}, got {actual}",
+            )
+
+    def test_product_search_defers_to_llm(self):
+        for text in LLM_DEFERRED_MATRIX:
+            self.assertIsNone(
+                _programmatic_intent_override(text, {}),
+                msg=f"{text!r} should defer to LLM",
+            )
+
+    def test_greeting_programmatic(self):
+        for text in GREETING_MATRIX:
+            self.assertEqual(
+                _programmatic_intent_override(text, {}),
+                "greeting",
+                msg=f"{text!r} should be greeting",
             )
 
     def test_price_query_is_product_info_not_search(self):

@@ -38,6 +38,27 @@ CLARIFICATION_CONFIDENCE_THRESHOLD = 0.45
 COMPLETELY_UNCLEAR_THRESHOLD = 0.3
 PRODUCT_SEARCH_SESSION_EXPIRY_SECONDS = 2 * 60 * 60
 
+_GREETING_RE = re.compile(
+    r"^\s*("
+    r"hi+|hey+|hello+|helo+|hii+|hiii+|heya|"
+    r"yo+|sup|what'?s\s*up|wassup|howdy|"
+    r"good\s*(morning|evening|afternoon|night|day)|"
+    r"gm|gn|"
+    r"namaste+|namaskar|pranam|"
+    r"ram\s*ram|jai\s*(shree\s*)?krishna|jai\s*jinendra|"
+    r"salam+|assalam|aadab|"
+    r"kya\s*haal|kaise\s*(ho|hain)|kaisa\s*hai|"
+    r"bhai+|yaar|dude"
+    r")\s*[!?.]*\s*$",
+    re.I,
+)
+
+
+def is_greeting_message(text: str) -> bool:
+    """True for short standalone greetings (English, Hindi, Hinglish)."""
+    return bool(_GREETING_RE.match((text or "").strip()))
+
+
 _REROUTE_RE = re.compile(
     r"\b("
     r"menu|back|cancel|hi|hello|namaste|"
@@ -251,6 +272,7 @@ _LLM_ENTITY_CATEGORIES = frozenset(
         "nose_ring",
         "nosewear",
         "maang_tikka",
+        "chain",
     }
 )
 _LLM_ENTITY_MATERIALS = frozenset(
@@ -265,9 +287,33 @@ _LLM_ENTITY_MATERIALS = frozenset(
     }
 )
 _LLM_ENTITY_OCCASIONS = frozenset(
-    {"wedding", "anniversary", "birthday", "daily_wear", "gift"}
+    {
+        "wedding",
+        "engagement",
+        "anniversary",
+        "birthday",
+        "daily_wear",
+        "gift",
+    }
 )
-_LLM_ENTITY_STYLES = frozenset({"traditional", "modern", "minimal", "heavy"})
+_LLM_ENTITY_STYLES = frozenset(
+    {
+        "traditional",
+        "modern",
+        "minimal",
+        "heavy",
+        "fashion",
+        "cocktail",
+        "couple_bands",
+        "infinity",
+        "hearts",
+        "floral",
+        "adjustable",
+    }
+)
+_LLM_ENTITY_KARATS = frozenset({"9KT", "14KT", "18KT", "22KT", "24KT"})
+_LLM_ENTITY_COLOURS = frozenset({"yellow", "white", "rose"})
+_LLM_ENTITY_GENDERS = frozenset({"women", "men", "kids"})
 _LLM_CATEGORY_ALIASES = {"nose_ring": "nosewear"}
 
 
@@ -294,12 +340,60 @@ def _sanitize_llm_entities(entities: dict) -> dict:
     out["category"] = category
 
     material = _coerce_null(raw.get("material_type"))
+    metal_colour = _coerce_null(raw.get("metal_colour"))
     if isinstance(material, str):
         material = material.strip().lower()
+        if material == "rose_gold":
+            material = "gold"
+            metal_colour = metal_colour or "rose"
+        elif material == "white_gold":
+            material = "gold"
+            metal_colour = metal_colour or "white"
         material = material if material in _LLM_ENTITY_MATERIALS else None
     else:
         material = None
     out["material_type"] = material
+
+    if isinstance(metal_colour, str):
+        metal_colour = metal_colour.strip().lower()
+        metal_colour = metal_colour if metal_colour in _LLM_ENTITY_COLOURS else None
+    else:
+        metal_colour = None
+    out["metal_colour"] = metal_colour
+
+    karat = _coerce_null(raw.get("karat"))
+    if isinstance(karat, str):
+        karat_norm = karat.strip().upper().replace(" ", "")
+        if not karat_norm.endswith("KT"):
+            karat_norm = f"{karat_norm}KT" if karat_norm.isdigit() else karat_norm
+        karat = karat_norm if karat_norm in _LLM_ENTITY_KARATS else None
+    else:
+        karat = None
+    out["karat"] = karat
+
+    size_val = _coerce_null(raw.get("size"))
+    if size_val is not None:
+        try:
+            size_int = int(float(size_val))
+            size_val = size_int if 7 <= size_int <= 22 else None
+        except (TypeError, ValueError):
+            size_val = None
+    else:
+        size_val = None
+    out["size"] = size_val
+
+    collection = _coerce_null(raw.get("collection"))
+    out["collection"] = (
+        collection.strip() if isinstance(collection, str) and collection.strip() else None
+    )
+
+    gender = _coerce_null(raw.get("gender"))
+    if isinstance(gender, str):
+        gender = gender.strip().lower()
+        gender = gender if gender in _LLM_ENTITY_GENDERS else None
+    else:
+        gender = None
+    out["gender"] = gender
 
     for price_key in ("min_price", "max_price"):
         val = _coerce_null(raw.get(price_key))
@@ -329,6 +423,14 @@ def _sanitize_llm_entities(entities: dict) -> dict:
     else:
         style = None
     out["style"] = style
+
+    action = _coerce_null(raw.get("action"))
+    if isinstance(action, str):
+        action = action.strip().lower()
+        action = action if action == "more" else None
+    else:
+        action = None
+    out["action"] = action
 
     return out
 
@@ -361,6 +463,9 @@ def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | 
     normalized = (user_query or "").strip()
     if not normalized:
         return None
+
+    if is_greeting_message(normalized):
+        return "greeting"
 
     if is_unrecognizable_input(normalized):
         return "general"
@@ -406,9 +511,6 @@ def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | 
 
     if _looks_like_product_info_query(normalized, user_profile):
         return "product_info"
-
-    if _looks_like_product_search_query(normalized):
-        return "product_search"
 
     return None
 
@@ -550,7 +652,7 @@ def _looks_like_store_query(text: str) -> bool:
 def _should_offer_clarification(data: dict, user_query: str, user_profile: dict) -> bool:
     if user_profile.get("pending_clarification"):
         return False
-    if is_pure_greeting(user_query):
+    if is_pure_greeting(user_query) or is_greeting_message(user_query):
         return False
     service = user_profile.get("service_selected")
     if service == ServiceList.PRODUCT_SEARCH.value:
@@ -599,7 +701,7 @@ async def classify_query_for_audit(
         "client_id": "kisna",
     }
 
-    if is_pure_greeting(user_query) and is_new_session(profile.get("chat_history", [])):
+    if is_greeting_message(user_query):
         return {"intent": "greeting", "confidence": 1.0, "entities": {}, "source": "shortcut"}
 
     if is_menu_request(user_query):
@@ -670,6 +772,9 @@ class Classifier(Processor):
 
         _maybe_expire_product_search_session(user_profile)
 
+        if is_greeting_message(user_query):
+            return True
+
         if _REROUTE_RE.search(user_query):
             return True
 
@@ -681,12 +786,12 @@ class Classifier(Processor):
             return False
 
         if service == ServiceList.ORDER_TRACKING.value:
-            return _looks_like_product_search_query(user_query)
+            if _REROUTE_RE.search(user_query) or _flow_escape_should_classify(user_query):
+                return True
+            return False
 
         if service == ServiceList.OFFERS.value:
-            if _looks_like_product_search_query(user_query):
-                return True
-            if _flow_escape_should_classify(user_query):
+            if _REROUTE_RE.search(user_query) or _flow_escape_should_classify(user_query):
                 return True
             return False
 
@@ -762,7 +867,7 @@ class Classifier(Processor):
                     return data
 
                 chat_history = data["user_profile"].get("chat_history", [])
-                if is_pure_greeting(user_query) and is_new_session(chat_history):
+                if is_greeting_message(user_query):
                     user_profile["service_selected"] = ""
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "greeting"
@@ -771,7 +876,7 @@ class Classifier(Processor):
                         chat_history=chat_history,
                     )
                     logger.info(
-                        "Greeting on new session — welcome and main menu",
+                        "Greeting shortcut — welcome and main menu",
                         extra={"phone_number": phone_number},
                     )
                     return data

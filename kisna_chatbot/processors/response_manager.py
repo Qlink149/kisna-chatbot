@@ -23,6 +23,9 @@ from kisna_chatbot.whatsapp_functions.media.send_document_message import (
 from kisna_chatbot.whatsapp_functions.media.send_image_message import (
     send_image_message,
 )
+from kisna_chatbot.whatsapp_functions.media.send_image_with_cta import (
+    send_image_with_cta,
+)
 from kisna_chatbot.whatsapp_functions.quick_reply.send_quick_reply import (
     send_quickreply,
 )
@@ -64,6 +67,7 @@ class ResponseManager:
         self.register_handler("quickreply", self._handle_quick_reply)
         self.register_handler("skip", self._handle_skip)
         self.register_handler("cta_url", self._handle_url)
+        self.register_handler("image_with_cta", self._handle_image_with_cta)
 
     def register_handler(self, response_type, handler):
         """Registers a handler for a specific response type.
@@ -148,6 +152,12 @@ class ResponseManager:
         : bot_response: A dictionary containing the response details.
         """
         return send_cta_url(phone_number=phone_number, bot_response=bot_response)
+
+    def _handle_image_with_cta(self, phone_number, bot_response):
+        """Processes product image responses with inline buy button."""
+        return send_image_with_cta(
+            phone_number=phone_number, bot_response=bot_response
+        )
 
     def _handle_list(self, phone_number, bot_response):
         """Processes list responses (e.g., sending lists).

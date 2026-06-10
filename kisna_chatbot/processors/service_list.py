@@ -15,6 +15,24 @@ _MENU_BODY = (
 )
 
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
+_PREF_STEP1_MSGID = "pref$step1$list"
+_PREF_STEP2_MSGID = "pref$step2$list"
+_PREF_STEP3_MSGID = "pref$step3$list"
+
+_SEARCH_CONTEXT_KEYS = (
+    "category",
+    "material_type",
+    "min_price",
+    "max_price",
+    "title",
+    "karat",
+    "metal_colour",
+    "size",
+    "collection",
+    "gender",
+    "occasion",
+    "style",
+)
 
 _FIND_STORE_TEXT = (
     "Share your pincode or city and I'll help you find the nearest Kisna store."
@@ -48,11 +66,16 @@ _GREETING_TOKENS = frozenset(
 )
 
 _FAQ_TEXT = (
-    "*FAQs & Help*\n\n"
-    "• *Returns & refunds* — Share your order ID and we'll guide you through the process.\n"
-    "• *Delivery* — Standard delivery timelines apply; tracking is available once shipped.\n"
-    "• *Care* — Product-specific care tips are on each item page.\n"
-    "• *Contact* — Type *human* anytime to speak with our team.\n\n"
+    "*About KISNA Diamond & Gold* ✨\n"
+    "KISNA is India's trusted certified jewellery brand.\n"
+    "All gold is BIS hallmarked. All diamonds come with\n"
+    "authenticity certificates.\n\n"
+    "*Common Questions*\n"
+    "• Returns — 7-day return policy with original packaging\n"
+    "• Delivery — 5-7 business days standard\n"
+    "• Purity — 9KT, 14KT, 18KT, 22KT, 24KT gold available\n"
+    "• EMI — Available on checkout via major bank cards\n"
+    "• Certification — BIS hallmark + diamond cert included\n\n"
     "What would you like to know more about?"
 )
 
@@ -213,13 +236,13 @@ def _build_main_menu_list() -> dict:
                     },
                     {
                         "type": "text",
-                        "title": "Raise a Complaint",
+                        "title": "Help / Complaint",
                         "description": "Report an issue with your order",
                         "postbackText": "raise_complaint",
                     },
                     {
                         "type": "text",
-                        "title": "FAQs & Help",
+                        "title": "FAQs / About Kisna",
                         "description": "Returns, delivery, care & contact",
                         "postbackText": "faqs_help",
                     },
@@ -267,6 +290,7 @@ def _normalize_menu_key(title: str, postback: str) -> str:
     aliases = {
         "raise complaint": "raise_complaint",
         "raise a complaint": "raise_complaint",
+        "help / complaint": "raise_complaint",
         "locate store": "find_store",
         "locate_store": "find_store",
         "find store near me": "find_store",
@@ -274,8 +298,193 @@ def _normalize_menu_key(title: str, postback: str) -> str:
         "view offers": "view_offers",
         "track my order": "track_order",
         "faqs & help": "faqs_help",
+        "faqs / about kisna": "faqs_help",
     }
     return aliases.get(title_key, title_key)
+
+
+def has_search_context(user_profile: dict) -> bool:
+    """True when prior LLM entities or search filters carry non-null values."""
+    for source_key in ("llm_extracted_entities", "last_search_filters"):
+        source = user_profile.get(source_key) or {}
+        if any(source.get(key) is not None for key in _SEARCH_CONTEXT_KEYS):
+            return True
+    return False
+
+
+def build_pref_step1_material_list() -> dict:
+    """Step 1 — material preference list (fresh Explore Products)."""
+    return {
+        "type": "list",
+        "list": "list",
+        "body": "What material are you looking for? 💎",
+        "footer": "KISNA Diamond & Gold",
+        "msgid": _PREF_STEP1_MSGID,
+        "globalButtons": [{"type": "text", "title": "Choose Material"}],
+        "items": [
+            {
+                "title": "Materials",
+                "subtitle": "",
+                "options": [
+                    {
+                        "type": "text",
+                        "title": "Gold",
+                        "description": "Hallmarked gold jewellery",
+                        "postbackText": "pref$material$gold",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Diamond",
+                        "description": "Certified diamond pieces",
+                        "postbackText": "pref$material$diamond",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Gemstone",
+                        "description": "Ruby, emerald & more",
+                        "postbackText": "pref$material$gemstone",
+                    },
+                ],
+            }
+        ],
+    }
+
+
+def build_pref_step2_type_list() -> dict:
+    """Step 2 — jewellery type preference list."""
+    return {
+        "type": "list",
+        "list": "list",
+        "body": "What type of jewellery? ✨",
+        "footer": "KISNA Diamond & Gold",
+        "msgid": _PREF_STEP2_MSGID,
+        "globalButtons": [{"type": "text", "title": "Choose Type"}],
+        "items": [
+            {
+                "title": "Types",
+                "subtitle": "",
+                "options": [
+                    {
+                        "type": "text",
+                        "title": "Rings",
+                        "description": "Gold & diamond rings",
+                        "postbackText": "pref$type$ring",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Earrings",
+                        "description": "Studs, hoops & jhumkas",
+                        "postbackText": "pref$type$earring",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Necklace",
+                        "description": "Chains & haars",
+                        "postbackText": "pref$type$necklace",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Pendants",
+                        "description": "Lockets & charms",
+                        "postbackText": "pref$type$pendant",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Bracelets",
+                        "description": "Kadas & cuffs",
+                        "postbackText": "pref$type$bracelet",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Bangles",
+                        "description": "Traditional bangles",
+                        "postbackText": "pref$type$bangle",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Mangalsutra",
+                        "description": "Bridal mangalsutra",
+                        "postbackText": "pref$type$mangalsutra",
+                    },
+                ],
+            }
+        ],
+    }
+
+
+def build_pref_step3_budget_list() -> dict:
+    """Step 3 — budget preference list."""
+    return {
+        "type": "list",
+        "list": "list",
+        "body": "What's your budget? 💰",
+        "footer": "KISNA Diamond & Gold",
+        "msgid": _PREF_STEP3_MSGID,
+        "globalButtons": [{"type": "text", "title": "Choose Budget"}],
+        "items": [
+            {
+                "title": "Budget",
+                "subtitle": "",
+                "options": [
+                    {
+                        "type": "text",
+                        "title": "Under ₹10,000",
+                        "description": "Budget-friendly picks",
+                        "postbackText": "pref$budget$0-10000",
+                    },
+                    {
+                        "type": "text",
+                        "title": "₹10k – ₹20k",
+                        "description": "Everyday elegance",
+                        "postbackText": "pref$budget$10000-20000",
+                    },
+                    {
+                        "type": "text",
+                        "title": "₹20k – ₹30k",
+                        "description": "Mid-range favourites",
+                        "postbackText": "pref$budget$20000-30000",
+                    },
+                    {
+                        "type": "text",
+                        "title": "₹30k – ₹40k",
+                        "description": "Premium selection",
+                        "postbackText": "pref$budget$30000-40000",
+                    },
+                    {
+                        "type": "text",
+                        "title": "₹40k – ₹50k",
+                        "description": "Statement pieces",
+                        "postbackText": "pref$budget$40000-50000",
+                    },
+                    {
+                        "type": "text",
+                        "title": "₹50k & above",
+                        "description": "Luxury collection",
+                        "postbackText": "pref$budget$50000-9999999",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Type my range",
+                        "description": "Enter a custom budget",
+                        "postbackText": "pref$budget$custom",
+                    },
+                ],
+            }
+        ],
+    }
+
+
+def build_custom_budget_prompt() -> dict:
+    """Prompt user to type a custom budget after pref step 3."""
+    return {
+        "type": "text",
+        "text": (
+            "Please type your budget, e.g.:\n"
+            "• '25000' (we'll find products around ₹25k)\n"
+            "• '15000-35000' (range)\n"
+            "• '50000 tak' (up to ₹50k)"
+        ),
+    }
 
 
 def build_explore_products_list() -> dict:
@@ -604,6 +813,11 @@ _CLARIFY_MSGIDS = frozenset(
 
 def _build_explore_products_list() -> dict:
     """Category browse list shown when user taps Explore Products."""
+    return build_main_category_list()
+
+
+def build_main_category_list() -> dict:
+    """Main 9-row category list for Explore Products."""
     return {
         "type": "list",
         "list": "list",
@@ -619,50 +833,118 @@ def _build_explore_products_list() -> dict:
                     {
                         "type": "text",
                         "title": "Rings",
-                        "description": "Gold & diamond rings",
-                        "postbackText": "search$cat$ring",
+                        "description": "Gold, diamond & solitaires",
+                        "postbackText": "pref$cat$ring",
                     },
                     {
                         "type": "text",
                         "title": "Earrings",
                         "description": "Studs, hoops & jhumkas",
-                        "postbackText": "search$cat$earring",
+                        "postbackText": "pref$cat$earring",
                     },
                     {
                         "type": "text",
-                        "title": "Necklaces",
-                        "description": "Chains & haars",
-                        "postbackText": "search$cat$necklace",
+                        "title": "Necklaces & Chains",
+                        "description": "Sets, layered chains & more",
+                        "postbackText": "pref$cat$necklace",
                     },
                     {
                         "type": "text",
                         "title": "Pendants",
-                        "description": "Lockets & charms",
-                        "postbackText": "search$cat$pendant",
+                        "description": "Gold & diamond lockets",
+                        "postbackText": "pref$cat$pendant",
                     },
                     {
                         "type": "text",
-                        "title": "Bracelets",
-                        "description": "Kadas & cuffs",
-                        "postbackText": "search$cat$bracelet",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Bangles",
-                        "description": "Traditional bangles",
-                        "postbackText": "search$cat$bangle",
+                        "title": "Bangles & Bracelets",
+                        "description": "Kadas, cuffs & adjustable bands",
+                        "postbackText": "pref$cat$bangle_bracelet",
                     },
                     {
                         "type": "text",
                         "title": "Mangalsutra",
-                        "description": "Bridal mangalsutra",
-                        "postbackText": "search$cat$mangalsutra",
+                        "description": "Traditional & modern styles",
+                        "postbackText": "pref$cat$mangalsutra",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Maang Tikka",
+                        "description": "Bridal & everyday wear",
+                        "postbackText": "pref$cat$maang_tikka",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Other Jewellery",
+                        "description": "Solitaire, Nose Ring, Watch, Chain, Sets...",
+                        "postbackText": "pref$cat$other",
                     },
                     {
                         "type": "text",
                         "title": "Browse All",
-                        "description": "Top picks across categories",
-                        "postbackText": "search$explore",
+                        "description": "See the full KISNA collection",
+                        "postbackText": "pref$cat$any",
+                    },
+                ],
+            }
+        ],
+    }
+
+
+def build_other_jewellery_list() -> dict:
+    """Secondary category list for Other Jewellery."""
+    return {
+        "type": "list",
+        "list": "list",
+        "body": "Choose a specific jewellery type:",
+        "footer": "KISNA Diamond & Gold",
+        "msgid": "pref$cat$other$list",
+        "globalButtons": [{"type": "text", "title": "Select"}],
+        "items": [
+            {
+                "title": "More Categories",
+                "subtitle": "",
+                "options": [
+                    {
+                        "type": "text",
+                        "title": "Solitaire Rings",
+                        "description": "Diamond solitaire collection",
+                        "postbackText": "pref$cat$solitaire",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Nose Wear",
+                        "description": "Nose pins & nose rings",
+                        "postbackText": "pref$cat$nose_wear",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Watch Wear",
+                        "description": "Watches & accessories",
+                        "postbackText": "pref$cat$watch_wear",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Mangalsutra Bracelets",
+                        "description": "Mangalsutra in bracelet style",
+                        "postbackText": "pref$cat$mangalsutra_bracelet",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Pendant Sets",
+                        "description": "Necklace & pendant set combos",
+                        "postbackText": "pref$cat$pendant_set",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Necklace Sets",
+                        "description": "Matching necklace & earring sets",
+                        "postbackText": "pref$cat$necklace_set",
+                    },
+                    {
+                        "type": "text",
+                        "title": "← Back to Categories",
+                        "description": "Go back to main category list",
+                        "postbackText": "pref$cat$back",
                     },
                 ],
             }
@@ -688,7 +970,8 @@ def _build_rating_quickreply() -> dict:
 
 def _is_product_search_postback(postback: str) -> bool:
     """True if list postback should be handled by ProductSearchAgentV3."""
-    return (postback or "").strip().startswith("search$")
+    postback = (postback or "").strip()
+    return postback.startswith("search$") or postback.startswith("pref$")
 
 
 def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback: str = "") -> None:
@@ -701,7 +984,10 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
 
     if key in ("explore_products",):
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-        data["bot_response"] = [_build_explore_products_list()]
+        if has_search_context(user_profile):
+            user_profile["pending_explore_search"] = True
+        else:
+            data["bot_response"] = [_build_explore_products_list()]
         return
 
     if key in ("view_offers",):

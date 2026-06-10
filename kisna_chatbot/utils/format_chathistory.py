@@ -36,6 +36,15 @@ def format_assistant(assistant_message, phone_number):
                 else:
                     body += "\nShowed product images"
 
+            elif message_type == "image_with_cta":
+                caption = assistant.get("caption", "")
+                cta_title = assistant.get("cta_title", "Buy on KISNA")
+                cta_url = assistant.get("cta_url", "")
+                if caption:
+                    body += f"\n{caption}"
+                if cta_url:
+                    body += f"\n[Button: {cta_title} -> {cta_url}]"
+
             elif message_type == "cta_url":
                 text = assistant.get("text", "")
                 display_text = assistant.get("display_text", "Link")

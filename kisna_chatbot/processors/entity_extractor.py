@@ -652,6 +652,14 @@ def merge_search_entities(
         "title": new.get("title"),
         "city": new.get("city"),
         "pincode": new.get("pincode"),
+        "karat": new.get("karat"),
+        "metal_colour": new.get("metal_colour"),
+        "size": new.get("size"),
+        "collection": new.get("collection"),
+        "gender": new.get("gender"),
+        "occasion": new.get("occasion"),
+        "style": new.get("style"),
+        "action": new.get("action"),
     }
 
     if not prior:
@@ -686,6 +694,13 @@ def merge_search_entities(
             "title",
             "unsupported_category",
             "unsupported_material",
+            "karat",
+            "metal_colour",
+            "size",
+            "collection",
+            "gender",
+            "occasion",
+            "style",
         ):
             if merged.get(key) in (None, False) and prior.get(key) not in (None, False):
                 merged[key] = prior.get(key)
@@ -958,7 +973,9 @@ def has_strict_product_filters(entities: dict) -> bool:
         return False
     return bool(
         entities.get("category")
+        or entities.get("categories")
         or entities.get("material_type")
+        or entities.get("title")
         or entities.get("min_price") is not None
         or entities.get("max_price") is not None
     )
@@ -975,12 +992,32 @@ def _product_material_matches(product: dict, material_type: str) -> bool:
     return normalized == clara_material
 
 
+def _product_title_matches_hint(product: dict, hint: str) -> bool:
+    needle = (hint or "").strip().lower()
+    if not needle:
+        return True
+    title = (product.get("title") or "").lower()
+    if needle in title:
+        return True
+    product_type = product.get("productType") or {}
+    if isinstance(product_type, dict):
+        for coll in product_type.get("collections") or []:
+            if isinstance(coll, dict) and needle in str(coll.get("title") or "").lower():
+                return True
+    return False
+
+
 def _product_matches_entities(product: dict, entities: dict) -> bool:
     if not isinstance(product, dict):
         return False
 
+    categories = entities.get("categories")
     category = entities.get("category")
-    if category and not entities.get("unsupported_category"):
+    if categories and not category:
+        product_cat = extract_category_from_product(product)
+        if product_cat not in categories:
+            return False
+    elif category and not entities.get("unsupported_category"):
         if extract_category_from_product(product) != category:
             return False
 
@@ -988,6 +1025,10 @@ def _product_matches_entities(product: dict, entities: dict) -> bool:
     if material and not entities.get("unsupported_material"):
         if not _product_material_matches(product, material):
             return False
+
+    title_hint = entities.get("title")
+    if title_hint and not _product_title_matches_hint(product, str(title_hint)):
+        return False
 
     display_price = resolve_product_prices(product)["display_price"]
     min_price = entities.get("min_price")
@@ -1007,4 +1048,194 @@ def filter_products_by_entities(products: list[dict], entities: dict) -> list[di
     if not has_strict_product_filters(entities):
         return list(products)
     return [p for p in products if _product_matches_entities(p, entities)]
+
+
+_EXTRA_FILTER_KEYS = (
+    "karat",
+    "metal_colour",
+    "size",
+    "collection",
+    "gender",
+    "occasion",
+    "style",
+)
+
+_EXTRA_RELAXATION_ORDER = (
+    "size",
+    "metal_colour",
+    "style",
+    "collection",
+    "occasion",
+)
+
+_GENDER_DISPLAY = {
+    "women": ("women", "for her", "her"),
+    "men": ("men", "for him", "him"),
+    "kids": ("kids", "children", "child"),
+}
+
+_STYLE_DISPLAY = {
+    "fashion": "fashion",
+    "cocktail": "cocktail",
+    "couple_bands": "couple",
+    "minimal": "minimal",
+    "infinity": "infinity",
+    "hearts": "heart",
+    "floral": "floral",
+    "adjustable": "adjustable",
+    "traditional": "traditional",
+    "modern": "modern",
+    "heavy": "heavy",
+}
+
+
+def _has_extra_filters(entities: dict, active_keys: tuple[str, ...] | None = None) -> bool:
+    keys = active_keys or _EXTRA_FILTER_KEYS
+    return any(entities.get(key) is not None for key in keys)
+
+
+def _tag_managers(product: dict) -> list[dict]:
+    product_type = product.get("productType") or {}
+    if not isinstance(product_type, dict):
+        return []
+    tags = product_type.get("tagManagers") or []
+    return [t for t in tags if isinstance(t, dict)]
+
+
+def _collection_titles(product: dict) -> list[str]:
+    product_type = product.get("productType") or {}
+    if not isinstance(product_type, dict):
+        return []
+    titles: list[str] = []
+    for coll in product_type.get("collections") or []:
+        if isinstance(coll, dict) and coll.get("title"):
+            titles.append(str(coll["title"]).lower())
+    return titles
+
+
+def _variant_title(product: dict) -> str:
+    variant = product.get("variant") or {}
+    if isinstance(variant, dict):
+        return str(variant.get("title") or "")
+    return ""
+
+
+def _media_colours(product: dict) -> list[str]:
+    colours: list[str] = []
+    for item in product.get("mediaUrl") or []:
+        if isinstance(item, dict) and item.get("color"):
+            colours.append(str(item["color"]).lower())
+    return colours
+
+
+def _product_matches_extra_filter(
+    product: dict, key: str, value: Any
+) -> bool:
+    if value is None:
+        return True
+
+    variant_title = _variant_title(product)
+    variant_lower = variant_title.lower()
+
+    if key == "karat":
+        karat = str(value).upper().replace(" ", "")
+        return karat in variant_title.upper().replace(" ", "")
+
+    if key == "metal_colour":
+        colour = str(value).lower()
+        if colour in variant_lower:
+            return True
+        return any(colour in c for c in _media_colours(product))
+
+    if key == "size":
+        size_str = str(value)
+        tokens = variant_title.split()
+        if tokens and tokens[-1] == size_str:
+            return True
+        return re.search(rf"\b{re.escape(size_str)}\b", variant_title) is not None
+
+    if key == "collection":
+        needle = str(value).lower()
+        if any(needle in title for title in _collection_titles(product)):
+            return True
+        product_title = str(product.get("title") or "").lower()
+        return needle in product_title
+
+    if key == "gender":
+        labels = _GENDER_DISPLAY.get(str(value).lower(), (str(value).lower(),))
+        for tag in _tag_managers(product):
+            if str(tag.get("slug") or "").lower() != "gender":
+                continue
+            name = str(tag.get("name") or "").lower()
+            if any(label in name for label in labels):
+                return True
+        return False
+
+    if key == "occasion":
+        needle = str(value).lower().replace("_", " ")
+        for tag in _tag_managers(product):
+            if str(tag.get("slug") or "").lower() != "occasion":
+                continue
+            name = str(tag.get("name") or "").lower()
+            if needle in name or name in needle:
+                return True
+        return False
+
+    if key == "style":
+        needle = _STYLE_DISPLAY.get(str(value).lower(), str(value).lower())
+        for tag in _tag_managers(product):
+            name = str(tag.get("name") or "").lower()
+            if needle in name or name in needle:
+                return True
+        return False
+
+    return True
+
+
+def _filter_products_by_active_extras(
+    products: list[dict], entities: dict, active_keys: tuple[str, ...]
+) -> list[dict]:
+    if not products or not active_keys:
+        return list(products)
+    filtered: list[dict] = []
+    for product in products:
+        if all(
+            _product_matches_extra_filter(product, key, entities.get(key))
+            for key in active_keys
+            if entities.get(key) is not None
+        ):
+            filtered.append(product)
+    return filtered
+
+
+def filter_products_by_extracted_extras(
+    products: list[dict], entities: dict
+) -> tuple[list[dict], str | None]:
+    """
+    Client-side filter for fields Clara API does not accept.
+    Progressively relaxes extras when zero results.
+    """
+    if not products or not _has_extra_filters(entities):
+        return list(products), None
+
+    active = [key for key in _EXTRA_FILTER_KEYS if entities.get(key) is not None]
+    filtered = _filter_products_by_active_extras(products, entities, tuple(active))
+    if filtered:
+        return filtered, None
+
+    original = list(products)
+    for drop_key in _EXTRA_RELAXATION_ORDER:
+        if drop_key not in active:
+            continue
+        active = [key for key in active if key != drop_key]
+        if not active:
+            break
+        filtered = _filter_products_by_active_extras(original, entities, tuple(active))
+        if filtered:
+            return (
+                filtered,
+                "Couldn't find exact match, here are similar pieces:",
+            )
+
+    return original, "Couldn't find exact match, here are similar pieces:"
 

@@ -87,6 +87,14 @@ class TestMenuGreeting(unittest.TestCase):
             _normalize_menu_key("Raise a Complaint", ""),
             "raise_complaint",
         )
+        self.assertEqual(
+            _normalize_menu_key("Help / Complaint", ""),
+            "raise_complaint",
+        )
+        self.assertEqual(
+            _normalize_menu_key("FAQs / About Kisna", ""),
+            "faqs_help",
+        )
 
     def test_handle_raise_complaint_legacy_title(self):
         user_profile = {}
