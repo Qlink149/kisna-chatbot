@@ -15,12 +15,9 @@ from kisna_chatbot.utils.price_calculator import resolve_product_prices
 
 _PRODUCT_LIST_MSGID = "product_select$results"
 BROWSE_PRODUCTS_GLOBAL_TITLE = "Browse Products"
-_KARAT_RE = re.compile(
-    r"(\d{1,2})\s*(?:kt|karat|carat|k\b)",
-    re.I,
-)
-_SIZE_RE = re.compile(r"\b(?:size\s*)?(\d{1,2}(?:\.\d)?)\b")
-_COLOR_WORDS = ("yellow", "white", "rose", "pink", "silver")
+_VARIANT_KARAT_RE = re.compile(r"\b(9|14|18|22|24)KT\b", re.I)
+_VARIANT_COLOUR_RE = re.compile(r"\b(Yellow|White|Rose)\b", re.I)
+_VARIANT_SIZE_RE = re.compile(r"\b([7-9]|1[0-9]|2[0-2])\b")
 
 
 def _truncate(text: str, max_len: int, ellipsis: str = "…") -> str:
@@ -41,26 +38,52 @@ def _int_price(val: Any) -> int | None:
         return None
 
 
+def parse_variant_details(product: dict) -> dict[str, Any]:
+    """
+    Parse metal colour, karat, and size from variant.title.
+    Format: "{Material} {KT} {Colour} {Size} {Quality}"
+    """
+    cached = product.get("_parsed")
+    if isinstance(cached, dict):
+        return cached
+
+    variant_title = (product.get("variant") or {}).get("title") or ""
+    result: dict[str, Any] = {"karat": None, "metal_colour": None, "size": None}
+
+    karat_match = _VARIANT_KARAT_RE.search(variant_title)
+    if karat_match:
+        result["karat"] = karat_match.group(0).upper()
+
+    colour_match = _VARIANT_COLOUR_RE.search(variant_title)
+    if colour_match:
+        result["metal_colour"] = colour_match.group(0).lower()
+    else:
+        for media in product.get("mediaUrl") or []:
+            if not isinstance(media, dict):
+                continue
+            colour = (media.get("color") or "").strip().lower()
+            if colour in ("yellow", "white", "rose"):
+                result["metal_colour"] = colour
+                break
+
+    size_matches = _VARIANT_SIZE_RE.findall(variant_title)
+    if size_matches:
+        result["size"] = int(size_matches[-1])
+
+    product["_parsed"] = result
+    return result
+
+
 def _parse_variant_attributes(variant_title: str) -> dict[str, str]:
     """Parse karat, metal color, and ring size from Clara variant.title."""
+    parsed = parse_variant_details({"variant": {"title": variant_title}})
     attrs: dict[str, str] = {}
-    if not variant_title:
-        return attrs
-
-    m = _KARAT_RE.search(variant_title)
-    if m:
-        attrs["karat"] = f"{m.group(1)}KT"
-
-    lower = variant_title.lower()
-    for color in _COLOR_WORDS:
-        if color in lower:
-            attrs["color"] = color.title()
-            break
-
-    size_m = _SIZE_RE.search(variant_title)
-    if size_m:
-        attrs["size"] = size_m.group(1)
-
+    if parsed.get("karat"):
+        attrs["karat"] = str(parsed["karat"])
+    if parsed.get("metal_colour"):
+        attrs["color"] = str(parsed["metal_colour"]).title()
+    if parsed.get("size") is not None:
+        attrs["size"] = str(parsed["size"])
     return attrs
 
 
@@ -72,19 +95,19 @@ def _variant_attributes_line(product: dict) -> str:
     """Material + karat/color/size for captions and list rows."""
     variant = product.get("variant") or {}
     variant_title = variant.get("title") or ""
-    attrs = _parse_variant_attributes(variant_title)
+    parsed = parse_variant_details(product)
     material = _material_label(product)
 
     parts = [material]
-    if attrs.get("karat"):
-        parts.append(attrs["karat"])
-    if attrs.get("color"):
-        parts.append(attrs["color"])
-    if attrs.get("size"):
-        parts.append(f"Size {attrs['size']}")
+    if parsed.get("karat"):
+        parts.append(str(parsed["karat"]))
+    if parsed.get("metal_colour"):
+        parts.append(str(parsed["metal_colour"]).title())
+    if parsed.get("size") is not None:
+        parts.append(f"Size {parsed['size']}")
 
     if len(parts) == 1 and variant_title:
-        karat = _extract_karat(variant_title)
+        karat = parsed.get("karat") or ""
         return f"{material} · {karat}" if karat else material
     return " · ".join(parts)
 

@@ -2,11 +2,47 @@
 Rule-based entity extraction from Hindi/English/Hinglish product search queries.
 """
 
+import json
 import re
 from typing import Any
 
+from kisna_chatbot.integrations.clara_api import (
+    CLIENT_SIDE_FILTER_PAGE_SIZE,
+    DEFAULT_API_PAGE_SIZE,
+)
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.price_calculator import resolve_product_prices
+
+_CLIENT_FILTER_KEYS = (
+    "metal_colour",
+    "karat",
+    "size",
+    "collection",
+    "gender",
+    "occasion",
+    "style",
+)
+
+_MIN_EXTRA_FILTER_RESULTS = 3
+
+_EXTRA_RELAXATION_ORDER = (
+    "size",
+    "karat",
+    "metal_colour",
+    "collection",
+    "occasion",
+    "gender",
+    "style",
+)
+
+_OCCASION_TAG_TERMS: dict[str, tuple[str, ...]] = {
+    "wedding": ("wedding", "shaadi", "bridal"),
+    "anniversary": ("anniversary",),
+    "birthday": ("birthday",),
+    "daily_wear": ("daily wear", "casual", "everyday"),
+    "engagement": ("engagement",),
+    "gift": ("gift", "uphaar"),
+}
 
 _CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "ring": [
@@ -173,6 +209,7 @@ _TITLE_STOP_WORDS = frozenset(
         "recommend",
         "search",
         "fetch",
+        "share",
         "under",
         "above",
         "between",
@@ -203,6 +240,8 @@ _COMMAND_PREFIXES: tuple[str, ...] = (
     "find me",
     "get me",
     "suggest me",
+    "looking for",
+    "searching for",
 )
 
 _HINDI_NUMBER_PHRASES: list[tuple[str, str]] = [
@@ -905,7 +944,21 @@ def extract_entities(text: str) -> dict[str, Any]:
         if single:
             categories = [single]
 
-    material_type, unsupported_material = _extract_material_type(normalized)
+    metal_colour = None
+    if "rose gold" in normalized or "rosegold" in normalized:
+        material_type = "rose_gold"
+        metal_colour = "rose"
+        unsupported_material = False
+    elif "white gold" in normalized:
+        material_type = "white_gold"
+        metal_colour = "white"
+        unsupported_material = False
+    elif "yellow gold" in normalized:
+        material_type = "gold"
+        metal_colour = "yellow"
+        unsupported_material = False
+    else:
+        material_type, unsupported_material = _extract_material_type(normalized)
     min_price, max_price = _extract_prices(normalized)
     category = categories[0] if categories else None
     unsupported_category = category in _CLARA_UNSUPPORTED_CATEGORIES if category else False
@@ -918,6 +971,7 @@ def extract_entities(text: str) -> dict[str, Any]:
         "multi_category": len(categories) >= 2,
         "secondary_category": categories[1] if len(categories) >= 2 else None,
         "material_type": material_type,
+        "metal_colour": metal_colour,
         "unsupported_category": unsupported_category,
         "unsupported_material": unsupported_material,
         "min_price": min_price,
@@ -926,6 +980,78 @@ def extract_entities(text: str) -> dict[str, Any]:
         "city": _extract_city(normalized),
         "pincode": _extract_pincode(text),
     }
+
+
+def _parse_entity_json(raw: str) -> dict:
+    """Parse flat entity JSON from LLM response."""
+    text = (raw or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
+        text = re.sub(r"\s*```$", "", text)
+    parsed = json.loads(text)
+    return parsed if isinstance(parsed, dict) else {}
+
+
+async def _call_llm_for_entities(
+    *,
+    system_prompt: str,
+    user_message: str,
+    max_tokens: int = 300,
+    client_id: str = "kisna",
+    phone_number: str | None = None,
+) -> str:
+    from kisna_chatbot.ai import complete_chat
+    from kisna_chatbot.ai.types import AgentName
+
+    return await complete_chat(
+        agent=AgentName.CLASSIFIER,
+        agent_display_name="Entity Extractor",
+        instruction=system_prompt,
+        messages=[{"role": "user", "content": user_message}],
+        max_output_tokens=max_tokens,
+        client_id=client_id,
+        phone_number=phone_number,
+    )
+
+
+async def extract_entities_with_llm(
+    user_query: str,
+    client_id: str = "kisna",
+    phone_number: str | None = None,
+) -> dict:
+    """
+    Fast LLM entity extraction for product search follow-ups.
+    Uses entity-only prompt (no intent classification).
+    Returns {} on any failure so regex fallback is used.
+    """
+    if not user_query or not user_query.strip():
+        return {}
+
+    from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+    from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+    try:
+        raw = await _call_llm_for_entities(
+            system_prompt=kisna_entity_extractor,
+            user_message=user_query.strip(),
+            max_tokens=300,
+            client_id=client_id,
+            phone_number=phone_number,
+        )
+        parsed = _parse_entity_json(raw)
+        sanitized = _sanitize_llm_entities(parsed)
+        logger.debug(
+            "entity_extractor: LLM extraction complete",
+            extra={"query": user_query, "entities": sanitized},
+        )
+        return sanitized or {}
+    except Exception:
+        logger.warning(
+            "entity_extractor: LLM extraction failed, regex only",
+            extra={"query": user_query},
+            exc_info=True,
+        )
+        return {}
 
 
 def merge_llm_and_regex_entities(
@@ -996,10 +1122,10 @@ def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
 
     min_p = normalized.get("min_price")
     if min_p is not None and float(min_p) > 0:
-        params["min_price"] = min_p
+        params["min_price"] = int(float(min_p))
     max_p = normalized.get("max_price")
     if max_p is not None:
-        params["max_price"] = max_p
+        params["max_price"] = int(float(max_p))
     collection = normalized.get("collection")
     title = normalized.get("title")
     if collection:
@@ -1133,23 +1259,7 @@ def filter_products_by_entities(products: list[dict], entities: dict) -> list[di
     return [p for p in products if _product_matches_entities(p, entities)]
 
 
-_EXTRA_FILTER_KEYS = (
-    "karat",
-    "metal_colour",
-    "size",
-    "collection",
-    "gender",
-    "occasion",
-    "style",
-)
-
-_EXTRA_RELAXATION_ORDER = (
-    "size",
-    "metal_colour",
-    "style",
-    "collection",
-    "occasion",
-)
+_EXTRA_FILTER_KEYS = _CLIENT_FILTER_KEYS
 
 _GENDER_DISPLAY = {
     "women": ("women", "for her", "her"),
@@ -1172,9 +1282,44 @@ _STYLE_DISPLAY = {
 }
 
 
+def has_client_side_filters(entities: dict) -> bool:
+    """True when entities need client-side filtering beyond Clara API params."""
+    if any(entities.get(k) is not None for k in _CLIENT_FILTER_KEYS):
+        return True
+    return entities.get("material_type") in ("rose_gold", "white_gold")
+
+
+def resolve_api_page_size(entities: dict) -> int:
+    """Larger fetch when client-side filters will narrow the result pool."""
+    if has_client_side_filters(entities):
+        return CLIENT_SIDE_FILTER_PAGE_SIZE
+    return DEFAULT_API_PAGE_SIZE
+
+
+def enrich_entities_for_client_filter(entities: dict[str, Any]) -> dict[str, Any]:
+    """Derive client-filter fields from material hints (not sent to Clara API)."""
+    out = dict(entities or {})
+    material = out.get("material_type")
+    if material == "rose_gold":
+        out["material_type"] = "gold"
+        if not out.get("metal_colour"):
+            out["metal_colour"] = "rose"
+    elif material == "white_gold":
+        out["material_type"] = "gold"
+        if not out.get("metal_colour"):
+            out["metal_colour"] = "white"
+    return out
+
+
 def _has_extra_filters(entities: dict, active_keys: tuple[str, ...] | None = None) -> bool:
     keys = active_keys or _EXTRA_FILTER_KEYS
     return any(entities.get(key) is not None for key in keys)
+
+
+def _get_parsed_variant(product: dict) -> dict[str, Any]:
+    from kisna_chatbot.utils.product_formatter import parse_variant_details
+
+    return parse_variant_details(product)
 
 
 def _tag_managers(product: dict) -> list[dict]:
@@ -1217,60 +1362,69 @@ def _product_matches_extra_filter(
     if value is None:
         return True
 
-    variant_title = _variant_title(product)
-    variant_lower = variant_title.lower()
+    parsed = _get_parsed_variant(product)
 
     if key == "karat":
-        karat = str(value).upper().replace(" ", "")
-        return karat in variant_title.upper().replace(" ", "")
+        wanted = str(value).upper().replace(" ", "")
+        actual = (parsed.get("karat") or "").upper()
+        if actual and actual != wanted:
+            return False
+        return True
 
     if key == "metal_colour":
-        colour = str(value).lower()
-        if colour in variant_lower:
-            return True
-        return any(colour in c for c in _media_colours(product))
+        wanted = str(value).lower()
+        actual = (parsed.get("metal_colour") or "").lower()
+        if actual and actual != wanted:
+            return False
+        return True
 
     if key == "size":
-        size_str = str(value)
-        tokens = variant_title.split()
-        if tokens and tokens[-1] == size_str:
-            return True
-        return re.search(rf"\b{re.escape(size_str)}\b", variant_title) is not None
+        wanted = int(value)
+        actual = parsed.get("size")
+        if actual is not None and actual != wanted:
+            return False
+        return True
 
     if key == "collection":
         needle = str(value).lower()
-        if any(needle in title for title in _collection_titles(product)):
+        cols = _collection_titles(product)
+        if any(needle in c for c in cols):
             return True
         product_title = str(product.get("title") or "").lower()
         return needle in product_title
 
     if key == "gender":
-        labels = _GENDER_DISPLAY.get(str(value).lower(), (str(value).lower(),))
-        for tag in _tag_managers(product):
-            if str(tag.get("slug") or "").lower() != "gender":
-                continue
-            name = str(tag.get("name") or "").lower()
-            if any(label in name for label in labels):
-                return True
-        return False
+        wanted = str(value).lower()
+        labels = _GENDER_DISPLAY.get(wanted, (wanted,))
+        tags = [
+            (t.get("name") or "").lower()
+            for t in _tag_managers(product)
+            if str(t.get("slug") or "").lower() == "gender"
+        ]
+        if tags and not any(
+            wanted in t or any(label in t for label in labels) for t in tags
+        ):
+            return False
+        return True
 
     if key == "occasion":
-        needle = str(value).lower().replace("_", " ")
-        for tag in _tag_managers(product):
-            if str(tag.get("slug") or "").lower() != "occasion":
-                continue
-            name = str(tag.get("name") or "").lower()
-            if needle in name or name in needle:
-                return True
-        return False
+        occasion_key = str(value).lower()
+        wanted_terms = _OCCASION_TAG_TERMS.get(
+            occasion_key, (occasion_key.replace("_", " "),)
+        )
+        tags = [(t.get("name") or "").lower() for t in _tag_managers(product)]
+        if tags and not any(
+            term in tag for term in wanted_terms for tag in tags
+        ):
+            return False
+        return True
 
     if key == "style":
         needle = _STYLE_DISPLAY.get(str(value).lower(), str(value).lower())
-        for tag in _tag_managers(product):
-            name = str(tag.get("name") or "").lower()
-            if needle in name or name in needle:
-                return True
-        return False
+        tags = [(t.get("name") or "").lower() for t in _tag_managers(product)]
+        if tags and not any(needle in tag or tag in needle for tag in tags):
+            return False
+        return True
 
     return True
 
@@ -1296,17 +1450,23 @@ def filter_products_by_extracted_extras(
 ) -> tuple[list[dict], str | None]:
     """
     Client-side filter for fields Clara API does not accept.
-    Progressively relaxes extras when zero results.
+    Progressively relaxes extras when fewer than 3 results match.
     """
-    if not products or not _has_extra_filters(entities):
+    if not products:
+        return [], None
+
+    entities = enrich_entities_for_client_filter(entities)
+    if not _has_extra_filters(entities):
         return list(products), None
 
+    original = list(products)
     active = [key for key in _EXTRA_FILTER_KEYS if entities.get(key) is not None]
-    filtered = _filter_products_by_active_extras(products, entities, tuple(active))
-    if filtered:
+    relax_note = "Couldn't find exact match, but here are the closest options:"
+
+    filtered = _filter_products_by_active_extras(original, entities, tuple(active))
+    if len(filtered) >= _MIN_EXTRA_FILTER_RESULTS:
         return filtered, None
 
-    original = list(products)
     for drop_key in _EXTRA_RELAXATION_ORDER:
         if drop_key not in active:
             continue
@@ -1314,11 +1474,8 @@ def filter_products_by_extracted_extras(
         if not active:
             break
         filtered = _filter_products_by_active_extras(original, entities, tuple(active))
-        if filtered:
-            return (
-                filtered,
-                "Couldn't find exact match, here are similar pieces:",
-            )
+        if len(filtered) >= _MIN_EXTRA_FILTER_RESULTS:
+            return filtered, relax_note
 
-    return original, "Couldn't find exact match, here are similar pieces:"
+    return original, relax_note
 

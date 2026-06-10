@@ -62,8 +62,9 @@ MATRIX = [
     ("chandi ka chain", {"category": "necklace", "material_type": "silver", "unsupported_material": True}),
     ("22 karat gold ring", {"category": "ring", "material_type": "gold"}),
     ("18KT necklace", {"category": "necklace", "material_type": "gold"}),
-    ("white gold ring", {"category": "ring", "material_type": "white_gold"}),
-    ("rose gold earrings", {"category": "earring", "material_type": "rose_gold"}),
+    ("white gold ring", {"category": "ring", "material_type": "white_gold", "metal_colour": "white"}),
+    ("rose gold earrings", {"category": "earring", "material_type": "rose_gold", "metal_colour": "rose"}),
+    ("rose gold rings", {"category": "ring", "material_type": "rose_gold", "metal_colour": "rose"}),
     # Price — English
     ("earrings under 30k", {"category": "earring", "max_price": 30000}),
     ("rings below 10000", {"category": "ring", "max_price": 10000}),
@@ -125,6 +126,16 @@ MATRIX = [
     ("engagement ring", {"category": "ring"}),
     ("cocktail ring", {"category": "ring"}),
     ("solitaire ring", {"category": "ring", "material_type": "diamond"}),
+    (
+        "Send me diamond rings between 20000-50000",
+        {
+            "category": "ring",
+            "material_type": "diamond",
+            "min_price": 20000,
+            "max_price": 50000,
+            "title": None,
+        },
+    ),
 ]
 
 

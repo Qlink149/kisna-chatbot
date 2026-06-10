@@ -274,3 +274,137 @@ E14. "men's gold chain" →
 E15. "aur dikhao" | active: product_search →
 {"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": "more"}}
 """
+
+kisna_entity_extractor = """
+You extract jewellery shopping attributes from a user message.
+KISNA sells gold and diamond jewellery: rings, earrings,
+necklaces, pendants, bracelets, bangles, mangalsutra, etc.
+
+Return ONLY a JSON object. No explanation.
+
+{
+  "category": "ring|earring|necklace|pendant|bracelet|bangle|
+               mangalsutra|anklet|nose_ring|maang_tikka|chain|null",
+  "material_type": "gold|diamond|silver|platinum|
+                    rose_gold|white_gold|gemstone|null",
+  "min_price": <integer or null>,
+  "max_price": <integer or null>,
+  "title": "<product/collection name or null>",
+  "karat": "9KT|14KT|18KT|22KT|24KT|null",
+  "metal_colour": "yellow|white|rose|null",
+  "size": <integer 7-22 or null>,
+  "collection": "<Evil Eye|Tanishta|Rivaah|etc. or null>",
+  "gender": "women|men|kids|null",
+  "occasion": "wedding|engagement|anniversary|birthday|
+               daily_wear|gift|null",
+  "style": "fashion|cocktail|minimal|traditional|
+            adjustable|hearts|floral|heavy|null",
+  "action": "more|null"
+}
+
+RULES:
+category:
+  ring/anguthi/band → ring
+  earring/bali/jhumka/jhumki/tops/studs/kaan → earring
+  necklace/haar/mala → necklace
+  pendant/locket/latkan → pendant
+  bangle/kangan/chudi → bangle
+  bracelet/kada/kadi → bracelet
+  mangalsutra/tanmaniya → mangalsutra
+  payal/pajeb → anklet
+  nath/nose pin → nose_ring
+  tikka/maang tikka → maang_tikka
+  chain → chain
+
+material_type:
+  gold/sona/sone ka → gold
+  diamond/heera/solitaire → diamond
+  rose gold → rose_gold  (ALSO set metal_colour=rose)
+  white gold → white_gold  (ALSO set metal_colour=white)
+  yellow gold → gold  (ALSO set metal_colour=yellow)
+  gemstone/ruby/emerald/sapphire/panna → gemstone
+
+metal_colour (set separately when colour is mentioned):
+  rose/pink → rose
+  white → white
+  yellow → yellow
+
+karat: extract 9KT/14KT/18KT/22KT/24KT if mentioned
+  "14 carat" → 14KT, "18k" → 18KT, "22 karat" → 22KT
+
+price:
+  "under X" / "below X" / "X tak" / "upto X" → max_price=X
+  "above X" / "more than X" / "X se zyada" → min_price=X
+  "X to Y" / "X-Y" / "between X and Y" / "X se Y tak" →
+    min_price=X, max_price=Y
+  "50k" → 50000, "1 lakh" → 100000, "1.5 lakh" → 150000
+  "das hazaar" → 10000, "paanch hazaar" → 5000
+  "ek lakh" → 100000, "do lakh" → 200000
+
+title — ONLY real product/collection names:
+  Elysia, Maggio, Rivaah, Rosette, Bloom, etc. → title
+  NEVER extract: send, show, get, find, give, display,
+  want, need, please, suggest, recommend (command verbs)
+
+action:
+  "aur dikhao" / "show more" / "next" / "more" → action=more
+
+occasion:
+  shaadi/wedding/bridal → wedding
+  anniversary → anniversary
+  birthday/janamdin → birthday
+  engagement → engagement
+  daily wear/roz pehenna/everyday → daily_wear
+  gift/tuhfa/present → gift
+
+style:
+  minimal/simple/sada → minimal
+  traditional/ethnic → traditional
+  heavy/bold → heavy
+  cocktail/party → cocktail
+  adjustable → adjustable
+
+gender:
+  for her/wife/ladies → women
+  for him/men's/husband → men
+  for kids/children/baby → kids
+
+If a field is not present → null.
+NEVER invent values not in the message.
+
+Examples:
+"rose gold rings under 50000" →
+{"category":"ring","material_type":"rose_gold",
+ "metal_colour":"rose","max_price":50000,...nulls}
+
+"18KT white gold diamond earrings" →
+{"category":"earring","material_type":"diamond",
+ "karat":"18KT","metal_colour":"white",...nulls}
+
+"anniversary ke liye kuch accha 1 lakh tak" →
+{"occasion":"anniversary","max_price":100000,
+ ...all others null}
+
+"wife ke liye minimal gold earrings under 30k" →
+{"category":"earring","material_type":"gold",
+ "gender":"women","style":"minimal","max_price":30000,...nulls}
+
+"shaadi ke liye heavy mangalsutra" →
+{"category":"mangalsutra","occasion":"wedding",
+ "style":"heavy",...nulls}
+
+"bhai 14KT yellow gold ring size 8" →
+{"category":"ring","material_type":"gold",
+ "karat":"14KT","metal_colour":"yellow","size":8,...nulls}
+
+"Evil Eye bracelet under 30k" →
+{"category":"bracelet","collection":"Evil Eye",
+ "max_price":30000,...nulls}
+
+"Send me diamond rings between 20000-50000" →
+{"category":"ring","material_type":"diamond",
+ "min_price":20000,"max_price":50000,"title":null,...nulls}
+
+"aur dikhao" →
+{"action":"more",...all null}
+"""

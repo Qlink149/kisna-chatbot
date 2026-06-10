@@ -11,6 +11,8 @@ from kisna_chatbot.utils.http_log import log_http_request, log_http_response
 from kisna_chatbot.utils.logger_config import logger
 
 _TIMEOUT = 15.0
+DEFAULT_API_PAGE_SIZE = 15
+CLIENT_SIDE_FILTER_PAGE_SIZE = 50
 _USER_TIMEOUT = (
     "We're having trouble reaching our catalogue right now. Please try again in a moment."
 )
@@ -158,9 +160,9 @@ async def search_products(
     if material_type is not None:
         params["materialType"] = material_type
     if min_price is not None:
-        params["minPrice"] = min_price
+        params["minPrice"] = int(min_price)
     if max_price is not None:
-        params["maxPrice"] = max_price
+        params["maxPrice"] = int(max_price)
     if title is not None:
         params["title"] = title
 

@@ -26,6 +26,7 @@ from kisna_chatbot.processors.classifier import (
 )
 from kisna_chatbot.processors.entity_extractor import (
     apply_occasion_style_hints,
+    extract_entities_with_llm,
     merge_llm_and_regex_entities,
 )
 
@@ -173,6 +174,66 @@ class ClassifierEntityStorageTests(unittest.TestCase):
             stored = result["llm_extracted_entities"]
             self.assertIsNone(stored.get("category"))
             self.assertIsNone(stored.get("occasion"))
+
+        asyncio.run(_run())
+
+
+class ExtractEntitiesWithLlmTests(unittest.TestCase):
+    def test_anniversary_gift_earrings(self):
+        async def _run():
+            llm_response = json.dumps(
+                {
+                    "category": "earring",
+                    "material_type": None,
+                    "occasion": "anniversary",
+                    "min_price": None,
+                    "max_price": None,
+                    "title": None,
+                }
+            )
+            with patch(
+                "kisna_chatbot.ai.factory.complete_chat",
+                new_callable=AsyncMock,
+                return_value=llm_response,
+            ):
+                result = await extract_entities_with_llm("anniversary gift earrings")
+            self.assertEqual(result.get("occasion"), "anniversary")
+            self.assertEqual(result.get("category"), "earring")
+
+        asyncio.run(_run())
+
+    def test_white_gold_dikhao(self):
+        async def _run():
+            llm_response = json.dumps(
+                {
+                    "category": None,
+                    "material_type": "white_gold",
+                    "metal_colour": "white",
+                    "min_price": None,
+                    "max_price": None,
+                    "title": None,
+                }
+            )
+            with patch(
+                "kisna_chatbot.ai.factory.complete_chat",
+                new_callable=AsyncMock,
+                return_value=llm_response,
+            ):
+                result = await extract_entities_with_llm("ab white gold dikhao")
+            self.assertEqual(result.get("metal_colour"), "white")
+            self.assertEqual(result.get("material_type"), "gold")
+
+        asyncio.run(_run())
+
+    def test_failure_returns_empty_dict(self):
+        async def _run():
+            with patch(
+                "kisna_chatbot.ai.factory.complete_chat",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("LLM unavailable"),
+            ):
+                result = await extract_entities_with_llm("some query")
+            self.assertEqual(result, {})
 
         asyncio.run(_run())
 

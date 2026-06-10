@@ -21,8 +21,10 @@ from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import (
     apply_occasion_style_hints,
     build_search_context,
+    enrich_entities_for_client_filter,
     entities_to_api_params,
     extract_entities,
+    extract_entities_with_llm,
     filter_products_by_entities,
     filter_products_by_extracted_extras,
     has_strict_product_filters,
@@ -31,6 +33,7 @@ from kisna_chatbot.processors.entity_extractor import (
     merge_search_entities,
     normalize_category_for_api,
     normalize_material_for_api,
+    resolve_api_page_size,
     sanitize_invalid_title,
 )
 from kisna_chatbot.utils.jewellery_profile import (
@@ -54,7 +57,6 @@ from kisna_chatbot.utils.product_formatter import (
 _MAX_IMAGE_PRODUCTS = 3
 PAGE_SIZE = 3
 _CAROUSEL_SCAN_LIMIT = 15
-_API_FETCH_PAGE_SIZE = 15
 _BUDGET_SCAN_MAX_PAGES = 5
 _SHOW_MORE_PAGE_RETRIES = 2
 
@@ -180,11 +182,55 @@ def _parse_pref_cat_button_postback(messages: dict) -> str | None:
     return _PREF_CAT_REFINE_TITLES.get(title)
 
 
-def _build_search_intro_text(entities: dict) -> str:
+def _category_label_plural(category: str | None) -> str:
+    if not category:
+        return "pieces"
+    label = category if category.endswith("s") else f"{category}s"
+    if label == "mangalsutras":
+        return "mangalsutra"
+    return label.replace("_", " ")
+
+
+def _material_display_label(material: str | None) -> str:
+    if not material:
+        return ""
+    if material in ("rose_gold", "white_gold"):
+        return "gold"
+    return material.replace("_", " ")
+
+
+def build_search_intro(entities: dict, *, relaxed: bool = False) -> str:
+    """Intro text reflecting active search filters."""
+    entities = enrich_entities_for_client_filter(entities)
+    prefix = ""
+    if relaxed:
+        prefix = "Couldn't find exact match, but here are the closest options:\n\n"
+
+    metal_colour = entities.get("metal_colour")
+    karat = entities.get("karat")
+    occasion = entities.get("occasion")
+    material = _material_display_label(entities.get("material_type"))
+    category = _category_label_plural(entities.get("category"))
+
+    if metal_colour:
+        colour = str(metal_colour).lower()
+        body = f"Here are {colour} {material} {category} for you ✨".strip()
+        body = " ".join(body.split())
+        return prefix + body
+
+    if karat:
+        body = f"Here are {karat} {material} {category} for you ✨".strip()
+        body = " ".join(body.split())
+        return prefix + body
+
+    if occasion:
+        occ_label = str(occasion).replace("_", " ")
+        return prefix + f"Here are some beautiful options for your {occ_label} 💎"
+
     context = build_search_context(entities)
     if context == "KISNA Jewellery":
-        return "Here are top picks from our KISNA collection 💍"
-    return f"Here are top picks from our {context} collection 💍"
+        return prefix + "Here are top picks from our KISNA collection 💍"
+    return prefix + f"Here are top picks from our {context} collection 💍"
 
 
 def _entities_all_none(entities: dict) -> bool:
@@ -457,8 +503,10 @@ async def _fetch_budget_filtered_products(
     strategy_entities: dict,
     *,
     max_pages: int = _BUDGET_SCAN_MAX_PAGES,
+    page_size: int | None = None,
 ) -> tuple[list[dict], int, int]:
     """Scan multiple API pages with price filters before budget fallback."""
+    fetch_size = page_size or resolve_api_page_size(strategy_entities)
     collected: list[dict] = []
     seen_ids: set[str] = set()
     api_total = 0
@@ -466,7 +514,7 @@ async def _fetch_budget_filtered_products(
 
     for page_no in range(1, max_pages + 1):
         result = await search_products(
-            **api_params, page_no=page_no, page_size=_API_FETCH_PAGE_SIZE
+            **api_params, page_no=page_no, page_size=fetch_size
         )
         raw_products = result.get("products") or []
         api_total = max(api_total, int(result.get("total_count") or 0))
@@ -482,7 +530,7 @@ async def _fetch_budget_filtered_products(
 
         if collected:
             break
-        if not _has_more_pages(page_no, api_total, _API_FETCH_PAGE_SIZE):
+        if not _has_more_pages(page_no, api_total, fetch_size):
             break
 
     return collected, api_total, last_page
@@ -698,12 +746,18 @@ def _build_search_success_response(
     show_more_intro: bool = True,
     page_size: int = PAGE_SIZE,
     carousel_pool: list[dict] | None = None,
+    intro_relaxed: bool = False,
 ) -> list[dict]:
     bot_response: list[dict] = []
+    intro_text: str | None = None
+    if show_more_intro:
+        intro_text = build_search_intro(entities, relaxed=intro_relaxed)
     if prefix_note:
-        bot_response.append({"type": "text", "text": prefix_note})
-    elif show_more_intro:
-        bot_response.append({"type": "text", "text": _build_search_intro_text(entities)})
+        intro_text = (
+            f"{prefix_note}\n\n{intro_text}" if intro_text else prefix_note
+        )
+    if intro_text:
+        bot_response.append({"type": "text", "text": intro_text})
 
     scan_pool = carousel_pool if carousel_pool is not None else products
     carousel_products, skipped_product_ids, scanned_count = _collect_carousel_products(
@@ -1042,6 +1096,20 @@ class ProductSearchAgentV3(Processor):
 
         regex_entities = extract_entities(query)
         llm_entities = data.get("llm_extracted_entities") or {}
+        llm_source = "classifier" if llm_entities else None
+
+        is_text = messages.get("type") == "text"
+        if not llm_entities and is_text and query and query.strip():
+            llm_entities = await extract_entities_with_llm(
+                user_query=query,
+                client_id=data.get("client_id", "kisna"),
+                phone_number=phone_number,
+            )
+            if llm_entities:
+                llm_source = "fallback"
+                data["llm_extracted_entities"] = llm_entities
+                user_profile["llm_extracted_entities"] = llm_entities
+
         extracted = merge_llm_and_regex_entities(llm_entities, regex_entities)
         extracted, occasion_prefix = apply_occasion_style_hints(extracted)
         prior = user_profile.get("last_search_filters")
@@ -1051,11 +1119,22 @@ class ProductSearchAgentV3(Processor):
                 "min_price": extracted.get("min_price"),
                 "max_price": extracted.get("max_price"),
             }
+        logger.debug(
+            "Search entity merge",
+            extra={
+                "query": query,
+                "llm_source": llm_source,
+                "llm_entities": llm_entities,
+                "regex_entities": regex_entities,
+                "merged": entities,
+            },
+        )
         logger.info(
             "Search entity merge",
             extra={
                 "phone_number": phone_number,
                 "query": query,
+                "llm_source": llm_source,
                 "prior_filters": prior,
                 "llm_entities": llm_entities,
                 "regex_entities": regex_entities,
@@ -1253,7 +1332,7 @@ class ProductSearchAgentV3(Processor):
                 result = await search_products(
                     **api_params,
                     page_no=next_page,
-                    page_size=_API_FETCH_PAGE_SIZE,
+                    page_size=resolve_api_page_size(filters),
                 )
             except ClaraAPIError as e:
                 data["bot_response"] = [{"type": "text", "text": e.args[0]}]
@@ -1341,9 +1420,11 @@ class ProductSearchAgentV3(Processor):
         if entities.get("unsupported_category"):
             prefix_parts.append(_UNSUPPORTED_CATEGORY_NOTE)
         client_filtered = False
+        intro_relaxed = False
 
         for strategy_entities, note_kind, log_label in strategies:
             api_params = entities_to_api_params(strategy_entities)
+            api_page_size = resolve_api_page_size(strategy_entities)
             logger.info(
                 "Product search",
                 extra={
@@ -1352,6 +1433,7 @@ class ProductSearchAgentV3(Processor):
                     "strategy": log_label,
                     "entities": strategy_entities,
                     "api_params": api_params,
+                    "page_size": api_page_size,
                 },
             )
             if log_label != "full":
@@ -1373,6 +1455,7 @@ class ProductSearchAgentV3(Processor):
                     products, api_total, page = await _fetch_budget_filtered_products(
                         api_params,
                         strategy_entities,
+                        page_size=api_page_size,
                     )
                     raw_products = products
                     result = {
@@ -1392,7 +1475,7 @@ class ProductSearchAgentV3(Processor):
                         continue
                 else:
                     result = await search_products(
-                        **api_params, page_no=1, page_size=_API_FETCH_PAGE_SIZE
+                        **api_params, page_no=1, page_size=api_page_size
                     )
                     raw_products = result.get("products") or []
                     products = filter_products_by_entities(
@@ -1426,7 +1509,7 @@ class ProductSearchAgentV3(Processor):
                     products, strategy_entities
                 )
                 if extras_note:
-                    prefix_parts.append(extras_note)
+                    intro_relaxed = True
                 client_filtered = len(products) < len(raw_products) or (
                     has_strict_product_filters(strategy_entities)
                     and len(products) < api_total
@@ -1490,6 +1573,7 @@ class ProductSearchAgentV3(Processor):
             winning_entities,
             prefix_note=prefix_note,
             carousel_pool=carousel_pool,
+            intro_relaxed=intro_relaxed,
         )
 
         has_product_images = any(

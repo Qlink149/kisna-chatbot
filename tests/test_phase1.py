@@ -70,7 +70,8 @@ class EntityExtractorTests(unittest.TestCase):
         }
         params = entities_to_api_params(entities)
         self.assertEqual(params["category"], "ring")
-        self.assertEqual(params["max_price"], 50000.0)
+        self.assertEqual(params["max_price"], 50000)
+        self.assertIsInstance(params["max_price"], int)
         self.assertNotIn("city", params)
         self.assertNotIn("pincode", params)
 
