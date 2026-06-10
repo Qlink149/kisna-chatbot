@@ -1,5 +1,6 @@
 """Tests for structured logging infrastructure."""
 
+import io
 import json
 import logging
 import os
@@ -10,6 +11,8 @@ from fastapi.testclient import TestClient
 from kisna_chatbot.main import app
 from kisna_chatbot.utils.logger_config import (
     JsonFormatter,
+    RequestContextFilter,
+    _MaxLevelFilter,
     sanitize_for_log,
     set_request_context,
 )
@@ -84,6 +87,58 @@ class TestJsonFormatter:
             assert parsed.get("phone_number") == "919999999999"
         finally:
             clear_request_context()
+
+
+def _build_routed_test_logger(stdout: io.StringIO, stderr: io.StringIO) -> logging.Logger:
+    """Mirror production stdout/stderr handler routing on a test logger."""
+    test_logger = logging.getLogger("kisna_chatbot_stream_routing_test")
+    test_logger.handlers.clear()
+    test_logger.setLevel(logging.DEBUG)
+    test_logger.propagate = False
+
+    formatter = JsonFormatter()
+    context_filter = RequestContextFilter()
+
+    stdout_handler = logging.StreamHandler(stdout)
+    stdout_handler.setLevel(logging.DEBUG)
+    stdout_handler.addFilter(_MaxLevelFilter(logging.WARNING))
+    stdout_handler.setFormatter(formatter)
+    stdout_handler.addFilter(context_filter)
+    test_logger.addHandler(stdout_handler)
+
+    stderr_handler = logging.StreamHandler(stderr)
+    stderr_handler.setLevel(logging.ERROR)
+    stderr_handler.setFormatter(formatter)
+    stderr_handler.addFilter(context_filter)
+    test_logger.addHandler(stderr_handler)
+
+    return test_logger
+
+
+class TestStreamRouting:
+    def test_info_logs_to_stdout_not_stderr(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        test_logger = _build_routed_test_logger(stdout, stderr)
+
+        test_logger.info("routing info test")
+
+        assert "routing info test" in stdout.getvalue()
+        assert stderr.getvalue() == ""
+        parsed = json.loads(stdout.getvalue().strip())
+        assert parsed["level"] == "INFO"
+
+    def test_error_logs_to_stderr_not_stdout(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        test_logger = _build_routed_test_logger(stdout, stderr)
+
+        test_logger.error("routing error test")
+
+        assert stdout.getvalue() == ""
+        assert "routing error test" in stderr.getvalue()
+        parsed = json.loads(stderr.getvalue().strip())
+        assert parsed["level"] == "ERROR"
 
 
 class _LogCollector(logging.Handler):

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import sys
 from contextvars import ContextVar
 from datetime import datetime
 from threading import Lock
@@ -124,6 +125,17 @@ def truncate_for_log(text: str, max_bytes: int = _MAX_BODY_LOG_BYTES) -> str:
     return text[:max_bytes] + f"...<{len(text)} chars>"
 
 
+class _MaxLevelFilter(logging.Filter):
+    """Pass records at or below max_level (for stdout routing)."""
+
+    def __init__(self, max_level: int) -> None:
+        super().__init__()
+        self.max_level = max_level
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.levelno <= self.max_level
+
+
 class RequestContextFilter(logging.Filter):
     """Inject request_id, phone_number, client_id from contextvars into log records."""
 
@@ -219,11 +231,18 @@ class SingletonLogger:
             context_filter = RequestContextFilter()
             formatter = JsonFormatter()
 
-            stream_handler = logging.StreamHandler()
-            stream_handler.setLevel(logging.DEBUG)
-            stream_handler.setFormatter(formatter)
-            stream_handler.addFilter(context_filter)
-            self.logger.addHandler(stream_handler)
+            stdout_handler = logging.StreamHandler(sys.stdout)
+            stdout_handler.setLevel(logging.DEBUG)
+            stdout_handler.addFilter(_MaxLevelFilter(logging.WARNING))
+            stdout_handler.setFormatter(formatter)
+            stdout_handler.addFilter(context_filter)
+            self.logger.addHandler(stdout_handler)
+
+            stderr_handler = logging.StreamHandler(sys.stderr)
+            stderr_handler.setLevel(logging.ERROR)
+            stderr_handler.setFormatter(formatter)
+            stderr_handler.addFilter(context_filter)
+            self.logger.addHandler(stderr_handler)
 
             if not os.getenv("VERCEL"):
                 file_handler = logging.FileHandler(filename=log_file_path, mode="a")
