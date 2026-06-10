@@ -154,16 +154,25 @@ _KISNA_COLLECTIONS = [
 _TITLE_STOP_WORDS = frozenset(
     {
         "show",
+        "send",
         "dikhao",
         "please",
         "me",
         "want",
+        "need",
         "looking",
+        "look",
         "for",
         "buy",
         "get",
         "find",
+        "give",
+        "bring",
+        "display",
+        "suggest",
+        "recommend",
         "search",
+        "fetch",
         "under",
         "above",
         "between",
@@ -179,6 +188,21 @@ _TITLE_STOP_WORDS = frozenset(
         "any",
         "all",
     }
+)
+
+_COMMAND_PREFIXES: tuple[str, ...] = (
+    "please show",
+    "can you show",
+    "i'm looking for",
+    "im looking for",
+    "send me",
+    "show me",
+    "i want",
+    "i need",
+    "give me",
+    "find me",
+    "get me",
+    "suggest me",
 )
 
 _HINDI_NUMBER_PHRASES: list[tuple[str, str]] = [
@@ -334,6 +358,31 @@ _BUDGET_ONLY_RE = re.compile(
 
 def _normalize_text(text: str) -> str:
     return text.lower().strip()
+
+
+def _strip_command_prefix(text: str) -> str:
+    """Remove common imperative sentence starters before title extraction."""
+    result = (text or "").strip()
+    lower = result.lower()
+    changed = True
+    while changed:
+        changed = False
+        for prefix in _COMMAND_PREFIXES:
+            if lower.startswith(prefix):
+                result = result[len(prefix) :].strip()
+                lower = result.lower()
+                changed = True
+                break
+    return result
+
+
+def sanitize_invalid_title(entities: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy with command-verb titles cleared."""
+    out = dict(entities or {})
+    title = out.get("title")
+    if isinstance(title, str) and title.strip().lower() in _TITLE_STOP_WORDS:
+        out["title"] = None
+    return out
 
 
 def _preprocess_hindi_numbers(text: str) -> str:
@@ -518,6 +567,25 @@ def _extract_min_price(text: str) -> float | None:
     return None
 
 
+def _extract_standalone_hindi_number_max(text: str) -> float | None:
+    """Treat bare Hindi number phrases (e.g. 'das hazaar') as max budget."""
+    normalized = _normalize_text(text)
+    for phrase, digits in _HINDI_NUMBER_PHRASES:
+        if normalized == phrase:
+            val = _parse_amount(digits, None)
+            if val is not None and val > 0:
+                return val
+    preprocessed = _preprocess_hindi_numbers(normalized).strip()
+    if preprocessed == normalized:
+        return None
+    if not re.fullmatch(r"[\d,]+(?:\.\d+)?", preprocessed):
+        return None
+    val = _parse_amount(preprocessed, None)
+    if val is not None and val > 0:
+        return val
+    return None
+
+
 def _extract_prices(text: str) -> tuple[float | None, float | None]:
     preprocessed = _preprocess_hindi_numbers(text)
     min_p, max_p = _extract_price_range(preprocessed)
@@ -530,7 +598,12 @@ def _extract_prices(text: str) -> tuple[float | None, float | None]:
     if max_p is not None:
         return None, max_p
     min_p = _extract_min_price(preprocessed)
-    return min_p, None
+    if min_p is not None:
+        return min_p, None
+    standalone_max = _extract_standalone_hindi_number_max(text)
+    if standalone_max is not None:
+        return None, standalone_max
+    return None, None
 
 
 def _all_category_material_terms() -> set[str]:
@@ -836,6 +909,8 @@ def extract_entities(text: str) -> dict[str, Any]:
     min_price, max_price = _extract_prices(normalized)
     category = categories[0] if categories else None
     unsupported_category = category in _CLARA_UNSUPPORTED_CATEGORIES if category else False
+    title_text = _strip_command_prefix(text)
+    title_normalized = _normalize_text(title_text)
 
     return {
         "category": category,
@@ -847,7 +922,7 @@ def extract_entities(text: str) -> dict[str, Any]:
         "unsupported_material": unsupported_material,
         "min_price": min_price,
         "max_price": max_price,
-        "title": _extract_title(normalized, text),
+        "title": _extract_title(title_normalized, title_text),
         "city": _extract_city(normalized),
         "pincode": _extract_pincode(text),
     }
@@ -925,8 +1000,16 @@ def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
     max_p = normalized.get("max_price")
     if max_p is not None:
         params["max_price"] = max_p
+    collection = normalized.get("collection")
     title = normalized.get("title")
-    if title is not None:
+    if collection:
+        params["title"] = collection
+        if title and str(title).strip().lower() != str(collection).strip().lower():
+            logger.debug(
+                "Using collection as Clara title param",
+                extra={"collection": collection, "title": title},
+            )
+    elif title is not None:
         params["title"] = title
     return params
 

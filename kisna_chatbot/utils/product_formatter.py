@@ -539,5 +539,5 @@ def format_zero_results_message(entities: dict[str, Any]) -> str:
             lines.append(f"• {s}")
         lines.append("")
 
-    lines.append("Browse full collection: https://kisna.com")
+    lines.append("Browse full collection: https://www.kisna.com")
     return "\n".join(lines)

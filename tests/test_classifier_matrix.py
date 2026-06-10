@@ -77,11 +77,12 @@ class ClassifierMatrixTests(unittest.TestCase):
                 msg=f"{text!r}: expected {expected}, got {actual}",
             )
 
-    def test_product_search_defers_to_llm(self):
+    def test_product_search_fast_path(self):
         for text in LLM_DEFERRED_MATRIX:
-            self.assertIsNone(
+            self.assertEqual(
                 _programmatic_intent_override(text, {}),
-                msg=f"{text!r} should defer to LLM",
+                "product_search",
+                msg=f"{text!r} should use programmatic product_search fast-path",
             )
 
     def test_greeting_programmatic(self):

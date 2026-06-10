@@ -12,6 +12,7 @@ from kisna_chatbot.processors.service_list import (
     build_main_category_list,
     build_main_menu_bot_response,
     build_other_jewellery_list,
+    build_pref_step1_material_list,
     build_pref_step2_type_list,
     build_pref_step3_budget_list,
     build_greeting_welcome_bot_responses,
@@ -30,6 +31,7 @@ from kisna_chatbot.processors.entity_extractor import (
     merge_search_entities,
     normalize_category_for_api,
     normalize_material_for_api,
+    sanitize_invalid_title,
 )
 from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
@@ -324,17 +326,22 @@ def _clear_preference_state(user_profile: dict) -> None:
         "preference_step",
         "pref_material",
         "pref_type",
+        "pref_category",
+        "pref_title",
         "awaiting_custom_budget",
     ):
         user_profile.pop(key, None)
 
 
 def _entities_from_preferences(user_profile: dict) -> dict:
-    return {
+    entities = {
         **_empty_entities(),
         "material_type": user_profile.get("pref_material"),
-        "category": user_profile.get("pref_type"),
+        "category": user_profile.get("pref_category") or user_profile.get("pref_type"),
     }
+    if user_profile.get("pref_title"):
+        entities["title"] = user_profile.get("pref_title")
+    return entities
 
 
 def _snap_single_price_to_band(price: float) -> tuple[int, int]:
@@ -1119,21 +1126,22 @@ class ProductSearchAgentV3(Processor):
             if entities is None:
                 data["bot_response"] = _build_prompt_response()
                 return data
-            if not _clara_configured():
-                data["bot_response"] = _build_catalog_not_configured_response()
-                return data
-            return await self._execute_search(
-                data,
-                phone_number,
-                entities,
-                query_label=f"pref_cat:{cat_key}",
-            )
+            user_profile["pref_category"] = entities.get("category") or cat_key
+            if entities.get("title"):
+                user_profile["pref_title"] = entities.get("title")
+            user_profile["preference_step"] = 1
+            data["bot_response"] = [build_pref_step1_material_list()]
+            return data
 
         if postback.startswith("pref$material$"):
             material = postback.rsplit("$", 1)[-1]
             user_profile["pref_material"] = material
-            user_profile["preference_step"] = 2
-            data["bot_response"] = [build_pref_step2_type_list()]
+            if user_profile.get("pref_category"):
+                user_profile["preference_step"] = 2
+                data["bot_response"] = [build_pref_step3_budget_list()]
+            else:
+                user_profile["preference_step"] = 2
+                data["bot_response"] = [build_pref_step2_type_list()]
             return data
 
         if postback.startswith("pref$type$"):
@@ -1315,6 +1323,7 @@ class ProductSearchAgentV3(Processor):
         response_mode: str | None = None,
     ) -> dict:
         user_profile = data.get("user_profile", {})
+        entities = sanitize_invalid_title(entities)
         last_filters = user_profile.get("last_search_filters") or {}
         if not _entities_equal(entities, last_filters):
             user_profile["shown_product_ids"] = []

@@ -512,6 +512,10 @@ def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | 
     if _looks_like_product_info_query(normalized, user_profile):
         return "product_info"
 
+    if user_profile.get("service_selected") != ServiceList.PRODUCT_SEARCH.value:
+        if _looks_like_product_search_query(normalized):
+            return "product_search"
+
     return None
 
 
