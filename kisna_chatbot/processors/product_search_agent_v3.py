@@ -337,23 +337,6 @@ def _entities_from_preferences(user_profile: dict) -> dict:
     }
 
 
-def _merge_explore_context(user_profile: dict, data: dict) -> dict:
-    llm = (
-        data.get("llm_extracted_entities")
-        or user_profile.get("llm_extracted_entities")
-        or {}
-    )
-    prior = user_profile.get("last_search_filters") or {}
-    merged = _empty_entities()
-    for key, val in prior.items():
-        if val is not None:
-            merged[key] = val
-    for key, val in llm.items():
-        if val is not None:
-            merged[key] = val
-    return merged
-
-
 def _snap_single_price_to_band(price: float) -> tuple[int, int]:
     base = int(price // 10000) * 10000
     return base, base + 10000
@@ -813,9 +796,6 @@ class ProductSearchAgentV3(Processor):
         messages = data.get("messages", {})
         user_profile = data.get("user_profile", {})
 
-        if user_profile.get("pending_explore_search"):
-            return True
-
         if _material_button_msgid(messages):
             return True
         if _parse_pref_cat_button_postback(messages):
@@ -874,19 +854,6 @@ class ProductSearchAgentV3(Processor):
         if pref_postback:
             return await self._handle_preference_list(
                 data, phone_number, pref_postback
-            )
-
-        if user_profile.pop("pending_explore_search", False):
-            if not _clara_configured():
-                data["bot_response"] = _build_catalog_not_configured_response()
-                return data
-            entities = _merge_explore_context(user_profile, data)
-            user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-            return await self._execute_search(
-                data,
-                phone_number,
-                entities,
-                query_label="explore_products",
             )
 
         search_btn = _search_button_msgid(messages)

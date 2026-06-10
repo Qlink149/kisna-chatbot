@@ -19,21 +19,6 @@ _PREF_STEP1_MSGID = "pref$step1$list"
 _PREF_STEP2_MSGID = "pref$step2$list"
 _PREF_STEP3_MSGID = "pref$step3$list"
 
-_SEARCH_CONTEXT_KEYS = (
-    "category",
-    "material_type",
-    "min_price",
-    "max_price",
-    "title",
-    "karat",
-    "metal_colour",
-    "size",
-    "collection",
-    "gender",
-    "occasion",
-    "style",
-)
-
 _FIND_STORE_TEXT = (
     "Share your pincode or city and I'll help you find the nearest Kisna store."
 )
@@ -303,13 +288,16 @@ def _normalize_menu_key(title: str, postback: str) -> str:
     return aliases.get(title_key, title_key)
 
 
-def has_search_context(user_profile: dict) -> bool:
-    """True when prior LLM entities or search filters carry non-null values."""
-    for source_key in ("llm_extracted_entities", "last_search_filters"):
-        source = user_profile.get(source_key) or {}
-        if any(source.get(key) is not None for key in _SEARCH_CONTEXT_KEYS):
-            return True
-    return False
+def _clear_explore_browse_session(user_profile: dict) -> None:
+    """Reset search session when user explicitly taps Explore Products."""
+    user_profile["last_search_filters"] = {}
+    user_profile["last_search_products"] = []
+    user_profile["last_search_page"] = 0
+    user_profile["shown_product_ids"] = []
+    user_profile["pref_material"] = None
+    user_profile["pref_type"] = None
+    user_profile.pop("pref_category", None)
+    user_profile.pop("pending_explore_search", None)
 
 
 def build_pref_step1_material_list() -> dict:
@@ -984,10 +972,8 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
 
     if key in ("explore_products",):
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-        if has_search_context(user_profile):
-            user_profile["pending_explore_search"] = True
-        else:
-            data["bot_response"] = [_build_explore_products_list()]
+        _clear_explore_browse_session(user_profile)
+        data["bot_response"] = [_build_explore_products_list()]
         return
 
     if key in ("view_offers",):

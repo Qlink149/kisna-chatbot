@@ -752,6 +752,23 @@ class ProductSearchTests(unittest.TestCase):
         self.assertIn("pref$cat$any", postbacks)
         self.assertEqual(len(postbacks), 9)
 
+    def test_explore_products_clears_prior_search_and_shows_category_list(self):
+        user_profile = {
+            "last_search_filters": {"category": "ring", "material_type": "gold"},
+            "last_search_products": [{"_id": "p1"}],
+            "last_search_page": 2,
+            "shown_product_ids": ["p1"],
+            "llm_extracted_entities": {"category": "ring", "material_type": "gold"},
+        }
+        data = {}
+        _handle_menu_selection("Explore Products", user_profile, data, "explore_products")
+        self.assertEqual(data["bot_response"][0]["type"], "list")
+        self.assertEqual(user_profile["last_search_filters"], {})
+        self.assertEqual(user_profile["last_search_products"], [])
+        self.assertEqual(user_profile["last_search_page"], 0)
+        self.assertEqual(user_profile["shown_product_ids"], [])
+        self.assertNotIn("pending_explore_search", user_profile)
+
     def test_explore_products_list_builder(self):
         payload = _build_explore_products_list()
         self.assertEqual(payload["type"], "list")
