@@ -302,7 +302,9 @@ _PRICE_HINT_RE = re.compile(
     re.I,
 )
 _STRONG_PRICE_HINT_RE = re.compile(
-    r"\b(under|below|upto|up to|less than|maximum|max|within|tak|se kam|ke andar|ke neeche|above|over|more than|min|at least|se zyada|ke upar|between|from|around|approximately|roughly)\b|₹",
+    r"\b(under|below|upto|up to|less than|maximum|max|minimum|within|tak|se kam|ke andar|ke neeche|"
+    r"above|over|more than|min|at\s*least|atleast|se\s*zyada|se\s*upar|ke\s*upar|"
+    r"between|from|around|approximately|roughly|hazaar)\b|₹",
     re.I,
 )
 _SHORT_AFFIRMATION_RE = re.compile(
@@ -337,22 +339,22 @@ _AROUND_PATTERNS = [
     ),
 ]
 
-_MAX_PATTERNS = [
+_EXPLICIT_MAX_PATTERNS = [
     re.compile(
         r"(?:under|below|upto|up to|max|maximum|budget|within|less than|kam|se kam)\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
+        r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
         re.I,
     ),
     re.compile(
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?\s*(?:tak|se kam|ke andar|ke neeche)",
+        r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?\s*(?:tak|se kam|ke andar|ke neeche)",
         re.I,
     ),
     re.compile(
-        r"budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
+        r"budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
         re.I,
     ),
     re.compile(
-        r"within\s*(?:my\s*)?budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
+        r"within\s*(?:my\s*)?budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
         re.I,
     ),
     re.compile(
@@ -371,23 +373,70 @@ _MAX_PATTERNS = [
         r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)\b\s*budget",
         re.I,
     ),
+]
+
+_GREEDY_MAX_CATCHALL = re.compile(
+    r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)\b",
+    re.I,
+)
+
+_MIN_PATTERNS = [
     re.compile(
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)\b",
+        r"(?:above|over|more than|minimum|min|at\s*least|atleast)\s*"
+        r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
+        re.I,
+    ),
+    re.compile(
+        r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?\s*(?:se\s*zyada|se\s*upar|ke\s*upar|\+)",
+        re.I,
+    ),
+    re.compile(
+        r"(\d+[\d,]*)\s*(k|hazaar|lakh|lac)\b\s*se\s*upar",
+        re.I,
+    ),
+    re.compile(
+        r"(\d+[\d,]*)\s*(k|hazaar|lakh|lac)\b\s*se\s*zyada",
+        re.I,
+    ),
+    re.compile(
+        r"minimum\s+(?:₹\s*)?([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
+        re.I,
+    ),
+    re.compile(
+        r"at\s*least\s+(?:₹\s*)?([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
+        re.I,
+    ),
+    re.compile(
+        r"(\d+(?:\.\d+)?)\s*hazaar\s*se\s*upar",
         re.I,
     ),
 ]
 
-_MIN_PATTERNS = [
-    re.compile(
-        r"(?:above|over|more than|min|at least|zyada|se zyada)\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
-        re.I,
-    ),
-    re.compile(
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?\s*(?:se zyada|ke upar|\+)",
-        re.I,
-    ),
-]
+_HINDI_COUNT_WORDS: dict[str, int] = {
+    "ek": 1,
+    "do": 2,
+    "teen": 3,
+    "char": 4,
+    "paanch": 5,
+    "chhe": 6,
+    "saat": 7,
+    "aath": 8,
+    "nau": 9,
+    "das": 10,
+    "bees": 20,
+    "tees": 30,
+    "chalis": 40,
+    "pachaas": 50,
+    "sau": 100,
+}
+
+_HAZAAR_STANDALONE_RE = re.compile(
+    r"\b("
+    r"ek|do|teen|char|paanch|chhe|saat|aath|nau|das|"
+    r"bees|tees|chalis|pachaas|sau|\d+(?:\.\d+)?"
+    r")?\s*hazaar\b",
+    re.I,
+)
 
 _BUDGET_ONLY_RE = re.compile(
     r"^\s*budget\s+([\d,]+(?:\.\d+)?)\s*$",
@@ -499,6 +548,8 @@ def _parse_amount(num_str: str, suffix: str | None) -> float | None:
         s = suffix.lower()
         if s == "k":
             value *= 1000
+        elif s == "hazaar":
+            value *= 1000
         elif s in ("lakh", "lac"):
             value *= 100000
     return value
@@ -582,16 +633,56 @@ def _extract_around_price(text: str) -> tuple[float | None, float | None]:
     return None, None
 
 
-def _extract_max_price(text: str) -> float | None:
-    for pattern in _MAX_PATTERNS:
+def _extract_explicit_max_price(text: str) -> float | None:
+    for pattern in _EXPLICIT_MAX_PATTERNS:
         m = pattern.search(text)
         if m:
             suffix = m.group(2) if m.lastindex and m.lastindex >= 2 else None
             val = _parse_amount(m.group(1), suffix)
             if val is not None and _accept_extracted_price(
-                text, val, suffix, require_strong_hint=pattern in _MAX_PATTERNS[-1:]
+                text, val, suffix, require_strong_hint=False
             ):
                 return val
+    return None
+
+
+def _extract_greedy_max_catchall(
+    text: str, *, exclude_amount: float | None = None
+) -> float | None:
+    for m in _GREEDY_MAX_CATCHALL.finditer(text):
+        suffix = m.group(2) if m.lastindex and m.lastindex >= 2 else None
+        val = _parse_amount(m.group(1), suffix)
+        if val is None:
+            continue
+        if exclude_amount is not None and val == exclude_amount:
+            continue
+        if _accept_extracted_price(text, val, suffix, require_strong_hint=True):
+            return val
+    return None
+
+
+def _hazaar_word_to_amount(word: str | None) -> float | None:
+    if not word:
+        return None
+    normalized = word.strip().lower()
+    if normalized in _HINDI_COUNT_WORDS:
+        return float(_HINDI_COUNT_WORDS[normalized] * 1000)
+    try:
+        return float(normalized.replace(",", "")) * 1000
+    except ValueError:
+        return None
+
+
+def _extract_hazaar_standalone_max(text: str) -> float | None:
+    """Bare '50 hazaar' / 'das hazaar' (if not preprocessed) as max budget."""
+    if re.search(r"se\s*(upar|zyada)", text, re.I):
+        return None
+    m = _HAZAAR_STANDALONE_RE.search(text)
+    if not m:
+        return None
+    val = _hazaar_word_to_amount(m.group(1))
+    if val is not None and val > 0 and _accept_extracted_price(text, val, "hazaar"):
+        return val
     return None
 
 
@@ -600,6 +691,8 @@ def _extract_min_price(text: str) -> float | None:
         m = pattern.search(text)
         if m:
             suffix = m.group(2) if m.lastindex and m.lastindex >= 2 else None
+            if suffix is None and "hazaar" in m.group(0).lower():
+                suffix = "hazaar"
             val = _parse_amount(m.group(1), suffix)
             if val is not None and _accept_extracted_price(text, val, suffix, require_strong_hint=True):
                 return val
@@ -633,15 +726,21 @@ def _extract_prices(text: str) -> tuple[float | None, float | None]:
     min_p, max_p = _extract_around_price(preprocessed)
     if min_p is not None or max_p is not None:
         return min_p, max_p
-    max_p = _extract_max_price(preprocessed)
-    if max_p is not None:
-        return None, max_p
     min_p = _extract_min_price(preprocessed)
     if min_p is not None:
         return min_p, None
+    max_p = _extract_explicit_max_price(preprocessed)
+    if max_p is not None:
+        return None, max_p
     standalone_max = _extract_standalone_hindi_number_max(text)
     if standalone_max is not None:
         return None, standalone_max
+    hazaar_max = _extract_hazaar_standalone_max(preprocessed)
+    if hazaar_max is not None:
+        return None, hazaar_max
+    max_p = _extract_greedy_max_catchall(preprocessed)
+    if max_p is not None:
+        return None, max_p
     return None, None
 
 
@@ -725,6 +824,17 @@ _REFINEMENT_ONLY_RE = re.compile(
     re.I,
 )
 
+_REFINEMENT_RE = re.compile(
+    r"\b(cheaper|sasta|aur\s+sasta|aur\s+kam|aur\s+zyada|"
+    r"expensive|mehnga|aur\s+mehnga|similar|aise\s+hi|"
+    r"isi\s+range|same\s+budget|similar\s+price)\b",
+    re.I,
+)
+
+_CONTEXT_REFINEMENT_RE = re.compile(r"\b(them|those|these|it|ones)\b", re.I)
+
+_METADATA_TITLE_TAGS = frozenset({"set", "collection", "pendant"})
+
 
 def extract_category_from_product(product: dict) -> str | None:
     """Read Clara category from productType.category.name or top-level category."""
@@ -788,12 +898,25 @@ def merge_search_entities(
     new_has_price = (
         merged.get("min_price") is not None or merged.get("max_price") is not None
     )
+    refinement_query = bool(_REFINEMENT_RE.search(normalized_query))
+    price_only_new_search = (
+        new_has_price
+        and not new_has_category
+        and not new_has_material
+        and not new_has_title
+        and not refinement_query
+        and not _CONTEXT_REFINEMENT_RE.search(normalized_query)
+    )
 
     refinement_only = (
         not new_has_category
         and not new_has_material
         and not new_has_title
-        and (new_has_price or _REFINEMENT_ONLY_RE.search(normalized_query))
+        and not price_only_new_search
+        and (
+            refinement_query
+            or (new_has_price or _REFINEMENT_ONLY_RE.search(normalized_query))
+        )
     )
 
     if refinement_only:
@@ -815,12 +938,19 @@ def merge_search_entities(
             "style",
         ):
             if merged.get(key) in (None, False) and prior.get(key) not in (None, False):
-                merged[key] = prior.get(key)
+                inherited = prior.get(key)
+                if key == "title" and isinstance(inherited, str):
+                    if inherited.strip().lower() in _METADATA_TITLE_TAGS and not new_has_category:
+                        continue
+                merged[key] = inherited
 
-    elif not new_has_category and prior.get("category") and not _SEARCH_RESET_RE.search(
-        normalized_query
+    elif (
+        not price_only_new_search
+        and not new_has_category
+        and prior.get("category")
+        and not _SEARCH_RESET_RE.search(normalized_query)
     ):
-        if not new_has_material and not new_has_title and new_has_price:
+        if not new_has_material and not new_has_title and new_has_price and refinement_query:
             merged["category"] = prior.get("category")
             merged["categories"] = prior.get("categories")
             merged["multi_category"] = prior.get("multi_category", False)

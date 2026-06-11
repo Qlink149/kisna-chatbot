@@ -118,8 +118,16 @@ class ClaraFixtureTests(unittest.TestCase):
         new = {"max_price": 10000.0}
         merged = merge_search_entities(prior, new, "under 10,000")
         params = entities_to_api_params(merged)
-        self.assertEqual(params["category"], "earring")
+        self.assertNotIn("category", params)
         self.assertEqual(params["max_price"], 10000.0)
+
+    def test_merge_price_only_new_search_clears_prior_category(self):
+        prior = {"category": "pendant", "title": "set", "material_type": None}
+        new = {"min_price": 500000.0, "max_price": None}
+        merged = merge_search_entities(prior, new, "above 5 lakh")
+        self.assertIsNone(merged["category"])
+        self.assertIsNone(merged["title"])
+        self.assertEqual(merged["min_price"], 500000.0)
 
     def test_drop_material_retains_max_price(self):
         entities = {

@@ -174,7 +174,12 @@ _BUDGET_BROWSE_RE = re.compile(
 
 _COMPARATIVE_RE = re.compile(
     r"\b(cheapest|cheaper|better|best|worst|compare|comparison|sabse\s+sasta|"
-    r"affordable|sasta|mehnga|expensive)\b",
+    r"affordable|sasta|which\s+is\s+cheaper|difference|best\s+one)\b",
+    re.I,
+)
+
+_EXPENSIVE_SEARCH_RE = re.compile(
+    r"\b(expensive|mehnga|costly|aur\s+mehnga|zyada\s+price|premium|aur\s+expensive)\b",
     re.I,
 )
 
@@ -182,6 +187,24 @@ _SIZE_QUERY_RE = re.compile(
     r"\b(size|sizes|variant|variants|karat|kt\b|18kt|14kt|22kt|chain)\b",
     re.I,
 )
+
+
+def _store_pincode_escape_intent(user_query: str) -> str | None:
+    """Return intent when user should leave awaiting_store_pincode for another flow."""
+    normalized = (user_query or "").strip()
+    if not normalized:
+        return None
+    if _looks_like_product_search_query(normalized):
+        return "product_search"
+    if _OFFERS_INTENT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
+        return "offers"
+    if _ORDER_TRACKING_RE.search(normalized) or _ORDER_DELIVERY_RE.search(normalized):
+        return "order_tracking"
+    if _RETURNS_RE.search(normalized) or _EXCHANGE_RE.search(normalized):
+        return "returns_refund"
+    if _COMPLAINT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
+        return "complaint"
+    return None
 
 
 def _looks_like_product_search_query(text: str) -> bool:
@@ -509,6 +532,13 @@ def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | 
     ):
         return "product_info"
 
+    if (
+        user_profile.get("service_selected") == ServiceList.PRODUCT_SEARCH.value
+        and _EXPENSIVE_SEARCH_RE.search(normalized)
+    ):
+        user_profile["_price_direction_hint"] = "higher"
+        return "product_search"
+
     if _looks_like_product_info_query(normalized, user_profile):
         return "product_info"
 
@@ -783,6 +813,8 @@ class Classifier(Processor):
             return True
 
         if user_profile.get("awaiting_store_pincode"):
+            if _store_pincode_escape_intent(user_query):
+                return True
             return False
 
         service = user_profile.get("service_selected")
@@ -800,6 +832,8 @@ class Classifier(Processor):
             return False
 
         if service == ServiceList.PRODUCT_SEARCH.value:
+            if _EXPENSIVE_SEARCH_RE.search(user_query):
+                return True
             last_viewed = user_profile.get("last_viewed_product")
             if last_viewed and _PRICE_PRODUCT_INFO_RE.search(user_query):
                 return False
@@ -834,6 +868,16 @@ class Classifier(Processor):
         client_id = data.get("client_id", "kisna")
 
         if not self.should_run(data):
+            messages = data.get("messages", {})
+            if "text" in messages:
+                user_query = messages["text"].get("body", "") or ""
+                user_profile = data.get("user_profile", {})
+                if (
+                    user_profile.get("service_selected") == ServiceList.PRODUCT_SEARCH.value
+                    and user_profile.get("last_viewed_product")
+                    and _PRICE_PRODUCT_INFO_RE.search(user_query)
+                ):
+                    data["classified_category"] = "product_info"
             logger.info(
                 "Skipping processor",
                 extra={
@@ -895,9 +939,46 @@ class Classifier(Processor):
                     )
                     return data
 
-                if user_profile.get("awaiting_store_pincode") or _looks_like_store_query(
-                    user_query
-                ):
+                if user_profile.get("awaiting_store_pincode"):
+                    escape_intent = _store_pincode_escape_intent(user_query)
+                    if escape_intent:
+                        user_profile["awaiting_store_pincode"] = False
+                        extra_entities: dict[str, Any] = {}
+                        if user_profile.pop("_price_direction_hint", None):
+                            extra_entities["price_direction"] = "higher"
+                        _store_llm_entities(data, user_profile, extra_entities)
+                        data["classified_category"] = escape_intent
+                        data["classifier_confidence"] = 1.0
+                        if _maybe_prompt_flow_switch(
+                            data,
+                            escape_intent,
+                            user_profile,
+                            user_query,
+                            confidence=1.0,
+                        ):
+                            return data
+                        if _apply_intent_routing(
+                            data,
+                            escape_intent,
+                            user_profile,
+                            user_query=user_query,
+                            confidence=1.0,
+                        ):
+                            return data
+                        user_profile["service_selected"] = (
+                            _CATEGORY_TO_SERVICE.get(escape_intent) or ServiceList.GENERAL
+                        ).value
+                        return data
+                    if user_query.strip().lower() not in ("cancel", "back"):
+                        _store_llm_entities(data, user_profile, {})
+                        user_profile["service_selected"] = ServiceList.AD_FLOW.value
+                        data["classified_category"] = "store_info"
+                        logger.info(
+                            "Store lookup shortcut — routing to ad_flow",
+                            extra={"phone_number": phone_number},
+                        )
+                        return data
+                elif _looks_like_store_query(user_query):
                     if user_query.strip().lower() not in ("cancel", "back"):
                         _store_llm_entities(data, user_profile, {})
                         user_profile["service_selected"] = ServiceList.AD_FLOW.value
@@ -916,7 +997,10 @@ class Classifier(Processor):
                         user_profile,
                     )
                 if override_intent:
-                    _store_llm_entities(data, user_profile, {})
+                    extra_entities: dict[str, Any] = {}
+                    if user_profile.pop("_price_direction_hint", None):
+                        extra_entities["price_direction"] = "higher"
+                    _store_llm_entities(data, user_profile, extra_entities)
                     data["classified_category"] = override_intent
                     data["classifier_confidence"] = 1.0
                     logger.info(

@@ -6,7 +6,10 @@ from kisna_chatbot.integrations.clara_api import ClaraAPIError, get_stores
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import extract_entities
-from kisna_chatbot.processors.service_list import build_main_menu_bot_response
+from kisna_chatbot.processors.service_list import (
+    build_flow_switch_bot_response,
+    build_main_menu_bot_response,
+)
 from kisna_chatbot.utils.clara_cache import get_cached_stores
 from kisna_chatbot.utils.logger_config import logger
 
@@ -285,6 +288,31 @@ class AdFlowAgent(Processor):
                     user_profile["awaiting_store_pincode"] = False
                     user_profile["service_selected"] = ""
                     data["bot_response"] = [build_main_menu_bot_response()]
+                    return data
+
+                from kisna_chatbot.processors.classifier import _store_pincode_escape_intent
+
+                escape_intent = _store_pincode_escape_intent(user_message)
+                if escape_intent:
+                    user_profile["awaiting_store_pincode"] = False
+                    new_service = (
+                        SL.PRODUCT_SEARCH.value
+                        if escape_intent in ("product_search", "product_info")
+                        else {
+                            "offers": SL.OFFERS.value,
+                            "order_tracking": SL.ORDER_TRACKING.value,
+                            "returns_refund": SL.RETURNS_REFUND.value,
+                            "complaint": SL.COMPLAINT.value,
+                        }.get(escape_intent, SL.GENERAL.value)
+                    )
+                    user_profile["pending_flow_switch"] = {
+                        "intent": escape_intent,
+                        "service": new_service,
+                    }
+                    current = user_profile.get("service_selected") or SL.AD_FLOW.value
+                    data["bot_response"] = build_flow_switch_bot_response(
+                        current, escape_intent
+                    )
                     return data
 
                 user_profile["awaiting_store_pincode"] = False

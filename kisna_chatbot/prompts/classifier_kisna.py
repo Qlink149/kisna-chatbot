@@ -338,8 +338,11 @@ price:
   "X to Y" / "X-Y" / "between X and Y" / "X se Y tak" →
     min_price=X, max_price=Y
   "50k" → 50000, "1 lakh" → 100000, "1.5 lakh" → 150000
-  "das hazaar" → 10000, "paanch hazaar" → 5000
+  "das hazaar" → 10000, "paanch hazaar" → 5000, "50 hazaar" → 50000
+  "30 hazaar" → 30000, "bees hazaar" → 20000
+  "das hazaar se upar" → min_price=10000
   "ek lakh" → 100000, "do lakh" → 200000
+  "X se upar" / "X se zyada" / "minimum X" / "at least X" → min_price=X
 
 title — ONLY real product/collection names:
   Elysia, Maggio, Rivaah, Rosette, Bloom, etc. → title
@@ -404,6 +407,18 @@ Examples:
 "Send me diamond rings between 20000-50000" →
 {"category":"ring","material_type":"diamond",
  "min_price":20000,"max_price":50000,"title":null,...nulls}
+
+"gold rings above 50k" →
+{"category":"ring","material_type":"gold","min_price":50000,...nulls}
+
+"show me something above 5 lac" →
+{"min_price":500000,...all others null}
+
+"30k se upar diamond earrings" →
+{"category":"earring","material_type":"diamond","min_price":30000,...nulls}
+
+"minimum 1 lakh ka necklace" →
+{"category":"necklace","min_price":100000,...nulls}
 
 "aur dikhao" →
 {"action":"more",...all null}

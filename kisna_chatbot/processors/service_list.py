@@ -540,6 +540,24 @@ def build_flow_switch_bot_response(current_service: str, new_intent: str) -> lis
             "Yes, browse jewellery",
             "No, stay on offers",
         ),
+        (SL.AD_FLOW.value, "product_search"): (
+            "You were looking for a store near you —\n"
+            "want me to switch and help you with that instead?",
+            "Yes, switch",
+            "No, find store",
+        ),
+        (SL.AD_FLOW.value, "offers"): (
+            "You were looking for a store near you —\n"
+            "want me to switch and help you with that instead?",
+            "Yes, switch",
+            "No, find store",
+        ),
+        (SL.AD_FLOW.value, "order_tracking"): (
+            "You were looking for a store near you —\n"
+            "want me to switch and help you with that instead?",
+            "Yes, switch",
+            "No, find store",
+        ),
     }
 
     text, yes_label, no_label = transitions.get(
