@@ -9,9 +9,14 @@ os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 from kisna_chatbot.processors.entity_extractor import (  # noqa: E402
     combine_search_entities,
+    entities_to_api_params,
     extract_entities,
     extract_structured_fields,
+    finalize_search_entities,
+    has_clara_search_scope,
+    merge_entity_llm_supplement,
     merge_llm_and_regex_entities,
+    supplement_semantic_entities_from_query,
 )
 
 
@@ -50,6 +55,50 @@ class LlmPrimaryEntityTests(unittest.TestCase):
         self.assertEqual(merged["category"], combined["category"])
         self.assertEqual(merged["max_price"], combined["max_price"])
         self.assertIsNone(merged.get("title"))
+
+    def test_merge_entity_llm_supplement_fills_category_gap(self):
+        classifier = {"material_type": "gold", "min_price": 50000}
+        entity_llm = {"category": "chain", "material_type": "gold", "min_price": 50000}
+        merged = merge_entity_llm_supplement(classifier, entity_llm)
+        self.assertEqual(merged["category"], "chain")
+        self.assertEqual(merged["material_type"], "gold")
+        self.assertEqual(merged["min_price"], 50000)
+
+    def test_supplement_chain_from_query_when_llm_missed_category(self):
+        query = "Show me gold Chains above 50k"
+        structured = extract_structured_fields(query)
+        combined = combine_search_entities(
+            {"material_type": "gold"},
+            structured,
+        )
+        finalized = finalize_search_entities(
+            combined,
+            query=query,
+            regex_entities=structured,
+            llm_entities={"material_type": "gold"},
+        )
+        self.assertEqual(finalized["category"], "necklace")
+        self.assertEqual(finalized["clara_category_override"], "chain")
+        self.assertEqual(finalized["min_price"], 50000)
+
+    def test_gold_chains_above_50k_api_params(self):
+        query = "Show me gold Chains above 50k"
+        llm = {"category": "chain", "material_type": "gold", "min_price": 50000}
+        structured = extract_structured_fields(query)
+        entities = finalize_search_entities(
+            combine_search_entities(llm, structured),
+            query=query,
+        )
+        params = entities_to_api_params(entities)
+        self.assertEqual(params["category"], "chain")
+        self.assertEqual(params["material_type"], "gold")
+        self.assertEqual(params["min_price"], 50000)
+        self.assertTrue(has_clara_search_scope(params))
+
+    def test_has_clara_search_scope_rejects_material_only(self):
+        self.assertFalse(
+            has_clara_search_scope({"material_type": "gold", "min_price": 50000})
+        )
 
 
 if __name__ == "__main__":

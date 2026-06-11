@@ -24,6 +24,8 @@ from kisna_chatbot.processors.entity_extractor import (
     enrich_entities_for_client_filter,
     entities_to_api_params,
     combine_search_entities,
+    has_clara_search_scope,
+    merge_entity_llm_supplement,
     extract_entities,
     extract_entities_with_llm,
     extract_structured_fields,
@@ -1107,19 +1109,18 @@ class ProductSearchAgentV3(Processor):
         llm_source = "classifier" if llm_entities else None
 
         is_text = "text" in messages
-        needs_semantic = not llm_entities.get("category") and not llm_entities.get("title")
-        if is_text and query and query.strip() and needs_semantic:
+        if is_text and query.strip() and not _is_show_more_request(query, data):
             extracted_llm = await extract_entities_with_llm(
                 user_query=query,
                 client_id=data.get("client_id", "kisna"),
                 phone_number=phone_number,
             )
             if extracted_llm:
-                for key, val in extracted_llm.items():
-                    if val is not None and llm_entities.get(key) is None:
-                        llm_entities[key] = val
-                if llm_source is None:
+                llm_entities = merge_entity_llm_supplement(llm_entities, extracted_llm)
+                if llm_source is None and extracted_llm:
                     llm_source = "entity_llm"
+                elif llm_source == "classifier" and extracted_llm:
+                    llm_source = "classifier+entity_llm"
                 data["llm_extracted_entities"] = llm_entities
                 user_profile["llm_extracted_entities"] = llm_entities
 
@@ -1183,6 +1184,22 @@ class ProductSearchAgentV3(Processor):
                     build_main_menu_bot_response(),
                 ]
                 return data
+            data["bot_response"] = [build_explore_products_list_with_prompt()]
+            return data
+
+        api_params_preview = entities_to_api_params(entities)
+        if not has_clara_search_scope(api_params_preview) and not _BROWSE_ALL_RE.search(
+            query
+        ):
+            logger.warning(
+                "Search blocked — missing category/title for Clara API",
+                extra={
+                    "phone_number": phone_number,
+                    "query": query,
+                    "entities": entities,
+                    "api_params": api_params_preview,
+                },
+            )
             data["bot_response"] = [build_explore_products_list_with_prompt()]
             return data
 

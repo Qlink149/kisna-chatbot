@@ -632,6 +632,62 @@ def _log_entity_merge_conflicts(
         )
 
 
+_CHAIN_CATEGORY_RE = re.compile(r"\bchains?\b", re.I)
+
+
+def supplement_semantic_entities_from_query(
+    entities: dict[str, Any],
+    query: str,
+) -> dict[str, Any]:
+    """
+    Last-resort fill when LLM missed obvious category/material in the query text.
+    Does not set prices (regex + LLM own structured fields).
+    """
+    out = dict(entities or {})
+    if not (query or "").strip():
+        return out
+
+    normalized = _normalize_text(query)
+
+    if not out.get("category"):
+        if _CHAIN_CATEGORY_RE.search(normalized):
+            out["category"] = "chain"
+        else:
+            categories = _extract_categories(normalized)
+            if len(categories) == 1:
+                out["category"] = categories[0]
+            elif len(categories) > 1:
+                out["categories"] = categories
+                out["multi_category"] = True
+
+    if not out.get("material_type"):
+        material = _match_synonym(normalized, _MATERIAL_SYNONYMS)
+        if material:
+            out["material_type"] = material
+
+    return out
+
+
+def merge_entity_llm_supplement(existing: dict, extracted: dict) -> dict:
+    """Classifier entities win; dedicated entity LLM fills null gaps."""
+    out = dict(existing or {})
+    for key, val in (extracted or {}).items():
+        if val is not None and out.get(key) is None:
+            out[key] = val
+    return out
+
+
+def has_clara_search_scope(api_params: dict[str, Any]) -> bool:
+    """Clara product search requires category or title — material/price alone errors."""
+    category = api_params.get("category")
+    title = api_params.get("title")
+    if category is not None and str(category).strip():
+        return True
+    if title is not None and str(title).strip():
+        return True
+    return False
+
+
 def finalize_search_entities(
     entities: dict[str, Any],
     *,
@@ -641,6 +697,14 @@ def finalize_search_entities(
 ) -> dict[str, Any]:
     """Single validation gate: sanitize, normalize categories, optional conflict logging."""
     out = sanitize_search_entities(entities)
+    if query:
+        before_cat = out.get("category")
+        out = supplement_semantic_entities_from_query(out, query)
+        if not before_cat and out.get("category"):
+            logger.info(
+                "Supplemented missing category from query",
+                extra={"query": query, "category": out.get("category")},
+            )
     out = normalize_internal_category(out)
     _log_entity_merge_conflicts(
         query=query,
@@ -1356,13 +1420,16 @@ def combine_search_entities(
 ) -> dict:
     """
     Build search entities: LLM owns semantics; regex owns structured fields only.
+    Prices: LLM value wins when set; regex fills min/max when LLM left them null.
     """
     llm = dict(llm_entities or {})
     structured = dict(structured_fields or {})
     merged: dict[str, Any] = {}
 
     for key in _REGEX_FILL_FIELDS:
-        merged[key] = llm.get(key) if llm.get(key) is not None else structured.get(key)
+        llm_val = llm.get(key)
+        struct_val = structured.get(key)
+        merged[key] = llm_val if llm_val is not None else struct_val
 
     for key in _SEMANTIC_MERGE_FIELDS:
         merged[key] = llm.get(key)
@@ -1405,7 +1472,7 @@ async def extract_entities_with_llm(
         raw = await _call_llm_for_entities(
             system_prompt=kisna_entity_extractor,
             user_message=user_query.strip(),
-            max_tokens=300,
+            max_tokens=400,
             client_id=client_id,
             phone_number=phone_number,
         )

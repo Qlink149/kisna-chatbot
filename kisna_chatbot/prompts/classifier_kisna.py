@@ -139,7 +139,10 @@ Fallback for unclear or spam/gibberish:
 - For all other intents, return entities with every field null.
 - category: map Hindi/Hinglish/English jewellery words to the closest value.
   Examples: anguthi→ring, bali/jhumka/jhumki→earring, haar/mala→necklace,
+  chain/chains/sone ki chain→chain (NOT null when chains mentioned),
   latkan→pendant, kangan/chudi→bangle, payal→anklet, nath→nose_ring.
+- CRITICAL: If the user names ANY jewellery type (rings, chains, necklace, etc.),
+  category MUST NOT be null — even when price/material are also present.
 - material_type: sona/sone ka→gold, heera/heere ka→diamond, chandi→silver.
 - Price: extract integer INR values. 50k→50000, 1.5 lakh→150000,
   das hazaar→10000, ek lakh→100000. under X→max_price=X, above X→min_price=X,
@@ -286,24 +289,37 @@ E13. "diamond ring size 12" →
 E14. "men's gold chain" →
 {"intent": "product_search", "confidence": 0.9, "entities": {"category": "chain", "material_type": "gold", "gender": "men", "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "occasion": null, "style": null, "action": null}}
 
+E14a. "Show me gold Chains above 50k" →
+{"intent": "product_search", "confidence": 0.93, "entities": {"category": "chain", "material_type": "gold", "min_price": 50000, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
+
 E15. "aur dikhao" | active: product_search →
 {"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": "more"}}
 """
 
 kisna_entity_extractor = """
 You extract jewellery shopping attributes from a user message.
-KISNA sells gold and diamond jewellery: rings, earrings,
+KISNA sells gold and diamond jewellery: rings, earrings, chains,
 necklaces, pendants, bracelets, bangles, mangalsutra, etc.
 
-Return ONLY a JSON object. No explanation.
+Return ONLY a JSON object. No explanation. Every key below MUST appear.
+
+## CRITICAL (never skip these)
+1. If ANY jewellery type word appears → category MUST be set (never null).
+   chain/chains/gold chain/sone ki chain → category=chain
+   ring/rings/anguthi → ring | earring/bali/jhumka → earring | etc.
+2. If ANY price/budget phrase appears → extract min_price and/or max_price
+   as integers (INR). "above 50k" → min_price=50000. "under 50k" → max_price=50000.
+3. If material appears (gold, diamond, rose gold) → material_type MUST be set.
+4. NEVER set title to command words (show, send, me) or generic type words
+   (chains, rings, gold). title is ONLY for named products/collections.
 
 {
   "category": "ring|earring|necklace|pendant|bracelet|bangle|
                mangalsutra|anklet|nose_ring|maang_tikka|chain|null",
   "material_type": "gold|diamond|silver|platinum|
                     rose_gold|white_gold|gemstone|null",
-  "min_price": <integer or null>,
-  "max_price": <integer or null>,
+  "min_price": <integer INR or null>,
+  "max_price": <integer INR or null>,
   "title": "<product/collection name or null>",
   "karat": "9KT|14KT|18KT|22KT|24KT|null",
   "metal_colour": "yellow|white|rose|null",
@@ -318,10 +334,11 @@ Return ONLY a JSON object. No explanation.
 }
 
 RULES:
-category:
-  ring/anguthi/band → ring
-  earring/bali/jhumka/jhumki/tops/studs/kaan → earring
+category (REQUIRED when type word in message):
+  ring/anguthi/band/rings → ring
+  earring/bali/jhumka/jhumki/tops/studs/kaan/earrings → earring
   necklace/haar/mala → necklace
+  chain/chains/gold chain/sone ki chain → chain  (NOT necklace)
   pendant/locket/latkan → pendant
   bangle/kangan/chudi → bangle
   bracelet/kada/kadi → bracelet
@@ -329,7 +346,6 @@ category:
   payal/pajeb → anklet
   nath/nose pin → nose_ring
   tikka/maang tikka → maang_tikka
-  chain → chain
 
 material_type:
   gold/sona/sone ka → gold
@@ -347,11 +363,13 @@ metal_colour (set separately when colour is mentioned):
 karat: extract 9KT/14KT/18KT/22KT/24KT if mentioned
   "14 carat" → 14KT, "18k" → 18KT, "22 karat" → 22KT
 
-price:
+price (ALWAYS extract when budget words present — integers in INR):
   "under X" / "below X" / "X tak" / "upto X" → max_price=X
-  "above X" / "more than X" / "X se zyada" → min_price=X
+  "above X" / "over X" / "more than X" / "X se zyada" → min_price=X
   "X to Y" / "X-Y" / "between X and Y" / "X se Y tak" →
     min_price=X, max_price=Y
+  "50k" alone with under/below → max_price=50000
+  "above 50k" / "over 50k" → min_price=50000
   "50k" → 50000, "1 lakh" → 100000, "1.5 lakh" → 150000
   "das hazaar" → 10000, "paanch hazaar" → 5000, "50 hazaar" → 50000
   "30 hazaar" → 30000, "bees hazaar" → 20000
@@ -424,7 +442,22 @@ Examples:
  "min_price":20000,"max_price":50000,"title":null,...nulls}
 
 "gold rings above 50k" →
-{"category":"ring","material_type":"gold","min_price":50000,...nulls}
+{"category":"ring","material_type":"gold","min_price":50000,"max_price":null,
+ "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
+ "gender":null,"occasion":null,"style":null,"action":null}
+
+"Show me gold Chains above 50k" →
+{"category":"chain","material_type":"gold","min_price":50000,"max_price":null,
+ "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
+ "gender":null,"occasion":null,"style":null,"action":null}
+
+"gold chains under 1 lakh" →
+{"category":"chain","material_type":"gold","max_price":100000,"min_price":null,
+ "title":null,...nulls}
+
+"sone ki chain 80k tak" →
+{"category":"chain","material_type":"gold","max_price":80000,"min_price":null,
+ "title":null,...nulls}
 
 "show me something above 5 lac" →
 {"min_price":500000,...all others null}
