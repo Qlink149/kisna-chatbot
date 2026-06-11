@@ -21,9 +21,11 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
 from kisna_chatbot.main import app  # noqa: F401
 from kisna_chatbot.processors.classifier import (
     Classifier,
+    _looks_like_faq_query,
     _programmatic_intent_override,
     classify_query_for_audit,
 )
+from kisna_chatbot.processors.entity_extractor import extract_entities
 
 PROGRAMMATIC_MATRIX = [
     ("what is the price of Elysia ring?", "product_info"),
@@ -103,6 +105,32 @@ class ClassifierMatrixTests(unittest.TestCase):
 
     def test_bare_gold_defers_to_llm(self):
         self.assertIsNone(_programmatic_intent_override("gold", {}))
+
+    def test_faq_question_defers_to_llm_classifier(self):
+        self.assertTrue(_looks_like_faq_query("What is kisna Jewellery?"))
+        self.assertIsNone(_programmatic_intent_override("What is kisna Jewellery?", {}))
+
+    def test_offers_query_not_product_search(self):
+        self.assertEqual(
+            _programmatic_intent_override("What are current offers available?", {}),
+            "offers",
+        )
+
+    def test_faq_query_does_not_extract_spurious_title(self):
+        entities = extract_entities("What is kisna Jewellery?")
+        self.assertIsNone(entities.get("title"))
+        self.assertIsNone(entities.get("category"))
+
+    def test_classifier_runs_faq_in_product_search_session(self):
+        clf = Classifier()
+        data = {
+            "messages": {"text": {"body": "What is kisna Jewellery?"}},
+            "user_profile": {
+                "service_selected": "product_search",
+                "chat_history": [{"role": "user", "content": "gold rings"}],
+            },
+        }
+        self.assertTrue(clf.should_run(data))
 
     def test_menu_help_shortcut(self):
         async def _run():

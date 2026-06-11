@@ -69,13 +69,16 @@ Price hints: "50k", "1 lakh", "under 50000", "20k se 50k tak".
 9. Live agent → human_handoff
 10. Pure greeting → greeting
 11. Brand/policy FAQ (return policy, hallmark, BIS, EMI policy) → general
-12. If ambiguous, use chat history to continue the active flow
-13. Product name mentioned → product_search OR product_info ONLY — NEVER general, NEVER offers
-14. Price with number + browse context (under 50k, 1 lakh tak) → product_search
-15. Price question about a named product or "X ring ki price" → product_info
-16. Delivery days about an ORDER → order_tracking; about a PRODUCT → product_info
-17. Bare material alone ("gold", "diamond") with no action word → low confidence (do not guess)
-18. If user has been browsing products and asks comparative questions ("cheapest", "sabse sasta",
+12. "What is KISNA?", "What is KISNA jewellery?", "Who is KISNA?", "Tell me about KISNA"
+    → general (brand FAQ). NEVER product_search. entities must be all null.
+13. "What are current offers?", "What offers are available?" → offers. NEVER product_search.
+14. If ambiguous, use chat history to continue the active flow
+15. Product name mentioned → product_search OR product_info ONLY — NEVER general, NEVER offers
+16. Price with number + browse context (under 50k, 1 lakh tak) → product_search
+17. Price question about a named product or "X ring ki price" → product_info
+18. Delivery days about an ORDER → order_tracking; about a PRODUCT → product_info
+19. Bare material alone ("gold", "diamond") with no action word → low confidence (do not guess)
+20. If user has been browsing products and asks comparative questions ("cheapest", "sabse sasta",
     "best one", "compare these", "which is better") → product_info, NOT general
 
 ---
@@ -137,7 +140,8 @@ Fallback for unclear or spam/gibberish:
 - Price: extract integer INR values. 50k→50000, 1.5 lakh→150000,
   das hazaar→10000, ek lakh→100000. under X→max_price=X, above X→min_price=X,
   between X and Y→min_price=X max_price=Y.
-- title: proper nouns that look like a product name (Rivaah, Elysia, Maggio).
+- title: proper nouns that look like a product/collection name (Rivaah, Elysia, Maggio).
+  NEVER extract question words (what/how/why), brand name (kisna), or generic words (jewellery).
 - collection: named collections (Evil Eye, Tanishta, Nishka, Rivaah).
 - karat: 9KT, 14KT, 18KT, 22KT, 24KT from query text.
 - metal_colour: yellow, white, rose (rose gold → material_type=gold, metal_colour=rose).
@@ -174,6 +178,9 @@ Fallback for unclear or spam/gibberish:
 8. "isme kitna padega" | active: product_search → {"intent": "product_info", "confidence": 0.88}
 9. "ye ring available hai kya" → {"intent": "product_info", "confidence": 0.9}
 10. "koi offer hai kya?" → {"intent": "offers", "confidence": 0.95}
+10a. "What are current offers available?" → {"intent": "offers", "confidence": 0.95, "entities": all null}
+10b. "What is kisna Jewellery?" → {"intent": "general", "confidence": 0.92, "entities": all null}
+10c. "Tell me about KISNA" → {"intent": "general", "confidence": 0.9, "entities": all null}
 11. "making charges pe discount" → {"intent": "offers", "confidence": 0.85}
 12. "400001" → {"intent": "store_info", "confidence": 0.92}
 13. "400001 mein store" → {"intent": "store_info", "confidence": 0.92}

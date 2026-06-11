@@ -224,6 +224,18 @@ _TITLE_STOP_WORDS = frozenset(
         "some",
         "any",
         "all",
+        "what",
+        "how",
+        "why",
+        "when",
+        "where",
+        "who",
+        "which",
+        "is",
+        "are",
+        "kisna",
+        "jewellery",
+        "jewelry",
     }
 )
 

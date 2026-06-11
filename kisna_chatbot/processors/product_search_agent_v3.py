@@ -793,7 +793,7 @@ def _build_search_success_response(
             {
                 "type": "cta_url",
                 "text": "Want to explore more? See the full collection 👇",
-                "display_text": "See Full Collection →",
+                "display_text": "See Collection",
                 "url": build_catalogue_url(entities),
             }
         )

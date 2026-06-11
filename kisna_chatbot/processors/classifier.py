@@ -79,8 +79,23 @@ _REROUTE_RE = re.compile(
 _OFFERS_INTENT_RE = re.compile(
     r"\b("
     r"offers?|promo(?:tion)?s?|discounts?|deals?|sale|cashback|"
-    r"koi\s+offer|offer\s+hai|making\s+charge\s+off"
+    r"koi\s+offer|offer\s+hai|making\s+charge\s+off|"
+    r"current\s+offers?|offers?\s+available|what\s+are.*offers?|show.*offers?"
     r")\b",
+    re.I,
+)
+
+_FAQ_BRAND_RE = re.compile(
+    r"\b("
+    r"what is kisna|what are kisna|who is kisna|about kisna|kisna kya hai|"
+    r"kisna ke baare|kisna kaun hai|tell me about kisna|what is kisna jewellery|"
+    r"what are kisna jewellery|kisna jewellery kya hai"
+    r")\b",
+    re.I,
+)
+
+_FAQ_WH_START_RE = re.compile(
+    r"^\s*(what is|what are|who is|tell me about)\b",
     re.I,
 )
 
@@ -139,9 +154,9 @@ _STORE_LOOKUP_RE = re.compile(
 _PRICE_PRODUCT_INFO_RE = re.compile(
     r"\b("
     r"price|cost|kitna|rate|mrp|how\s+much|weight|"
-    r"available|in\s+stock|stock|delivery\s+days|edd|chain"
+    r"in\s+stock|stock|delivery\s+days|edd|chain"
     r")\b|"
-    r"(isme|is\s+me|iska|is\s+ka)\s+(kitna|price|cost)",
+    r"(isme|is\s+me|iska|is\s+ka)\s+(kitna|price|cost|available)",
     re.I,
 )
 
@@ -189,6 +204,44 @@ _SIZE_QUERY_RE = re.compile(
 )
 
 
+def _looks_like_faq_query(text: str) -> bool:
+    """Brand/FAQ questions that must reach the LLM classifier (not regex product search)."""
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
+    if _FAQ_BRAND_RE.search(normalized):
+        return True
+    if not _FAQ_WH_START_RE.match(normalized):
+        return False
+    if _BROWSE_ACTION_RE.search(normalized):
+        return False
+    if _PRICE_PRODUCT_INFO_RE.search(normalized):
+        return False
+    if _PRODUCT_NAME_RE.search(normalized):
+        return False
+    if _OFFERS_INTENT_RE.search(normalized):
+        return False
+    return True
+
+
+def _is_spurious_regex_title(title: str | None) -> bool:
+    if not title or not isinstance(title, str):
+        return False
+    blocked = {
+        "what",
+        "how",
+        "why",
+        "when",
+        "where",
+        "who",
+        "which",
+        "kisna",
+        "jewellery",
+        "jewelry",
+    }
+    return title.strip().lower() in blocked
+
+
 def _store_pincode_escape_intent(user_query: str) -> str | None:
     """Return intent when user should leave awaiting_store_pincode for another flow."""
     normalized = (user_query or "").strip()
@@ -215,7 +268,8 @@ def _looks_like_product_search_query(text: str) -> bool:
 
     entities = extract_entities(normalized)
 
-    if entities.get("category") or entities.get("title"):
+    title = entities.get("title")
+    if entities.get("category") or (title and not _is_spurious_regex_title(title)):
         return True
 
     if entities.get("min_price") is not None or entities.get("max_price") is not None:
@@ -518,6 +572,9 @@ def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | 
 
     if _COMPLAINT_RE.search(normalized):
         return "complaint"
+
+    if _looks_like_faq_query(normalized):
+        return None
 
     if _OFFERS_INTENT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(
         normalized
@@ -832,10 +889,16 @@ class Classifier(Processor):
             return False
 
         if service == ServiceList.PRODUCT_SEARCH.value:
+            if _looks_like_faq_query(user_query):
+                return True
             if _EXPENSIVE_SEARCH_RE.search(user_query):
                 return True
             last_viewed = user_profile.get("last_viewed_product")
-            if last_viewed and _PRICE_PRODUCT_INFO_RE.search(user_query):
+            if (
+                last_viewed
+                and _PRICE_PRODUCT_INFO_RE.search(user_query)
+                and not _OFFERS_INTENT_RE.search(user_query)
+            ):
                 return False
             if _OFFERS_INTENT_RE.search(user_query) and not _CATEGORY_WORD_RE.search(
                 user_query
