@@ -114,6 +114,71 @@ async def _request(
         raise ClaraAPIError(_USER_GENERIC) from None
 
 
+def _omit_empty_params(params: dict[str, Any]) -> dict[str, Any]:
+    """Drop None and blank string values before sending to Clara API."""
+    return {
+        key: value
+        for key, value in params.items()
+        if value is not None and (not isinstance(value, str) or value.strip())
+    }
+
+
+def build_products_query_params(
+    *,
+    category: str | None = None,
+    material_type: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    title: str | None = None,
+    page_no: int = 1,
+    page_size: int = 5,
+) -> dict[str, Any]:
+    """
+    Build Clara GET /api/v1/clara/products query params per Postman spec.
+
+    Omits empty optional filters; always includes searchUrl=true for full product payloads.
+    """
+    params: dict[str, Any] = {
+        "pageNo": page_no,
+        "pageSize": page_size,
+        "searchUrl": "true",
+    }
+    if category is not None and str(category).strip():
+        params["category"] = str(category).strip()
+    if material_type is not None and str(material_type).strip():
+        params["materialType"] = str(material_type).strip()
+    if min_price is not None:
+        params["minPrice"] = int(min_price)
+    if max_price is not None:
+        params["maxPrice"] = int(max_price)
+    if title is not None and str(title).strip():
+        params["title"] = str(title).strip()
+    return _omit_empty_params(params)
+
+
+def parse_products_response(body: Any, *, page_no: int = 1) -> dict:
+    """
+    Parse Clara products API JSON into bot-internal shape.
+
+    Expected: {"data": {"data": [...], "totalCount": N}}
+    """
+    data_block = body.get("data") if isinstance(body, dict) else {}
+    if not isinstance(data_block, dict):
+        data_block = {}
+
+    products = data_block.get("data")
+    if not isinstance(products, list):
+        products = _extract_list_payload(body)
+
+    total_count = data_block.get("totalCount", 0)
+    try:
+        total_count = int(total_count)
+    except (TypeError, ValueError):
+        total_count = len(products)
+
+    return {"products": products, "total_count": total_count, "page": page_no}
+
+
 def _extract_list_payload(data: Any) -> list:
     if isinstance(data, list):
         return data
@@ -149,48 +214,29 @@ async def search_products(
     Returns:
         {"products": [...], "total_count": int, "page": int}
     """
-    # searchUrl=true returns full product objects including mediaUrl[].image for WhatsApp.
-    params: dict[str, Any] = {
-        "pageNo": page_no,
-        "pageSize": page_size,
-        "searchUrl": "true",
-    }
-    if category is not None:
-        params["category"] = category
-    if material_type is not None:
-        params["materialType"] = material_type
-    if min_price is not None:
-        params["minPrice"] = int(min_price)
-    if max_price is not None:
-        params["maxPrice"] = int(max_price)
-    if title is not None:
-        params["title"] = title
+    params = build_products_query_params(
+        category=category,
+        material_type=material_type,
+        min_price=min_price,
+        max_price=max_price,
+        title=title,
+        page_no=page_no,
+        page_size=page_size,
+    )
 
     body = await _request("GET", "/api/v1/clara/products", params=params)
-    data_block = body.get("data") if isinstance(body, dict) else {}
-    if not isinstance(data_block, dict):
-        data_block = {}
-
-    products = data_block.get("data")
-    if not isinstance(products, list):
-        products = []
-
-    total_count = data_block.get("totalCount", 0)
-    try:
-        total_count = int(total_count)
-    except (TypeError, ValueError):
-        total_count = len(products)
+    result = parse_products_response(body, page_no=page_no)
 
     logger.info(
         "Clara product search completed",
         extra={
             "page": page_no,
             "page_size": page_size,
-            "result_count": len(products),
-            "total_count": total_count,
+            "result_count": len(result["products"]),
+            "total_count": result["total_count"],
         },
     )
-    return {"products": products, "total_count": total_count, "page": page_no}
+    return result
 
 
 async def get_promotions() -> list:
@@ -206,18 +252,22 @@ async def get_promotions() -> list:
 async def get_stores(
     name: str | None = None,
     pincode: str | None = None,
+    city: str | None = None,
     page_no: int = 1,
     page_size: int = 5,
 ) -> dict:
-    """Fetch stores by name and/or pincode only."""
+    """Fetch stores by pincode, name, or city (city is sent as name filter)."""
     params: dict[str, Any] = {
         "pageNo": page_no,
         "pageSize": page_size,
     }
-    if name is not None:
-        params["name"] = name
-    if pincode is not None:
-        params["pincode"] = pincode
+    if pincode is not None and str(pincode).strip():
+        params["pincode"] = str(pincode).strip()
+    elif city is not None and str(city).strip():
+        params["name"] = str(city).strip()
+    elif name is not None and str(name).strip():
+        params["name"] = str(name).strip()
+    params = _omit_empty_params(params)
 
     body = await _request("GET", "/api/v1/clara/stores", params=params)
     data_block = body.get("data") if isinstance(body, dict) else {}

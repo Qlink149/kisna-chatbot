@@ -26,7 +26,11 @@ from kisna_chatbot.processors.classifier import (
 )
 from kisna_chatbot.processors.entity_extractor import (
     apply_occasion_style_hints,
+    combine_search_entities,
     extract_entities_with_llm,
+    extract_structured_fields,
+    finalize_search_entities,
+    is_spurious_title,
     merge_llm_and_regex_entities,
 )
 
@@ -64,12 +68,48 @@ class SanitizeLlmEntitiesTests(unittest.TestCase):
 class MergeEntitiesTests(unittest.TestCase):
     def test_llm_occasion_wins_regex_price_fills(self):
         merged = merge_llm_and_regex_entities(
-            {"occasion": "anniversary", "max_price": None},
-            {"max_price": 50000, "category": "ring"},
+            {"occasion": "anniversary", "max_price": None, "category": "ring"},
+            {"max_price": 50000, "category": "pendant"},
         )
         self.assertEqual(merged["occasion"], "anniversary")
         self.assertEqual(merged["max_price"], 50000)
         self.assertEqual(merged["category"], "ring")
+
+    def test_regex_title_ignored_when_llm_title_null(self):
+        merged = merge_llm_and_regex_entities(
+            {"title": None, "category": "ring"},
+            {"title": "what", "category": "ring"},
+        )
+        self.assertIsNone(merged.get("title"))
+
+    def test_llm_title_wins_over_regex(self):
+        merged = merge_llm_and_regex_entities(
+            {"title": "elysia", "category": "ring"},
+            {"title": "nitara", "category": "ring"},
+        )
+        self.assertEqual(merged["title"], "elysia")
+
+    def test_regex_price_fills_when_llm_max_price_null(self):
+        merged = merge_llm_and_regex_entities(
+            {"max_price": None, "category": "earring"},
+            {"max_price": 30000, "category": "earring"},
+        )
+        self.assertEqual(merged["max_price"], 30000)
+
+
+class FinalizeSearchEntitiesTests(unittest.TestCase):
+    def test_chain_category_maps_to_necklace_with_api_override(self):
+        finalized = finalize_search_entities(
+            {"category": "chain", "material_type": "gold", "title": "chains"},
+        )
+        self.assertEqual(finalized["category"], "necklace")
+        self.assertEqual(finalized["clara_category_override"], "chain")
+        self.assertIsNone(finalized["title"])
+
+    def test_is_spurious_title_blocks_question_words(self):
+        self.assertTrue(is_spurious_title("What"))
+        self.assertTrue(is_spurious_title("kisna"))
+        self.assertFalse(is_spurious_title("elysia"))
 
 
 class OccasionStyleHintsTests(unittest.TestCase):
@@ -103,16 +143,10 @@ class ClassifierEntityStorageTests(unittest.TestCase):
                 "user_profile": {"chat_history": [], "service_selected": ""},
                 "client_id": "kisna",
             }
-            with (
-                patch(
-                    "kisna_chatbot.processors.classifier._programmatic_intent_override",
-                    return_value=None,
-                ),
-                patch(
-                    "kisna_chatbot.processors.classifier.complete_chat",
-                    new_callable=AsyncMock,
-                    return_value=llm_response,
-                ),
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=llm_response,
             ):
                 result = await clf.process(data)
             self.assertEqual(
@@ -123,9 +157,12 @@ class ClassifierEntityStorageTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_programmatic_returns_empty_entities(self):
+    def test_returns_refund_routes_via_llm_classifier(self):
         async def _run():
             clf = Classifier()
+            llm_response = json.dumps(
+                {"intent": "returns_refund", "confidence": 0.9, "entities": {}}
+            )
             data = {
                 "phone_number": "919999999999",
                 "messages": {"text": {"body": "wapas karna hai"}},
@@ -135,10 +172,24 @@ class ClassifierEntityStorageTests(unittest.TestCase):
                 },
                 "client_id": "kisna",
             }
-            result = await clf.process(data)
-            self.assertEqual(result.get("llm_extracted_entities"), {})
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=llm_response,
+            ):
+                result = await clf.process(data)
+            self.assertEqual(result["classified_category"], "returns_refund")
 
         asyncio.run(_run())
+
+    def test_combine_search_entities_structured_price_only(self):
+        combined = combine_search_entities(
+            {"category": "ring"},
+            extract_structured_fields("rings under 30k"),
+        )
+        self.assertEqual(combined["category"], "ring")
+        self.assertEqual(combined["max_price"], 30000)
+        self.assertIsNone(combined.get("title"))
 
     def test_emi_general_all_null_entities(self):
         async def _run():

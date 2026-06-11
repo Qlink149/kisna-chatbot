@@ -202,3 +202,19 @@ class TestClaraNormalization:
         assert params.get("category") == "ring"
         assert params.get("max_price") == 10000
         assert "min_price" not in params
+
+    def test_gold_chains_no_spurious_title(self):
+        entities = extract_entities("Show me gold Chains")
+        assert entities.get("title") is None
+        assert entities.get("material_type") == "gold"
+
+    def test_gold_chains_plural_extracts_necklace_category(self):
+        entities = extract_entities("gold chains")
+        assert entities.get("category") == "necklace"
+        assert entities.get("material_type") == "gold"
+        assert entities.get("title") is None
+
+    def test_capitalized_product_name_not_regex_title(self):
+        entities = extract_entities("Show me Nitara ring")
+        assert entities.get("title") is None
+        assert entities.get("category") == "ring"

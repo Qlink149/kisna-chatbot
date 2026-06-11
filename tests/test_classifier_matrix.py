@@ -1,6 +1,7 @@
-"""Classifier accuracy matrix — programmatic routing and mocked LLM cases."""
+"""Classifier accuracy matrix — LLM routing and minimal shortcuts."""
 
 import asyncio
+import json
 import os
 import unittest
 from unittest.mock import AsyncMock, patch
@@ -22,18 +23,16 @@ from kisna_chatbot.main import app  # noqa: F401
 from kisna_chatbot.processors.classifier import (
     Classifier,
     _looks_like_faq_query,
-    _programmatic_intent_override,
     classify_query_for_audit,
 )
 from kisna_chatbot.processors.entity_extractor import extract_entities
 
-PROGRAMMATIC_MATRIX = [
+LLM_INTENT_MATRIX = [
     ("what is the price of Elysia ring?", "product_info"),
     ("Maggio ring ki price kya hai?", "product_info"),
     ("koi offer hai kya?", "offers"),
     ("making charge offer batao", "offers"),
     ("nearest store", "store_info"),
-    ("302001", "store_info"),
     ("mera order kahan hai?", "order_tracking"),
     ("delivery kab hogi?", "order_tracking"),
     ("order status", "order_tracking"),
@@ -42,18 +41,9 @@ PROGRAMMATIC_MATRIX = [
     ("complaint darz karni hai", "complaint"),
     ("wrong item aaya", "complaint"),
     ("agent se baat karni hai", "human_handoff"),
-    ("help", "menu_help"),
-]
-
-LLM_DEFERRED_MATRIX = [
-    "show me diamond rings",
-    "gold earrings",
-    "sone ki anguthi dikhao",
-    "heere ki bali 50k tak",
-    "necklace under 30000",
-    "Rivaah collection",
-    "mangalsutra dikhao",
-    "Evil Eye bracelet",
+    ("show me diamond rings", "product_search"),
+    ("What is kisna Jewellery?", "general"),
+    ("What are current offers available?", "offers"),
 ]
 
 GREETING_MATRIX = [
@@ -66,55 +56,37 @@ GREETING_MATRIX = [
 
 
 class ClassifierMatrixTests(unittest.TestCase):
-    def test_programmatic_matrix(self):
-        for text, expected in PROGRAMMATIC_MATRIX:
-            if expected == "human_handoff":
-                continue
-            if expected == "menu_help":
-                continue
-            actual = _programmatic_intent_override(text, {})
-            self.assertEqual(
-                actual,
-                expected,
-                msg=f"{text!r}: expected {expected}, got {actual}",
-            )
+    def test_llm_intent_matrix(self):
+        async def _run():
+            for text, expected_intent in LLM_INTENT_MATRIX:
+                llm_response = json.dumps(
+                    {"intent": expected_intent, "confidence": 0.92, "entities": {}}
+                )
+                with patch(
+                    "kisna_chatbot.processors.classifier.complete_chat",
+                    new_callable=AsyncMock,
+                    return_value=llm_response,
+                ):
+                    result = await classify_query_for_audit(text, use_llm=True)
+                self.assertEqual(
+                    result["intent"],
+                    expected_intent,
+                    msg=f"{text!r}: expected {expected_intent}, got {result['intent']}",
+                )
+                self.assertEqual(result["source"], "llm")
 
-    def test_product_search_fast_path(self):
-        for text in LLM_DEFERRED_MATRIX:
-            self.assertEqual(
-                _programmatic_intent_override(text, {}),
-                "product_search",
-                msg=f"{text!r} should use programmatic product_search fast-path",
-            )
+        asyncio.run(_run())
 
-    def test_greeting_programmatic(self):
+    def test_greeting_shortcut(self):
         for text in GREETING_MATRIX:
-            self.assertEqual(
-                _programmatic_intent_override(text, {}),
-                "greeting",
-                msg=f"{text!r} should be greeting",
+            result = asyncio.run(
+                classify_query_for_audit(text, use_llm=False)
             )
-
-    def test_price_query_is_product_info_not_search(self):
-        self.assertEqual(
-            _programmatic_intent_override(
-                "what is the price of Elysia ring?", {}
-            ),
-            "product_info",
-        )
-
-    def test_bare_gold_defers_to_llm(self):
-        self.assertIsNone(_programmatic_intent_override("gold", {}))
+            self.assertEqual(result["intent"], "greeting", msg=text)
+            self.assertEqual(result["source"], "shortcut")
 
     def test_faq_question_defers_to_llm_classifier(self):
         self.assertTrue(_looks_like_faq_query("What is kisna Jewellery?"))
-        self.assertIsNone(_programmatic_intent_override("What is kisna Jewellery?", {}))
-
-    def test_offers_query_not_product_search(self):
-        self.assertEqual(
-            _programmatic_intent_override("What are current offers available?", {}),
-            "offers",
-        )
 
     def test_faq_query_does_not_extract_spurious_title(self):
         entities = extract_entities("What is kisna Jewellery?")
@@ -167,13 +139,33 @@ class ClassifierMatrixTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_classify_query_for_audit_programmatic(self):
+    def test_classify_query_for_audit_uses_llm_when_enabled(self):
+        async def _run():
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value='{"intent": "product_info", "confidence": 0.91, "entities": {}}',
+            ):
+                result = await classify_query_for_audit(
+                    "Maggio ring ki price kya hai?", use_llm=True
+                )
+            self.assertEqual(result["intent"], "product_info")
+            self.assertEqual(result["source"], "llm")
+
+        asyncio.run(_run())
+
+    def test_pincode_shortcut_only_when_awaiting_store_pincode(self):
         async def _run():
             result = await classify_query_for_audit(
-                "Maggio ring ki price kya hai?", use_llm=False
+                "302001",
+                {"awaiting_store_pincode": True},
+                use_llm=False,
             )
-            self.assertEqual(result["intent"], "product_info")
-            self.assertEqual(result["source"], "programmatic")
+            self.assertEqual(result["intent"], "store_info")
+            self.assertEqual(result["source"], "shortcut")
+
+            unknown = await classify_query_for_audit("302001", {}, use_llm=False)
+            self.assertEqual(unknown["intent"], "unknown")
 
         asyncio.run(_run())
 

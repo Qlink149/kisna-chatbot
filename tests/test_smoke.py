@@ -233,7 +233,15 @@ class ProductSearchTests(unittest.TestCase):
             with patch(
                 "kisna_chatbot.processors.product_search_agent_v3.search_products",
                 new_callable=AsyncMock,
-            ) as search_mock, patch.dict(
+            ) as search_mock, patch(
+                "kisna_chatbot.processors.product_search_agent_v3.extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={
+                    "category": "ring",
+                    "material_type": "gold",
+                    "max_price": 50000,
+                },
+            ), patch.dict(
                 os.environ, {"CLOUDINARY_CLOUD_NAME": "test-cloud"}
             ):
                 search_mock.return_value = {
@@ -497,6 +505,69 @@ class ProductSearchTests(unittest.TestCase):
             self.assertGreaterEqual(search_mock.await_count, 2)
             self.assertEqual(result["bot_response"][0]["type"], "text")
             self.assertIn("No pieces found under ₹10,000", result["bot_response"][0]["text"])
+
+        import asyncio
+
+        asyncio.run(_run())
+
+    def test_gold_chains_search_returns_carousel_not_zero_results(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "Show me gold Chains"}},
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+                "llm_extracted_entities": {
+                    "category": "necklace",
+                    "material_type": "gold",
+                    "title": "chains",
+                },
+            }
+
+            def _chain_product(pid: str, title: str) -> dict:
+                return {
+                    "_id": pid,
+                    "title": title,
+                    "price": {"variantPrice": 85000},
+                    "materialType": "gold",
+                    "productType": {"category": {"name": "Necklaces"}},
+                    "shipping": {"edd": 5},
+                    "seos": {"slug": f"gold-{pid}"},
+                    "mediaUrl": [
+                        {
+                            "isDefault": True,
+                            "image": f"https://img.example/{pid}.webp",
+                            "type": "image",
+                        }
+                    ],
+                }
+
+            mock_products = [
+                _chain_product(f"chain-{i}", "Gold Rope Chain")
+                for i in range(7)
+            ]
+
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                return_value={
+                    "products": mock_products,
+                    "total_count": 7,
+                    "page": 1,
+                },
+            ) as search_mock, patch(
+                "kisna_chatbot.processors.product_search_agent_v3.extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={},
+            ):
+                result = await agent.process(data)
+
+            search_mock.assert_awaited_once()
+            self.assertNotIn("couldn't find", result["bot_response"][0]["text"].lower())
+            media_msgs = [
+                r for r in result["bot_response"] if r.get("type") == "image_with_cta"
+            ]
+            self.assertGreater(len(media_msgs), 0)
 
         import asyncio
 
@@ -819,7 +890,7 @@ class ClassifierSkipTests(unittest.TestCase):
     def test_classifier_runs_for_offers_reroute(self):
         clf = Classifier()
         data = {
-            "messages": {"text": {"body": "what offers do you have"}},
+            "messages": {"text": {"body": "view offers"}},
             "user_profile": {
                 "service_selected": SL.PRODUCT_SEARCH.value,
                 "chat_history": [{"role": "user", "content": "hi"}],
@@ -849,14 +920,18 @@ class ClassifierSkipTests(unittest.TestCase):
         }
         self.assertFalse(clf.should_run(data))
 
-    def test_classifier_store_shortcut_routes_ad_flow(self):
+    def test_classifier_pincode_wait_shortcut_routes_ad_flow(self):
         clf = Classifier()
 
         async def _run():
             data = {
                 "phone_number": "919999999999",
                 "messages": {"text": {"body": "400001"}},
-                "user_profile": {"chat_history": [], "service_selected": ""},
+                "user_profile": {
+                    "chat_history": [],
+                    "service_selected": "",
+                    "awaiting_store_pincode": True,
+                },
                 "client_id": "kisna",
             }
             return await clf.process(data)
@@ -1206,7 +1281,12 @@ class HardeningAuditTests(unittest.TestCase):
                 },
                 "client_id": "kisna",
             }
-            result = await clf.process(data)
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value='{"intent": "general", "confidence": 0.3, "entities": {}}',
+            ):
+                result = await clf.process(data)
             self.assertEqual(result["classified_category"], "general")
             self.assertEqual(result["user_profile"]["service_selected"], SL.GENERAL.value)
             self.assertNotIn("bot_response", result)

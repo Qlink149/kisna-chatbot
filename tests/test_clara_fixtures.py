@@ -23,8 +23,10 @@ from kisna_chatbot.processors.entity_extractor import (
     extract_category_from_product,
     extract_entities,
     filter_products_by_entities,
+    finalize_search_entities,
     merge_search_entities,
     normalize_entities_for_clara,
+    sanitize_search_entities,
 )
 from kisna_chatbot.processors.product_search_agent_v3 import _build_fallback_strategies
 from kisna_chatbot.utils.product_formatter import (
@@ -139,6 +141,48 @@ class ClaraFixtureTests(unittest.TestCase):
         drop_material = next(s for s in strategies if s[2] == "drop_material")
         self.assertIsNone(drop_material[0]["material_type"])
         self.assertEqual(drop_material[0]["max_price"], 50000)
+
+    def test_sanitize_search_entities_clears_redundant_chain_title(self):
+        entities = {
+            "category": "chain",
+            "material_type": "gold",
+            "title": "chains",
+        }
+        sanitized = sanitize_search_entities(entities)
+        self.assertIsNone(sanitized["title"])
+        self.assertEqual(sanitized["category"], "chain")
+
+    def test_filter_chain_category_passes_necklace_product(self):
+        chain_product = {
+            "title": "Gold Rope Chain",
+            "materialType": "gold",
+            "productType": {"category": {"name": "Necklaces"}},
+        }
+        filtered = filter_products_by_entities(
+            [chain_product],
+            {"category": "chain", "material_type": "gold", "title": None},
+        )
+        self.assertEqual(len(filtered), 1)
+
+    def test_entities_to_api_params_sends_chain_for_chain_intent(self):
+        entities = finalize_search_entities(
+            {"category": "chain", "material_type": "gold"},
+        )
+        params = entities_to_api_params(entities)
+        self.assertEqual(params["category"], "chain")
+        self.assertEqual(entities["category"], "necklace")
+
+    def test_fallback_strategies_skip_title_only_for_redundant_chain_title(self):
+        entities = {
+            "category": "chain",
+            "material_type": "gold",
+            "title": "chains",
+        }
+        labels = [label for _ent, _note, label in _build_fallback_strategies(entities)]
+        self.assertIn("drop_title", labels)
+        self.assertNotIn("title_only", labels)
+        drop_material = next(s for s in _build_fallback_strategies(entities) if s[2] == "drop_material")
+        self.assertIsNone(drop_material[0]["title"])
 
     def test_clara_normalization_maps_nosewear(self):
         entities = extract_entities("gold nose pin")

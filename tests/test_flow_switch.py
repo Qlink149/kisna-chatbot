@@ -73,7 +73,12 @@ class FlowSwitchPromptTests(unittest.TestCase):
                 "user_profile": _browse_profile(),
                 "client_id": "kisna",
             }
-            result = await clf.process(data)
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value='{"intent": "returns_refund", "confidence": 0.9, "entities": {}}',
+            ):
+                result = await clf.process(data)
             self.assertIn("bot_response", result)
             self.assertEqual(
                 result["bot_response"][0]["msgid"],
@@ -99,7 +104,12 @@ class FlowSwitchPromptTests(unittest.TestCase):
                 "user_profile": _browse_profile(),
                 "client_id": "kisna",
             }
-            result = await clf.process(data)
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value='{"intent": "offers", "confidence": 0.9, "entities": {}}',
+            ):
+                result = await clf.process(data)
             self.assertEqual(
                 result["bot_response"][0]["msgid"],
                 QuickReplyId.FLOW_SWITCH_CONFIRM.value,
@@ -145,8 +155,15 @@ class FlowSwitchPromptTests(unittest.TestCase):
                 "user_profile": _browse_profile(),
                 "client_id": "kisna",
             }
-            with patch(
-                "kisna_chatbot.processors.classifier.send_customer_support_template"
+            with (
+                patch(
+                    "kisna_chatbot.processors.classifier.complete_chat",
+                    new_callable=AsyncMock,
+                    return_value='{"intent": "human_handoff", "confidence": 0.95, "entities": {}}',
+                ),
+                patch(
+                    "kisna_chatbot.processors.classifier.send_customer_support_template"
+                ),
             ):
                 result = await clf.process(data)
             self.assertIn("bot_response", result)
@@ -164,7 +181,12 @@ class FlowSwitchPromptTests(unittest.TestCase):
                 "user_profile": _browse_profile(),
                 "client_id": "kisna",
             }
-            result = await clf.process(data)
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value='{"intent": "complaint", "confidence": 0.92, "entities": {}}',
+            ):
+                result = await clf.process(data)
             self.assertEqual(
                 result["bot_response"][0]["msgid"],
                 QuickReplyId.FLOW_SWITCH_CONFIRM.value,

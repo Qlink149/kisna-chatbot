@@ -10,7 +10,9 @@ from kisna_chatbot.processors.product_search_agent_v3 import (
 from kisna_chatbot.processors.entity_extractor import (
     entities_to_api_params,
     extract_category_from_product,
-    extract_entities,
+    combine_search_entities,
+    extract_structured_fields,
+    finalize_search_entities,
     normalize_material_for_api,
 )
 from kisna_chatbot.utils.jewellery_profile import (
@@ -262,7 +264,10 @@ async def _retry_product_search(
         return None
 
     try:
-        entities = extract_entities(query)
+        entities = finalize_search_entities(
+            combine_search_entities({}, extract_structured_fields(query)),
+            query=query,
+        )
         api_params = entities_to_api_params(entities)
         if not api_params.get("title") and query.strip():
             api_params = {**api_params, "title": query.strip()}

@@ -82,6 +82,7 @@ _CATEGORY_SYNONYMS: dict[str, list[str]] = {
         "haar",
         "mala",
         "chain",
+        "chains",
         "choker",
         "rani haar",
         "layered necklace",
@@ -476,12 +477,182 @@ def _strip_command_prefix(text: str) -> str:
     return result
 
 
-def sanitize_invalid_title(entities: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy with command-verb titles cleared."""
+def _singularize_english(token: str) -> str:
+    t = (token or "").strip().lower()
+    if t.endswith("ies") and len(t) > 4:
+        return t[:-3] + "y"
+    if t.endswith("es") and len(t) > 3:
+        return t[:-2]
+    if t.endswith("s") and len(t) > 2 and not t.endswith("ss"):
+        return t[:-1]
+    return t
+
+
+def _title_echoes_term(title: str, term: str) -> bool:
+    title_l = title.strip().lower()
+    term_l = term.strip().lower()
+    if title_l == term_l:
+        return True
+    return (
+        _singularize_english(title_l) == term_l
+        or title_l == _singularize_english(term_l)
+        or _singularize_english(title_l) == _singularize_english(term_l)
+    )
+
+
+def _category_synonym_terms(category: str | None) -> set[str]:
+    if not category:
+        return set()
+    terms = {str(category).lower()}
+    for syn in _CATEGORY_SYNONYMS.get(category, []):
+        terms.add(syn.lower())
+    return terms
+
+
+def title_redundant_with_category(entities: dict[str, Any]) -> bool:
+    """True when title repeats category/material words (e.g. title=chains, category=chain)."""
+    title = entities.get("title")
+    if not isinstance(title, str) or not title.strip():
+        return False
+
+    category = entities.get("category")
+    if category:
+        for term in _category_synonym_terms(str(category)):
+            if _title_echoes_term(title, term):
+                return True
+
+    material = entities.get("material_type")
+    if material:
+        for syn in _MATERIAL_SYNONYMS.get(str(material), [str(material)]):
+            if _title_echoes_term(title, syn):
+                return True
+
+    return False
+
+
+def sanitize_search_entities(entities: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy with invalid or redundant search titles cleared."""
     out = dict(entities or {})
     title = out.get("title")
     if isinstance(title, str) and title.strip().lower() in _TITLE_STOP_WORDS:
         out["title"] = None
+    if title_redundant_with_category(out):
+        out["title"] = None
+    return out
+
+
+def sanitize_invalid_title(entities: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy with command-verb and redundant titles cleared."""
+    return sanitize_search_entities(entities)
+
+
+_INTERNAL_CATEGORY_ALIASES: dict[str, str] = {
+    "chain": "necklace",
+    "nose_ring": "nosewear",
+}
+
+_CLARA_CATEGORY_OVERRIDE_FROM: dict[str, str] = {
+    "chain": "chain",
+}
+
+_REGEX_FILL_FIELDS = (
+    "min_price",
+    "max_price",
+    "pincode",
+    "city",
+)
+
+_LLM_ONLY_FIELDS = (
+    "title",
+    "collection",
+    "occasion",
+    "style",
+    "gender",
+    "karat",
+    "size",
+    "action",
+)
+
+_SEMANTIC_MERGE_FIELDS = (
+    "category",
+    "material_type",
+    "metal_colour",
+    "categories",
+    "multi_category",
+    "secondary_category",
+)
+
+
+def is_spurious_title(title: str | None) -> bool:
+    """True when a title token should not drive routing or search (stop words, etc.)."""
+    if not title or not isinstance(title, str):
+        return False
+    if title.strip().lower() in _TITLE_STOP_WORDS:
+        return True
+    return title_redundant_with_category({"title": title, "category": None})
+
+
+def normalize_internal_category(entities: dict[str, Any]) -> dict[str, Any]:
+    """Map LLM/API category labels to internal canonical values for client filtering."""
+    out = dict(entities or {})
+    category = out.get("category")
+    if not isinstance(category, str) or not category.strip():
+        return out
+
+    raw = category.strip().lower()
+    if raw in _CLARA_CATEGORY_OVERRIDE_FROM:
+        out["clara_category_override"] = _CLARA_CATEGORY_OVERRIDE_FROM[raw]
+    if raw in _INTERNAL_CATEGORY_ALIASES:
+        out["category"] = _INTERNAL_CATEGORY_ALIASES[raw]
+    return out
+
+
+def _log_entity_merge_conflicts(
+    *,
+    query: str | None,
+    regex_entities: dict[str, Any] | None,
+    llm_entities: dict[str, Any] | None,
+) -> None:
+    if not query or not regex_entities or not llm_entities:
+        return
+    for field in ("category", "material_type", "title"):
+        regex_val = regex_entities.get(field)
+        llm_val = llm_entities.get(field)
+        if regex_val is None or llm_val is None or regex_val == llm_val:
+            continue
+        log_fn = logger.info if field == "title" else logger.debug
+        log_fn(
+            "entity_merge_conflict",
+            extra={
+                "query": query,
+                "field": field,
+                "regex_value": regex_val,
+                "llm_value": llm_val,
+            },
+        )
+
+
+def finalize_search_entities(
+    entities: dict[str, Any],
+    *,
+    query: str | None = None,
+    regex_entities: dict[str, Any] | None = None,
+    llm_entities: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Single validation gate: sanitize, normalize categories, optional conflict logging."""
+    out = sanitize_search_entities(entities)
+    out = normalize_internal_category(out)
+    _log_entity_merge_conflicts(
+        query=query,
+        regex_entities=regex_entities,
+        llm_entities=llm_entities,
+    )
+    category = out.get("category")
+    if category in _CLARA_UNSUPPORTED_CATEGORIES:
+        out["unsupported_category"] = True
+    material = out.get("material_type")
+    if material in _CLARA_UNSUPPORTED_MATERIALS:
+        out["unsupported_material"] = True
     return out
 
 
@@ -765,6 +936,17 @@ def _all_category_material_terms() -> set[str]:
     return terms
 
 
+def _is_blocked_title_token(lower: str, blocked: set[str]) -> bool:
+    if lower in blocked:
+        return True
+    singular = _singularize_english(lower)
+    if singular in blocked:
+        return True
+    if f"{lower}s" in blocked or f"{singular}s" in blocked:
+        return True
+    return False
+
+
 def _extract_title(text: str, original_text: str) -> str | None:
     for coll in sorted(_KISNA_COLLECTIONS, key=len, reverse=True):
         if _synonym_in_text(text, coll):
@@ -774,11 +956,9 @@ def _extract_title(text: str, original_text: str) -> str | None:
     blocked = _all_category_material_terms() | _TITLE_STOP_WORDS
     for token in tokens:
         lower = token.lower()
-        if lower in blocked:
+        if _is_blocked_title_token(lower, blocked):
             continue
         if lower in _KISNA_COLLECTIONS:
-            return lower
-        if token[0].isupper() and len(token) > 2:
             return lower
     return None
 
@@ -999,6 +1179,8 @@ def normalize_entities_for_clara(entities: dict[str, Any]) -> dict[str, Any]:
         notes.append(
             "I'll show you our full collection since we don't have a specific filter for that."
         )
+    elif out.get("clara_category_override"):
+        out["clara_category"] = out["clara_category_override"]
     elif category:
         out["clara_category"] = _CLARA_CATEGORY_MAP.get(category, category)
     else:
@@ -1156,6 +1338,53 @@ async def _call_llm_for_entities(
     )
 
 
+def extract_structured_fields(text: str) -> dict[str, Any]:
+    """Regex-only extraction: prices, pincode, city. No category/title/material."""
+    normalized = _normalize_text(text)
+    min_price, max_price = _extract_prices(normalized)
+    return {
+        "min_price": min_price,
+        "max_price": max_price,
+        "pincode": _extract_pincode(text),
+        "city": _extract_city(normalized),
+    }
+
+
+def combine_search_entities(
+    llm_entities: dict,
+    structured_fields: dict,
+) -> dict:
+    """
+    Build search entities: LLM owns semantics; regex owns structured fields only.
+    """
+    llm = dict(llm_entities or {})
+    structured = dict(structured_fields or {})
+    merged: dict[str, Any] = {}
+
+    for key in _REGEX_FILL_FIELDS:
+        merged[key] = llm.get(key) if llm.get(key) is not None else structured.get(key)
+
+    for key in _SEMANTIC_MERGE_FIELDS:
+        merged[key] = llm.get(key)
+
+    for key in _LLM_ONLY_FIELDS:
+        merged[key] = llm.get(key)
+
+    for key, val in llm.items():
+        if val is not None and key not in merged:
+            merged[key] = val
+
+    category = merged.get("category")
+    material = merged.get("material_type")
+    merged["unsupported_category"] = (
+        category in _CLARA_UNSUPPORTED_CATEGORIES if category else False
+    )
+    merged["unsupported_material"] = (
+        material in _CLARA_UNSUPPORTED_MATERIALS if material else False
+    )
+    return merged
+
+
 async def extract_entities_with_llm(
     user_query: str,
     client_id: str = "kisna",
@@ -1200,16 +1429,11 @@ def merge_llm_and_regex_entities(
     llm_entities: dict,
     regex_entities: dict,
 ) -> dict:
-    """
-    Merge LLM and regex entities.
-    LLM wins on all fields where it returned non-null.
-    Regex fills in any field where LLM returned null.
-    """
-    merged = dict(regex_entities or {})
-    for key, val in (llm_entities or {}).items():
-        if val is not None:
-            merged[key] = val
-    return merged
+    """Backward-compatible alias: structured fields only from regex side."""
+    structured = {
+        key: (regex_entities or {}).get(key) for key in _REGEX_FILL_FIELDS
+    }
+    return combine_search_entities(llm_entities, structured)
 
 
 _OCCASION_PREFIX_MESSAGES: dict[str, str] = {
@@ -1295,14 +1519,20 @@ def build_search_context(entities: dict[str, Any]) -> str:
 
     category = entities.get("category")
     if category:
-        cat_label = category if category.endswith("s") else f"{category}s"
-        if cat_label == "mangalsutras":
-            cat_label = "mangalsutra"
+        if entities.get("clara_category_override") == "chain":
+            cat_label = "chains"
+        else:
+            cat_label = category if category.endswith("s") else f"{category}s"
+            if cat_label == "mangalsutras":
+                cat_label = "mangalsutra"
         parts.append(cat_label.replace("_", " "))
 
     title = entities.get("title")
-    if title:
-        parts.append(title.title())
+    if title and not title_redundant_with_category(entities):
+        title_display = str(title).title()
+        context_so_far = " ".join(parts).lower()
+        if title_display.lower() not in context_so_far:
+            parts.append(title_display)
 
     min_p = entities.get("min_price")
     max_p = entities.get("max_price")
@@ -1343,6 +1573,15 @@ def _product_material_matches(product: dict, material_type: str) -> bool:
     return normalized == clara_material
 
 
+def _categories_match(entity_cat: str | None, product_cat: str | None) -> bool:
+    if entity_cat == product_cat:
+        return True
+    if not entity_cat or not product_cat:
+        return False
+    equivalents = {("chain", "necklace"), ("necklace", "chain")}
+    return (entity_cat, product_cat) in equivalents
+
+
 def _product_title_matches_hint(product: dict, hint: str) -> bool:
     needle = (hint or "").strip().lower()
     if not needle:
@@ -1369,7 +1608,8 @@ def _product_matches_entities(product: dict, entities: dict) -> bool:
         if product_cat not in categories:
             return False
     elif category and not entities.get("unsupported_category"):
-        if extract_category_from_product(product) != category:
+        product_cat = extract_category_from_product(product)
+        if not _categories_match(category, product_cat):
             return False
 
     material = entities.get("material_type")

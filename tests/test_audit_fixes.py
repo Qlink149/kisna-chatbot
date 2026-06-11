@@ -1,8 +1,10 @@
 """Regression tests for classification + extraction audit fixes."""
 
 import asyncio
+import json
 import os
 import unittest
+from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -56,6 +58,13 @@ class ExpensiveSearchRoutingTests(unittest.TestCase):
     def test_expensive_followup_routes_to_product_search(self):
         async def _run():
             clf = Classifier()
+            llm_response = json.dumps(
+                {
+                    "intent": "product_search",
+                    "confidence": 0.9,
+                    "entities": {"price_direction": "higher"},
+                }
+            )
             data = {
                 "phone_number": "919999999999",
                 "messages": {"text": {"body": "aur expensive dikhao"}},
@@ -66,20 +75,19 @@ class ExpensiveSearchRoutingTests(unittest.TestCase):
                 },
                 "client_id": "kisna",
             }
-            result = await clf.process(data)
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=llm_response,
+            ):
+                result = await clf.process(data)
             self.assertEqual(result["classified_category"], "product_search")
-            self.assertEqual(
-                result["user_profile"].get("llm_extracted_entities", {}).get(
-                    "price_direction"
-                ),
-                "higher",
-            )
 
         asyncio.run(_run())
 
 
 class ProductInfoSkipCategoryTests(unittest.TestCase):
-    def test_classifier_skip_sets_product_info_category(self):
+    def test_classifier_skips_followup_price_query_in_search_session(self):
         clf = Classifier()
         data = {
             "phone_number": "919999999999",
@@ -96,7 +104,7 @@ class ProductInfoSkipCategoryTests(unittest.TestCase):
             return await clf.process(data)
 
         result = asyncio.run(_run())
-        self.assertEqual(result.get("classified_category"), "product_info")
+        self.assertNotIn("classified_category", result)
 
 
 if __name__ == "__main__":

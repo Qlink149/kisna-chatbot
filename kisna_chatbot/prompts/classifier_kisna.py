@@ -58,6 +58,10 @@ Price hints: "50k", "1 lakh", "under 50000", "20k se 50k tak".
 
 ## Classification rules
 
+All intent routing is handled by this classifier (no regex overrides). Use examples below for
+order_tracking, returns_refund, complaint, offers, store_info, product_info vs product_search,
+general FAQ, and human_handoff.
+
 1. Menu/options/help → menu_help
 2. Product discovery/browse/search → product_search
 3. Specific product price, stock, weight, delivery days for a product → product_info (never general)
@@ -231,6 +235,10 @@ Fallback for unclear or spam/gibberish:
 58. "which is cheapest?" | active: product_search → {"intent": "product_info", "confidence": 0.88}
 59. "sabse sasta kaun sa hai" | active: product_search → {"intent": "product_info", "confidence": 0.87}
 60. "rings aur earrings chahiye" → {"intent": "product_search", "confidence": 0.85}
+61. "show me expensive rings" | active: product_search → {"intent": "product_search", "confidence": 0.88}
+62. "aur mehnga dikhao" | active: product_search → {"intent": "product_search", "confidence": 0.85}
+63. "delivery kab hogi?" | order context → {"intent": "order_tracking", "confidence": 0.9}
+64. "damage ho gaya" → {"intent": "complaint", "confidence": 0.94}
 
 ---
 

@@ -9,9 +9,12 @@ os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 from kisna_chatbot.integrations.clara_api import get_discount_for_product
 from kisna_chatbot.processors.entity_extractor import (
+    apply_occasion_style_hints,
     build_search_context,
     entities_to_api_params,
     extract_entities,
+    finalize_search_entities,
+    sanitize_search_entities,
 )
 
 
@@ -80,6 +83,26 @@ class EntityExtractorTests(unittest.TestCase):
         ctx = build_search_context(entities)
         self.assertIn("gold", ctx.lower())
         self.assertIn("50", ctx)
+
+    def test_build_search_context_no_duplicate_chain_title(self):
+        entities = finalize_search_entities(
+            {
+                "category": "chain",
+                "material_type": "gold",
+                "title": "chains",
+            }
+        )
+        ctx = build_search_context(entities)
+        self.assertEqual(ctx.lower(), "gold chains")
+        self.assertNotIn("chains chains", ctx.lower())
+
+    def test_finalize_clears_redundant_title_after_style_hint(self):
+        extracted, _ = apply_occasion_style_hints(
+            {"category": "chain", "material_type": "gold", "style": "traditional"}
+        )
+        finalized = finalize_search_entities(extracted)
+        self.assertEqual(finalized["category"], "necklace")
+        self.assertEqual(finalized.get("title"), "traditional")
 
 
 class DiscountHelperTests(unittest.TestCase):

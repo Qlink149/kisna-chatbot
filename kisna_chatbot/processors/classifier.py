@@ -11,7 +11,7 @@ from kisna_chatbot.models.service_list import ServiceList
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.ad_flow_agent import _PINCODE_ONLY_RE
 from kisna_chatbot.processors.entity_extractor import (
-    extract_entities,
+    extract_structured_fields,
     is_unrecognizable_input,
 )
 from kisna_chatbot.processors.service_list import (
@@ -224,22 +224,23 @@ def _looks_like_faq_query(text: str) -> bool:
     return True
 
 
-def _is_spurious_regex_title(title: str | None) -> bool:
-    if not title or not isinstance(title, str):
+def _looks_like_browse_escape(text: str) -> bool:
+    """True when user in store-pincode wait clearly wants a catalog search instead."""
+    normalized = (text or "").strip()
+    if not normalized or _looks_like_faq_query(normalized):
         return False
-    blocked = {
-        "what",
-        "how",
-        "why",
-        "when",
-        "where",
-        "who",
-        "which",
-        "kisna",
-        "jewellery",
-        "jewelry",
-    }
-    return title.strip().lower() in blocked
+    if _BROWSE_ACTION_RE.search(normalized) and (
+        _CATEGORY_WORD_RE.search(normalized) or _MATERIAL_WORD_RE.search(normalized)
+    ):
+        return True
+    if _CATEGORY_WORD_RE.search(normalized) and _MATERIAL_WORD_RE.search(normalized):
+        return True
+    structured = extract_structured_fields(normalized)
+    if (structured.get("min_price") or structured.get("max_price")) and (
+        _CATEGORY_WORD_RE.search(normalized) or _MATERIAL_WORD_RE.search(normalized)
+    ):
+        return True
+    return False
 
 
 def _store_pincode_escape_intent(user_query: str) -> str | None:
@@ -247,7 +248,7 @@ def _store_pincode_escape_intent(user_query: str) -> str | None:
     normalized = (user_query or "").strip()
     if not normalized:
         return None
-    if _looks_like_product_search_query(normalized):
+    if _looks_like_browse_escape(normalized):
         return "product_search"
     if _OFFERS_INTENT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
         return "offers"
@@ -258,82 +259,6 @@ def _store_pincode_escape_intent(user_query: str) -> str | None:
     if _COMPLAINT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
         return "complaint"
     return None
-
-
-def _looks_like_product_search_query(text: str) -> bool:
-    """True when free text looks like a catalog search, not a menu tap."""
-    normalized = (text or "").strip()
-    if not normalized:
-        return False
-
-    entities = extract_entities(normalized)
-
-    title = entities.get("title")
-    if entities.get("category") or (title and not _is_spurious_regex_title(title)):
-        return True
-
-    if entities.get("min_price") is not None or entities.get("max_price") is not None:
-        return True
-
-    if _CATEGORY_WORD_RE.search(normalized):
-        return True
-
-    if _BROWSE_ACTION_RE.search(normalized):
-        if _MATERIAL_WORD_RE.search(normalized) or entities.get("material_type"):
-            return True
-        if _CATEGORY_WORD_RE.search(normalized) or entities.get("title"):
-            return True
-        if _BUDGET_BROWSE_RE.search(normalized):
-            return True
-        if re.search(r"\bkuch\b", normalized, re.I):
-            return True
-
-    if _GIFT_BROWSE_RE.search(normalized) and re.search(
-        r"\b(something|gift|jewel|ring|present)\b", normalized, re.I
-    ):
-        return True
-
-    if _BUDGET_BROWSE_RE.search(normalized) and (
-        _MATERIAL_WORD_RE.search(normalized) or _CATEGORY_WORD_RE.search(normalized)
-    ):
-        return True
-
-    return False
-
-
-def _looks_like_product_info_query(text: str, user_profile: dict) -> bool:
-    normalized = (text or "").strip()
-    if not normalized:
-        return False
-
-    if not _PRICE_PRODUCT_INFO_RE.search(normalized) and not _COMPARATIVE_RE.search(
-        normalized
-    ):
-        return False
-
-    entities = extract_entities(normalized)
-    last_viewed = user_profile.get("last_viewed_product")
-
-    if last_viewed:
-        return True
-
-    if _PRODUCT_REFERENCE_RE.search(normalized) and (
-        _PRICE_PRODUCT_INFO_RE.search(normalized) or _SIZE_QUERY_RE.search(normalized)
-    ):
-        return True
-
-    if _PRODUCT_NAME_RE.search(normalized) or entities.get("title"):
-        return True
-
-    if _CATEGORY_WORD_RE.search(normalized) and not _BUDGET_BROWSE_RE.search(
-        normalized
-    ):
-        return True
-
-    if _COMPARATIVE_RE.search(normalized) and user_profile.get("last_search_products"):
-        return True
-
-    return False
 
 
 _LLM_ENTITY_CATEGORIES = frozenset(
@@ -535,77 +460,6 @@ def _parse_classifier_json(raw: str) -> dict:
     }
 
 
-def _programmatic_intent_override(user_query: str, user_profile: dict) -> str | None:
-    """Route factual commerce queries without LLM when patterns are clear."""
-    normalized = (user_query or "").strip()
-    if not normalized:
-        return None
-
-    if is_greeting_message(normalized):
-        return "greeting"
-
-    if is_unrecognizable_input(normalized):
-        return "general"
-
-    if _HUMAN_HANDOFF_RE.search(normalized):
-        return "human_handoff"
-
-    if re.search(r"\b(return\s+policy|refund\s+policy)\b", normalized, re.I):
-        return "general"
-
-    if _POLICY_FAQ_RE.search(normalized) and not _BROWSE_ACTION_RE.search(
-        normalized
-    ):
-        if not _PRICE_PRODUCT_INFO_RE.search(normalized) or re.search(
-            r"\b(policy|hallmark|bis|certificate|guarantee|emi)\b", normalized, re.I
-        ):
-            return "general"
-
-    if _ORDER_TRACKING_RE.search(normalized) or _ORDER_DELIVERY_RE.search(normalized):
-        return "order_tracking"
-
-    if _EXCHANGE_RE.search(normalized):
-        return "returns_refund"
-
-    if _RETURNS_RE.search(normalized):
-        return "returns_refund"
-
-    if _COMPLAINT_RE.search(normalized):
-        return "complaint"
-
-    if _looks_like_faq_query(normalized):
-        return None
-
-    if _OFFERS_INTENT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(
-        normalized
-    ) and not _MATERIAL_WORD_RE.search(normalized):
-        return "offers"
-
-    if _looks_like_store_query(normalized):
-        return "store_info"
-
-    if _PRODUCT_EDD_RE.search(normalized) and not _ORDER_DELIVERY_RE.search(
-        normalized
-    ):
-        return "product_info"
-
-    if (
-        user_profile.get("service_selected") == ServiceList.PRODUCT_SEARCH.value
-        and _EXPENSIVE_SEARCH_RE.search(normalized)
-    ):
-        user_profile["_price_direction_hint"] = "higher"
-        return "product_search"
-
-    if _looks_like_product_info_query(normalized, user_profile):
-        return "product_info"
-
-    if user_profile.get("service_selected") != ServiceList.PRODUCT_SEARCH.value:
-        if _looks_like_product_search_query(normalized):
-            return "product_search"
-
-    return None
-
-
 def _is_obvious_reset(query: str) -> bool:
     return bool(
         re.search(r"^\s*(hi|hello|menu|back|cancel|namaste)\s*$", query, re.I)
@@ -736,12 +590,33 @@ def _looks_like_store_query(text: str) -> bool:
         return True
     if _STORE_LOOKUP_RE.search(normalized):
         return True
-    entities = extract_entities(normalized)
-    return bool(entities.get("pincode") or entities.get("city"))
+    structured = extract_structured_fields(normalized)
+    return bool(structured.get("pincode") or structured.get("city"))
+
+
+def _apply_store_pincode_shortcut(data: dict) -> bool:
+    """Route bare pincode entry to store lookup while awaiting_store_pincode is set."""
+    user_profile = data.get("user_profile", {})
+    if not user_profile.get("awaiting_store_pincode"):
+        return False
+    messages = data.get("messages", {})
+    if "text" not in messages:
+        return False
+    user_query = (messages.get("text", {}) or {}).get("body", "") or ""
+    if _store_pincode_escape_intent(user_query):
+        return False
+    if user_query.strip().lower() in ("cancel", "back"):
+        return False
+    _store_llm_entities(data, user_profile, {})
+    user_profile["service_selected"] = ServiceList.AD_FLOW.value
+    data["classified_category"] = "store_info"
+    return True
 
 
 def _should_offer_clarification(data: dict, user_query: str, user_profile: dict) -> bool:
     if user_profile.get("pending_clarification"):
+        return False
+    if is_unrecognizable_input(user_query):
         return False
     if is_pure_greeting(user_query) or is_greeting_message(user_query):
         return False
@@ -749,12 +624,8 @@ def _should_offer_clarification(data: dict, user_query: str, user_profile: dict)
     if service == ServiceList.PRODUCT_SEARCH.value:
         chat_history = user_profile.get("chat_history", [])
         if chat_history and not _REROUTE_RE.search(user_query):
-            entities = extract_entities(user_query)
-            if (
-                entities.get("category")
-                or entities.get("material_type")
-                or entities.get("title")
-                or _BROWSE_ACTION_RE.search(user_query)
+            if _BROWSE_ACTION_RE.search(user_query) or _CATEGORY_WORD_RE.search(
+                user_query
             ):
                 return False
     return True
@@ -798,7 +669,9 @@ async def classify_query_for_audit(
     if is_menu_request(user_query):
         return {"intent": "menu_help", "confidence": 1.0, "entities": {}, "source": "shortcut"}
 
-    if profile.get("awaiting_store_pincode") or _looks_like_store_query(user_query):
+    if profile.get("awaiting_store_pincode") and _PINCODE_ONLY_RE.match(
+        user_query.strip()
+    ):
         if user_query.strip().lower() not in ("cancel", "back"):
             return {
                 "intent": "store_info",
@@ -806,15 +679,6 @@ async def classify_query_for_audit(
                 "entities": {},
                 "source": "shortcut",
             }
-
-    override = _programmatic_intent_override(user_query, profile)
-    if override:
-        return {
-            "intent": override,
-            "confidence": 1.0,
-            "entities": {},
-            "source": "programmatic",
-        }
 
     if not use_llm:
         return {"intent": "unknown", "confidence": 0.0, "entities": {}, "source": "none"}
@@ -891,28 +755,13 @@ class Classifier(Processor):
         if service == ServiceList.PRODUCT_SEARCH.value:
             if _looks_like_faq_query(user_query):
                 return True
-            if _EXPENSIVE_SEARCH_RE.search(user_query):
-                return True
-            last_viewed = user_profile.get("last_viewed_product")
-            if (
-                last_viewed
-                and _PRICE_PRODUCT_INFO_RE.search(user_query)
-                and not _OFFERS_INTENT_RE.search(user_query)
-            ):
-                return False
-            if _OFFERS_INTENT_RE.search(user_query) and not _CATEGORY_WORD_RE.search(
-                user_query
-            ):
-                return True
-            if _ORDER_TRACKING_RE.search(user_query) or _ORDER_DELIVERY_RE.search(
-                user_query
-            ):
-                return True
-            if _looks_like_store_query(user_query):
-                return True
             if is_unrecognizable_input(user_query):
                 return True
             if _flow_escape_should_classify(user_query):
+                return True
+            if _EXPENSIVE_SEARCH_RE.search(user_query):
+                return True
+            if _REROUTE_RE.search(user_query):
                 return True
 
         if service != ServiceList.PRODUCT_SEARCH.value:
@@ -922,7 +771,16 @@ class Classifier(Processor):
         if not chat_history:
             return True
 
-        return False
+        if user_profile.get("last_viewed_product") and _PRICE_PRODUCT_INFO_RE.search(
+            user_query
+        ):
+            return False
+        if _COMPARATIVE_RE.search(user_query):
+            return False
+        if _BROWSE_ACTION_RE.search(user_query) or _CATEGORY_WORD_RE.search(user_query):
+            return False
+
+        return True
 
     async def process(self, data: dict) -> dict:
         """Process the input data and return the processed data."""
@@ -931,16 +789,12 @@ class Classifier(Processor):
         client_id = data.get("client_id", "kisna")
 
         if not self.should_run(data):
-            messages = data.get("messages", {})
-            if "text" in messages:
-                user_query = messages["text"].get("body", "") or ""
-                user_profile = data.get("user_profile", {})
-                if (
-                    user_profile.get("service_selected") == ServiceList.PRODUCT_SEARCH.value
-                    and user_profile.get("last_viewed_product")
-                    and _PRICE_PRODUCT_INFO_RE.search(user_query)
-                ):
-                    data["classified_category"] = "product_info"
+            if _apply_store_pincode_shortcut(data):
+                logger.info(
+                    "Store lookup shortcut — routing to ad_flow",
+                    extra={"phone_number": phone_number},
+                )
+                return data
             logger.info(
                 "Skipping processor",
                 extra={
@@ -956,7 +810,6 @@ class Classifier(Processor):
 
                 if user_profile.get("pending_clarification"):
                     user_profile["pending_clarification"] = False
-                    user_profile["_skip_programmatic_once"] = True
                     clarified = user_query.strip()
                     user_query = (
                         "Context: user was asked to clarify their previous message. "
@@ -1041,54 +894,6 @@ class Classifier(Processor):
                             extra={"phone_number": phone_number},
                         )
                         return data
-                elif _looks_like_store_query(user_query):
-                    if user_query.strip().lower() not in ("cancel", "back"):
-                        _store_llm_entities(data, user_profile, {})
-                        user_profile["service_selected"] = ServiceList.AD_FLOW.value
-                        data["classified_category"] = "store_info"
-                        logger.info(
-                            "Store lookup shortcut — routing to ad_flow",
-                            extra={"phone_number": phone_number},
-                        )
-                        return data
-
-                skip_programmatic = user_profile.pop("_skip_programmatic_once", False)
-                override_intent = None
-                if not skip_programmatic:
-                    override_intent = _programmatic_intent_override(
-                        user_query,
-                        user_profile,
-                    )
-                if override_intent:
-                    extra_entities: dict[str, Any] = {}
-                    if user_profile.pop("_price_direction_hint", None):
-                        extra_entities["price_direction"] = "higher"
-                    _store_llm_entities(data, user_profile, extra_entities)
-                    data["classified_category"] = override_intent
-                    data["classifier_confidence"] = 1.0
-                    logger.info(
-                        "Programmatic classifier override",
-                        extra={
-                            "phone_number": phone_number,
-                            "intent": override_intent,
-                        },
-                    )
-                    if override_intent == "human_handoff":
-                        _handle_human_handoff(data, user_profile, phone_number)
-                        logger.info(
-                            "Human handoff triggered",
-                            extra={"phone_number": phone_number},
-                        )
-                        return data
-                    if _apply_intent_routing(
-                        data,
-                        override_intent,
-                        user_profile,
-                        user_query=user_query,
-                        confidence=1.0,
-                    ):
-                        return data
-                    return data
 
                 logger.info(
                     "Request received to classify query",
@@ -1162,24 +967,6 @@ class Classifier(Processor):
                         extra={"phone_number": phone_number},
                     )
                     return data
-
-                if intent in ("product_info", "product_search") and (
-                    _PRICE_PRODUCT_INFO_RE.search(user_query)
-                    or user_profile.get("last_viewed_product")
-                    or _COMPARATIVE_RE.search(user_query)
-                ):
-                    if user_profile.get("last_viewed_product") and (
-                        intent == "product_info"
-                        or _PRICE_PRODUCT_INFO_RE.search(user_query)
-                        or _COMPARATIVE_RE.search(user_query)
-                    ):
-                        intent = "product_info"
-                        data["classified_category"] = intent
-                    elif _PRODUCT_NAME_RE.search(user_query) and _PRICE_PRODUCT_INFO_RE.search(
-                        user_query
-                    ):
-                        intent = "product_info"
-                        data["classified_category"] = intent
 
                 if (
                     confidence < CLARIFICATION_CONFIDENCE_THRESHOLD

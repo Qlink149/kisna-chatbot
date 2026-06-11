@@ -23,18 +23,20 @@ from kisna_chatbot.processors.entity_extractor import (
     build_search_context,
     enrich_entities_for_client_filter,
     entities_to_api_params,
+    combine_search_entities,
     extract_entities,
     extract_entities_with_llm,
+    extract_structured_fields,
     filter_products_by_entities,
     filter_products_by_extracted_extras,
     has_strict_product_filters,
     is_unrecognizable_input,
-    merge_llm_and_regex_entities,
     merge_search_entities,
     normalize_category_for_api,
     normalize_material_for_api,
+    finalize_search_entities,
     resolve_api_page_size,
-    sanitize_invalid_title,
+    title_redundant_with_category,
 )
 from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
@@ -661,11 +663,17 @@ def _build_fallback_strategies(
         no_price = {**entities, "min_price": None, "max_price": None}
         add(no_price, "budget", "drop_price")
 
+    if entities.get("title"):
+        no_title = {**entities, "title": None}
+        add(no_title, None, "drop_title")
+
     if entities.get("material_type"):
         no_material = {**entities, "material_type": None}
+        if title_redundant_with_category(entities):
+            no_material["title"] = None
         add(no_material, "material", "drop_material")
 
-    if entities.get("title"):
+    if entities.get("title") and not title_redundant_with_category(entities):
         title_only = {**_empty_entities(), "title": entities["title"]}
         add(title_only, None, "title_only")
 
@@ -1094,26 +1102,37 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
-        regex_entities = extract_entities(query)
-        llm_entities = data.get("llm_extracted_entities") or {}
+        structured_fields = extract_structured_fields(query)
+        llm_entities = dict(data.get("llm_extracted_entities") or {})
         llm_source = "classifier" if llm_entities else None
 
-        is_text = messages.get("type") == "text"
-        if not llm_entities and is_text and query and query.strip():
-            llm_entities = await extract_entities_with_llm(
+        is_text = "text" in messages
+        needs_semantic = not llm_entities.get("category") and not llm_entities.get("title")
+        if is_text and query and query.strip() and needs_semantic:
+            extracted_llm = await extract_entities_with_llm(
                 user_query=query,
                 client_id=data.get("client_id", "kisna"),
                 phone_number=phone_number,
             )
-            if llm_entities:
-                llm_source = "fallback"
+            if extracted_llm:
+                for key, val in extracted_llm.items():
+                    if val is not None and llm_entities.get(key) is None:
+                        llm_entities[key] = val
+                if llm_source is None:
+                    llm_source = "entity_llm"
                 data["llm_extracted_entities"] = llm_entities
                 user_profile["llm_extracted_entities"] = llm_entities
 
-        extracted = merge_llm_and_regex_entities(llm_entities, regex_entities)
+        extracted = combine_search_entities(llm_entities, structured_fields)
         extracted, occasion_prefix = apply_occasion_style_hints(extracted)
         prior = user_profile.get("last_search_filters")
         entities = merge_search_entities(prior, extracted, query)
+        entities = finalize_search_entities(
+            entities,
+            query=query,
+            regex_entities=structured_fields,
+            llm_entities=llm_entities,
+        )
         if extracted.get("max_price") is not None or extracted.get("min_price") is not None:
             user_profile["user_stated_budget"] = {
                 "min_price": extracted.get("min_price"),
@@ -1125,7 +1144,7 @@ class ProductSearchAgentV3(Processor):
                 "query": query,
                 "llm_source": llm_source,
                 "llm_entities": llm_entities,
-                "regex_entities": regex_entities,
+                "structured_fields": structured_fields,
                 "merged": entities,
             },
         )
@@ -1137,7 +1156,7 @@ class ProductSearchAgentV3(Processor):
                 "llm_source": llm_source,
                 "prior_filters": prior,
                 "llm_entities": llm_entities,
-                "regex_entities": regex_entities,
+                "structured_fields": structured_fields,
                 "extracted": extracted,
                 "occasion": extracted.get("occasion"),
                 "style": extracted.get("style"),
@@ -1402,7 +1421,7 @@ class ProductSearchAgentV3(Processor):
         response_mode: str | None = None,
     ) -> dict:
         user_profile = data.get("user_profile", {})
-        entities = sanitize_invalid_title(entities)
+        entities = finalize_search_entities(entities)
         last_filters = user_profile.get("last_search_filters") or {}
         if not _entities_equal(entities, last_filters):
             user_profile["shown_product_ids"] = []
@@ -1481,6 +1500,13 @@ class ProductSearchAgentV3(Processor):
                     products = filter_products_by_entities(
                         raw_products, strategy_entities
                     )
+                    if not products and raw_products and strategy_entities.get("title"):
+                        relaxed_entities = {**strategy_entities, "title": None}
+                        products = filter_products_by_entities(
+                            raw_products, relaxed_entities
+                        )
+                        if products:
+                            strategy_entities = relaxed_entities
             except ClaraAPIError as e:
                 logger.exception(
                     "Product search failed",
