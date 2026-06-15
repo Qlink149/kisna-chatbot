@@ -70,7 +70,7 @@ ALLOWED_ORIGINS = [
     "https://kisna-dashboard.example.com",
     "https://kisna-dashboard.vercel.app",
     "https://kisna-chatbot-dashboard.vercel.app",
-    "https://dash.kisna-wa.claraai.tech",
+    "https://kisna-wa.claraai.tech",
 ]
 
 def _log_webhook_payload_enabled() -> bool:
