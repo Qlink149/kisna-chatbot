@@ -327,6 +327,8 @@ class ProductSearchTests(unittest.TestCase):
         self.assertEqual(types, ["text", "image_with_cta", "cta_url"])
         self.assertEqual(response[1]["cta_title"], "Buy on KISNA")
         self.assertIn("gold-ring", response[1]["cta_url"])
+        self.assertIn("Shipping in 5 days", response[1]["caption"])
+        self.assertNotIn("kisna.com/products", response[1]["caption"])
         self.assertEqual(
             response[2]["url"],
             "https://www.kisna.com/jewellery/rings+gold",
@@ -1324,7 +1326,7 @@ class HardeningAuditTests(unittest.TestCase):
         products = []
         for i in range(10):
             product = {"_id": str(i), "title": f"P{i}"}
-            if i in (0, 6, 8):
+            if i in (0, 1, 2):
                 product["mediaUrl"] = [
                     {"image": f"https://ex.com/p{i}.jpg", "type": "image"}
                 ]
@@ -1335,14 +1337,16 @@ class HardeningAuditTests(unittest.TestCase):
         self.assertEqual(scanned, 9)
 
         response = _build_search_success_response(
-            products[:5],
+            products[:3],
             10,
             1,
             {"category": "mangalsutra"},
-            carousel_pool=products,
         )
         media_items = [r for r in response if r.get("type") == "image_with_cta"]
         self.assertEqual(len(media_items), 3)
+        cta_items = [r for r in response if r.get("type") == "cta_url"]
+        self.assertEqual(len(cta_items), 1)
+        self.assertEqual(response[-1]["type"], "cta_url")
 
     def test_product_detail_enriches_missing_image(self):
         async def _run():

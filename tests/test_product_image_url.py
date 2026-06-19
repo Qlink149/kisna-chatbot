@@ -25,6 +25,7 @@ os.environ.setdefault("KISNA_PHONE_NUMBER_ID", "850788844795304")
 from kisna_chatbot.main import app  # noqa: F401 — initializes app env before formatter import
 from kisna_chatbot.utils.product_formatter import (
     format_price_line,
+    format_product_image_caption,
     get_product_display_price,
     get_product_image_url,
     get_product_image_url_for_whatsapp,
@@ -243,6 +244,23 @@ class ProductImageUrlTests(unittest.TestCase):
         bundle = get_product_price_bundle(product)
         self.assertIsNone(bundle["mrp_price"])
         self.assertNotIn("~₹", format_price_line(product))
+
+    def test_product_image_caption_disclaimer_and_shipping(self):
+        product = {
+            "title": "Gold Ring",
+            "price": {"variantPrice": 45000},
+            "materialType": "gold",
+            "shipping": {"edd": 9},
+            "seos": {"slug": "products_gold-ring"},
+        }
+        caption = format_product_image_caption(product)
+        self.assertIn("*Gold Ring*", caption)
+        self.assertIn("Price may vary as per current gold rate", caption)
+        self.assertIn("For exact price click button below", caption)
+        self.assertIn("🚚 Shipping in 9 days", caption)
+        self.assertNotIn("Delivery in", caption)
+        self.assertNotIn("kisna.com", caption)
+        self.assertNotIn("🔗", caption)
 
 
 if __name__ == "__main__":

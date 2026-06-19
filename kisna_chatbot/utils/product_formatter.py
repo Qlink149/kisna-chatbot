@@ -287,6 +287,11 @@ def format_price_line(product: dict) -> str:
     return f"₹{display:,}"
 
 
+_GOLD_RATE_DISCLAIMER = (
+    "Price may vary as per current gold rate. For exact price click button below."
+)
+
+
 def _product_caption_lines(product: dict, *, include_sku: bool = False) -> list[str]:
     """Shared caption body for product image messages."""
     title = product.get("title") or "Product"
@@ -299,8 +304,9 @@ def _product_caption_lines(product: dict, *, include_sku: bool = False) -> list[
     lines = [
         f"*{title}*",
         format_price_line(product),
+        _GOLD_RATE_DISCLAIMER,
         material_line,
-        f"🚚 Delivery in {edd} days",
+        f"🚚 Shipping in {edd} days",
     ]
 
     if include_sku and bundle.get("sku"):
@@ -312,9 +318,6 @@ def _product_caption_lines(product: dict, *, include_sku: bool = False) -> list[
     promo = bundle.get("promo_label")
     if promo:
         lines.append(f"🏷 {promo.replace(' %', '%')}")
-
-    if bundle.get("has_dynamic_pricing"):
-        lines.append("_Confirm exact total on kisna.com (gold rate may update)._")
 
     return lines
 
@@ -468,10 +471,8 @@ def get_whatsapp_safe_image_url(raw_url: str) -> str | None:
 
 
 def format_product_image_caption(product: dict) -> str:
-    """WhatsApp image caption for search carousel (includes product link)."""
-    lines = _product_caption_lines(product)
-    lines.extend(["", f"🔗 {build_product_url(product)}"])
-    return "\n".join(lines)
+    """WhatsApp image caption for search carousel (no URL — CTA carries link)."""
+    return "\n".join(_product_caption_lines(product))
 
 
 def format_product_list_row(product: dict) -> dict:
@@ -481,7 +482,7 @@ def format_product_list_row(product: dict) -> dict:
     shipping = product.get("shipping") or {}
     edd = shipping.get("edd", "?")
     price_line = format_price_line(product)
-    description = _truncate(f"{price_line} · {material_line} · {edd}d delivery", 72)
+    description = _truncate(f"{price_line} · {material_line} · {edd}d shipping", 72)
     return {
         "title": title,
         "description": description,

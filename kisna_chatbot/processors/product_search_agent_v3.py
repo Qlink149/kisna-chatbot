@@ -755,7 +755,6 @@ def _build_search_success_response(
     prefix_note: str | None = None,
     show_more_intro: bool = True,
     page_size: int = PAGE_SIZE,
-    carousel_pool: list[dict] | None = None,
     intro_relaxed: bool = False,
 ) -> list[dict]:
     bot_response: list[dict] = []
@@ -769,9 +768,9 @@ def _build_search_success_response(
     if intro_text:
         bot_response.append({"type": "text", "text": intro_text})
 
-    scan_pool = carousel_pool if carousel_pool is not None else products
+    batch = products[:page_size]
     carousel_products, skipped_product_ids, scanned_count = _collect_carousel_products(
-        scan_pool
+        batch
     )
 
     for product in carousel_products:
@@ -1412,7 +1411,6 @@ class ProductSearchAgentV3(Processor):
             next_page,
             entities,
             show_more_intro=False,
-            carousel_pool=products,
         )
 
         logger.info(
@@ -1590,6 +1588,7 @@ class ProductSearchAgentV3(Processor):
                 total_count = max(len(products), total_count - 1)
 
         carousel_pool = _sort_products_by_price_target(products, winning_entities)
+        products_to_show = carousel_pool[:PAGE_SIZE]
         search_context = build_search_context(winning_entities)
 
         user_profile["last_search_filters"] = winning_entities
@@ -1605,26 +1604,25 @@ class ProductSearchAgentV3(Processor):
             )
         user_profile["last_search_page"] = page
         user_profile["last_search_total"] = total_count
-        user_profile["last_search_products"] = products[:PAGE_SIZE]
+        user_profile["last_search_products"] = products_to_show
         user_profile["last_search_at"] = int(time.time())
-        _append_shown_product_ids(user_profile, products[:PAGE_SIZE])
+        _append_shown_product_ids(user_profile, products_to_show)
 
         data["bot_response"] = _build_search_success_response(
-            products[:PAGE_SIZE],
+            products_to_show,
             total_count,
             page,
             winning_entities,
             prefix_note=prefix_note,
-            carousel_pool=carousel_pool,
             intro_relaxed=intro_relaxed,
         )
 
         has_product_images = any(
             r.get("type") == "image_with_cta" for r in data["bot_response"]
         )
-        if products and not has_product_images:
+        if products_to_show and not has_product_images:
             missing = []
-            for product in products[:PAGE_SIZE]:
+            for product in products_to_show:
                 missing.append(
                     {
                         "product_id": _product_id(product),
