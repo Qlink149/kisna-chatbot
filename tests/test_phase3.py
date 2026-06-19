@@ -9,7 +9,11 @@ os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
-from kisna_chatbot.processors.ad_flow_agent import _format_stores_message, _zero_results_message
+from kisna_chatbot.processors.ad_flow_agent import (
+    _build_store_responses,
+    _build_store_text,
+    _zero_results_message,
+)
 from kisna_chatbot.processors.offers_agent import (
     _build_offers_text,
     _format_promo_line,
@@ -104,7 +108,7 @@ class OffersFormatTests(unittest.TestCase):
 
 
 class StoreFormatTests(unittest.TestCase):
-    def test_format_stores_message(self):
+    def test_build_store_text(self):
         stores = [
             {
                 "name": "KISNA Andheri",
@@ -112,12 +116,12 @@ class StoreFormatTests(unittest.TestCase):
                 "phone": "9876543210",
             }
         ]
-        text = _format_stores_message(stores, 1)
+        text = _build_store_text(stores[0])
         self.assertIn("*KISNA Andheri*", text)
         self.assertIn("📍", text)
         self.assertIn("📞 9876543210", text)
 
-    def test_format_stores_nested_city_state_and_map(self):
+    def test_build_store_responses_with_map_cta(self):
         stores = [
             {
                 "name": "Mriza Ismail Rd - Jaipur - Rajasthan",
@@ -131,10 +135,22 @@ class StoreFormatTests(unittest.TestCase):
                 },
             }
         ]
-        text = _format_stores_message(stores, 1)
-        self.assertIn("Jaipur", text)
-        self.assertIn("302001", text)
-        self.assertIn("🗺 https://www.google.com/maps/example", text)
+        responses = _build_store_responses(stores)
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0]["type"], "cta_url")
+        self.assertIn("Jaipur", responses[0]["text"])
+        self.assertIn("302001", responses[0]["text"])
+        self.assertEqual(responses[0]["display_text"], "View on Map")
+        self.assertEqual(responses[0]["url"], "https://www.google.com/maps/example")
+
+    def test_build_store_responses_shows_all_stores(self):
+        stores = [
+            {"name": f"Store {i}", "address": f"City {i}", "phone": f"900000000{i}"}
+            for i in range(8)
+        ]
+        responses = _build_store_responses(stores)
+        self.assertEqual(len(responses), 8)
+        self.assertTrue(all(r["type"] == "text" for r in responses))
 
     def test_zero_results_includes_locator(self):
         os.environ["KISNA_STORE_LOCATOR_URL"] = "https://www.kisna.com/store"

@@ -13,7 +13,7 @@ from kisna_chatbot.processors.service_list import (
 from kisna_chatbot.utils.clara_cache import get_cached_stores
 from kisna_chatbot.utils.logger_config import logger
 
-_MAX_STORES_SHOWN = 5
+_MAX_NEAREST_BY_LOCATION = 5
 _PINCODE_ONLY_RE = re.compile(r"^\s*([1-9]\d{5})\s*$")
 
 _ASK_PINCODE_TEXT = (
@@ -78,25 +78,34 @@ def _store_map_link(store: dict) -> str:
     return ""
 
 
-def _format_stores_message(stores: list, total_count: int) -> str:
-    lines: list[str] = []
-    for store in stores[:_MAX_STORES_SHOWN]:
+def _build_store_text(store: dict) -> str:
+    lines = [f"*{_store_name(store)}*", f"📍 {_store_address_line(store)}"]
+    phone = _store_phone(store)
+    if phone:
+        lines.append(f"📞 {phone}")
+    return "\n".join(lines)
+
+
+def _build_store_responses(stores: list) -> list[dict]:
+    """One interactive message per store: details in body, map link as URL button."""
+    responses: list[dict] = []
+    for store in stores:
         if not isinstance(store, dict):
             continue
-        lines.append(f"*{_store_name(store)}*")
-        lines.append(f"📍 {_store_address_line(store)}")
-        phone = _store_phone(store)
-        if phone:
-            lines.append(f"📞 {phone}")
+        text = _build_store_text(store)
         maplink = _store_map_link(store)
         if maplink:
-            lines.append(f"🗺 {maplink}")
-        lines.append("")
-
-    if total_count > _MAX_STORES_SHOWN:
-        lines.append(f"and {total_count - _MAX_STORES_SHOWN} more stores near you")
-
-    return "\n".join(lines).strip()
+            responses.append(
+                {
+                    "type": "cta_url",
+                    "text": text,
+                    "display_text": "View on Map",
+                    "url": maplink,
+                }
+            )
+        else:
+            responses.append({"type": "text", "text": text})
+    return responses
 
 
 def _zero_results_message() -> str:
@@ -135,7 +144,7 @@ def _filter_cached_stores(
         ]
         stores = filtered
 
-    return {"stores": stores[:_MAX_STORES_SHOWN], "total_count": len(stores)}
+    return {"stores": stores, "total_count": len(stores)}
 
 
 def _store_coordinates(store: dict) -> tuple[float, float] | None:
@@ -191,7 +200,7 @@ def _nearest_stores_from_cache(cached: dict, lat: float, lng: float) -> dict:
         distance = _haversine_km(lat, lng, coords[0], coords[1])
         ranked.append((distance, store))
     ranked.sort(key=lambda item: item[0])
-    stores = [store for _distance, store in ranked[:_MAX_STORES_SHOWN]]
+    stores = [store for _distance, store in ranked[:_MAX_NEAREST_BY_LOCATION]]
     return {"stores": stores, "total_count": len(ranked)}
 
 
@@ -254,13 +263,7 @@ class AdFlowAgent(Processor):
                     result = _nearest_stores_from_cache(cached, float(lat), float(lng))
                     stores = result.get("stores") or []
                     if stores:
-                        total_count = int(result.get("total_count") or len(stores))
-                        data["bot_response"] = [
-                            {
-                                "type": "text",
-                                "text": _format_stores_message(stores, total_count),
-                            }
-                        ]
+                        data["bot_response"] = _build_store_responses(stores)
                         user_profile["awaiting_store_pincode"] = False
                         user_profile["service_selected"] = ""
                         data.pop("inbound_location", None)
@@ -382,7 +385,6 @@ class AdFlowAgent(Processor):
                 )
 
             stores = result.get("stores") or []
-            total_count = int(result.get("total_count") or len(stores))
 
             if not stores:
                 user_profile["awaiting_store_pincode"] = False
@@ -390,8 +392,7 @@ class AdFlowAgent(Processor):
                 data["bot_response"] = [{"type": "text", "text": _zero_results_message()}]
                 return data
 
-            text = _format_stores_message(stores, total_count)
-            data["bot_response"] = [{"type": "text", "text": text}]
+            data["bot_response"] = _build_store_responses(stores)
             user_profile["awaiting_store_pincode"] = False
             user_profile["service_selected"] = ""
             return data
