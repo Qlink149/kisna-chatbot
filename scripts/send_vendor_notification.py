@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""
+Send the approved vendor_notification UTILITY template to one or more numbers.
+
+Reads .env from kisna-chatbot/ (project root).
+
+Required:
+  VENDOR_NOTIFICATION_TEMPLATE_ID
+  GUPSHUP_APP_ID, GUPSHUP_TOKEN, GUPSHUP_APP_NAME, GUPSHUP_SOURCE
+
+Usage:
+  python scripts/send_vendor_notification.py 919116914178 919306704311
+  python scripts/send_vendor_notification.py +919116914178
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT_DIR / ".env")
+
+GUPSHUP_TEMPLATE_URL = "https://partner.gupshup.io/partner/app/{app_id}/template/msg"
+
+
+def require_env(name: str) -> str:
+    value = (os.environ.get(name) or "").strip()
+    if not value:
+        raise SystemExit(f"Missing required environment variable: {name}")
+    return value
+
+
+def normalize_phone_number(phone_number: str) -> str:
+    return phone_number.strip().replace("+", "").replace(" ", "")
+
+
+def send_vendor_notification(phone_number: str) -> dict:
+    app_id = require_env("GUPSHUP_APP_ID")
+    token = require_env("GUPSHUP_TOKEN")
+    app_name = require_env("GUPSHUP_APP_NAME")
+    source = require_env("GUPSHUP_SOURCE")
+    template_id = require_env("VENDOR_NOTIFICATION_TEMPLATE_ID")
+    destination = normalize_phone_number(phone_number)
+
+    url = GUPSHUP_TEMPLATE_URL.format(app_id=app_id)
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "token": token,
+    }
+    data = {
+        "source": source,
+        "destination": destination,
+        "src.name": app_name,
+        "template": json.dumps({"id": template_id, "params": []}),
+    }
+
+    body = urllib.parse.urlencode(data).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Send vendor_notification template via Gupshup"
+    )
+    parser.add_argument(
+        "numbers",
+        nargs="+",
+        help="Recipient phone numbers (E.164, with or without +)",
+    )
+    args = parser.parse_args()
+
+    results: list[dict] = []
+    for number in args.numbers:
+        try:
+            response = send_vendor_notification(number)
+            results.append({"number": number, "status": "sent", "response": response})
+        except Exception as exc:
+            results.append({"number": number, "status": "error", "error": str(exc)})
+
+    print(json.dumps(results, indent=2))
+    if any(item["status"] == "error" for item in results):
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

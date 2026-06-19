@@ -253,14 +253,15 @@ async def get_stores(
     name: str | None = None,
     pincode: str | None = None,
     city: str | None = None,
-    page_no: int = 1,
-    page_size: int = 5,
+    page_no: int | None = None,
+    page_size: int | None = None,
 ) -> dict:
     """Fetch stores by pincode, name, or city (city is sent as name filter)."""
-    params: dict[str, Any] = {
-        "pageNo": page_no,
-        "pageSize": page_size,
-    }
+    params: dict[str, Any] = {}
+    if page_no is not None:
+        params["pageNo"] = page_no
+    if page_size is not None:
+        params["pageSize"] = page_size
     if pincode is not None and str(pincode).strip():
         params["pincode"] = str(pincode).strip()
     elif city is not None and str(city).strip():

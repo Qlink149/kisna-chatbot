@@ -219,9 +219,9 @@ class AdFlowAgent(Processor):
     ) -> dict:
         try:
             if pincode:
-                return await get_stores(pincode=pincode, page_size=_MAX_STORES_SHOWN)
+                return await get_stores(pincode=pincode)
             if city:
-                return await get_stores(name=city, page_size=_MAX_STORES_SHOWN)
+                return await get_stores(city=city)
         except ClaraAPIError:
             raise
         except Exception:

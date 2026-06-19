@@ -32,8 +32,8 @@ async def _refresh_promotions(app_state: Any) -> list:
     return promotions
 
 
-async def _refresh_stores(app_state: Any, page_size: int = 50) -> dict:
-    result = await get_stores(page_no=1, page_size=page_size)
+async def _refresh_stores(app_state: Any) -> dict:
+    result = await get_stores()
     if app_state is not None:
         app_state.stores_cache = result
         app_state.stores_fetched_at = _now()
@@ -61,7 +61,7 @@ async def warm_clara_caches(app_state: Any) -> None:
         logger.warning("Promotions cache startup failed", exc_info=True)
 
     try:
-        app_state.stores_cache = await get_stores(page_no=1, page_size=50)
+        app_state.stores_cache = await get_stores()
         app_state.stores_fetched_at = _now()
         count = len((app_state.stores_cache or {}).get("stores") or [])
         logger.info("Stores cache loaded", extra={"count": count})
@@ -92,7 +92,7 @@ async def get_cached_promotions(app_state: Any) -> list:
 async def get_cached_stores(app_state: Any) -> dict:
     """Return stores dict; refresh if older than 24 hours."""
     if app_state is None:
-        return await get_stores(page_no=1, page_size=50)
+        return await get_stores()
 
     cache = getattr(app_state, "stores_cache", None)
     fetched_at = getattr(app_state, "stores_fetched_at", None)
