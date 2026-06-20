@@ -3,6 +3,36 @@ import time
 
 from kisna_chatbot.utils.logger_config import logger
 
+DEFAULT_HISTORY_WINDOW = 8
+
+
+def get_recent_history(
+    user_profile: dict,
+    n: int = DEFAULT_HISTORY_WINDOW,
+) -> list[dict]:
+    """Return the last n chat turns as [{role, content}, ...]."""
+    history = user_profile.get("chat_history") or []
+    return history[-n:]
+
+
+def format_recent_history_str(
+    user_profile: dict,
+    n: int = DEFAULT_HISTORY_WINDOW,
+) -> str:
+    """Last n turns as a 'Role: content' string for system prompts."""
+    turns = get_recent_history(user_profile, n)
+    return "\n".join(
+        f"{(t.get('role') or '').capitalize()}: {t.get('content', '')}"
+        for t in turns
+    )
+
+
+def trim_chat_history(history: list, max_len: int) -> list:
+    """Keep only the last max_len entries."""
+    if not history or len(history) <= max_len:
+        return history
+    return history[-max_len:]
+
 
 def format_assistant(assistant_message, phone_number):
     """Format the assistant message for chat history storage."""

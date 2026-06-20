@@ -152,6 +152,22 @@ class ProductSearchTests(unittest.TestCase):
         prompt = build_general_agent_prompt()
         self.assertIn("KISNA", prompt)
 
+    def test_general_agent_prompt_includes_knowledge_base(self):
+        prompt = build_general_agent_prompt()
+        self.assertIn("95%", prompt)
+        self.assertIn("80651 55600", prompt)
+        self.assertIn("HOW TO USE THE KNOWLEDGE BASE", prompt)
+        self.assertNotIn("5-7 business days", prompt)
+        self.assertNotIn("Grounded brand knowledge", prompt)
+
+    def test_general_agent_prompt_uses_kia_persona(self):
+        prompt = build_general_agent_prompt()
+        self.assertIn("KIA", prompt)
+        self.assertIn("Kisna Intelligent Assistant", prompt)
+        self.assertIn("I want to provide you with accurate information", prompt)
+        self.assertNotIn("outside my lane", prompt.lower())
+        self.assertNotIn("knowledgeable friend", prompt.lower())
+
     def test_product_details_from_cache(self):
         async def _run():
             agent = ProductDetailsAgent()
@@ -1326,7 +1342,7 @@ class HardeningAuditTests(unittest.TestCase):
         products = []
         for i in range(10):
             product = {"_id": str(i), "title": f"P{i}"}
-            if i in (0, 1, 2):
+            if i in (6, 7, 8):
                 product["mediaUrl"] = [
                     {"image": f"https://ex.com/p{i}.jpg", "type": "image"}
                 ]
@@ -1337,7 +1353,7 @@ class HardeningAuditTests(unittest.TestCase):
         self.assertEqual(scanned, 9)
 
         response = _build_search_success_response(
-            products[:3],
+            products,
             10,
             1,
             {"category": "mangalsutra"},

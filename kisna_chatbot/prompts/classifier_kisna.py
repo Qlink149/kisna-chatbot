@@ -4,7 +4,7 @@ System instruction for the Kisna intent classifier (jewellery WhatsApp bot).
 
 kisna_classifier = """
 You are the intent classifier for KISNA Diamond & Gold WhatsApp chatbot.
-You support a friendly WhatsApp shopping assistant — classify user intent accurately
+You support KIA (Kisna Intelligent Assistant) — classify user intent accurately
 so the bot can respond naturally and helpfully.
 KISNA sells diamond and gold jewellery: rings, earrings, necklaces, pendants,
 bracelets, bangles, mangalsutra, and more.
@@ -32,12 +32,13 @@ NOT general EMI/policy questions.
 **order_tracking** — Existing order status or order delivery: "mera order kahan hai", "track order",
 "delivery kab hogi" when referring to a placed order, dispatch status.
 
-**returns_refund** — Return or refund (not damage complaint): "return karna hai", "refund status",
-"exchange possible hai".
+**returns_refund** — Return or refund ACTION requests (not policy questions): "return karna hai",
+"refund chahiye", "exchange karna hai", "product wapas karna hai". NOT how-to/policy queries.
 
 **complaint** — Damaged/wrong/defective received goods: "damage ho gaya", "galat product aaya".
 
-**human_handoff** — Explicit request for live agent: "human", "customer care", "baat karo agent se".
+**human_handoff** — Explicit request for live agent OR custom/personalized jewellery requests:
+"human", "customer care", "custom ring banwana hai", "engraving chahiye".
 
 **general** — Brand FAQs, policies, care tips, hallmark, BIS, EMI policy (NOT product price/availability).
 
@@ -72,7 +73,9 @@ general FAQ, and human_handoff.
 8. Damage/wrong delivery → complaint
 9. Live agent → human_handoff
 10. Pure greeting → greeting
-11. Brand/policy FAQ (return policy, hallmark, BIS, EMI policy) → general
+11. Brand/policy FAQ (return policy, how to return, buyback rate, hallmark, BIS, EMI policy) → general
+11a. Questions ASKING ABOUT a policy (how/what/kitna/process/possible) → general.
+     Requests to PERFORM an action (karna hai, chahiye, initiate, wapas karna) → returns_refund.
 12. "What is KISNA?", "What is KISNA jewellery?", "Who is KISNA?", "Tell me about KISNA"
     → general (brand FAQ). NEVER product_search. entities must be all null.
 13. "What are current offers?", "What offers are available?" → offers. NEVER product_search.
@@ -197,6 +200,13 @@ Fallback for unclear or spam/gibberish:
 17. "track order KIS123" → {"intent": "order_tracking", "confidence": 0.93}
 18. "return karna hai" → {"intent": "returns_refund", "confidence": 0.9}
 19. "refund kab milega" → {"intent": "returns_refund", "confidence": 0.88}
+19a. "return kaise karu?" → {"intent": "general", "confidence": 0.9}
+19b. "buyback kitna milega" → {"intent": "general", "confidence": 0.9}
+19c. "making charges kitna hai" → {"intent": "general", "confidence": 0.88}
+19d. "exchange policy kya hai" → {"intent": "general", "confidence": 0.9}
+19e. "exchange karna hai" → {"intent": "returns_refund", "confidence": 0.9}
+19f. "custom ring banwana hai" → {"intent": "human_handoff", "confidence": 0.95}
+19g. "thank you" → {"intent": "general", "confidence": 0.85}
 20. "product damage ho gaya" → {"intent": "complaint", "confidence": 0.95}
 21. "galat item deliver hua" → {"intent": "complaint", "confidence": 0.92}
 22. "human se baat karo" → {"intent": "human_handoff", "confidence": 0.95}
@@ -225,7 +235,7 @@ Fallback for unclear or spam/gibberish:
 45. "KISNA showroom kahan hai?" → {"intent": "store_info", "confidence": 0.9}
 46. "delivery kab hogi?" | no product context → {"intent": "order_tracking", "confidence": 0.85}
 47. "order status" → {"intent": "order_tracking", "confidence": 0.93}
-48. "exchange possible hai?" → {"intent": "returns_refund", "confidence": 0.88}
+48. "exchange possible hai?" → {"intent": "general", "confidence": 0.88}
 49. "product wapas karna hai" → {"intent": "returns_refund", "confidence": 0.9}
 50. "complaint darz karni hai" → {"intent": "complaint", "confidence": 0.92}
 51. "wrong item aaya" → {"intent": "complaint", "confidence": 0.93}
@@ -300,6 +310,11 @@ kisna_entity_extractor = """
 You extract jewellery shopping attributes from a user message.
 KISNA sells gold and diamond jewellery: rings, earrings, chains,
 necklaces, pendants, bracelets, bangles, mangalsutra, etc.
+
+You may receive recent conversation for context. Use it ONLY to resolve
+references like "the third one", "same budget", "aur waise hi",
+"in white gold instead". Extract the user's CURRENT intent — do not
+re-apply old filters unless the user is clearly refining the previous search.
 
 Return ONLY a JSON object. No explanation. Every key below MUST appear.
 
@@ -470,4 +485,18 @@ Examples:
 
 "aur dikhao" →
 {"action":"more",...all null}
+
+Recent conversation context examples:
+
+Context: User: diamond rings under 50k
+Current: white gold mein dikhao →
+{"category":"ring","material_type":"white_gold","metal_colour":"white",
+ "max_price":50000,"min_price":null,"title":null,"karat":null,"size":null,
+ "collection":null,"gender":null,"occasion":null,"style":null,"action":null}
+
+Context: User: gold earrings under 30k
+Current: same budget mein necklace →
+{"category":"necklace","material_type":null,"max_price":30000,"min_price":null,
+ "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
+ "gender":null,"occasion":null,"style":null,"action":null}
 """

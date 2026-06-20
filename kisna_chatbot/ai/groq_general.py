@@ -9,7 +9,10 @@ from kisna_chatbot.ai.types import AgentName, CompletionRequest, GeneralAgentRes
 from kisna_chatbot.ai.usage import build_usage_record, record_usage
 from kisna_chatbot.constants import ADMINS
 from kisna_chatbot.database.db_utils import request_live_agent
-from kisna_chatbot.prompts.general_agent_kisna import build_general_agent_prompt
+from kisna_chatbot.prompts.general_agent_kisna import (
+    REQUEST_LIVE_AGENT_DESCRIPTION,
+    build_general_agent_prompt,
+)
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
     send_customer_support_template,
@@ -19,12 +22,20 @@ _LIVE_AGENT_TOOL = {
     "type": "function",
     "function": {
         "name": "request_live_agent",
-        "description": (
-            "Flag conversation for human design consultant when user explicitly asks."
-        ),
+        "description": REQUEST_LIVE_AGENT_DESCRIPTION,
         "parameters": {"type": "object", "properties": {}, "required": []},
     },
 }
+
+
+def _live_agent_tool_requested(tool_calls: list | None) -> bool:
+    if not tool_calls:
+        return False
+    for call in tool_calls:
+        fn = getattr(call, "function", None)
+        if fn and getattr(fn, "name", None) == "request_live_agent":
+            return True
+    return False
 
 
 async def run_groq_general_agent(
@@ -38,7 +49,8 @@ async def run_groq_general_agent(
     """
     GeneralAgent on Groq: chat completions + request_live_agent tool only.
 
-    Web search is not available; model uses prompt URLs and general knowledge.
+    Web search is not available; the knowledge base in the prompt is the sole
+    grounding for policy/FAQ answers.
     """
     start = time.perf_counter()
     settings = get_ai_settings()
@@ -48,8 +60,9 @@ async def run_groq_general_agent(
     instruction = (
         build_general_agent_prompt()
         + "\n\nNote: Live web search is unavailable in this mode. "
-        "Use the approved URLs from the prompt when citing policies. "
-        "Respond with JSON only: {\"message\": \"your WhatsApp reply\"}."
+        "Use the KNOWLEDGE BASE above for all policy answers. "
+        "Respond with JSON only: {\"message\": \"your WhatsApp reply\"} "
+        "unless you are calling request_live_agent."
     )
 
     messages = [
@@ -76,18 +89,14 @@ async def run_groq_general_agent(
         )
 
         text = result.text
-        # Detect tool call in response (Groq may return tool_calls on message)
-        # For v1, parse JSON message; live agent via keyword in user query handled in processor
-        try:
-            parsed = json.loads(text)
-            message_text = parsed.get("message", text)
-        except json.JSONDecodeError:
-            message_text = text
+        if text:
+            try:
+                parsed = json.loads(text)
+                message_text = parsed.get("message", text)
+            except json.JSONDecodeError:
+                message_text = text
 
-        if "request_live_agent" in text.lower() and any(
-            kw in user_query.lower()
-            for kw in ("human", "agent", "person", "consultant", "talk to")
-        ):
+        if _live_agent_tool_requested(result.tool_calls):
             request_live_agent(phone_number, client_id)
             for admin in ADMINS:
                 send_customer_support_template(
@@ -96,6 +105,10 @@ async def run_groq_general_agent(
                     customer_phone=phone_number,
                 )
             live_agent_requested = True
+            logger.info(
+                "Live agent requested via Groq tool call",
+                extra={"phone_number": phone_number},
+            )
 
         latency_ms = int((time.perf_counter() - start) * 1000)
 

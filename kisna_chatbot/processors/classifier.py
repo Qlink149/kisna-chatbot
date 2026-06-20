@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from kisna_chatbot.ai import complete_chat
 from kisna_chatbot.ai.types import AgentName
-from kisna_chatbot.constants import ADMINS
+from kisna_chatbot.constants import ADMINS, KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.ad_flow_agent import _PINCODE_ONLY_RE
@@ -15,6 +15,7 @@ from kisna_chatbot.processors.entity_extractor import (
     is_unrecognizable_input,
 )
 from kisna_chatbot.processors.service_list import (
+    build_acknowledgement_bot_response,
     build_clarification_bot_response,
     build_complaint_flow_bot_response,
     build_flow_switch_bot_response,
@@ -25,6 +26,7 @@ from kisna_chatbot.processors.service_list import (
     is_pure_greeting,
 )
 from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
+from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
     send_customer_support_template,
@@ -49,7 +51,7 @@ _GREETING_RE = re.compile(
     r"salam+|assalam|aadab|"
     r"kya\s*haal|kaise\s*(ho|hain)|kaisa\s*hai|"
     r"bhai+|yaar|dude"
-    r")\s*[!?.]*\s*$",
+    r")(?:\s+(?:there|ji|dear|all|everyone|friend))?\s*[!?.]*\s*$",
     re.I,
 )
 
@@ -114,9 +116,49 @@ _EXCHANGE_RE = re.compile(r"\b(exchange|badal|swap)\b", re.I)
 
 _RETURNS_RE = re.compile(r"\b(return|refund|wapas)\b", re.I)
 
-_POLICY_FAQ_RE = re.compile(
-    r"\b(policy|hallmark|bis|certificate|guarantee|emi|installment|loan)\b",
+_POLICY_TOPIC_RE = re.compile(
+    r"\b(return|exchange|buyback|refund|wapas|warranty|"
+    r"making\s+charges?|certificate|hallmark|emi|"
+    r"digital\s+gold|safegold|delivery|shipping|"
+    r"payment|cod|care|clean)\b",
     re.I,
+)
+
+_POLICY_INFO_SEEKING_RE = re.compile(
+    r"\b(policy|kya hai|kaise|how (do|to|can)|"
+    r"kitna|kitne|what is|batao|bataye|explain|"
+    r"process|procedure|rules?|possible)\b",
+    re.I,
+)
+
+_ACTION_INTENT_RE = re.compile(
+    r"\b(karna hai|kar do|karwana hai|chahiye|initiate|"
+    r"start (a )?return|process my|raise (a )?|file (a )?|"
+    r"register (a )?|wapas karna|wapas chahiye|"
+    r"refund chahiye|"
+    r"i want to (return|exchange|refund)|"
+    r"i need to (return|exchange))\b",
+    re.I,
+)
+
+_CUSTOM_JEWELLERY_RE = re.compile(
+    r"\b(custom(ize|ise|ized|ised)?|customis|made to order|"
+    r"bespoke|personal\w*|engrav\w*|design my own|"
+    r"apni design|custom design|naam likhwana|"
+    r"initials|special order)\b",
+    re.I,
+)
+
+_ACKNOWLEDGEMENT_RE = re.compile(
+    r"^\s*(thank(s| you)?|thanx|ty|ok(ay)?|cool|nice|great|"
+    r"good|perfect|awesome|dhanyavaad|shukriya|theek hai|"
+    r"acha|accha|got it|sahi hai|👍|🙏)\s*[!.]*\s*$",
+    re.I,
+)
+
+_CUSTOM_JEWELLERY_HANDOFF_MESSAGE = (
+    "For custom and personalized jewellery, I'll connect you with "
+    "a Kisna design expert who can help bring your vision to life. ✨"
 )
 
 _HUMAN_HANDOFF_RE = re.compile(
@@ -204,6 +246,72 @@ _SIZE_QUERY_RE = re.compile(
 )
 
 
+def _is_custom_jewellery_query(text: str) -> bool:
+    return bool(_CUSTOM_JEWELLERY_RE.search((text or "").strip()))
+
+
+def _is_policy_action_query(text: str) -> bool:
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
+    if not _POLICY_TOPIC_RE.search(normalized):
+        return False
+    return bool(_ACTION_INTENT_RE.search(normalized))
+
+
+def _is_policy_information_query(text: str) -> bool:
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
+    if _is_policy_action_query(normalized):
+        return False
+    if _OFFERS_INTENT_RE.search(normalized):
+        return False
+    if not _POLICY_TOPIC_RE.search(normalized):
+        return False
+    return bool(_POLICY_INFO_SEEKING_RE.search(normalized))
+
+
+def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
+    """Regex override for policy FAQ vs action, custom jewellery handoff."""
+    normalized = (text or "").strip()
+    if not normalized:
+        return None
+    if _is_custom_jewellery_query(normalized):
+        return ("human_handoff", 0.95)
+    if _is_policy_action_query(normalized):
+        return ("returns_refund", 0.9)
+    if _is_policy_information_query(normalized):
+        return ("general", 0.9)
+    return None
+
+
+def _is_product_price_signal(user_query: str) -> bool:
+    if not _PRICE_PRODUCT_INFO_RE.search(user_query or ""):
+        return False
+    if _POLICY_TOPIC_RE.search(user_query or ""):
+        return False
+    return True
+
+
+def _in_active_input_flow(user_profile: dict) -> bool:
+    if user_profile.get("awaiting_store_pincode"):
+        return True
+    if user_profile.get("pending_flow_switch"):
+        return True
+    if user_profile.get("pending_clarification"):
+        return True
+    if user_profile.get("service_selected") == ServiceList.COMPLAINT.value:
+        return True
+    return False
+
+
+def _is_acknowledgement_message(text: str, user_profile: dict) -> bool:
+    if _in_active_input_flow(user_profile):
+        return False
+    return bool(_ACKNOWLEDGEMENT_RE.match((text or "").strip()))
+
+
 def _looks_like_faq_query(text: str) -> bool:
     """Brand/FAQ questions that must reach the LLM classifier (not regex product search)."""
     normalized = (text or "").strip()
@@ -211,11 +319,15 @@ def _looks_like_faq_query(text: str) -> bool:
         return False
     if _FAQ_BRAND_RE.search(normalized):
         return True
+    if _is_policy_information_query(normalized):
+        return True
+    if _POLICY_TOPIC_RE.search(normalized):
+        return True
     if not _FAQ_WH_START_RE.match(normalized):
         return False
     if _BROWSE_ACTION_RE.search(normalized):
         return False
-    if _PRICE_PRODUCT_INFO_RE.search(normalized):
+    if _is_product_price_signal(normalized):
         return False
     if _PRODUCT_NAME_RE.search(normalized):
         return False
@@ -254,7 +366,7 @@ def _store_pincode_escape_intent(user_query: str) -> str | None:
         return "offers"
     if _ORDER_TRACKING_RE.search(normalized) or _ORDER_DELIVERY_RE.search(normalized):
         return "order_tracking"
-    if _RETURNS_RE.search(normalized) or _EXCHANGE_RE.search(normalized):
+    if _is_policy_action_query(normalized):
         return "returns_refund"
     if _COMPLAINT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
         return "complaint"
@@ -475,7 +587,7 @@ def _maybe_expire_product_search_session(user_profile: dict) -> None:
 
 
 def _flow_escape_should_classify(user_query: str) -> bool:
-    if _RETURNS_RE.search(user_query) or _EXCHANGE_RE.search(user_query):
+    if _is_policy_action_query(user_query) or _is_policy_information_query(user_query):
         return True
     if _HUMAN_HANDOFF_RE.search(user_query):
         return True
@@ -511,6 +623,22 @@ def _maybe_prompt_flow_switch(
     return True
 
 
+def _handle_custom_jewellery_handoff(
+    data: dict, user_profile: dict, phone_number: str
+) -> None:
+    user_profile["live_agent_requested_at"] = int(time.time())
+    user_profile["live_agent_required"] = True
+    for admin in ADMINS:
+        send_customer_support_template(
+            phone_number=admin,
+            customer_name=user_profile.get("username", "Customer"),
+            customer_phone=phone_number,
+        )
+    data["bot_response"] = [
+        {"type": "text", "text": _CUSTOM_JEWELLERY_HANDOFF_MESSAGE}
+    ]
+
+
 def _handle_human_handoff(data: dict, user_profile: dict, phone_number: str) -> None:
     user_profile["live_agent_requested_at"] = int(time.time())
     user_profile["live_agent_required"] = True
@@ -523,12 +651,57 @@ def _handle_human_handoff(data: dict, user_profile: dict, phone_number: str) -> 
     data["bot_response"] = [
         {
             "type": "text",
-            "text": (
-                "Sure! I'm connecting you to a live designer right now. "
-                "Someone from our team will be with you shortly."
-            ),
+            "text": KIA_HANDOFF_MESSAGE,
         }
     ]
+
+
+def _route_resolved_intent(
+    data: dict,
+    user_profile: dict,
+    phone_number: str,
+    user_query: str,
+    chat_history: list,
+    intent: str,
+    confidence: float,
+) -> bool:
+    """Route a resolved intent; return True when processing should stop."""
+    data["classified_category"] = intent
+    data["classifier_confidence"] = confidence
+
+    if intent == "greeting":
+        user_profile["service_selected"] = ""
+        data["bot_response"] = build_greeting_welcome_bot_responses(
+            phone_number=phone_number,
+            chat_history=chat_history,
+        )
+        return True
+
+    if intent == "human_handoff":
+        if _is_custom_jewellery_query(user_query):
+            _handle_custom_jewellery_handoff(data, user_profile, phone_number)
+        else:
+            _handle_human_handoff(data, user_profile, phone_number)
+        return True
+
+    if (
+        confidence < CLARIFICATION_CONFIDENCE_THRESHOLD
+        and _should_offer_clarification(data, user_query, user_profile)
+    ):
+        user_profile["pending_clarification"] = True
+        data["bot_response"] = build_clarification_bot_response(intent, confidence)
+        return True
+
+    if _apply_intent_routing(
+        data,
+        intent,
+        user_profile,
+        user_query=user_query,
+        confidence=confidence,
+    ):
+        return True
+
+    return False
 
 
 def _apply_intent_routing(
@@ -644,6 +817,41 @@ _CATEGORY_TO_SERVICE = {
     "store_info": ServiceList.AD_FLOW,
 }
 
+_FILTER_SUMMARY_KEYS = (
+    "category",
+    "material_type",
+    "max_price",
+    "min_price",
+    "title",
+)
+
+
+def _format_active_product_context(user_profile: dict) -> str:
+    """One-line product/search context for classifier when screen state matters."""
+    last_viewed = user_profile.get("last_viewed_product")
+    if last_viewed:
+        title = last_viewed.get("title") or last_viewed.get("name") or "a product"
+        return f"Active context: user recently viewed {title}."
+
+    filters = user_profile.get("last_search_filters") or {}
+    parts: list[str] = []
+    for key in _FILTER_SUMMARY_KEYS:
+        val = filters.get(key)
+        if val is not None and val != "":
+            label = key.replace("_", " ")
+            parts.append(f"{label} {val}" if key in ("max_price", "min_price") else str(val))
+    if parts:
+        return f"Active context: user recently searched {', '.join(parts)}."
+    return ""
+
+
+def _build_classifier_system_content(user_profile: dict, chat_history_str: str) -> str:
+    system_content = f"Chat history: {chat_history_str}"
+    active_ctx = _format_active_product_context(user_profile)
+    if active_ctx:
+        system_content = f"{active_ctx}\n{system_content}"
+    return system_content
+
 
 async def classify_query_for_audit(
     user_query: str,
@@ -669,6 +877,24 @@ async def classify_query_for_audit(
     if is_menu_request(user_query):
         return {"intent": "menu_help", "confidence": 1.0, "entities": {}, "source": "shortcut"}
 
+    if _is_acknowledgement_message(user_query, profile):
+        return {
+            "intent": "acknowledgement",
+            "confidence": 1.0,
+            "entities": {},
+            "source": "shortcut",
+        }
+
+    override = _programmatic_intent_override(user_query)
+    if override:
+        intent, confidence = override
+        return {
+            "intent": intent,
+            "confidence": confidence,
+            "entities": {},
+            "source": "override",
+        }
+
     if profile.get("awaiting_store_pincode") and _PINCODE_ONLY_RE.match(
         user_query.strip()
     ):
@@ -683,30 +909,34 @@ async def classify_query_for_audit(
     if not use_llm:
         return {"intent": "unknown", "confidence": 0.0, "entities": {}, "source": "none"}
 
-    chat_history = profile.get("chat_history", [])[-8:]
-    chat_history_str = ""
-    for chat in chat_history:
-        role = chat.get("role", "")
-        content = chat.get("content", "")
-        chat_history_str += f"{role.capitalize()}: {content}\n"
+    chat_history_str = format_recent_history_str(profile, 8)
+    system_content = _build_classifier_system_content(profile, chat_history_str)
 
     classifier_response = await complete_chat(
         agent=AgentName.CLASSIFIER,
         agent_display_name="Classifier Agent",
         instruction=CONTEXT,
         messages=[
-            {"role": "system", "content": f"Chat history: {chat_history_str}"},
+            {"role": "system", "content": system_content},
             {"role": "user", "content": f"User Query: {user_query}"},
         ],
         phone_number=data["phone_number"],
         client_id=data["client_id"],
     )
     parsed = _parse_classifier_json(classifier_response)
+    intent = parsed["intent"]
+    confidence = parsed["confidence"]
+    override = _programmatic_intent_override(user_query)
+    if override:
+        intent, confidence = override
+        source = "override"
+    else:
+        source = "llm"
     return {
-        "intent": parsed["intent"],
-        "confidence": parsed["confidence"],
+        "intent": intent,
+        "confidence": confidence,
         "entities": _sanitize_llm_entities(parsed.get("entities") or {}),
-        "source": "llm",
+        "source": source,
     }
 
 
@@ -755,6 +985,8 @@ class Classifier(Processor):
         if service == ServiceList.PRODUCT_SEARCH.value:
             if _looks_like_faq_query(user_query):
                 return True
+            if _is_policy_information_query(user_query):
+                return True
             if is_unrecognizable_input(user_query):
                 return True
             if _flow_escape_should_classify(user_query):
@@ -771,7 +1003,7 @@ class Classifier(Processor):
         if not chat_history:
             return True
 
-        if user_profile.get("last_viewed_product") and _PRICE_PRODUCT_INFO_RE.search(
+        if user_profile.get("last_viewed_product") and _is_product_price_signal(
             user_query
         ):
             return False
@@ -895,18 +1127,49 @@ class Classifier(Processor):
                         )
                         return data
 
+                if _is_acknowledgement_message(user_query, user_profile):
+                    _store_llm_entities(data, user_profile, {})
+                    data["classified_category"] = "acknowledgement"
+                    data["bot_response"] = build_acknowledgement_bot_response()
+                    logger.info(
+                        "Acknowledgement shortcut",
+                        extra={"phone_number": phone_number},
+                    )
+                    return data
+
+                override = _programmatic_intent_override(user_query)
+                if override:
+                    intent, confidence = override
+                    _store_llm_entities(data, user_profile, {})
+                    logger.info(
+                        "Programmatic intent override",
+                        extra={
+                            "phone_number": phone_number,
+                            "intent": intent,
+                            "confidence": confidence,
+                        },
+                    )
+                    if _route_resolved_intent(
+                        data,
+                        user_profile,
+                        phone_number,
+                        user_query,
+                        chat_history,
+                        intent,
+                        confidence,
+                    ):
+                        return data
+                    return data
+
                 logger.info(
                     "Request received to classify query",
                     extra={"phone_number": phone_number, "query": user_query},
                 )
 
-                recent_chats = chat_history[-8:]
-
-                chat_history_str = ""
-                for chat in recent_chats:
-                    role = chat.get("role", "")
-                    content = chat.get("content", "")
-                    chat_history_str += f"{role.capitalize()}: {content}\n"
+                chat_history_str = format_recent_history_str(user_profile, 8)
+                system_content = _build_classifier_system_content(
+                    user_profile, chat_history_str
+                )
 
                 classifier_response = await complete_chat(
                     agent=AgentName.CLASSIFIER,
@@ -915,7 +1178,7 @@ class Classifier(Processor):
                     messages=[
                         {
                             "role": "system",
-                            "content": f"Chat history: {chat_history_str}",
+                            "content": system_content,
                         },
                         {
                             "role": "user",
@@ -937,13 +1200,22 @@ class Classifier(Processor):
                 parsed = _parse_classifier_json(classifier_response)
                 intent = parsed["intent"] or "menu_help"
                 confidence = parsed["confidence"]
+                override = _programmatic_intent_override(user_query)
+                if override:
+                    intent, confidence = override
+                    logger.info(
+                        "Post-LLM programmatic override",
+                        extra={
+                            "phone_number": phone_number,
+                            "intent": intent,
+                            "llm_intent": parsed["intent"],
+                        },
+                    )
                 _store_llm_entities(
                     data,
                     user_profile,
                     _sanitize_llm_entities(parsed.get("entities") or {}),
                 )
-                data["classified_category"] = intent
-                data["classifier_confidence"] = confidence
 
                 logger.info(
                     "Classifier intent",
@@ -955,51 +1227,14 @@ class Classifier(Processor):
                     },
                 )
 
-                if intent == "greeting":
-                    user_profile["service_selected"] = ""
-                    data["classified_category"] = "greeting"
-                    data["bot_response"] = build_greeting_welcome_bot_responses(
-                        phone_number=phone_number,
-                        chat_history=chat_history,
-                    )
-                    logger.info(
-                        "Classifier greeting intent — welcome and main menu",
-                        extra={"phone_number": phone_number},
-                    )
-                    return data
-
-                if (
-                    confidence < CLARIFICATION_CONFIDENCE_THRESHOLD
-                    and _should_offer_clarification(data, user_query, user_profile)
-                ):
-                    user_profile["pending_clarification"] = True
-                    data["bot_response"] = build_clarification_bot_response(
-                        intent, confidence
-                    )
-                    logger.warning(
-                        "Low-confidence classification — asking clarification",
-                        extra={
-                            "phone_number": phone_number,
-                            "intent": intent,
-                            "confidence": confidence,
-                        },
-                    )
-                    return data
-
-                if intent == "human_handoff":
-                    _handle_human_handoff(data, user_profile, phone_number)
-                    logger.info(
-                        "Human handoff triggered",
-                        extra={"phone_number": phone_number},
-                    )
-                    return data
-
-                if _apply_intent_routing(
+                if _route_resolved_intent(
                     data,
-                    intent,
                     user_profile,
-                    user_query=user_query,
-                    confidence=confidence,
+                    phone_number,
+                    user_query,
+                    chat_history,
+                    intent,
+                    confidence,
                 ):
                     return data
 

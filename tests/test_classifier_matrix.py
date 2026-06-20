@@ -36,14 +36,19 @@ LLM_INTENT_MATRIX = [
     ("mera order kahan hai?", "order_tracking"),
     ("delivery kab hogi?", "order_tracking"),
     ("order status", "order_tracking"),
-    ("return karna hai", "returns_refund"),
-    ("exchange possible hai?", "returns_refund"),
     ("complaint darz karni hai", "complaint"),
     ("wrong item aaya", "complaint"),
     ("agent se baat karni hai", "human_handoff"),
     ("show me diamond rings", "product_search"),
     ("What is kisna Jewellery?", "general"),
     ("What are current offers available?", "offers"),
+]
+
+OVERRIDE_INTENT_MATRIX = [
+    ("return karna hai", "returns_refund"),
+    ("exchange possible hai?", "general"),
+    ("return kaise karu?", "general"),
+    ("buyback kitna milega?", "general"),
 ]
 
 GREETING_MATRIX = [
@@ -74,6 +79,24 @@ class ClassifierMatrixTests(unittest.TestCase):
                     msg=f"{text!r}: expected {expected_intent}, got {result['intent']}",
                 )
                 self.assertEqual(result["source"], "llm")
+
+        asyncio.run(_run())
+
+    def test_override_intent_matrix(self):
+        async def _run():
+            for text, expected_intent in OVERRIDE_INTENT_MATRIX:
+                with patch(
+                    "kisna_chatbot.processors.classifier.complete_chat",
+                    new_callable=AsyncMock,
+                ) as mock_llm:
+                    result = await classify_query_for_audit(text, use_llm=True)
+                mock_llm.assert_not_called()
+                self.assertEqual(
+                    result["intent"],
+                    expected_intent,
+                    msg=f"{text!r}: expected {expected_intent}, got {result['intent']}",
+                )
+                self.assertEqual(result["source"], "override")
 
         asyncio.run(_run())
 

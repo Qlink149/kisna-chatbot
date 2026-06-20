@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from kisna_chatbot.database.chroma.utils import (
+    chunk_kb_text,
     kb_add_chunks,
     kb_delete,
     kb_list,
@@ -14,8 +15,6 @@ from kisna_chatbot.utils.logger_config import logger
 
 router = APIRouter(prefix="/kb", tags=["System - Knowledge Base"])
 
-_CHUNK_SIZE = 1000    # soft character limit per chunk
-_CHUNK_OVERLAP = 150  # characters carried over into the next chunk
 _SUPPORTED_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -43,47 +42,6 @@ def _extract_text(content: bytes, content_type: str, filename: str) -> str:
     return content.decode("utf-8", errors="replace")
 
 
-def _chunk_text(text: str) -> list[str]:
-    """
-    Split text into semantically clean chunks.
-    Advances to _CHUNK_SIZE chars then snaps forward to the nearest sentence
-    boundary (. ? ! newline) so chunks never cut mid-sentence.
-    The last _CHUNK_OVERLAP chars of each chunk are repeated at the start of
-    the next one to preserve cross-boundary context.
-    """
-    _SENTENCE_ENDINGS = {".", "?", "!", "\n"}
-    chunks: list[str] = []
-    start = 0
-    length = len(text)
-
-    while start < length:
-        end = min(start + _CHUNK_SIZE, length)
-
-        # Snap to the nearest sentence boundary after the soft limit
-        if end < length:
-            snap = end
-            while snap < length and snap < end + 200:
-                if text[snap] in _SENTENCE_ENDINGS:
-                    end = snap + 1  # include the punctuation
-                    break
-                snap += 1
-            # If no boundary found within 200 chars, fall back to hard cut
-
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-
-        # Overlap: step back _CHUNK_OVERLAP chars from end to find a clean restart
-        overlap_start = max(end - _CHUNK_OVERLAP, start + 1)
-        # Snap overlap start forward to next sentence boundary if possible
-        while overlap_start < end and text[overlap_start - 1] not in _SENTENCE_ENDINGS:
-            overlap_start += 1
-
-        start = overlap_start if overlap_start < end else end
-
-    return chunks
-
-
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/upload")
@@ -107,7 +65,7 @@ async def upload_kb(file: UploadFile):
         if not text.strip():
             raise HTTPException(status_code=422, detail="Could not extract any text from the file.")
 
-        chunks = _chunk_text(text)
+        chunks = chunk_kb_text(text)
         file_type = "pdf" if filename.endswith(".pdf") else ("docx" if filename.endswith(".docx") else "txt")
         ids = kb_add_chunks(chunks=chunks, source_file=filename, file_type=file_type)
 

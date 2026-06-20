@@ -185,7 +185,8 @@ class TestLoggingMiddleware:
         )
         assert http_req.request_id == request_id
 
-    def test_webhook_stub_logs_request_id(self, client, log_collector):
+    def test_webhook_stub_logs_request_id(self, client, log_collector, monkeypatch):
+        monkeypatch.delenv("GUPSHUP_WEBHOOK_SECRET", raising=False)
         payload = {
             "entry": [
                 {

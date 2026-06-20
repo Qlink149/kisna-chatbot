@@ -14,6 +14,7 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test")
 
 from kisna_chatbot.processors.service_list import (
     _handle_menu_selection,
+    _MENU_BODY,
     _normalize_menu_key,
     build_main_menu_bot_response,
     build_complaint_flow_bot_response,
@@ -25,7 +26,8 @@ from kisna_chatbot.processors.service_list import (
     ServiceList,
 )
 from kisna_chatbot.models.enums import QuickReplyId
-from kisna_chatbot.processors.classifier import Classifier
+from kisna_chatbot.processors.classifier import Classifier, is_greeting_message
+from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
 
 
 class TestMenuGreeting(unittest.TestCase):
@@ -50,6 +52,19 @@ class TestMenuGreeting(unittest.TestCase):
         menu = build_main_menu_bot_response()
         self.assertEqual(menu["type"], "list")
         self.assertEqual(menu["list"], "list")
+        self.assertIn("KIA", menu["body"])
+
+    def test_menu_body_mentions_kia(self):
+        self.assertIn("KIA", _MENU_BODY)
+
+    def test_greeting_suffix_detection(self):
+        self.assertTrue(is_greeting_message("hey there"))
+        self.assertTrue(is_greeting_message("hello ji"))
+        self.assertFalse(is_greeting_message("hi show me rings"))
+
+    def test_kia_handoff_message(self):
+        self.assertIn("Kisna representative", KIA_HANDOFF_MESSAGE)
+        self.assertNotIn("live designer", KIA_HANDOFF_MESSAGE.lower())
 
     def test_greeting_responses_returning_user(self):
         responses = build_greeting_welcome_bot_responses(

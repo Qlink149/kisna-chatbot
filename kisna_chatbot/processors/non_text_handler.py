@@ -10,14 +10,13 @@ NonTextResult = Literal["silent", "route_store"] | None
 _SKIP_TYPES = frozenset({"text", "interactive"})
 
 _IMAGE_TEXT = (
-    "Thanks for sharing! I can't view images yet, but I'd love "
-    "to help you find jewellery you'll love. 💎\n"
-    "Tell me what you're looking for — rings, earrings, necklaces?"
+    "I'm unable to view images yet, but I'd be happy to help you "
+    "find the perfect piece. What are you looking for? 💎"
 )
 
 _AUDIO_VIDEO_TEXT = (
-    "I can't listen to voice notes yet — please type your "
-    "question and I'll help you right away! 🙏"
+    "I can't listen to voice notes just yet — please type your "
+    "question and I'll be happy to help. 🙏"
 )
 
 _STICKER_TEXT = "Lovely! 😊 What jewellery can I help you find today?"

@@ -58,3 +58,8 @@ ADMINS = [
 ]
 
 TECH_ADMINS = ["919876543210"]
+
+KIA_HANDOFF_MESSAGE = (
+    "I'm connecting you with a Kisna representative who'll assist "
+    "you further. Thank you for your patience. 🙏"
+)

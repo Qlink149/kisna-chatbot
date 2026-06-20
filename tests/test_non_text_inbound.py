@@ -49,7 +49,7 @@ class TestNonTextHandler:
         assert handle_non_text_message(data) is None
         assert len(data["bot_response"]) == 1
         assert data["bot_response"][0]["type"] == "quickreply"
-        assert "can't view images" in data["bot_response"][0]["text"].lower()
+        assert "unable to view images" in data["bot_response"][0]["text"].lower()
         assert data["bot_response"][0]["msgid"] == QuickReplyId.NON_TEXT_BROWSE.value
 
     def test_audio_reply(self):

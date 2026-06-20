@@ -276,6 +276,38 @@ class ExtractEntitiesWithLlmTests(unittest.TestCase):
 
         asyncio.run(_run())
 
+    def test_white_gold_dikhao_inherits_context_from_history(self):
+        async def _run():
+            llm_response = json.dumps(
+                {
+                    "category": "ring",
+                    "material_type": "white_gold",
+                    "metal_colour": "white",
+                    "min_price": None,
+                    "max_price": 50000,
+                    "title": None,
+                }
+            )
+            mock_complete = AsyncMock(return_value=llm_response)
+            history = "User: diamond rings under 50k\nAssistant: Here are some rings"
+            with patch(
+                "kisna_chatbot.ai.factory.complete_chat",
+                mock_complete,
+            ):
+                result = await extract_entities_with_llm(
+                    "white gold mein dikhao",
+                    history_str=history,
+                )
+            user_msg = mock_complete.call_args.kwargs["messages"][0]["content"]
+            self.assertIn("Recent conversation:", user_msg)
+            self.assertIn("diamond rings under 50k", user_msg)
+            self.assertIn("Current message: white gold mein dikhao", user_msg)
+            self.assertEqual(result.get("category"), "ring")
+            self.assertEqual(result.get("max_price"), 50000)
+            self.assertEqual(result.get("metal_colour"), "white")
+
+        asyncio.run(_run())
+
     def test_failure_returns_empty_dict(self):
         async def _run():
             with patch(

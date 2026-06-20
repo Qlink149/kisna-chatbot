@@ -1,11 +1,16 @@
+# KB grounding via prompt injection (KISNA_KNOWLEDGE_BASE).
+# Switch to Chroma kb_search() when KB exceeds ~12k tokens.
+
 import re
 
 from kisna_chatbot.ai import run_general_agent
+from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
 
-_HANDOFF_MESSAGE = "Connecting you to our design consultant..."
+_HANDOFF_MESSAGE = KIA_HANDOFF_MESSAGE
 _GENERIC_ERROR = (
     "Sorry, I couldn't process your question right now. Please try again in a moment."
 )
@@ -63,11 +68,7 @@ class GeneralAgent(Processor):
                 data["classified_category"] = "product_info"
                 return data
 
-            chat_history = user_profile.get("chat_history", [])[-10:]
-            chat_history_str = "\n".join(
-                f"{c.get('role', '').capitalize()}: {c.get('content', '')}"
-                for c in chat_history
-            )
+            chat_history_str = format_recent_history_str(user_profile, 8)
 
             result = await run_general_agent(
                 phone_number=phone_number,
@@ -89,7 +90,8 @@ class GeneralAgent(Processor):
             )
 
             if result.live_agent_requested:
-                data["bot_response"] = [{"type": "text", "text": _HANDOFF_MESSAGE}]
+                text = result.message_text or _HANDOFF_MESSAGE
+                data["bot_response"] = [{"type": "text", "text": text}]
             elif result.message_text:
                 data["bot_response"] = [
                     {"type": "text", "text": result.message_text}

@@ -4,8 +4,8 @@ from kisna_chatbot.utils.logger_config import logger
 
 _COMPLAINT_TYPE = "5_Return_Refund_Request"
 _GENERIC_ERROR = (
-    "Sorry, we couldn't register your return/refund request right now. "
-    "Please try again or contact our support team."
+    "Apologies — something went wrong on my end. Could you please try again, "
+    "or contact our support team for assistance."
 )
 
 
@@ -61,7 +61,9 @@ class ReturnsRefundAgent(Processor):
                     "type": "text",
                     "text": (
                         "Thank you for reaching out. Your return/refund request "
-                        "has been registered.\n\nOur team will contact you within 24 hours."
+                        "has been registered.\n\n"
+                        "Our team will contact you within 24 hours. "
+                        "I'd be happy to help with anything else in the meantime."
                     ),
                 }
             ]

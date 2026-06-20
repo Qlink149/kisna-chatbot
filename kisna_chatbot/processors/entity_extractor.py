@@ -1456,6 +1456,7 @@ async def extract_entities_with_llm(
     user_query: str,
     client_id: str = "kisna",
     phone_number: str | None = None,
+    history_str: str | None = None,
 ) -> dict:
     """
     Fast LLM entity extraction for product search follow-ups.
@@ -1469,9 +1470,15 @@ async def extract_entities_with_llm(
     from kisna_chatbot.processors.classifier import _sanitize_llm_entities
 
     try:
+        user_message = user_query.strip()
+        if history_str and history_str.strip():
+            user_message = (
+                f"Recent conversation:\n{history_str.strip()}\n\n"
+                f"Current message: {user_query.strip()}"
+            )
         raw = await _call_llm_for_entities(
             system_prompt=kisna_entity_extractor,
-            user_message=user_query.strip(),
+            user_message=user_message,
             max_tokens=400,
             client_id=client_id,
             phone_number=phone_number,

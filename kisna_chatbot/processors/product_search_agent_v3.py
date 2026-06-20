@@ -40,6 +40,7 @@ from kisna_chatbot.processors.entity_extractor import (
     resolve_api_page_size,
     title_redundant_with_category,
 )
+from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
     merge_jewellery_profile,
@@ -752,6 +753,7 @@ def _build_search_success_response(
     page: int,
     entities: dict,
     *,
+    carousel_pool: list[dict] | None = None,
     prefix_note: str | None = None,
     show_more_intro: bool = True,
     page_size: int = PAGE_SIZE,
@@ -768,9 +770,9 @@ def _build_search_success_response(
     if intro_text:
         bot_response.append({"type": "text", "text": intro_text})
 
-    batch = products[:page_size]
+    scan_pool = carousel_pool if carousel_pool is not None else products
     carousel_products, skipped_product_ids, scanned_count = _collect_carousel_products(
-        batch
+        scan_pool
     )
 
     for product in carousel_products:
@@ -1113,6 +1115,7 @@ class ProductSearchAgentV3(Processor):
                 user_query=query,
                 client_id=data.get("client_id", "kisna"),
                 phone_number=phone_number,
+                history_str=format_recent_history_str(user_profile, 8),
             )
             if extracted_llm:
                 llm_entities = merge_entity_llm_supplement(llm_entities, extracted_llm)
@@ -1410,6 +1413,7 @@ class ProductSearchAgentV3(Processor):
             total,
             next_page,
             entities,
+            carousel_pool=products,
             show_more_intro=False,
         )
 
@@ -1613,6 +1617,7 @@ class ProductSearchAgentV3(Processor):
             total_count,
             page,
             winning_entities,
+            carousel_pool=carousel_pool,
             prefix_note=prefix_note,
             intro_relaxed=intro_relaxed,
         )

@@ -1,10 +1,14 @@
 """
 Send KISNA welcome WhatsApp template via Gupshup Partner API.
 
-Gupshup dashboard template text (for submission):
-Welcome to KISNA Diamond & Gold! 💎
-Explore certified rings, earrings, necklaces & more.
-Reply Hi to get started.
+MANUAL STEP — Gupshup dashboard:
+The registered welcome template (KISNA_WELCOME_TEMPLATE_ID) must be updated
+in the Gupshup dashboard to match KIA's first message. Code cannot change
+approved template text — only the template ID is referenced here.
+
+Suggested dashboard copy:
+  Welcome to Kisna. I'm KIA, your jewellery assistant. ✨
+  How may I assist you today?
 """
 
 import json

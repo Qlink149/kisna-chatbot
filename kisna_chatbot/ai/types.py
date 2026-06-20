@@ -42,6 +42,7 @@ class CompletionResult:
     completion_tokens: int = 0
     latency_ms: int = 0
     fallback_used: bool = False
+    tool_calls: list | None = None
 
 
 @dataclass

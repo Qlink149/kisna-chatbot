@@ -543,9 +543,9 @@ def format_product_list_message(
 
 def format_zero_results_message(entities: dict[str, Any]) -> str:
     """Helpful zero-results message; never invents products."""
-    context = build_search_context(entities)
     lines = [
-        f"We couldn't find *{context}* in our catalogue right now.",
+        "I couldn't find an exact match for that. Let me show you some "
+        "beautiful alternatives, or you can browse our full collection at kisna.com. 💎",
         "",
     ]
 

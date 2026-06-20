@@ -152,7 +152,7 @@ async def run_openai_general_agent(
             )
 
         message_text: str | None = None
-        if not live_agent_requested and message_item and message_item.content:
+        if message_item and message_item.content:
             output = json.loads(message_item.content[0].text)
             message_text = output.get("message", "")
 

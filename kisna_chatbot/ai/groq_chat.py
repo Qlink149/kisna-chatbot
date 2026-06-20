@@ -99,7 +99,9 @@ class GroqChatProvider(ChatProvider):
                     response = await self._client.chat.completions.create(
                         **request_kwargs
                     )
-                    text = (response.choices[0].message.content or "").strip()
+                    message = response.choices[0].message
+                    text = (message.content or "").strip()
+                    tool_calls = getattr(message, "tool_calls", None) or None
                     prompt_tokens, completion_tokens = _extract_usage(response)
                     latency_ms = int((time.perf_counter() - start) * 1000)
 
@@ -113,6 +115,7 @@ class GroqChatProvider(ChatProvider):
                             "prompt_tokens": prompt_tokens,
                             "completion_tokens": completion_tokens,
                             "groq_key_index": self._key_pool.current_index,
+                            "tool_calls": len(tool_calls) if tool_calls else 0,
                         },
                     )
 
@@ -123,6 +126,7 @@ class GroqChatProvider(ChatProvider):
                         prompt_tokens=prompt_tokens,
                         completion_tokens=completion_tokens,
                         latency_ms=latency_ms,
+                        tool_calls=tool_calls,
                     )
                 except RateLimitError as e:
                     last_error = e

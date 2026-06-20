@@ -6,12 +6,13 @@ from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
 from kisna_chatbot.utils.logger_config import logger
 
-_GENERIC_ERROR = "Something went wrong. Please try again."
+_GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please try again?"
 
 _MENU_BODY = (
-    "Hello! I'm your KISNA jewellery assistant.\n\n"
-    "I can help you explore jewellery, check offers, find stores, track orders, "
-    "and more. Pick an option below or just type your question."
+    "Welcome to Kisna. I'm KIA, your jewellery assistant. ✨\n"
+    "I can help you explore designs, find the perfect gift, "
+    "track orders, and answer your jewellery questions.\n"
+    "How may I assist you today?"
 )
 
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
@@ -24,13 +25,13 @@ _FIND_STORE_TEXT = (
 )
 
 _WELCOME_TEXT = (
-    "Welcome to KISNA! I'm your jewellery assistant.\n"
-    "Pick an option from the menu below, or type your question anytime."
+    "Welcome to Kisna. I'm KIA, your jewellery assistant. ✨\n"
+    "How may I assist you today?"
 )
 
 _WELCOME_BACK_TEXT = (
-    "Welcome back to KISNA! Great to see you again.\n"
-    "Pick an option from the menu below, or type your question anytime."
+    "Welcome back to Kisna! I'm KIA — lovely to see you again. 💎\n"
+    "How may I help you today?"
 )
 
 _GREETING_TOKENS = frozenset(
@@ -56,11 +57,13 @@ _FAQ_TEXT = (
     "All gold is BIS hallmarked. All diamonds come with\n"
     "authenticity certificates.\n\n"
     "*Common Questions*\n"
-    "• Returns — 7-day return policy with original packaging\n"
-    "• Delivery — 5-7 business days standard\n"
-    "• Purity — 9KT, 14KT, 18KT, 22KT, 24KT gold available\n"
-    "• EMI — Available on checkout via major bank cards\n"
-    "• Certification — BIS hallmark + diamond cert included\n\n"
+    "• Returns — 7-day returns\n"
+    "• Exchange — 95% diamond / 100% gold (lifetime, 7+ days after purchase)\n"
+    "• Buyback — 90% diamond / 97% gold\n"
+    "• Certification — BIS + IGI/GIA certified\n"
+    "• Delivery — Free shipping, ~6 working day dispatch\n"
+    "• Payment — No COD; EMI available on checkout\n"
+    "• Support — +91 80651 55600, 9am–6pm Mon–Fri / 9am–4pm Sat\n\n"
     "What would you like to know more about?"
 )
 
@@ -156,6 +159,25 @@ def handle_non_text_quick_reply(
 def build_main_menu_bot_response() -> dict:
     """Public menu builder used by other processors."""
     return _build_main_menu_list()
+
+
+def build_acknowledgement_bot_response() -> list[dict]:
+    """Lightweight thank-you / acknowledgement with next-step quick replies."""
+    return [
+        {
+            "type": "quickreply",
+            "text": (
+                "You're welcome! Is there anything else I can help you with today? 💎"
+            ),
+            "caption": "",
+            "options": [
+                {"title": "Explore Products"},
+                {"title": "View Offers"},
+                {"title": "Open Menu"},
+            ],
+            "msgid": QuickReplyId.NON_TEXT_BROWSE.value,
+        }
+    ]
 
 
 def build_complaint_flow_bot_response() -> dict:

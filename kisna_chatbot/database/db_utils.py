@@ -1,11 +1,14 @@
+import os
 import time
 from datetime import datetime
 
 from pymongo import ReturnDocument
 
 from kisna_chatbot.database.collections import complaints, ratings, store_visits, users
-from kisna_chatbot.utils.format_chathistory import format_chat_history
+from kisna_chatbot.utils.format_chathistory import format_chat_history, trim_chat_history
 from kisna_chatbot.utils.logger_config import logger
+
+MAX_CHAT_HISTORY = int(os.getenv("CHAT_HISTORY_MAX_LENGTH", "50"))
 
 
 def _user_filter(phone_number: str, client_id: str) -> dict:
@@ -29,7 +32,16 @@ def save_to_mongo(data: dict) -> dict | None:
             user=messages, assistant=assistant, phone_number=phone_number
         )
         current_history = user_profile_data.get("chat_history", [])
-        user_profile_data["chat_history"] = current_history + new_chat
+        combined_history = current_history + new_chat
+        if len(combined_history) > MAX_CHAT_HISTORY:
+            logger.debug(
+                "chat_history trimmed to %s entries",
+                MAX_CHAT_HISTORY,
+                extra={"phone_number": phone_number, "client_id": client_id},
+            )
+        user_profile_data["chat_history"] = trim_chat_history(
+            combined_history, MAX_CHAT_HISTORY
+        )
         user_profile_data["updated_at"] = int(time.time())
         user_profile_data["last_message_at"] = int(time.time())
         user_profile_data["client_id"] = client_id
@@ -68,9 +80,14 @@ def save_user_message_silent(
             {
                 "$push": {
                     "chat_history": {
-                        "role": "user",
-                        "content": text,
-                        "timestamp": now,
+                        "$each": [
+                            {
+                                "role": "user",
+                                "content": text,
+                                "timestamp": now,
+                            }
+                        ],
+                        "$slice": -MAX_CHAT_HISTORY,
                     }
                 },
                 "$set": {"updated_at": now},
@@ -426,9 +443,14 @@ def save_agent_message(
             {
                 "$push": {
                     "chat_history": {
-                        "role": "assistant",
-                        "content": message,
-                        "timestamp": now,
+                        "$each": [
+                            {
+                                "role": "assistant",
+                                "content": message,
+                                "timestamp": now,
+                            }
+                        ],
+                        "$slice": -MAX_CHAT_HISTORY,
                     }
                 },
                 "$set": {"updated_at": now},
