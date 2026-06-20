@@ -142,6 +142,29 @@ class ClaraFixtureTests(unittest.TestCase):
         self.assertIsNone(drop_material[0]["material_type"])
         self.assertEqual(drop_material[0]["max_price"], 50000)
 
+    def test_category_only_appended_when_material_and_price(self):
+        entities = {
+            "category": "maang_tikka",
+            "material_type": "gold",
+            "min_price": 40000,
+            "max_price": 50000,
+        }
+        strategies = _build_fallback_strategies(entities)
+        labels = [label for _ent, _note, label in strategies]
+        self.assertIn("category_only", labels)
+        cat_only = next(s for s in strategies if s[2] == "category_only")
+        self.assertEqual(cat_only[0]["category"], "maang_tikka")
+        self.assertIsNone(cat_only[0]["material_type"])
+        self.assertIsNone(cat_only[0]["min_price"])
+        self.assertIsNone(cat_only[0]["max_price"])
+        self.assertEqual(cat_only[1], "category")
+
+    def test_category_only_deduped_when_same_as_drop_material(self):
+        entities = {"category": "ring", "material_type": "gold"}
+        labels = [label for _ent, _note, label in _build_fallback_strategies(entities)]
+        self.assertIn("drop_material", labels)
+        self.assertNotIn("category_only", labels)
+
     def test_sanitize_search_entities_clears_redundant_chain_title(self):
         entities = {
             "category": "chain",

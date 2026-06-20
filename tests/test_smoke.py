@@ -528,6 +528,76 @@ class ProductSearchTests(unittest.TestCase):
 
         asyncio.run(_run())
 
+    def test_category_only_fallback_maang_tikka(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            mock_product = {
+                "_id": "mt1",
+                "title": "Diamond Maang Tikka",
+                "price": {"variantPrice": 95000},
+                "materialType": "diamond",
+                "productType": {"category": {"name": "Maang Tikka"}},
+                "shipping": {"edd": 5},
+                "seos": {"slug": "diamond-maang-tikka"},
+                "mediaUrl": [
+                    {
+                        "isDefault": True,
+                        "image": "https://img.example/tikka.webp",
+                        "type": "image",
+                    }
+                ],
+            }
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "text": {"body": "Jo hai woh hi dikhado mang tikka mai"}
+                },
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+                "llm_extracted_entities": {
+                    "category": "maang_tikka",
+                    "material_type": "gold",
+                    "min_price": 40000,
+                    "max_price": 50000,
+                },
+                "classified_category": "product_search",
+            }
+
+            async def search_side_effect(**kwargs):
+                if kwargs.get("material_type") or kwargs.get("max_price") is not None:
+                    return {"products": [], "total_count": 0, "page": 1}
+                if kwargs.get("category") == "maang tikka":
+                    return {
+                        "products": [mock_product],
+                        "total_count": 1,
+                        "page": 1,
+                    }
+                return {"products": [], "total_count": 0, "page": 1}
+
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                side_effect=search_side_effect,
+            ) as search_mock, patch(
+                "kisna_chatbot.processors.product_search_agent_v3.extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={},
+            ):
+                result = await agent.process(data)
+
+            self.assertGreaterEqual(search_mock.await_count, 3)
+            images = [
+                r for r in result["bot_response"] if r.get("type") == "image_with_cta"
+            ]
+            self.assertEqual(len(images), 1)
+            intro = result["bot_response"][0]["text"]
+            self.assertIn("couldn't find", intro.lower())
+            self.assertIn("maang tikka", intro.lower())
+            self.assertIn("40,000", intro)
+
+        import asyncio
+
+        asyncio.run(_run())
+
     def test_gold_chains_search_returns_carousel_not_zero_results(self):
         async def _run():
             agent = ProductSearchAgentV3()

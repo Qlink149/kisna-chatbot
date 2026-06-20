@@ -373,6 +373,41 @@ def _empty_entities() -> dict:
     }
 
 
+def _category_only_entities(entities: dict) -> dict:
+    """Strip all filters except category scope for final fallback search."""
+    cat_only = _empty_entities()
+    if entities.get("categories"):
+        cat_only["categories"] = list(entities["categories"])
+        cat_only["multi_category"] = entities.get("multi_category", False)
+        cat_only["secondary_category"] = entities.get("secondary_category")
+    if entities.get("category"):
+        cat_only["category"] = entities["category"]
+    return cat_only
+
+
+def _format_price_range_suffix(entities: dict) -> str:
+    """Human-readable price constraint for fallback prefix notes."""
+    min_p = entities.get("min_price")
+    max_p = entities.get("max_price")
+    if min_p is not None and max_p is not None:
+        return f" in the ₹{int(min_p):,}–₹{int(max_p):,} range"
+    if max_p is not None:
+        return f" under ₹{int(max_p):,}"
+    if min_p is not None:
+        return f" above ₹{int(min_p):,}"
+    return ""
+
+
+def _category_singular_label(category: str | None) -> str:
+    """Display label for 'in {category}' phrasing (e.g. maang tikka, ring)."""
+    plural = _category_label_plural(category)
+    if plural == "mangalsutra":
+        return plural
+    if plural.endswith("s"):
+        return plural[:-1]
+    return plural
+
+
 def _clear_preference_state(user_profile: dict) -> None:
     for key in (
         "preference_step",
@@ -715,6 +750,10 @@ def _build_fallback_strategies(
         title_only = {**_empty_entities(), "title": entities["title"]}
         add(title_only, None, "title_only")
 
+    cat_only = _category_only_entities(entities)
+    if cat_only.get("category") or cat_only.get("categories"):
+        add(cat_only, "category", "category_only")
+
     return strategies
 
 
@@ -754,6 +793,24 @@ def _fallback_prefix_note(
             f"I couldn't find {material} {cat_label}, "
             f"but here are other {cat_label} options you might like:"
         )
+    if note_kind == "category":
+        category = original_entities.get("category") or "jewellery"
+        cat_label = _category_label_plural(category)
+        cat_in = _category_singular_label(category)
+        material = original_entities.get("material_type")
+        mat_label = _material_display_label(material) if material else ""
+        price_suffix = _format_price_range_suffix(original_entities)
+        if material:
+            target = f"{mat_label} {cat_label}".strip()
+        else:
+            target = cat_label
+        if price_suffix:
+            missing = f"I couldn't find {target}{price_suffix}"
+        elif material:
+            missing = f"I couldn't find {target}"
+        else:
+            missing = f"I couldn't find an exact match for {cat_label}"
+        return f"{missing}, but here's what we have in {cat_in}:"
     return None
 
 
