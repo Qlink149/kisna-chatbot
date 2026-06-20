@@ -101,14 +101,34 @@ _CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "kamarband": ["kamarband", "kamar band"],
 }
 
-_CLARA_UNSUPPORTED_CATEGORIES = frozenset(
-    {"anklet", "maang_tikka", "hathphool", "kamarband"}
-)
+_CLARA_UNSUPPORTED_CATEGORIES = frozenset({"anklet", "hathphool", "kamarband"})
 
-_CLARA_CATEGORY_MAP: dict[str, str] = {
+# Internal canonical category → exact Clara API query string (from audit_clara_categories.py).
+CATEGORY_NORMALIZATION_MAP: dict[str, str | None] = {
+    "ring": "ring",
+    "solitaire": "solitaire",
+    "earring": "earring",
+    "necklace": "necklace",
+    "necklace_set": "necklace set",
+    "pendant": "pendant",
+    "pendant_set": "pendant set",
+    "bangle": "bangle",
+    "bracelet": "bracelet",
+    "bangle_bracelet": None,
+    "mangalsutra": "mangalsutra",
+    "mangalsutra_bracelet": "mangalsutra bracelet",
+    "maang_tikka": "maang tikka",
     "nosewear": "nose wear",
+    "nose_wear": "nose wear",
     "watchwear": "watch wear",
+    "watch_wear": "watch wear",
+    "chain": "chain",
+    "anklet": None,
+    "any": None,
 }
+
+# Backward-compatible alias for tests and internal references.
+_CLARA_CATEGORY_MAP = CATEGORY_NORMALIZATION_MAP
 
 _AMBIGUOUS_CATEGORY_PHRASES = (
     "kundan set",
@@ -549,6 +569,8 @@ def sanitize_invalid_title(entities: dict[str, Any]) -> dict[str, Any]:
 _INTERNAL_CATEGORY_ALIASES: dict[str, str] = {
     "chain": "necklace",
     "nose_ring": "nosewear",
+    "nose_wear": "nosewear",
+    "watch_wear": "watchwear",
 }
 
 _CLARA_CATEGORY_OVERRIDE_FROM: dict[str, str] = {
@@ -677,8 +699,27 @@ def merge_entity_llm_supplement(existing: dict, extracted: dict) -> dict:
     return out
 
 
-def has_clara_search_scope(api_params: dict[str, Any]) -> bool:
+def _clara_multi_categories_for_entities(entities: dict[str, Any]) -> list[str] | None:
+    """Return Clara category strings when a single API call is insufficient."""
+    category = entities.get("category")
+    categories = entities.get("categories") or []
+    if category == "bangle_bracelet" or (
+        entities.get("multi_category")
+        and set(categories) >= {"bangle", "bracelet"}
+    ):
+        bangle = CATEGORY_NORMALIZATION_MAP.get("bangle")
+        bracelet = CATEGORY_NORMALIZATION_MAP.get("bracelet")
+        if bangle and bracelet:
+            return [bangle, bracelet]
+    return None
+
+
+def has_clara_search_scope(
+    api_params: dict[str, Any], entities: dict[str, Any] | None = None
+) -> bool:
     """Clara product search requires category or title — material/price alone errors."""
+    if entities and _clara_multi_categories_for_entities(entities):
+        return True
     category = api_params.get("category")
     title = api_params.get("title")
     if category is not None and str(category).strip():
@@ -1236,19 +1277,34 @@ def normalize_entities_for_clara(entities: dict[str, Any]) -> dict[str, Any]:
     out = dict(entities or {})
     notes: list[str] = []
 
-    category = out.get("category")
-    if category in _CLARA_UNSUPPORTED_CATEGORIES:
-        out["unsupported_category"] = True
+    multi_cats = _clara_multi_categories_for_entities(out)
+    if multi_cats:
+        out["clara_multi_categories"] = multi_cats
         out["clara_category"] = None
-        notes.append(
-            "I'll show you our full collection since we don't have a specific filter for that."
-        )
-    elif out.get("clara_category_override"):
-        out["clara_category"] = out["clara_category_override"]
-    elif category:
-        out["clara_category"] = _CLARA_CATEGORY_MAP.get(category, category)
     else:
-        out["clara_category"] = None
+        out.pop("clara_multi_categories", None)
+        category = out.get("category")
+        if category in _CLARA_UNSUPPORTED_CATEGORIES:
+            out["unsupported_category"] = True
+            out["clara_category"] = None
+            notes.append(
+                "I'll show you our full collection since we don't have a specific filter for that."
+            )
+        elif out.get("clara_category_override"):
+            out["clara_category"] = out["clara_category_override"]
+        elif category:
+            if category in CATEGORY_NORMALIZATION_MAP:
+                mapped = CATEGORY_NORMALIZATION_MAP[category]
+                out["clara_category"] = mapped
+                if mapped is None and category not in _CLARA_UNSUPPORTED_CATEGORIES:
+                    out["unsupported_category"] = True
+                    notes.append(
+                        "I'll show you our full collection since we don't have a specific filter for that."
+                    )
+            else:
+                out["clara_category"] = category
+        else:
+            out["clara_category"] = None
 
     material = out.get("material_type")
     if material in _CLARA_UNSUPPORTED_MATERIALS:
@@ -1682,6 +1738,14 @@ def _product_matches_entities(product: dict, entities: dict) -> bool:
     if categories and not category:
         product_cat = extract_category_from_product(product)
         if product_cat not in categories:
+            return False
+    elif category == "bangle_bracelet" or (
+        category is None
+        and entities.get("multi_category")
+        and set(categories or []) >= {"bangle", "bracelet"}
+    ):
+        product_cat = extract_category_from_product(product)
+        if product_cat not in ("bangle", "bracelet"):
             return False
     elif category and not entities.get("unsupported_category"):
         product_cat = extract_category_from_product(product)

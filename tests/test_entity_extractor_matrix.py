@@ -46,8 +46,8 @@ MATRIX = [
     ("anklet", {"category": "anklet", "unsupported_category": True}),
     ("payal", {"category": "anklet", "unsupported_category": True}),
     ("pajeb", {"category": "anklet", "unsupported_category": True}),
-    ("tikka", {"category": "maang_tikka", "unsupported_category": True}),
-    ("maang tikka", {"category": "maang_tikka", "unsupported_category": True}),
+    ("tikka", {"category": "maang_tikka"}),
+    ("maang tikka", {"category": "maang_tikka"}),
     # Material — English
     ("gold ring", {"category": "ring", "material_type": "gold"}),
     ("diamond earrings", {"category": "earring", "material_type": "diamond"}),

@@ -774,7 +774,7 @@ class ProductSearchTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_category_list_triggers_ring_search(self):
+    def test_legacy_search_cat_ring_shows_material_list(self):
         async def _run():
             agent = ProductSearchAgentV3()
             list_id = json.dumps(
@@ -783,21 +783,6 @@ class ProductSearchTests(unittest.TestCase):
                     "postbackText": "search$cat$ring",
                 }
             )
-            mock_product = {
-                "_id": "r1",
-                "title": "Ring",
-                "price": {"variantPrice": 30000},
-                "materialType": "gold",
-                "shipping": {"edd": 5},
-                "seos": {"slug": "ring"},
-                "mediaUrl": [
-                    {
-                        "isDefault": True,
-                        "image": "https://img.example/ring.webp",
-                        "type": "image",
-                    }
-                ],
-            }
             data = {
                 "phone_number": "919999999999",
                 "messages": {
@@ -812,15 +797,11 @@ class ProductSearchTests(unittest.TestCase):
                 "kisna_chatbot.processors.product_search_agent_v3.search_products",
                 new_callable=AsyncMock,
             ) as search_mock:
-                search_mock.return_value = {
-                    "products": [mock_product],
-                    "total_count": 1,
-                    "page": 1,
-                }
                 result = await agent.process(data)
-            call_kwargs = search_mock.await_args.kwargs
-            self.assertEqual(call_kwargs["category"], "ring")
-            self.assertIn("bot_response", result)
+            search_mock.assert_not_called()
+            self.assertEqual(result["bot_response"][0]["msgid"], "pref$step1$list")
+            self.assertEqual(result["user_profile"]["pref_category"], "ring")
+            self.assertEqual(result["user_profile"]["preference_step"], 1)
 
         import asyncio
 

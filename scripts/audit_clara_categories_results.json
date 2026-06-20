@@ -1,0 +1,134 @@
+{
+  "ring": {
+    "status": 200,
+    "count": 3390
+  },
+  "rings": {
+    "status": 200,
+    "count": 3390
+  },
+  "earring": {
+    "status": 200,
+    "count": 1542
+  },
+  "earrings": {
+    "status": 200,
+    "count": 1542
+  },
+  "necklace": {
+    "status": 200,
+    "count": 190
+  },
+  "necklaces": {
+    "status": 200,
+    "count": 0
+  },
+  "pendant": {
+    "status": 200,
+    "count": 715
+  },
+  "pendants": {
+    "status": 200,
+    "count": 617
+  },
+  "bangle": {
+    "status": 200,
+    "count": 233
+  },
+  "bangles": {
+    "status": 200,
+    "count": 233
+  },
+  "bracelet": {
+    "status": 200,
+    "count": 194
+  },
+  "bracelets": {
+    "status": 200,
+    "count": 194
+  },
+  "mangalsutra": {
+    "status": 200,
+    "count": 275
+  },
+  "maang tikka": {
+    "status": 200,
+    "count": 5
+  },
+  "maang_tikka": {
+    "status": 200,
+    "count": 0
+  },
+  "Maang Tikka": {
+    "status": 200,
+    "count": 5
+  },
+  "MaangTikka": {
+    "status": 200,
+    "count": 0
+  },
+  "nose wear": {
+    "status": 200,
+    "count": 189
+  },
+  "nose_wear": {
+    "status": 200,
+    "count": 0
+  },
+  "nosewear": {
+    "status": 200,
+    "count": 0
+  },
+  "Nose Wear": {
+    "status": 200,
+    "count": 189
+  },
+  "watch wear": {
+    "status": 200,
+    "count": 82
+  },
+  "watch_wear": {
+    "status": 200,
+    "count": 0
+  },
+  "watchwear": {
+    "status": 200,
+    "count": 0
+  },
+  "Watch Wear": {
+    "status": 200,
+    "count": 82
+  },
+  "mangalsutra bracelet": {
+    "status": 200,
+    "count": 22
+  },
+  "mangalsutra_bracelet": {
+    "status": 200,
+    "count": 0
+  },
+  "chain": {
+    "status": 200,
+    "count": 7
+  },
+  "solitaire": {
+    "status": 200,
+    "count": 75
+  },
+  "pendant set": {
+    "status": 200,
+    "count": 98
+  },
+  "pendant_set": {
+    "status": 200,
+    "count": 0
+  },
+  "necklace set": {
+    "status": 200,
+    "count": 19
+  },
+  "necklace_set": {
+    "status": 200,
+    "count": 0
+  }
+}

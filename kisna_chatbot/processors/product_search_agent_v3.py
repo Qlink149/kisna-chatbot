@@ -25,6 +25,8 @@ from kisna_chatbot.processors.entity_extractor import (
     entities_to_api_params,
     combine_search_entities,
     has_clara_search_scope,
+    merge_search_entities,
+    normalize_entities_for_clara,
     merge_entity_llm_supplement,
     extract_entities,
     extract_entities_with_llm,
@@ -33,7 +35,6 @@ from kisna_chatbot.processors.entity_extractor import (
     filter_products_by_extracted_extras,
     has_strict_product_filters,
     is_unrecognizable_input,
-    merge_search_entities,
     normalize_category_for_api,
     normalize_material_for_api,
     finalize_search_entities,
@@ -541,6 +542,40 @@ async def _fetch_budget_filtered_products(
     return collected, api_total, last_page
 
 
+async def _fetch_multi_category_products(
+    api_params: dict,
+    clara_categories: list[str],
+    strategy_entities: dict,
+    *,
+    page_size: int,
+) -> tuple[list[dict], int, int]:
+    """Query Clara once per category, merge, dedupe by product id, sort by price."""
+    collected: list[dict] = []
+    seen_ids: set[str] = set()
+    api_total = 0
+
+    for clara_category in clara_categories:
+        params = dict(api_params)
+        params["category"] = clara_category
+        result = await search_products(
+            **params, page_no=1, page_size=page_size
+        )
+        api_total += int(result.get("total_count") or 0)
+        raw_products = result.get("products") or []
+        for product in filter_products_by_entities(raw_products, strategy_entities):
+            pid = _product_id_key(product)
+            if pid and pid in seen_ids:
+                continue
+            if pid:
+                seen_ids.add(pid)
+            collected.append(product)
+
+    collected.sort(
+        key=lambda product: get_product_display_price(product) or 0
+    )
+    return collected, api_total, 1
+
+
 def _build_prompt_response() -> list:
     return [{"type": "text", "text": _PROMPT_TEXT}]
 
@@ -971,7 +1006,9 @@ class ProductSearchAgentV3(Processor):
                 )
 
             if list_msgid == _SEARCH_CAT_LIST_MSGID:
-                if (postback or "").startswith("pref$cat$"):
+                if postback and postback.startswith("search$cat$"):
+                    postback = postback.replace("search$cat$", "pref$cat$", 1)
+                if postback and postback.startswith("pref$cat$"):
                     return await self._handle_preference_list(
                         data, phone_number, postback
                     )
@@ -982,14 +1019,6 @@ class ProductSearchAgentV3(Processor):
                 if postback == "search$explore":
                     return await self._execute_search(
                         data, phone_number, _empty_entities(), query_label="browse_all"
-                    )
-                category = _category_from_postback(postback)
-                if category:
-                    return await self._execute_search(
-                        data,
-                        phone_number,
-                        _entities_from_category(category),
-                        query_label=f"category:{category}",
                     )
                 data["bot_response"] = _build_prompt_response()
                 return data
@@ -1190,9 +1219,9 @@ class ProductSearchAgentV3(Processor):
             return data
 
         api_params_preview = entities_to_api_params(entities)
-        if not has_clara_search_scope(api_params_preview) and not _BROWSE_ALL_RE.search(
-            query
-        ):
+        if not has_clara_search_scope(
+            api_params_preview, entities
+        ) and not _BROWSE_ALL_RE.search(query):
             logger.warning(
                 "Search blocked — missing category/title for Clara API",
                 extra={
@@ -1489,7 +1518,32 @@ class ProductSearchAgentV3(Processor):
             )
 
             try:
-                if log_label == "full" and has_price_filter:
+                clara_norm = normalize_entities_for_clara(strategy_entities)
+                multi_cats = clara_norm.get("clara_multi_categories")
+                if log_label == "full" and has_price_filter and multi_cats:
+                    products, api_total, page = await _fetch_multi_category_products(
+                        api_params,
+                        multi_cats,
+                        strategy_entities,
+                        page_size=api_page_size,
+                    )
+                    raw_products = products
+                    result = {
+                        "products": products,
+                        "total_count": api_total,
+                        "page": page,
+                    }
+                    if not products:
+                        logger.warning(
+                            "api_price_filter_mismatch",
+                            extra={
+                                "phone_number": phone_number,
+                                "pages_scanned": len(multi_cats),
+                                "entities": strategy_entities,
+                            },
+                        )
+                        continue
+                elif log_label == "full" and has_price_filter:
                     products, api_total, page = await _fetch_budget_filtered_products(
                         api_params,
                         strategy_entities,
@@ -1512,20 +1566,38 @@ class ProductSearchAgentV3(Processor):
                         )
                         continue
                 else:
-                    result = await search_products(
-                        **api_params, page_no=1, page_size=api_page_size
-                    )
-                    raw_products = result.get("products") or []
-                    products = filter_products_by_entities(
-                        raw_products, strategy_entities
-                    )
-                    if not products and raw_products and strategy_entities.get("title"):
-                        relaxed_entities = {**strategy_entities, "title": None}
-                        products = filter_products_by_entities(
-                            raw_products, relaxed_entities
+                    if multi_cats:
+                        products, api_total, page = await _fetch_multi_category_products(
+                            api_params,
+                            multi_cats,
+                            strategy_entities,
+                            page_size=api_page_size,
                         )
-                        if products:
-                            strategy_entities = relaxed_entities
+                        raw_products = products
+                        result = {
+                            "products": products,
+                            "total_count": api_total,
+                            "page": page,
+                        }
+                    else:
+                        result = await search_products(
+                            **api_params, page_no=1, page_size=api_page_size
+                        )
+                        raw_products = result.get("products") or []
+                        products = filter_products_by_entities(
+                            raw_products, strategy_entities
+                        )
+                        if (
+                            not products
+                            and raw_products
+                            and strategy_entities.get("title")
+                        ):
+                            relaxed_entities = {**strategy_entities, "title": None}
+                            products = filter_products_by_entities(
+                                raw_products, relaxed_entities
+                            )
+                            if products:
+                                strategy_entities = relaxed_entities
             except ClaraAPIError as e:
                 logger.exception(
                     "Product search failed",

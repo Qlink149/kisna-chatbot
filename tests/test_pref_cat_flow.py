@@ -81,6 +81,58 @@ class PrefCatFlowTests(unittest.TestCase):
 
         asyncio.run(_run())
 
+    def test_pref_cat_ring_shows_material_list(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            list_id = json.dumps(
+                {"msgid": "search$cat$list", "postbackText": "pref$cat$ring"}
+            )
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "interactive": {
+                        "type": "list_reply",
+                        "list_reply": {"id": list_id, "title": "Rings"},
+                    }
+                },
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+            }
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+            ) as search_mock:
+                result = await agent.process(data)
+            search_mock.assert_not_called()
+            self.assertEqual(result["bot_response"][0]["msgid"], "pref$step1$list")
+
+        asyncio.run(_run())
+
+    def test_legacy_search_cat_ring_shows_material_list(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            list_id = json.dumps(
+                {"msgid": "search$cat$list", "postbackText": "search$cat$ring"}
+            )
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "interactive": {
+                        "type": "list_reply",
+                        "list_reply": {"id": list_id, "title": "Rings"},
+                    }
+                },
+                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+            }
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+            ) as search_mock:
+                result = await agent.process(data)
+            search_mock.assert_not_called()
+            self.assertEqual(result["bot_response"][0]["msgid"], "pref$step1$list")
+
+        asyncio.run(_run())
+
     def test_browse_all_uses_image_with_cta_and_base_catalogue(self):
         async def _run():
             agent = ProductSearchAgentV3()

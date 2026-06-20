@@ -90,6 +90,15 @@ async def _request(
     except httpx.HTTPStatusError as e:
         status = e.response.status_code
         body_preview = (e.response.text or "")[:200]
+        if status == 400:
+            logger.error(
+                "Clara API 400",
+                extra={
+                    "url": str(e.response.url),
+                    "params": dict(e.request.url.params) if e.request.url else params,
+                    "body": (e.response.text or "")[:500],
+                },
+            )
         log_http_response(
             "clara",
             method,
