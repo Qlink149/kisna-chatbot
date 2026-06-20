@@ -1561,11 +1561,13 @@ def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
         params["material_type"] = clara_material
 
     min_p = normalized.get("min_price")
-    if min_p is not None and float(min_p) > 0:
-        params["min_price"] = int(float(min_p))
     max_p = normalized.get("max_price")
     if max_p is not None:
         params["max_price"] = int(float(max_p))
+    if min_p is not None and float(min_p) > 0:
+        params["min_price"] = int(float(min_p))
+    elif max_p is not None and (min_p is None or float(min_p) == 0):
+        params["min_price"] = 0
     collection = normalized.get("collection")
     title = normalized.get("title")
     if collection:

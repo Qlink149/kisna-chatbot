@@ -171,6 +171,7 @@ class TestClaraNormalization:
         params = entities_to_api_params(entities)
         assert "category" not in params
         assert params.get("max_price") == 10000
+        assert params.get("min_price") == 0
 
     def test_nosewear_maps_to_clara_category(self):
         entities = extract_entities("nose pin gold")
@@ -196,12 +197,22 @@ class TestClaraNormalization:
         norm = normalize_entities_for_clara(entities)
         assert norm.get("_clara_search_note")
 
-    def test_zero_lower_bound_range_omits_min_price(self):
+    def test_zero_lower_bound_range_sends_min_price_zero(self):
         entities = extract_entities("show me rings between 0-10,000")
         params = entities_to_api_params(entities)
         assert params.get("category") == "ring"
         assert params.get("max_price") == 10000
-        assert "min_price" not in params
+        assert params.get("min_price") == 0
+
+    def test_max_price_only_sends_min_price_zero(self):
+        from kisna_chatbot.integrations.clara_api import build_products_query_params
+
+        params = entities_to_api_params({"max_price": 10000, "min_price": None})
+        assert params["min_price"] == 0
+        assert params["max_price"] == 10000
+        query = build_products_query_params(**params)
+        assert query["minPrice"] == 0
+        assert query["maxPrice"] == 10000
 
     def test_gold_chains_no_spurious_title(self):
         entities = extract_entities("Show me gold Chains")
