@@ -1753,6 +1753,10 @@ class ProductSearchAgentV3(Processor):
         user_profile["last_search_products"] = products_to_show
         user_profile["last_search_at"] = int(time.time())
         _append_shown_product_ids(user_profile, products_to_show)
+        
+        if products_to_show:
+            from kisna_chatbot.processors.product_details_agent import _save_last_viewed_product
+            _save_last_viewed_product(user_profile, products_to_show[0])
 
         data["bot_response"] = _build_search_success_response(
             products_to_show,

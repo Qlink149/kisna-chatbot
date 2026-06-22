@@ -60,13 +60,15 @@ class GeneralAgent(Processor):
             if (last_viewed or last_search) and _CATALOG_FOLLOWUP_RE.search(
                 user_query or ""
             ):
-                logger.info(
-                    "GeneralAgent rerouting catalog follow-up to product search",
-                    extra={"phone_number": phone_number, "query": user_query},
-                )
-                user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-                data["classified_category"] = "product_info"
-                return data
+                from kisna_chatbot.processors.classifier import _is_competitor_comparison
+                if not _is_competitor_comparison(user_query):
+                    logger.info(
+                        "GeneralAgent rerouting catalog follow-up to product search",
+                        extra={"phone_number": phone_number, "query": user_query},
+                    )
+                    user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                    data["classified_category"] = "product_info"
+                    return data
 
             chat_history_str = format_recent_history_str(user_profile, 8)
 
