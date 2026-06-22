@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from kisna_chatbot.config.base import ClientConfig
+from kisna_chatbot.utils.kisna_url_tracking import append_kisna_utm
 from kisna_chatbot.utils.logger_config import logger
 
 
@@ -481,10 +482,10 @@ class ClientAPIAdapter:
         for key in ("KISNA_ORDER_TRACKING_URL", "KISNA_TRACK_ORDER_URL"):
             url = os.getenv(key, "").strip()
             if url:
-                return url
+                return append_kisna_utm(url)
 
         if self._config.client_id == "kisna":
-            return "https://www.kisna.com/pages/track-order"
+            return append_kisna_utm("https://www.kisna.com/pages/track-order")
 
         base = self._require_base(self._config.product_api_base, "product_api_base")
         return f"{base}/track/{order_id}"

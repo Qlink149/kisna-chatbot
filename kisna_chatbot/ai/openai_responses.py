@@ -48,15 +48,19 @@ async def run_openai_general_agent(
     completion_tokens = 0
 
     try:
+        tools = [request_live_agent_tool]
+        if "gpt-4o-mini" not in model.lower():
+            tools.append(web_search_tool)
+
         for iteration in range(3):
             response = await get_openai_client().responses.create(
                 model=model,
                 instructions=build_general_agent_prompt(),
                 input=input_messages,
-                tools=[web_search_tool, request_live_agent_tool],
+                tools=tools,
                 text=output_schema,
                 max_output_tokens=settings["max_tokens_general"],
-                include=["web_search_call.action.sources"],
+                include=["web_search_call.action.sources"] if web_search_tool in tools else [],
             )
 
             usage = getattr(response, "usage", None)

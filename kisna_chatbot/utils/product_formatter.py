@@ -10,6 +10,7 @@ import re
 from typing import Any, Optional
 
 from kisna_chatbot.processors.entity_extractor import build_search_context
+from kisna_chatbot.utils.kisna_url_tracking import append_kisna_utm, kisna_home_url
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.price_calculator import resolve_product_prices
 
@@ -238,8 +239,10 @@ def build_catalogue_url(entities: dict[str, Any]) -> str:
         parts.append(_slugify_segment(str(occasion).replace("_", " ")))
 
     if not parts:
-        return _CATALOGUE_BASE
-    return f"{_CATALOGUE_BASE}/{'+'.join(parts)}"
+        url = _CATALOGUE_BASE
+    else:
+        url = f"{_CATALOGUE_BASE}/{'+'.join(parts)}"
+    return append_kisna_utm(url)
 
 
 def build_product_url(product: dict) -> str:
@@ -251,8 +254,9 @@ def build_product_url(product: dict) -> str:
     elif slug:
         path = slug.replace("_", "/", 1)
     else:
-        return base
-    return f"{base}/{path}"
+        return append_kisna_utm(base)
+    url = f"{base}/{path}"
+    return append_kisna_utm(url)
 
 
 def get_product_mrp_price(product: dict) -> int | None:
@@ -563,5 +567,5 @@ def format_zero_results_message(entities: dict[str, Any]) -> str:
             lines.append(f"• {s}")
         lines.append("")
 
-    lines.append("Browse full collection: https://www.kisna.com")
+    lines.append(f"Browse full collection: {kisna_home_url()}")
     return "\n".join(lines)

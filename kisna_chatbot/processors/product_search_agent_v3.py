@@ -47,6 +47,7 @@ from kisna_chatbot.utils.jewellery_profile import (
     merge_jewellery_profile,
 )
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.kisna_url_tracking import kisna_home_url
 from kisna_chatbot.utils.product_formatter import (
     BROWSE_PRODUCTS_GLOBAL_TITLE,
     build_catalogue_url,
@@ -104,17 +105,28 @@ _PROMPT_TEXT = (
 _SESSION_EXPIRED_TEXT = (
     "Your search session has expired. What jewellery are you looking for?"
 )
-_ALL_RESULTS_SEEN_TEXT = (
-    "You have seen all {total} results!\n"
-    "Browse more on our website: https://www.kisna.com"
-)
-_NO_MORE_NEW_TEXT = (
-    "No more new results. Browse full collection: https://www.kisna.com"
-)
-_NO_MORE_IN_BUDGET_TEXT = (
-    "No more results within your budget.\n"
-    "Browse full collection: https://www.kisna.com"
-)
+
+
+def _all_results_seen_text(total: int) -> str:
+    return (
+        f"You have seen all {total} results!\n"
+        f"Browse more on our website: {kisna_home_url()}"
+    )
+
+
+def _no_more_new_text() -> str:
+    return (
+        f"No more new results. Browse full collection: "
+        f"{kisna_home_url()}"
+    )
+
+
+def _no_more_in_budget_text() -> str:
+    return (
+        f"No more results within your budget.\n"
+        f"Browse full collection: {kisna_home_url()}"
+    )
+
 
 _ENTITY_KEYS = ("category", "material_type", "min_price", "max_price", "title")
 
@@ -768,13 +780,13 @@ def _fallback_prefix_note(
         if max_p is not None:
             return (
                 f"No pieces found under ₹{int(max_p):,} right now.\n"
-                "Browse on our website: https://www.kisna.com"
+                f"Browse on our website: {kisna_home_url()}"
             )
         min_p = original_entities.get("min_price")
         if min_p is not None:
             return (
                 f"No pieces found above ₹{int(min_p):,} right now.\n"
-                "Browse on our website: https://www.kisna.com"
+                f"Browse on our website: {kisna_home_url()}"
             )
         lowest = _lowest_price(products)
         if lowest is not None:
@@ -1430,7 +1442,7 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = [
                 {
                     "type": "text",
-                    "text": _ALL_RESULTS_SEEN_TEXT.format(total=total),
+                    "text": _all_results_seen_text(total),
                 }
             ]
             return data
@@ -1483,10 +1495,10 @@ class ProductSearchAgentV3(Processor):
         if not products:
             if has_budget_filter:
                 data["bot_response"] = [
-                    {"type": "text", "text": _NO_MORE_IN_BUDGET_TEXT}
+                    {"type": "text", "text": _no_more_in_budget_text()}
                 ]
             else:
-                data["bot_response"] = [{"type": "text", "text": _NO_MORE_NEW_TEXT}]
+                data["bot_response"] = [{"type": "text", "text": _no_more_new_text()}]
             return data
 
         user_profile["last_search_page"] = next_page

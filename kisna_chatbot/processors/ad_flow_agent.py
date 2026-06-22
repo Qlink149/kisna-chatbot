@@ -11,6 +11,7 @@ from kisna_chatbot.processors.service_list import (
     build_main_menu_bot_response,
 )
 from kisna_chatbot.utils.clara_cache import get_cached_stores
+from kisna_chatbot.utils.kisna_url_tracking import append_kisna_utm
 from kisna_chatbot.utils.logger_config import logger
 
 _MAX_NEAREST_BY_LOCATION = 5
@@ -37,8 +38,8 @@ _GENERIC_ERROR = (
 def _store_locator_url() -> str:
     url = (os.getenv("KISNA_STORE_LOCATOR_URL") or "").strip()
     if url:
-        return url
-    return os.getenv("KISNA_STORE_LOCATOR_URL", "https://www.kisna.com/store")
+        return append_kisna_utm(url)
+    return append_kisna_utm("https://www.kisna.com/store")
 
 
 def _store_phone(store: dict) -> str | None:
