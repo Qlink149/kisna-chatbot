@@ -241,6 +241,59 @@ def verify_webhook_request(body: bytes, signature: str | None) -> bool:
     return verify_gupshup_signature(body, signature, secret)
 
 
+def _normalize_gupshup_webhook_payload(request_data: dict) -> dict:
+    """
+    Normalize Gupshup webhook bodies to Meta Cloud API shape.
+
+    Some Gupshup event types wrap the Cloud API payload under a top-level
+    ``payload`` key (string or object). Unwrap instead of dropping the event.
+    """
+    if "entry" in request_data:
+        return request_data
+
+    wrapped = request_data.get("payload")
+    if wrapped is None:
+        return request_data
+
+    if isinstance(wrapped, str):
+        try:
+            wrapped = json.loads(wrapped)
+        except json.JSONDecodeError:
+            logger.warning(
+                "Webhook payload wrapper is not valid JSON",
+                extra={"payload_preview": wrapped[:500]},
+            )
+            return request_data
+
+    if isinstance(wrapped, dict) and "entry" in wrapped:
+        logger.info("Unwrapped Gupshup payload envelope for processing")
+        return wrapped
+
+    logger.warning(
+        "Webhook payload wrapper did not contain Cloud API entry",
+        extra={"wrapper_keys": list(wrapped.keys()) if isinstance(wrapped, dict) else None},
+    )
+    return request_data
+
+
+def _describe_inbound_message(whatsapp_event: dict) -> dict:
+    """Extract lightweight message metadata for webhook logging."""
+    info: dict = {
+        "has_messages": "messages" in whatsapp_event,
+        "has_statuses": "statuses" in whatsapp_event,
+    }
+    messages = whatsapp_event.get("messages") or []
+    if messages:
+        msg0 = messages[0]
+        info["message_type"] = msg0.get("type")
+        interactive = msg0.get("interactive") or {}
+        if interactive.get("type"):
+            info["interactive_type"] = interactive.get("type")
+        if interactive.get("type") == "nfm_reply" or msg0.get("nfm_reply"):
+            info["is_nfm_reply"] = True
+    return info
+
+
 def _pipeline_for_service(service_selected: str):
     """Return pipeline instance for service_selected value."""
     mapping = {
@@ -463,14 +516,23 @@ async def process_message(
                     data = await pipeline.run(data=data)
 
                 if "bot_response" not in data:
-                    logger.warning(
-                        "Pipeline completed without bot_response — sending main menu",
-                        extra={
-                            "phone_number": phone_number,
-                            "service_selected": service_selected,
-                        },
-                    )
-                    data["bot_response"] = [build_main_menu_bot_response()]
+                    if service_selected in {SL.COMPLAINT.value, SL.RETURNS_REFUND.value}:
+                        logger.error(
+                            "Complaint/returns pipeline completed without bot_response",
+                            extra={
+                                "phone_number": phone_number,
+                                "service_selected": service_selected,
+                            },
+                        )
+                    else:
+                        logger.warning(
+                            "Pipeline completed without bot_response — sending main menu",
+                            extra={
+                                "phone_number": phone_number,
+                                "service_selected": service_selected,
+                            },
+                        )
+                        data["bot_response"] = [build_main_menu_bot_response()]
 
             if "bot_response" in data:
                 await _persist_session(data, phone_number, pipeline_start)
@@ -529,7 +591,11 @@ async def messages_kisna(
         return JSONResponse(content={"success": False}, status_code=401)
 
     request_data = json.loads(body)
-    logger.info("Webhook received", extra={"keys": list(request_data.keys())})
+    request_data = _normalize_gupshup_webhook_payload(request_data)
+    logger.info(
+        "Webhook received",
+        extra={"keys": list(request_data.keys())},
+    )
 
     if _log_webhook_payload_enabled():
         try:
@@ -543,44 +609,49 @@ async def messages_kisna(
         except Exception:
             logger.exception("Failed to log raw webhook payload")
 
-    if "payload" in request_data:
-        logger.info("Payload wrapper found, ignoring")
-        return JSONResponse(content={"success": True}, status_code=200)
-
     try:
         whatsapp_event = request_data["entry"][0]["changes"][0]["value"]
     except (KeyError, IndexError, TypeError):
         logger.warning(
             "Webhook payload did not match expected Cloud API format",
-            extra={"request_data": request_data},
+            extra={"request_data": sanitize_for_log(request_data)},
         )
         return JSONResponse(content={"success": True}, status_code=200)
+
+    inbound_info = _describe_inbound_message(whatsapp_event)
+    logger.info("Inbound webhook event", extra=inbound_info)
 
     if _log_webhook_payload_enabled():
         try:
             messages0 = None
-            if "messages" in whatsapp_event and whatsapp_event["messages"]:
+            if whatsapp_event.get("messages"):
                 messages0 = whatsapp_event["messages"][0]
             logger.info(
                 "Inbound webhook payload (value)",
                 extra={
                     "metadata": whatsapp_event.get("metadata", {}),
-                    "has_statuses": "statuses" in whatsapp_event,
-                    "has_messages": "messages" in whatsapp_event,
                     "messages0": messages0,
                     "value": whatsapp_event,
+                    **inbound_info,
                 },
             )
         except Exception:
             logger.exception("Failed to log whatsapp_event payload")
 
-    if "statuses" in whatsapp_event:
+    if "statuses" in whatsapp_event and "messages" not in whatsapp_event:
         status_item = whatsapp_event["statuses"][0]
         status = status_item.get("type") or status_item.get("status", "unknown")
         logger.info("Ignoring status update", extra={"status": status})
         return JSONResponse(content={"success": True}, status_code=200)
 
     if "messages" not in whatsapp_event:
+        logger.warning(
+            "Webhook value has no messages — skipping processing",
+            extra={
+                "value_keys": list(whatsapp_event.keys()),
+                **inbound_info,
+            },
+        )
         return JSONResponse(content={"success": True}, status_code=200)
 
     request_id = getattr(request.state, "request_id", None)

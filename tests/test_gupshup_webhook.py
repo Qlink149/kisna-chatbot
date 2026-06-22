@@ -38,6 +38,7 @@ from kisna_chatbot.main import (
     mark_inbound_processed,
     verify_gupshup_signature,
     verify_webhook_request,
+    _normalize_gupshup_webhook_payload,
 )
 
 
@@ -130,6 +131,27 @@ class InboundDedupTests(unittest.TestCase):
             self.assertFalse(ok)
         finally:
             main_mod.processed_inbound_messages = old
+
+
+class WebhookNormalizationTests(unittest.TestCase):
+    def test_unwraps_string_payload_envelope(self):
+        inner = {"entry": [{"changes": [{"value": {"messages": []}}]}]}
+        wrapped = {"payload": json.dumps(inner)}
+        normalized = _normalize_gupshup_webhook_payload(wrapped)
+        self.assertEqual(normalized, inner)
+
+    def test_unwraps_object_payload_envelope(self):
+        inner = {"entry": [{"changes": [{"value": {"messages": []}}]}]}
+        wrapped = {"payload": inner}
+        normalized = _normalize_gupshup_webhook_payload(wrapped)
+        self.assertEqual(normalized, inner)
+
+    def test_leaves_cloud_api_payload_unchanged(self):
+        payload = {"entry": [{"changes": [{"value": {"messages": []}}]}]}
+        self.assertIs(
+            _normalize_gupshup_webhook_payload(payload),
+            payload,
+        )
 
 
 def _build_test_payload(phone_number_id: str) -> dict:

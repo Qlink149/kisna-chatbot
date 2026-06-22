@@ -1,4 +1,5 @@
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.utils.logger_config import logger
 
 _GENERIC_ERROR = (
@@ -8,7 +9,7 @@ _GENERIC_ERROR = (
 
 
 class ReturnsRefundAgent(Processor):
-    """Register return/refund requests as complaints in MongoDB."""
+    """Route return/refund requests into the complaint flow."""
 
     def should_run(self, data: dict) -> bool:
         if "bot_response" in data:
@@ -16,7 +17,7 @@ class ReturnsRefundAgent(Processor):
         user_profile = data.get("user_profile", {})
         if data.get("classified_category") == "returns_refund":
             return True
-        return user_profile.get("service_selected") == "returns_refund"
+        return user_profile.get("service_selected") == SL.RETURNS_REFUND.value
 
     async def process(self, data: dict) -> dict:
         phone_number = data.get("phone_number", "")
@@ -34,13 +35,11 @@ class ReturnsRefundAgent(Processor):
             return data
 
         try:
-            from kisna_chatbot.processors.service_list import build_complaint_flow_bot_response
-            
-            data["bot_response"] = [build_complaint_flow_bot_response()]
-            user_profile["service_selected"] = "complaint"
-            
+            user_profile["service_selected"] = SL.COMPLAINT.value
+            data["classified_category"] = "complaint"
+
             logger.info(
-                "Routing return/refund request to complaint form",
+                "Routing return/refund request to complaint flow",
                 extra={"phone_number": phone_number, "client_id": client_id},
             )
             return data

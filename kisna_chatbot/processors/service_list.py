@@ -4,6 +4,7 @@ from kisna_chatbot.config.gupshup import get_damage_complaint_flow_id
 from kisna_chatbot.models.enums import FLowId, FlowId, ListIds, QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.processors.complaint_agent import build_complaint_flow_bot_response
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
 from kisna_chatbot.utils.logger_config import logger
 
@@ -180,15 +181,6 @@ def build_acknowledgement_bot_response() -> list[dict]:
             "msgid": QuickReplyId.NON_TEXT_BROWSE.value,
         }
     ]
-
-
-def build_complaint_flow_bot_response() -> dict:
-    """WhatsApp Flow payload for damage / quality complaints."""
-    return {
-        "type": "flow",
-        "flow": "damage_complaint",
-        "text": "Please provide your order details and describe the issue.",
-    }
 
 
 def build_complaint_entry_cta_bot_response() -> dict:
@@ -781,7 +773,6 @@ def handle_clarification_quick_reply(
         if "report" in title or "problem" in title:
             user_profile["service_selected"] = SL.COMPLAINT.value
             data["classified_category"] = "complaint"
-            data["bot_response"] = [build_complaint_flow_bot_response()]
             return True
         user_profile["service_selected"] = SL.ORDER_TRACKING.value
         data["classified_category"] = "order_tracking"
@@ -791,7 +782,6 @@ def handle_clarification_quick_reply(
     if btn_msgid == QuickReplyId.CLARIFY_COMPLAINT.value:
         user_profile["service_selected"] = SL.COMPLAINT.value
         data["classified_category"] = "complaint"
-        data["bot_response"] = [build_complaint_flow_bot_response()]
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_OFFERS.value:
@@ -1036,7 +1026,7 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
 
     if key in ("raise_complaint", "damage_complaint", "complaint"):
         user_profile["service_selected"] = SL.COMPLAINT.value
-        data["bot_response"] = [build_complaint_flow_bot_response()]
+        data["classified_category"] = "complaint"
         return
 
     if key in ("faqs_help",):
@@ -1174,7 +1164,8 @@ class ServiceList(Processor):
                     return data
 
                 if btn_msgid == QuickReplyId.COMPLAINT_REGISTER.value:
-                    data["bot_response"] = [build_complaint_flow_bot_response()]
+                    user_profile["service_selected"] = SL.COMPLAINT.value
+                    data["classified_category"] = "complaint"
                     return data
 
                 if _is_delegated_button(btn_msgid):

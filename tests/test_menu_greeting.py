@@ -118,10 +118,9 @@ class TestMenuGreeting(unittest.TestCase):
         data = {}
         _handle_menu_selection("Raise Complaint", user_profile, data, "damage_complaint")
         self.assertEqual(user_profile["service_selected"], "complaint")
-        self.assertEqual(data["bot_response"][0]["type"], "flow")
-        self.assertEqual(data["bot_response"][0]["flow"], "damage_complaint")
+        self.assertNotIn("bot_response", data)
 
-    def test_complaint_cta_click_opens_flow(self):
+    def test_complaint_cta_click_routes_to_complaint_pipeline(self):
         processor = ServiceList()
         data = {
             "phone_number": "919999999999",
@@ -135,6 +134,19 @@ class TestMenuGreeting(unittest.TestCase):
                     },
                 }
             },
+        }
+        result = asyncio.run(processor.process(data))
+        self.assertEqual(result["user_profile"]["service_selected"], "complaint")
+        self.assertNotIn("bot_response", result)
+
+    def test_complaint_agent_sends_flow_on_first_entry(self):
+        from kisna_chatbot.processors.complaint_agent import ComplaintAgent
+
+        processor = ComplaintAgent()
+        data = {
+            "phone_number": "919999999999",
+            "user_profile": {"service_selected": "complaint"},
+            "messages": {"type": "text", "text": {"body": "complaint"}},
         }
         result = asyncio.run(processor.process(data))
         self.assertEqual(result["bot_response"][0]["type"], "flow")
@@ -154,7 +166,7 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertEqual(result["bot_response"][0]["type"], "list")
         self.assertEqual(result["classified_category"], "menu_help")
 
-    def test_classifier_complaint_category_sends_flow(self):
+    def test_classifier_complaint_category_routes_to_complaint_pipeline(self):
         processor = Classifier()
         data = {
             "phone_number": "919999999999",
@@ -165,8 +177,8 @@ class TestMenuGreeting(unittest.TestCase):
         with patch("kisna_chatbot.processors.classifier.complete_chat") as mocked:
             mocked.return_value = '{"category":"complaint"}'
             result = asyncio.run(processor.process(data))
-        self.assertEqual(result["bot_response"][0]["type"], "flow")
-        self.assertEqual(result["bot_response"][0]["flow"], "damage_complaint")
+        self.assertEqual(result["user_profile"]["service_selected"], "complaint")
+        self.assertNotIn("bot_response", result)
 
 
 if __name__ == "__main__":

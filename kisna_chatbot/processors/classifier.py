@@ -17,7 +17,6 @@ from kisna_chatbot.processors.entity_extractor import (
 from kisna_chatbot.processors.service_list import (
     build_acknowledgement_bot_response,
     build_clarification_bot_response,
-    build_complaint_flow_bot_response,
     build_flow_switch_bot_response,
     build_greeting_welcome_bot_responses,
     build_main_menu_bot_response,
@@ -766,8 +765,7 @@ def _apply_intent_routing(
         ):
             return True
         user_profile["service_selected"] = ServiceList.COMPLAINT.value
-        data["bot_response"] = [build_complaint_flow_bot_response()]
-        return True
+        return False
 
     service = _CATEGORY_TO_SERVICE.get(intent)
     if service:
