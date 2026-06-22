@@ -1,20 +1,10 @@
-from kisna_chatbot.database.db_utils import save_complaint
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger
 
-_COMPLAINT_TYPE = "5_Return_Refund_Request"
 _GENERIC_ERROR = (
     "Apologies — something went wrong on my end. Could you please try again, "
     "or contact our support team for assistance."
 )
-
-
-def _extract_issue_summary(data: dict) -> str:
-    messages = data.get("messages", {})
-    text_body = messages.get("text", {}).get("body")
-    if text_body and str(text_body).strip():
-        return str(text_body).strip()[:500]
-    return "Return or refund request via WhatsApp"
 
 
 class ReturnsRefundAgent(Processor):
@@ -43,39 +33,20 @@ class ReturnsRefundAgent(Processor):
             )
             return data
 
-        issue = _extract_issue_summary(data)
-        customer_name = user_profile.get("username") or data.get("whatsapp_username", "")
-
         try:
-            save_complaint(
-                phone_number=phone_number,
-                issue=issue,
-                complaint_type=_COMPLAINT_TYPE,
-                case_id="",
-                client_id=client_id,
-                order_id="",
-                customer_name=customer_name,
-            )
-            data["bot_response"] = [
-                {
-                    "type": "text",
-                    "text": (
-                        "Thank you for reaching out. Your return/refund request "
-                        "has been registered.\n\n"
-                        "Our team will contact you within 24 hours. "
-                        "I'd be happy to help with anything else in the meantime."
-                    ),
-                }
-            ]
-            user_profile["service_selected"] = ""
+            from kisna_chatbot.processors.service_list import build_complaint_flow_bot_response
+            
+            data["bot_response"] = [build_complaint_flow_bot_response()]
+            user_profile["service_selected"] = "complaint"
+            
             logger.info(
-                "Return/refund complaint registered",
+                "Routing return/refund request to complaint form",
                 extra={"phone_number": phone_number, "client_id": client_id},
             )
             return data
         except Exception as e:
             logger.exception(
-                "Failed to register return/refund complaint",
+                "Failed to route return/refund complaint to form",
                 extra={"phone_number": phone_number, "exception": e},
             )
             data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
