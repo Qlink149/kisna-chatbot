@@ -15,17 +15,10 @@ from kisna_chatbot.processors.user_registration import UserRegistration
 
 
 class InitialPipeline(Pipeline):
-    """Pipeline for user registration, intent classification, and main menu.
-
-    ComplaintAgent is included here so that WhatsApp Flow form submissions
-    (nfm_reply messages) are processed immediately. The Classifier only
-    handles text messages, and ServiceList does not route nfm_reply — so
-    without this, a complaint form submission would reach no processor and
-    never be saved to the database.
-    """
+    """Pipeline for user registration, intent classification, and main menu."""
 
     def __init__(self) -> None:
-        processors = [UserRegistration(), Classifier(), ServiceList(), ComplaintAgent()]
+        processors = [UserRegistration(), Classifier(), ServiceList()]
         super().__init__(processors)
 
 

@@ -1,6 +1,7 @@
 import json
 
-from kisna_chatbot.models.enums import ListIds, QuickReplyId
+from kisna_chatbot.config.gupshup import get_damage_complaint_flow_id
+from kisna_chatbot.models.enums import FLowId, FlowId, ListIds, QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
@@ -1108,6 +1109,37 @@ class ServiceList(Processor):
             )
 
             interactive = messages.get("interactive", {})
+
+            # ── nfm_reply: WhatsApp Flow form submission ──────────────────────
+            # This is the ONLY message type that carries completed form data.
+            # We must detect it here and set service_selected so main.py routes
+            # to the correct pipeline (ComplaintPipeline). Without this block,
+            # the nfm_reply falls through with service_selected unchanged and
+            # the complaint is never saved. This mirrors the NKL production pattern.
+            if "nfm_reply" in interactive:
+                nfm_reply = interactive["nfm_reply"]
+                if nfm_reply.get("name") == "flow":
+                    try:
+                        flow_data = json.loads(nfm_reply.get("response_json", "{}"))
+                        flow_token = flow_data.get("flow_token", "")
+                        complaint_tokens = {
+                            FLowId.DAMAGE_COMPLAINT.value,
+                            FlowId.COMPLAINT_FLOW.value,
+                            get_damage_complaint_flow_id(),
+                        }
+                        if flow_token in complaint_tokens:
+                            logger.info(
+                                "nfm_reply complaint flow submission detected — routing to ComplaintPipeline",
+                                extra={"phone_number": phone_number, "flow_token": flow_token},
+                            )
+                            user_profile["service_selected"] = SL.COMPLAINT.value
+                            return data
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning(
+                            "Failed to parse nfm_reply response_json in ServiceList",
+                            extra={"phone_number": phone_number, "error": str(e)},
+                        )
+            # ─────────────────────────────────────────────────────────────────
 
             if interactive.get("type") == "button_reply":
                 button_reply = interactive.get("button_reply", {})
