@@ -1,10 +1,8 @@
 import json
 
-from kisna_chatbot.config.gupshup import get_damage_complaint_flow_id
-from kisna_chatbot.models.enums import FLowId, FlowId, ListIds, QuickReplyId
+from kisna_chatbot.models.enums import ListIds, QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
-from kisna_chatbot.processors.complaint_agent import build_complaint_flow_bot_response
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
 from kisna_chatbot.utils.logger_config import logger
 
@@ -181,6 +179,15 @@ def build_acknowledgement_bot_response() -> list[dict]:
             "msgid": QuickReplyId.NON_TEXT_BROWSE.value,
         }
     ]
+
+
+def build_complaint_flow_bot_response() -> dict:
+    """WhatsApp Flow payload for damage / quality complaints."""
+    return {
+        "type": "flow",
+        "flow": "damage_complaint",
+        "text": "Please provide your order details and describe the issue.",
+    }
 
 
 def build_complaint_entry_cta_bot_response() -> dict:
@@ -773,6 +780,7 @@ def handle_clarification_quick_reply(
         if "report" in title or "problem" in title:
             user_profile["service_selected"] = SL.COMPLAINT.value
             data["classified_category"] = "complaint"
+            data["bot_response"] = [build_complaint_flow_bot_response()]
             return True
         user_profile["service_selected"] = SL.ORDER_TRACKING.value
         data["classified_category"] = "order_tracking"
@@ -782,6 +790,7 @@ def handle_clarification_quick_reply(
     if btn_msgid == QuickReplyId.CLARIFY_COMPLAINT.value:
         user_profile["service_selected"] = SL.COMPLAINT.value
         data["classified_category"] = "complaint"
+        data["bot_response"] = [build_complaint_flow_bot_response()]
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_OFFERS.value:
@@ -1026,7 +1035,7 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
 
     if key in ("raise_complaint", "damage_complaint", "complaint"):
         user_profile["service_selected"] = SL.COMPLAINT.value
-        data["classified_category"] = "complaint"
+        data["bot_response"] = [build_complaint_flow_bot_response()]
         return
 
     if key in ("faqs_help",):
@@ -1100,37 +1109,6 @@ class ServiceList(Processor):
 
             interactive = messages.get("interactive", {})
 
-            # ── nfm_reply: WhatsApp Flow form submission ──────────────────────
-            # This is the ONLY message type that carries completed form data.
-            # We must detect it here and set service_selected so main.py routes
-            # to the correct pipeline (ComplaintPipeline). Without this block,
-            # the nfm_reply falls through with service_selected unchanged and
-            # the complaint is never saved. This mirrors the NKL production pattern.
-            nfm_payload = interactive.get("nfm_reply") or messages.get("nfm_reply")
-            if nfm_payload:
-                if nfm_payload.get("name") == "flow":
-                    try:
-                        flow_data = json.loads(nfm_payload.get("response_json", "{}"))
-                        flow_token = flow_data.get("flow_token", "")
-                        complaint_tokens = {
-                            FLowId.DAMAGE_COMPLAINT.value,
-                            FlowId.COMPLAINT_FLOW.value,
-                            get_damage_complaint_flow_id(),
-                        }
-                        if flow_token in complaint_tokens or "screen_0_Order_ID_0" in flow_data or "order_id" in flow_data:
-                            logger.info(
-                                "nfm_reply complaint flow submission detected — routing to ComplaintPipeline",
-                                extra={"phone_number": phone_number, "flow_token": flow_token, "fallback_match": flow_token not in complaint_tokens},
-                            )
-                            user_profile["service_selected"] = SL.COMPLAINT.value
-                            return data
-                    except (json.JSONDecodeError, TypeError) as e:
-                        logger.warning(
-                            "Failed to parse nfm_reply response_json in ServiceList",
-                            extra={"phone_number": phone_number, "error": str(e)},
-                        )
-            # ─────────────────────────────────────────────────────────────────
-
             if interactive.get("type") == "button_reply":
                 button_reply = interactive.get("button_reply", {})
                 raw_id = button_reply.get("id", "")
@@ -1164,8 +1142,7 @@ class ServiceList(Processor):
                     return data
 
                 if btn_msgid == QuickReplyId.COMPLAINT_REGISTER.value:
-                    user_profile["service_selected"] = SL.COMPLAINT.value
-                    data["classified_category"] = "complaint"
+                    data["bot_response"] = [build_complaint_flow_bot_response()]
                     return data
 
                 if _is_delegated_button(btn_msgid):

@@ -55,10 +55,10 @@ class PreOrderPipeline(Pipeline):
 
 
 class ReturnsRefundPipeline(Pipeline):
-    """Pipeline for return and refund requests — routes into complaint flow."""
+    """Pipeline for return and refund requests — registers complaints."""
 
     def __init__(self) -> None:
-        processors = [ReturnsRefundAgent(), ComplaintAgent()]
+        processors = [ReturnsRefundAgent()]
         super().__init__(processors)
 
 
