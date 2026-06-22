@@ -27,24 +27,29 @@ def _parse_complaint_flow(messages: dict) -> dict | None:
     """
     Parse WhatsApp flow reply from messages when flow_token matches complaint flow.
 
+    IMPORTANT: Only nfm_reply messages represent a completed form submission.
+    button_reply messages are CTA taps that open the form — they carry no
+    response_json or flow_token and must never be treated as submissions.
+
     Returns:
         Parsed flow_data dict, or None if not a complaint flow submission.
     """
     interactive = messages.get("interactive") or {}
-    
-    # Handle nested inside interactive or at the top level
-    payload = (
+
+    # Only nfm_reply signals a completed WhatsApp Flow form submission.
+    # button_reply is the user tapping the "Register Complaint" CTA to open
+    # the form — it contains no response_json or flow_token, so we must
+    # ignore it here. The ServiceList processor handles CTA button_replies.
+    nfm_payload = (
         interactive.get("nfm_reply")
-        or interactive.get("button_reply")
         or messages.get("nfm_reply")
-        or messages.get("button_reply")
     )
-    if not payload:
+    if not nfm_payload:
         return None
 
-    if "response_json" in payload:
+    if "response_json" in nfm_payload:
         try:
-            flow_data = json.loads(payload["response_json"])
+            flow_data = json.loads(nfm_payload["response_json"])
         except (json.JSONDecodeError, TypeError, KeyError) as e:
             logger.warning(
                 "Failed to parse complaint flow response_json",
@@ -53,13 +58,17 @@ def _parse_complaint_flow(messages: dict) -> dict | None:
             return None
     else:
         # Gupshup sometimes auto-deserializes the JSON directly into the payload
-        flow_data = payload
+        flow_data = nfm_payload
 
     if not isinstance(flow_data, dict):
         return None
 
     flow_token = flow_data.get("flow_token")
     if flow_token not in _complaint_flow_ids():
+        logger.warning(
+            "Complaint flow reply received but flow_token not recognised — ignoring",
+            extra={"flow_token": flow_token, "known_ids": list(_complaint_flow_ids())},
+        )
         return None
 
     return flow_data
