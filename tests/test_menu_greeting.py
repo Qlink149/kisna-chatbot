@@ -15,6 +15,7 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test")
 from kisna_chatbot.processors.service_list import (
     _handle_menu_selection,
     _MENU_BODY,
+    _WELCOME_TEXT,
     _normalize_menu_key,
     build_main_menu_bot_response,
     build_complaint_flow_bot_response,
@@ -52,10 +53,10 @@ class TestMenuGreeting(unittest.TestCase):
         menu = build_main_menu_bot_response()
         self.assertEqual(menu["type"], "list")
         self.assertEqual(menu["list"], "list")
-        self.assertIn("KIA", menu["body"])
+        self.assertIn("explore designs", menu["body"])
 
-    def test_menu_body_mentions_kia(self):
-        self.assertIn("KIA", _MENU_BODY)
+    def test_welcome_text_mentions_kia(self):
+        self.assertIn("KIA", _WELCOME_TEXT)
 
     def test_greeting_suffix_detection(self):
         self.assertTrue(is_greeting_message("hey there"))
@@ -79,8 +80,9 @@ class TestMenuGreeting(unittest.TestCase):
             phone_number="919999999999",
             chat_history=[],
         )
-        self.assertEqual(len(responses), 1)
-        self.assertEqual(responses[0]["type"], "list")
+        self.assertEqual(len(responses), 2)
+        self.assertEqual(responses[0]["type"], "text")
+        self.assertEqual(responses[1]["type"], "list")
 
     def test_complaint_flow_shape(self):
         flow = build_complaint_flow_bot_response()

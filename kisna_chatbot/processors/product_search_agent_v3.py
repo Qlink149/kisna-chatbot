@@ -276,7 +276,8 @@ def _handle_product_info_followup(data: dict, query: str) -> dict | None:
             return None
         priced.sort(key=lambda item: item[0])
         cheapest = priced[0][1]
-        user_profile["last_viewed_product"] = cheapest
+        from kisna_chatbot.processors.product_details_agent import _save_last_viewed_product
+        _save_last_viewed_product(user_profile, cheapest)
         bot_response: list[dict] = [
             {
                 "type": "text",

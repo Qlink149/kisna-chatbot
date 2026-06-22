@@ -150,18 +150,28 @@ def build_products_query_params(
     params: dict[str, Any] = {
         "pageNo": page_no,
         "pageSize": page_size,
-        "searchUrl": "true",
     }
+    has_filters = False
+    
     if category is not None and str(category).strip():
         params["category"] = str(category).strip()
+        has_filters = True
     if material_type is not None and str(material_type).strip():
         params["materialType"] = str(material_type).strip()
+        has_filters = True
     if min_price is not None:
         params["minPrice"] = int(min_price)
+        has_filters = True
     if max_price is not None:
         params["maxPrice"] = int(max_price)
+        has_filters = True
     if title is not None and str(title).strip():
         params["title"] = str(title).strip()
+        has_filters = True
+
+    if has_filters:
+        params["searchUrl"] = "true"
+
     return _omit_empty_params(params)
 
 

@@ -44,6 +44,7 @@ from kisna_chatbot.processors.service_list import build_main_menu_bot_response
 from kisna_chatbot.processors.user_registration import UserRegistration
 from kisna_chatbot.utils.format_chathistory import format_user
 from kisna_chatbot.routes import system as system_router
+from kisna_chatbot.whatsapp_functions.typing_indicator import typing_indicator_loop
 from kisna_chatbot.utils.logger_config import (
     clear_request_context,
     log_event,
@@ -279,6 +280,8 @@ async def process_message(
     phone_number = None
     data: dict = {}
     responses_to_send: dict | None = None
+    stop_typing_event: asyncio.Event | None = None
+    typing_task = None
 
     if request_id:
         set_request_context(request_id=request_id)
@@ -403,6 +406,10 @@ async def process_message(
                 touch_last_message_at(phone_number, client_id)
                 return
 
+            if message_id:
+                stop_typing_event = asyncio.Event()
+                typing_task = asyncio.create_task(typing_indicator_loop(message_id, stop_typing_event))
+
             data = await UserRegistration().process(data)
 
             non_text_result = handle_non_text_message(data)
@@ -497,6 +504,8 @@ async def process_message(
                         extra={"exception": send_err},
                     )
     finally:
+        if stop_typing_event:
+            stop_typing_event.set()
         clear_request_context()
 
 

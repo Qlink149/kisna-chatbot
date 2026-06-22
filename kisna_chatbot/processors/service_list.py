@@ -9,7 +9,6 @@ from kisna_chatbot.utils.logger_config import logger
 _GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please try again?"
 
 _MENU_BODY = (
-    "Welcome to Kisna. I'm KIA, your jewellery assistant. ✨\n"
     "I can help you explore designs, find the perfect gift, "
     "track orders, and answer your jewellery questions.\n"
     "How may I assist you today?"
@@ -26,7 +25,7 @@ _FIND_STORE_TEXT = (
 
 _WELCOME_TEXT = (
     "Welcome to Kisna. I'm KIA, your jewellery assistant. ✨\n"
-    "How may I assist you today?"
+    "How may I help you today?"
 )
 
 _WELCOME_BACK_TEXT = (
@@ -121,10 +120,13 @@ def build_greeting_welcome_bot_responses(
     phone_number: str | None = None,
     chat_history: list | None = None,
 ) -> list[dict]:
-    """Welcome for new users (menu) or returning users (text + menu)."""
+    """Welcome for new users (text + menu) or returning users (text + menu)."""
     history = chat_history if chat_history is not None else []
     if is_new_session(history):
-        return [_build_main_menu_list()]
+        return [
+            {"type": "text", "text": _WELCOME_TEXT},
+            _build_main_menu_list(),
+        ]
 
     return [
         {"type": "text", "text": _WELCOME_BACK_TEXT},

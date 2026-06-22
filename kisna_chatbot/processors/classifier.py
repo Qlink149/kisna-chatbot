@@ -246,6 +246,18 @@ _SIZE_QUERY_RE = re.compile(
 )
 
 
+_COMPETITOR_RE = re.compile(
+    r"\b(tanishq|kalyan|malabar|caratlane|reliance\s+jewels|bluestone|"
+    r"other\s+brands?|local\s+jeweler|local\s+jeweller|why\s+buy\s+from|"
+    r"why\s+choose|better\s+than)\b",
+    re.I,
+)
+
+
+def _is_competitor_comparison(text: str) -> bool:
+    return bool(_COMPETITOR_RE.search((text or "").strip()))
+
+
 def _is_custom_jewellery_query(text: str) -> bool:
     return bool(_CUSTOM_JEWELLERY_RE.search((text or "").strip()))
 
@@ -277,6 +289,8 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
     normalized = (text or "").strip()
     if not normalized:
         return None
+    if _is_competitor_comparison(normalized):
+        return ("general", 0.95)
     if _is_custom_jewellery_query(normalized):
         return ("human_handoff", 0.95)
     if _is_policy_action_query(normalized):
@@ -565,9 +579,26 @@ def _parse_classifier_json(raw: str) -> dict:
     intent = (
         parsed.get("intent") or parsed.get("category") or "general"
     ).strip().lower()
+    confidence = float(parsed.get("confidence", 0.5))
+
+    # Fix inverted price ranges (e.g. "above 80k under 50k" mapped to min=80k, max=50k)
+    try:
+        min_p = entities.get("min_price")
+        max_p = entities.get("max_price")
+        if min_p is not None and max_p is not None:
+            min_val = int(float(min_p))
+            max_val = int(float(max_p))
+            if min_val > max_val:
+                entities["min_price"] = max_val
+                entities["max_price"] = min_val
+                if intent == "product_search" and confidence < 0.85:
+                    confidence = 0.85
+    except (TypeError, ValueError):
+        pass
+
     return {
         "intent": intent,
-        "confidence": float(parsed.get("confidence", 0.5)),
+        "confidence": confidence,
         "entities": entities,
     }
 
@@ -1008,6 +1039,8 @@ class Classifier(Processor):
         ):
             return False
         if _COMPARATIVE_RE.search(user_query):
+            if _is_competitor_comparison(user_query):
+                return True
             return False
         if _BROWSE_ACTION_RE.search(user_query) or _CATEGORY_WORD_RE.search(user_query):
             return False
