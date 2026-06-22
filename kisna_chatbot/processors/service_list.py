@@ -1116,11 +1116,11 @@ class ServiceList(Processor):
             # to the correct pipeline (ComplaintPipeline). Without this block,
             # the nfm_reply falls through with service_selected unchanged and
             # the complaint is never saved. This mirrors the NKL production pattern.
-            if "nfm_reply" in interactive:
-                nfm_reply = interactive["nfm_reply"]
-                if nfm_reply.get("name") == "flow":
+            nfm_payload = interactive.get("nfm_reply") or messages.get("nfm_reply")
+            if nfm_payload:
+                if nfm_payload.get("name") == "flow":
                     try:
-                        flow_data = json.loads(nfm_reply.get("response_json", "{}"))
+                        flow_data = json.loads(nfm_payload.get("response_json", "{}"))
                         flow_token = flow_data.get("flow_token", "")
                         complaint_tokens = {
                             FLowId.DAMAGE_COMPLAINT.value,
