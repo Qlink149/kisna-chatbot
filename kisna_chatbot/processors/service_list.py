@@ -9,9 +9,8 @@ from kisna_chatbot.utils.logger_config import logger
 _GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please try again?"
 
 _MENU_BODY = (
-    "I can help you explore designs, find the perfect gift, "
-    "track orders, and answer your jewellery questions.\n"
-    "How may I assist you today?"
+    "You can pick an option from the menu below, or simply type what's on your mind — "
+    "whether that's \"gold earrings under ₹80,000\" or \"what's your return policy\" — I'll understand."
 )
 
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
@@ -24,13 +23,13 @@ _FIND_STORE_TEXT = (
 )
 
 _WELCOME_TEXT = (
-    "Welcome to Kisna. I'm KIA, your jewellery assistant. ✨\n"
-    "How may I help you today?"
+    "✨ Namaste! Welcome to Kisna Diamond & Gold. 💎\n"
+    "I'm KIA, your personal jewellery assistant — here to help you discover the perfect piece, find answers, and make your Kisna experience truly special."
 )
 
 _WELCOME_BACK_TEXT = (
-    "Welcome back to Kisna! I'm KIA — lovely to see you again. 💎\n"
-    "How may I help you today?"
+    "✨ Namaste! Welcome back to Kisna Diamond & Gold. 💎\n"
+    "I'm KIA, your personal jewellery assistant — here to help you discover the perfect piece, find answers, and make your Kisna experience truly special."
 )
 
 _GREETING_TOKENS = frozenset(

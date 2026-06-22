@@ -248,6 +248,7 @@ _SIZE_QUERY_RE = re.compile(
 
 _COMPETITOR_RE = re.compile(
     r"\b(tanishq|kalyan|malabar|caratlane|reliance\s+jewels|bluestone|"
+    r"joyalukkas|pc\s+jeweller|pcj|bhima|grt|tbz|senco|png|"
     r"other\s+brands?|local\s+jeweler|local\s+jeweller|why\s+buy\s+from|"
     r"why\s+choose|better\s+than)\b",
     re.I,

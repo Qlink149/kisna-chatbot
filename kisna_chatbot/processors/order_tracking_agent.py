@@ -80,17 +80,11 @@ def _resolve_order_id(data: dict, messages: dict) -> str | None:
 def _build_tracking_response(order_id: str, tracking_url: str) -> list:
     return [
         {
-            "type": "text",
-            "text": (
-                "📦 *Order tracking*\n\n"
-                f"Order *{order_id}* — click below to track your order "
-                "in real-time. 🚚\n\n"
-                "✅ We'll keep you updated on every step."
-            ),
-        },
-        {
             "type": "cta_url",
-            "text": "Click below to track your order in real-time.",
+            "text": (
+                f"Order *{order_id}* — click below to track your order "
+                "in real-time. 🚚"
+            ),
             "display_text": "Track Your Order",
             "url": tracking_url,
         },
@@ -100,16 +94,8 @@ def _build_tracking_response(order_id: str, tracking_url: str) -> list:
 def _build_generic_tracking_response(tracking_url: str) -> list:
     return [
         {
-            "type": "text",
-            "text": (
-                "📦 *Order tracking*\n\n"
-                "Click below to track your order in real-time. 🚚\n\n"
-                "✅ We'll keep you updated on every step."
-            ),
-        },
-        {
             "type": "cta_url",
-            "text": "Click below to track your order in real-time.",
+            "text": "Click below to track your order in real-time. 🚚",
             "display_text": "Track Your Order",
             "url": tracking_url,
         },

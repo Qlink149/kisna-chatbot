@@ -35,7 +35,7 @@ def _parse_complaint_flow(messages: dict) -> dict | None:
         return None
 
     nfm_reply = interactive["nfm_reply"]
-    if nfm_reply.get("name") != "flow":
+    if "response_json" not in nfm_reply:
         return None
 
     try:
