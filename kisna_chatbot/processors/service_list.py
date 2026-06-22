@@ -1127,10 +1127,10 @@ class ServiceList(Processor):
                             FlowId.COMPLAINT_FLOW.value,
                             get_damage_complaint_flow_id(),
                         }
-                        if flow_token in complaint_tokens:
+                        if flow_token in complaint_tokens or "screen_0_Order_ID_0" in flow_data or "order_id" in flow_data:
                             logger.info(
                                 "nfm_reply complaint flow submission detected — routing to ComplaintPipeline",
-                                extra={"phone_number": phone_number, "flow_token": flow_token},
+                                extra={"phone_number": phone_number, "flow_token": flow_token, "fallback_match": flow_token not in complaint_tokens},
                             )
                             user_profile["service_selected"] = SL.COMPLAINT.value
                             return data
