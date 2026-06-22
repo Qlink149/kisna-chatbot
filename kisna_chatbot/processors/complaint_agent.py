@@ -64,9 +64,9 @@ def _parse_complaint_flow(messages: dict) -> dict | None:
         return None
 
     flow_token = flow_data.get("flow_token")
-    if flow_token not in _complaint_flow_ids():
+    if flow_token not in _complaint_flow_ids() and "screen_0_Order_ID_0" not in flow_data and "order_id" not in flow_data:
         logger.warning(
-            "Complaint flow reply received but flow_token not recognised — ignoring",
+            "Complaint flow reply received but flow_token not recognised and no order_id found — ignoring",
             extra={"flow_token": flow_token, "known_ids": list(_complaint_flow_ids())},
         )
         return None
