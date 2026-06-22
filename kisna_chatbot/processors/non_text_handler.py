@@ -7,7 +7,7 @@ from kisna_chatbot.models.service_list import ServiceList as SL
 
 NonTextResult = Literal["silent", "route_store"] | None
 
-_SKIP_TYPES = frozenset({"text", "interactive"})
+_SKIP_TYPES = frozenset({"text", "interactive", "button_reply", "list_reply", "nfm_reply"})
 
 _IMAGE_TEXT = (
     "I'm unable to view images yet, but I'd be happy to help you "

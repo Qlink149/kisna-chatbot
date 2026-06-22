@@ -30,22 +30,30 @@ def _parse_complaint_flow(messages: dict) -> dict | None:
     Returns:
         Parsed flow_data dict, or None if not a complaint flow submission.
     """
-    interactive = messages.get("interactive")
-    if not interactive or "nfm_reply" not in interactive:
+    interactive = messages.get("interactive") or {}
+    
+    # Handle nested inside interactive or at the top level
+    payload = (
+        interactive.get("nfm_reply")
+        or interactive.get("button_reply")
+        or messages.get("nfm_reply")
+        or messages.get("button_reply")
+    )
+    if not payload:
         return None
 
-    nfm_reply = interactive["nfm_reply"]
-    if "response_json" not in nfm_reply:
-        return None
-
-    try:
-        flow_data = json.loads(nfm_reply["response_json"])
-    except (json.JSONDecodeError, TypeError, KeyError) as e:
-        logger.warning(
-            "Failed to parse complaint flow response_json",
-            extra={"error": str(e)},
-        )
-        return None
+    if "response_json" in payload:
+        try:
+            flow_data = json.loads(payload["response_json"])
+        except (json.JSONDecodeError, TypeError, KeyError) as e:
+            logger.warning(
+                "Failed to parse complaint flow response_json",
+                extra={"error": str(e)},
+            )
+            return None
+    else:
+        # Gupshup sometimes auto-deserializes the JSON directly into the payload
+        flow_data = payload
 
     if not isinstance(flow_data, dict):
         return None

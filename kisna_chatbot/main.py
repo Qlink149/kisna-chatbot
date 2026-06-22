@@ -550,6 +550,10 @@ async def messages_kisna(
     try:
         whatsapp_event = request_data["entry"][0]["changes"][0]["value"]
     except (KeyError, IndexError, TypeError):
+        logger.warning(
+            "Webhook payload did not match expected Cloud API format",
+            extra={"request_data": request_data},
+        )
         return JSONResponse(content={"success": True}, status_code=200)
 
     if _log_webhook_payload_enabled():
