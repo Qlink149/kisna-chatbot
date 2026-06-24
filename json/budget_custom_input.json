@@ -1,0 +1,47 @@
+{
+  "version": "7.0",
+  "screens": [
+    {
+      "data": {},
+      "id": "BUDGET_INPUT",
+      "terminal": true,
+      "title": "Enter Your Budget",
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "name": "flow_path",
+            "type": "Form",
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Enter your budget in ₹"
+              },
+              {
+                "type": "TextInput",
+                "label": "Budget (e.g. 25000, 10k-50k, 1 lakh)",
+                "name": "budget_input",
+                "required": true,
+                "input-type": "text"
+              },
+              {
+                "type": "TextBody",
+                "text": "You can write: 25000 · 10k-50k · 1 lakh · above 30k"
+              },
+              {
+                "type": "Footer",
+                "label": "Find Products",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "budget_input": "${form.budget_input}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

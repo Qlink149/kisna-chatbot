@@ -1,8 +1,10 @@
 import json
+import math
 import os
 import re
 import time
 
+from kisna_chatbot.config.gupshup import get_budget_flow_id
 from kisna_chatbot.integrations.clara_api import ClaraAPIError, search_products
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.classifier import is_greeting_message
@@ -19,6 +21,7 @@ from kisna_chatbot.processors.service_list import (
 )
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import (
+    _NEVER_INHERIT_FIELDS,
     apply_occasion_style_hints,
     build_search_context,
     enrich_entities_for_client_filter,
@@ -33,7 +36,6 @@ from kisna_chatbot.processors.entity_extractor import (
     extract_structured_fields,
     filter_products_by_entities,
     filter_products_by_extracted_extras,
-    has_strict_product_filters,
     is_unrecognizable_input,
     normalize_category_for_api,
     normalize_material_for_api,
@@ -66,6 +68,21 @@ PAGE_SIZE = 3
 _CAROUSEL_SCAN_LIMIT = 15
 _BUDGET_SCAN_MAX_PAGES = 5
 _SHOW_MORE_PAGE_RETRIES = 2
+
+
+def _compute_show_more_retries(filter_ratio: float, api_page_size: int) -> int:
+    """Total API pages to attempt per show-more when client filters may be sparse.
+
+    With ratio=1.0 (no filtering) returns the default 1+_SHOW_MORE_PAGE_RETRIES.
+    For low ratios, fetches enough pages to have a reasonable chance of finding
+    PAGE_SIZE new matching products, capped at 15 to avoid runaway fetching.
+    """
+    base = 1 + _SHOW_MORE_PAGE_RETRIES
+    if filter_ratio >= 1.0 or filter_ratio <= 0.0:
+        return base
+    pages_needed = math.ceil(PAGE_SIZE / (filter_ratio * api_page_size))
+    return max(base, min(pages_needed, 15))
+
 
 _SEARCH_CAT_LIST_MSGID = "search$cat$list"
 
@@ -473,6 +490,19 @@ def _parse_custom_budget_text(text: str) -> tuple[int | None, int | None]:
     return None, None
 
 
+def _parse_budget_flow_reply(messages: dict) -> str | None:
+    """Return the budget_input string from a WhatsApp Flow nfm_reply, or None."""
+    interactive = messages.get("interactive") if messages else None
+    if not interactive or "nfm_reply" not in interactive:
+        return None
+    try:
+        flow_data = json.loads(interactive["nfm_reply"].get("response_json", "{}"))
+    except (ValueError, TypeError):
+        return None
+    budget_text = flow_data.get("budget_input")
+    return str(budget_text).strip() if budget_text else None
+
+
 def _is_show_more_request(query: str, data: dict) -> bool:
     user_profile = data.get("user_profile", {})
     filters = user_profile.get("last_search_filters")
@@ -780,20 +810,20 @@ def _fallback_prefix_note(
         max_p = original_entities.get("max_price")
         if max_p is not None:
             return (
-                f"No pieces found under ₹{int(max_p):,} right now.\n"
-                f"Browse on our website: {kisna_home_url()}"
+                f"No pieces found under ₹{int(max_p):,} right now — "
+                f"here are our closest picks ✨"
             )
         min_p = original_entities.get("min_price")
         if min_p is not None:
             return (
-                f"No pieces found above ₹{int(min_p):,} right now.\n"
-                f"Browse on our website: {kisna_home_url()}"
+                f"No pieces found above ₹{int(min_p):,} right now — "
+                f"here are our closest picks ✨"
             )
         lowest = _lowest_price(products)
         if lowest is not None:
             return (
                 f"Showing results outside your budget — "
-                f"prices in this category start from ₹{lowest:,}"
+                f"prices in this category start from ₹{lowest:,} ✨"
             )
         return "Showing results outside your budget:"
     if note_kind == "material":
@@ -984,6 +1014,8 @@ class ProductSearchAgentV3(Processor):
 
         if user_profile.get("awaiting_custom_budget") and _extract_search_query(messages):
             return True
+        if _parse_budget_flow_reply(messages) is not None:
+            return True
 
         if user_profile.get("service_selected") not in (
             SL.PRODUCT_SEARCH.value,
@@ -1168,6 +1200,10 @@ class ProductSearchAgentV3(Processor):
                 data, phone_number, entities, query_label=material
             )
 
+        budget_text = _parse_budget_flow_reply(messages)
+        if budget_text is not None:
+            return await self._handle_budget_flow_reply(data, phone_number, budget_text)
+
         query = _extract_search_query(messages)
         if not query:
             return data
@@ -1227,7 +1263,11 @@ class ProductSearchAgentV3(Processor):
 
         extracted = combine_search_entities(llm_entities, structured_fields)
         extracted, occasion_prefix = apply_occasion_style_hints(extracted)
-        prior = user_profile.get("last_search_filters")
+        prior = {
+            k: v
+            for k, v in (user_profile.get("last_search_filters") or {}).items()
+            if k not in _NEVER_INHERIT_FIELDS
+        } or None
         entities = merge_search_entities(prior, extracted, query)
         entities = finalize_search_entities(
             entities,
@@ -1369,7 +1409,13 @@ class ProductSearchAgentV3(Processor):
 
         if postback == "pref$budget$custom":
             user_profile["awaiting_custom_budget"] = True
-            data["bot_response"] = [build_custom_budget_prompt()]
+            if get_budget_flow_id():
+                data["bot_response"] = [{"type": "flow", "flow": "budget_custom_input"}]
+            else:
+                logger.warning(
+                    "KISNA_BUDGET_FLOW_ID not set — using text fallback for budget input"
+                )
+                data["bot_response"] = [build_custom_budget_prompt()]
             return data
 
         budget_match = _BUDGET_POSTBACK_RE.match(postback)
@@ -1427,11 +1473,50 @@ class ProductSearchAgentV3(Processor):
             query_label=f"custom_budget:{query}",
         )
 
+    async def _handle_budget_flow_reply(
+        self, data: dict, phone_number: str, budget_text: str
+    ) -> dict:
+        """Handle a WhatsApp Flow nfm_reply carrying budget_input from the user."""
+        user_profile = data.get("user_profile", {})
+        # Flow closes itself — clear the flag regardless of parse outcome.
+        user_profile["awaiting_custom_budget"] = False
+
+        min_p, max_p = _parse_custom_budget_text(budget_text)
+        if min_p is None and max_p is None:
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": (
+                        "I couldn't understand that budget. Please try again, e.g. "
+                        "'25000', '15000-35000', or '50000 tak'."
+                    ),
+                },
+                build_custom_budget_prompt(),
+            ]
+            return data
+
+        if not _clara_configured():
+            data["bot_response"] = _build_catalog_not_configured_response()
+            return data
+
+        entities = _entities_from_preferences(user_profile)
+        entities["min_price"] = min_p
+        entities["max_price"] = max_p
+        _clear_preference_state(user_profile)
+        return await self._execute_search(
+            data,
+            phone_number,
+            entities,
+            query_label=f"custom_budget:{budget_text}",
+        )
+
     async def _handle_show_more(self, data: dict, phone_number: str) -> dict:
         user_profile = data.get("user_profile", {})
         filters = user_profile.get("last_search_filters")
         last_page = user_profile.get("last_search_page", 1)
         total = user_profile.get("last_search_total", 0)
+        filter_ratio = user_profile.get("last_search_filter_ratio", 1.0)
+        api_total = user_profile.get("last_search_api_total", total)
         shown_ids = user_profile.get("shown_product_ids") or []
 
         if filters is None or filters == {}:
@@ -1439,7 +1524,16 @@ class ProductSearchAgentV3(Processor):
             return data
         filters = filters or _empty_entities()
 
-        if (last_page * PAGE_SIZE) >= total:
+        api_page_size = resolve_api_page_size(filters)
+
+        # When client filters are active, judge exhaustion by API pages so we don't
+        # falsely stop when post-filter total is smaller than display page size.
+        if filter_ratio < 1.0:
+            exhausted = (last_page * api_page_size) >= api_total
+        else:
+            exhausted = (last_page * PAGE_SIZE) >= total
+
+        if exhausted:
             data["bot_response"] = [
                 {
                     "type": "text",
@@ -1459,17 +1553,21 @@ class ProductSearchAgentV3(Processor):
             filters.get("min_price") is not None
             or filters.get("max_price") is not None
         )
-        client_filtered = has_strict_product_filters(filters)
 
-        for attempt in range(1 + _SHOW_MORE_PAGE_RETRIES):
-            if attempt > 0 and (next_page - 1) * PAGE_SIZE >= total:
-                break
+        max_attempts = _compute_show_more_retries(filter_ratio, api_page_size)
+        for attempt in range(max_attempts):
+            if attempt > 0:
+                if filter_ratio < 1.0:
+                    if (next_page - 1) * api_page_size >= api_total:
+                        break
+                elif (next_page - 1) * PAGE_SIZE >= total:
+                    break
 
             try:
                 result = await search_products(
                     **api_params,
                     page_no=next_page,
-                    page_size=resolve_api_page_size(filters),
+                    page_size=api_page_size,
                 )
             except ClaraAPIError as e:
                 data["bot_response"] = [{"type": "text", "text": e.args[0]}]
@@ -1489,7 +1587,10 @@ class ProductSearchAgentV3(Processor):
                 products = candidates
                 break
 
-            if next_page * PAGE_SIZE >= total:
+            if filter_ratio < 1.0:
+                if next_page * api_page_size >= api_total:
+                    break
+            elif next_page * PAGE_SIZE >= total:
                 break
             next_page += 1
 
@@ -1556,8 +1657,8 @@ class ProductSearchAgentV3(Processor):
             prefix_parts.insert(0, "Here's a look at our latest collection 💎")
         if entities.get("unsupported_category"):
             prefix_parts.append(_UNSUPPORTED_CATEGORY_NOTE)
-        client_filtered = False
         intro_relaxed = False
+        _filter_ratio = 1.0
 
         for strategy_entities, note_kind, log_label in strategies:
             api_params = entities_to_api_params(strategy_entities)
@@ -1697,16 +1798,18 @@ class ProductSearchAgentV3(Processor):
                 )
                 if extras_note:
                     intro_relaxed = True
-                client_filtered = len(products) < len(raw_products) or (
-                    has_strict_product_filters(strategy_entities)
-                    and len(products) < api_total
-                )
-                if extras_note or (
-                    client_filtered and has_strict_product_filters(strategy_entities)
-                ):
+                _actually_filtered = len(products) < len(raw_products)
+                if extras_note or _actually_filtered:
                     total_count = len(products)
+                    _api_fetch_count = len(raw_products)
+                    _filter_ratio = (
+                        len(products) / _api_fetch_count
+                        if _api_fetch_count > 0
+                        else 0.0
+                    )
                 else:
                     total_count = api_total
+                    _filter_ratio = 1.0
                 page = result.get("page", 1)
                 winning_entities = strategy_entities
                 fallback_note = _fallback_prefix_note(
@@ -1750,6 +1853,8 @@ class ProductSearchAgentV3(Processor):
             )
         user_profile["last_search_page"] = page
         user_profile["last_search_total"] = total_count
+        user_profile["last_search_filter_ratio"] = _filter_ratio
+        user_profile["last_search_api_total"] = api_total
         user_profile["last_search_products"] = products_to_show
         user_profile["last_search_at"] = int(time.time())
         _append_shown_product_ids(user_profile, products_to_show)

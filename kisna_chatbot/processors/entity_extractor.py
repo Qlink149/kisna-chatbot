@@ -92,7 +92,10 @@ _CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "bracelet": ["bracelet", "kada", "kadi", "bolo"],
     "bangle": ["bangle", "bangles", "kangan", "chudi", "churi", "kara"],
     "pendant": ["pendant", "locket", "charm", "latkan"],
+    "pendant_set": ["pendant set", "pendant sets"],
+    "necklace_set": ["necklace set", "necklace sets"],
     "mangalsutra": ["mangalsutra", "mangal sutra", "tanmaniya"],
+    "mangalsutra_bracelet": ["mangalsutra bracelet", "mangalsutra bracelets", "tanmaniya bracelet"],
     "nosewear": ["nose pin", "nosepin", "nose stud", "nath", "nose ring"],
     "watchwear": ["watch pin", "watch charm", "watch wear", "watch"],
     "anklet": ["anklet", "payal", "pajeb", "paayal"],
@@ -535,11 +538,18 @@ def title_redundant_with_category(entities: dict[str, Any]) -> bool:
     if not isinstance(title, str) or not title.strip():
         return False
 
+    title_l = title.strip().lower()
+
     category = entities.get("category")
     if category:
         for term in _category_synonym_terms(str(category)):
             if _title_echoes_term(title, term):
                 return True
+        # For compound categories like pendant_set, also treat any component word
+        # as redundant (e.g. title="set" when category="pendant_set").
+        cat_words = str(category).replace("_", " ").lower().split()
+        if len(cat_words) > 1 and title_l in cat_words:
+            return True
 
     material = entities.get("material_type")
     if material:
@@ -817,11 +827,19 @@ def _extract_categories(text: str) -> list[str]:
 
     seen: set[str] = set()
     ordered: list[str] = []
-    for start, _length, api_value in _iter_synonym_matches(text, _CATEGORY_SYNONYMS):
+    consumed_end: int = -1
+    # _iter_synonym_matches yields (start, length, api_value) sorted by (start, -length)
+    # so the longest match at each position comes first.
+    for start, length, api_value in _iter_synonym_matches(text, _CATEGORY_SYNONYMS):
         if api_value in seen:
+            continue
+        # Skip a shorter synonym that falls inside an already-consumed span —
+        # e.g. "pendant" must not shadow "pendant set" at the same start position.
+        if start < consumed_end:
             continue
         seen.add(api_value)
         ordered.append((start, api_value))
+        consumed_end = start + length
 
     ordered.sort(key=lambda item: item[0])
     return [value for _start, value in ordered]
@@ -1130,7 +1148,16 @@ _REFINEMENT_RE = re.compile(
 
 _CONTEXT_REFINEMENT_RE = re.compile(r"\b(them|those|these|it|ones)\b", re.I)
 
-_METADATA_TITLE_TAGS = frozenset({"set", "collection", "pendant"})
+_NEVER_INHERIT_FIELDS = frozenset({
+    "title",
+    "collection",
+    "size",
+    "karat",
+    "metal_colour",
+    "occasion",
+    "style",
+    "gender",
+})
 
 
 def extract_category_from_product(product: dict) -> str | None:
@@ -1234,12 +1261,10 @@ def merge_search_entities(
             "occasion",
             "style",
         ):
+            if key in _NEVER_INHERIT_FIELDS:
+                continue
             if merged.get(key) in (None, False) and prior.get(key) not in (None, False):
-                inherited = prior.get(key)
-                if key == "title" and isinstance(inherited, str):
-                    if inherited.strip().lower() in _METADATA_TITLE_TAGS and not new_has_category:
-                        continue
-                merged[key] = inherited
+                merged[key] = prior.get(key)
 
     elif (
         not price_only_new_search

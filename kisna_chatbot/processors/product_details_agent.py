@@ -298,6 +298,8 @@ async def _retry_product_search(
         )
     user_profile["last_search_page"] = page
     user_profile["last_search_total"] = total_count
+    user_profile["last_search_filter_ratio"] = 1.0
+    user_profile["last_search_api_total"] = total_count
 
     if not products:
         return [{"type": "text", "text": "No matching pieces found. Try another search."}]

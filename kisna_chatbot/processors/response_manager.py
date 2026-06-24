@@ -2,6 +2,9 @@ from kisna_chatbot.whatsapp_functions.cta.send_cta import send_cta_url
 from kisna_chatbot.whatsapp_functions.flow.send_site_visit import (
     send_site_visit_flow,
 )
+from kisna_chatbot.whatsapp_functions.flow.send_budget_input_flow import (
+    send_budget_input_flow,
+)
 from kisna_chatbot.whatsapp_functions.flow.send_damage_complaint import (
     send_damage_complaint_flow,
 )
@@ -210,6 +213,24 @@ class ResponseManager:
             return send_store_locator_flow(phone_number=phone_number, name=bot_response.get("name", "there"))
         elif flow_name == "store_visit_datetime":
             return send_store_visit_datetime_flow(phone_number=phone_number, bot_response=bot_response)
+        elif flow_name == "budget_custom_input":
+            try:
+                return send_budget_input_flow(phone_number=phone_number)
+            except Exception as e:
+                logger.exception(
+                    "Failed to send budget input flow",
+                    extra={"phone_number": phone_number, "error": str(e)},
+                )
+                return send_text_message_with_retry(
+                    phone_number=phone_number,
+                    bot_response={
+                        "type": "text",
+                        "text": (
+                            "Sorry, couldn't open the budget form right now. "
+                            "Please type your budget, e.g. '25000', '15000-35000', or '1 lakh'."
+                        ),
+                    },
+                )
         else:
             raise ValueError(f"Unknown flow: {flow_name}")
 

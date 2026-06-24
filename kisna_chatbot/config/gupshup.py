@@ -19,6 +19,11 @@ def get_damage_complaint_flow_id() -> str:
     return FLowId.DAMAGE_COMPLAINT.value
 
 
+def get_budget_flow_id() -> str:
+    """WhatsApp Flow id for budget custom-input form. Empty string when not configured."""
+    return os.getenv("KISNA_BUDGET_FLOW_ID", "").strip()
+
+
 @lru_cache(maxsize=1)
 def build_phone_number_id_map() -> dict[str, str]:
     """

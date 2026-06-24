@@ -27,8 +27,14 @@ from kisna_chatbot.processors.entity_extractor import (
     merge_search_entities,
     normalize_entities_for_clara,
     sanitize_search_entities,
+    title_redundant_with_category,
 )
-from kisna_chatbot.processors.product_search_agent_v3 import _build_fallback_strategies
+from kisna_chatbot.processors.product_search_agent_v3 import (
+    _SHOW_MORE_PAGE_RETRIES,
+    _build_fallback_strategies,
+    _compute_show_more_retries,
+    _fallback_prefix_note,
+)
 from kisna_chatbot.utils.product_formatter import (
     format_price_line,
     get_product_price_bundle,
@@ -174,6 +180,69 @@ class ClaraFixtureTests(unittest.TestCase):
         sanitized = sanitize_search_entities(entities)
         self.assertIsNone(sanitized["title"])
         self.assertEqual(sanitized["category"], "chain")
+
+    def test_title_not_inherited_on_price_refinement(self):
+        """title from a previous search must never bleed into a price-only follow-up."""
+        prior = {"category": "pendant", "material_type": "gold", "title": "bridal"}
+        new = {"category": None, "material_type": None, "title": None, "max_price": 50000.0}
+        merged = merge_search_entities(prior, new, "under 50k")
+        self.assertIsNone(merged["title"])
+
+    def test_collection_not_inherited_on_refinement(self):
+        """collection from a previous search must not carry into a context refinement."""
+        prior = {"category": "ring", "collection": "elysia", "title": None}
+        new = {"category": None, "material_type": None, "collection": None, "title": None}
+        merged = merge_search_entities(prior, new, "show me them in gold")
+        self.assertIsNone(merged["collection"])
+
+    def test_karat_not_inherited_on_refinement(self):
+        """karat from a previous search must not carry into a new category query."""
+        prior = {"category": "earring", "karat": "14KT", "material_type": "gold"}
+        new = {"category": None, "material_type": None, "karat": None, "title": None,
+               "max_price": 30000.0}
+        merged = merge_search_entities(prior, new, "I want them under 30k")
+        self.assertIsNone(merged["karat"])
+        self.assertEqual(merged["category"], "earring")
+
+    def test_compute_show_more_retries_default_when_unfiltered(self):
+        """ratio=1.0 (no client filtering) returns the baseline attempt count."""
+        retries = _compute_show_more_retries(1.0, 15)
+        self.assertEqual(retries, 1 + _SHOW_MORE_PAGE_RETRIES)
+
+    def test_compute_show_more_retries_adaptive_for_low_ratio(self):
+        """ratio=0.01, page_size=50 (0.5 matches/page) yields more attempts than baseline."""
+        retries = _compute_show_more_retries(0.01, 50)
+        self.assertGreater(retries, 1 + _SHOW_MORE_PAGE_RETRIES)
+
+    def test_compute_show_more_retries_capped_at_15(self):
+        """Extremely sparse ratio is capped at 15 pages."""
+        retries = _compute_show_more_retries(0.001, 50)
+        self.assertEqual(retries, 15)
+
+    def test_fallback_budget_note_preserves_price_substring(self):
+        """Budget fallback note always contains the price for test and display."""
+        note = _fallback_prefix_note("budget", [], {"max_price": 10000.0}, {})
+        self.assertIn("No pieces found under ₹10,000", note)
+
+    def test_pendant_set_maps_to_category_not_title(self):
+        """'pendant set' must produce category=pendant set, not category=pendant&title=set."""
+        entities = extract_entities("pendant sets in gold")
+        params = entities_to_api_params(entities)
+        self.assertEqual(params.get("category"), "pendant set")
+        self.assertIsNone(params.get("title"))
+
+    def test_necklace_set_maps_to_category_not_title(self):
+        """'necklace set' must produce category=necklace set, not title=set."""
+        entities = extract_entities("necklace set")
+        params = entities_to_api_params(entities)
+        self.assertEqual(params.get("category"), "necklace set")
+        self.assertIsNone(params.get("title"))
+
+    def test_title_set_redundant_for_pendant_set_category(self):
+        """title='set' is redundant when category is pendant_set (compound word)."""
+        self.assertTrue(
+            title_redundant_with_category({"title": "set", "category": "pendant_set"})
+        )
 
     def test_filter_chain_category_passes_necklace_product(self):
         chain_product = {
