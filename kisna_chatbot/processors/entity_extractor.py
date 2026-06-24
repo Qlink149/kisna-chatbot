@@ -1280,6 +1280,7 @@ def merge_search_entities(
             if merged.get("material_type") is None:
                 merged["material_type"] = prior.get("material_type")
 
+
     return merged
 
 

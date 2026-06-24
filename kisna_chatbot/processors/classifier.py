@@ -229,6 +229,17 @@ _BUDGET_BROWSE_RE = re.compile(
     re.I,
 )
 
+# FIX 2: price signal regex for active-session clarification guard
+_PRICE_SIGNAL_RE = re.compile(
+    r"\b("
+    r"under|below|above|over|upto|up\s+to|maximum|minimum|max|min|"
+    r"tak|se\s+upar|se\s+zyada|se\s+kam|"
+    r"\u20b9|k\b|lakh|lac|hazaar|thousand|"
+    r"\d{3,}"
+    r")\b",
+    re.I,
+)
+
 _COMPARATIVE_RE = re.compile(
     r"\b(cheapest|cheaper|better|best|worst|compare|comparison|sabse\s+sasta|"
     r"affordable|sasta|which\s+is\s+cheaper|difference|best\s+one)\b",
@@ -835,6 +846,12 @@ def _should_offer_clarification(data: dict, user_query: str, user_profile: dict)
                 user_query
             ):
                 return False
+            # FIX 2: price-only refinement in active session is unambiguous —
+            # never fire clarification when there is prior category/material context
+            if _PRICE_SIGNAL_RE.search(user_query):
+                prior = user_profile.get("last_search_filters") or {}
+                if prior.get("category") or prior.get("material_type"):
+                    return False
     return True
 
 

@@ -73,6 +73,64 @@ _SHOWN_IDS_TRIM_TO = 50
 _SEARCH_SESSION_EXPIRY_SECONDS = 2 * 60 * 60  # 2 hours
 _MAX_CUSTOM_BUDGET_ATTEMPTS = 3
 
+# Price-only refinement fast-path — regex for price signals only
+_PRICE_ONLY_SIGNAL_RE = re.compile(
+    r"\b("
+    r"under|below|above|over|upto|up\s+to|maximum|minimum|max|min|"
+    r"tak|se\s+upar|se\s+zyada|se\s+kam|"
+    r"\u20b9|k\b|lakh|lac|hazaar|thousand|"
+    r"\d{3,}"
+    r")\b",
+    re.I,
+)
+
+
+def _is_price_only_refinement(
+    user_message: str,
+    user_profile: dict,
+) -> bool:
+    """
+    Returns True when:
+      1. User is in an active product_search session
+         (has last_search_filters with category or material_type)
+      2. The current message adds ONLY price information
+         (no category, material, title, collection, etc.)
+
+    In this case the intent is unambiguous regardless of
+    classifier confidence — inherit prior context + apply price.
+    """
+    prior = user_profile.get("last_search_filters") or {}
+    has_prior_context = bool(
+        prior.get("category") or prior.get("material_type")
+    )
+    if not has_prior_context:
+        return False
+
+    # Use regex-only extractor (fast, no LLM)
+    entities = extract_entities(user_message)
+
+    has_price = bool(
+        entities.get("min_price") is not None
+        or entities.get("max_price") is not None
+        or _PRICE_ONLY_SIGNAL_RE.search(user_message)
+    )
+    has_other = any(
+        entities.get(k)
+        for k in [
+            "category",
+            "material_type",
+            "title",
+            "collection",
+            "karat",
+            "metal_colour",
+            "occasion",
+            "style",
+            "gender",
+            "action",
+        ]
+    )
+    return has_price and not has_other
+
 
 def _compute_show_more_retries(filter_ratio: float, api_page_size: int) -> int:
     """Total API pages to attempt per show-more when client filters may be sparse.
@@ -1329,6 +1387,71 @@ class ProductSearchAgentV3(Processor):
             user_profile["service_selected"] = SL.GENERAL.value
             data["classified_category"] = "general"
             return data
+
+        # ── FIX 1: Price-only refinement fast-path ─────────────────────────
+        # When user is in an active product_search session and sends ONLY a
+        # price signal (e.g. "under 10k", "above 50k"), the intent is
+        # unambiguous. Bypass classifier confidence — inherit prior
+        # category/material and apply the new price.
+        if _is_price_only_refinement(query, user_profile):
+            price_entities = extract_entities(query)
+            prior_raw = user_profile.get("last_search_filters") or {}
+            prior_clean = {
+                k: v
+                for k, v in prior_raw.items()
+                if k not in _NEVER_INHERIT_FIELDS and v is not None
+            }
+            # Build merged entities: prior category/material + new price
+            search_entities = {
+                **prior_clean,
+                "title": None,       # never inherit
+                "collection": None,  # never inherit
+            }
+            if price_entities.get("min_price") is not None:
+                search_entities["min_price"] = price_entities["min_price"]
+                # Clear prior max_price to avoid impossible range (min > max)
+                search_entities["max_price"] = None
+            if price_entities.get("max_price") is not None:
+                search_entities["max_price"] = price_entities["max_price"]
+                # Clear prior min_price to avoid impossible range (max < min)
+                search_entities["min_price"] = None
+            logger.debug(
+                "product_search: price-only refinement fast-path",
+                extra={
+                    "query": query,
+                    "inherited": {
+                        k: prior_raw.get(k)
+                        for k in ["category", "material_type"]
+                    },
+                    "price": {
+                        k: search_entities.get(k)
+                        for k in ["min_price", "max_price"]
+                    },
+                },
+            )
+            logger.info(
+                "product_search: price-only refinement fast-path",
+                extra={
+                    "phone_number": phone_number,
+                    "query": query,
+                    "inherited": {
+                        k: prior_raw.get(k)
+                        for k in ["category", "material_type"]
+                    },
+                    "price": {
+                        k: search_entities.get(k)
+                        for k in ["min_price", "max_price"]
+                    },
+                },
+            )
+            user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+            return await self._execute_search(
+                data,
+                phone_number,
+                search_entities,
+                query_label=query,
+            )
+        # ── end FIX 1 ──────────────────────────────────────────────────────
 
         if not _clara_configured():
             logger.warning(
