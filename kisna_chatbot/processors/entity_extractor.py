@@ -2000,6 +2000,12 @@ def filter_products_by_extracted_extras(
     """
     Client-side filter for fields Clara API does not accept.
     Progressively relaxes extras when fewer than 3 results match.
+
+    The relax_note ("Couldn't find exact match…") is only emitted when the
+    strict filter found ZERO matches and relaxation was required to surface any
+    products.  If the strict filter already returned 1–2 valid matches (fewer
+    than _MIN_EXTRA_FILTER_RESULTS but still genuine hits), those are returned
+    with no note — the user asked for exactly these items.
     """
     if not products:
         return [], None
@@ -2013,9 +2019,12 @@ def filter_products_by_extracted_extras(
     relax_note = "Couldn't find exact match, but here are the closest options:"
 
     filtered = _filter_products_by_active_extras(original, entities, tuple(active))
-    if len(filtered) >= _MIN_EXTRA_FILTER_RESULTS:
+    if filtered:
+        # Strict filter found genuine matches (1 or more) — return them as-is.
+        # No fallback note: these ARE the exact items the user asked for.
         return filtered, None
 
+    # Strict filter found zero matches — try relaxing constraints one at a time.
     for drop_key in _EXTRA_RELAXATION_ORDER:
         if drop_key not in active:
             continue
@@ -2026,5 +2035,6 @@ def filter_products_by_extracted_extras(
         if len(filtered) >= _MIN_EXTRA_FILTER_RESULTS:
             return filtered, relax_note
 
+    # Nothing matched even after relaxation — surface the full original list with a note.
     return original, relax_note
 
