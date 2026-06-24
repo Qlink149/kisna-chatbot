@@ -1,6 +1,7 @@
 import math
 import os
 import re
+import time
 
 from kisna_chatbot.integrations.clara_api import ClaraAPIError, get_stores
 from kisna_chatbot.models.service_list import ServiceList as SL
@@ -28,6 +29,12 @@ _LOCATION_PINCODE_FALLBACK = (
 _UNPARSEABLE_STORE_TEXT = (
     "I couldn't read that pincode or city. Please send a 6-digit pincode "
     "(e.g. 400001) or a city name like Mumbai."
+)
+# FIX 5: Retry version includes escape tip (shown from 2nd failed attempt onwards)
+_UNPARSEABLE_STORE_TEXT_RETRY = (
+    "I couldn't read that pincode or city. Please send a 6-digit pincode "
+    "(e.g. 400001) or a city name like Mumbai.\n\n"
+    "_Tip: Type *menu* or *cancel* to go back to the main menu._"
 )
 _ESCAPE_RE = re.compile(r"^(menu|cancel|back)$", re.I)
 _GENERIC_ERROR = (
@@ -299,6 +306,7 @@ class AdFlowAgent(Processor):
                 escape_intent = _store_pincode_escape_intent(user_message)
                 if escape_intent:
                     user_profile["awaiting_store_pincode"] = False
+                    user_profile["store_pincode_attempts"] = 0
                     new_service = (
                         SL.PRODUCT_SEARCH.value
                         if escape_intent in ("product_search", "product_info")
@@ -309,9 +317,11 @@ class AdFlowAgent(Processor):
                             "complaint": SL.COMPLAINT.value,
                         }.get(escape_intent, SL.GENERAL.value)
                     )
+                    # FIX 13: stamp created_at on all pending_flow_switch writes
                     user_profile["pending_flow_switch"] = {
                         "intent": escape_intent,
                         "service": new_service,
+                        "created_at": time.time(),
                     }
                     current = user_profile.get("service_selected") or SL.AD_FLOW.value
                     data["bot_response"] = build_flow_switch_bot_response(
@@ -328,8 +338,15 @@ class AdFlowAgent(Processor):
                     pincode = entities.get("pincode")
                     city = entities.get("city")
                 if not pincode and not city:
+                    # FIX 5: show escape tip from 2nd failed attempt onwards
+                    attempts = user_profile.get("store_pincode_attempts", 0) + 1
+                    user_profile["store_pincode_attempts"] = attempts
+                    reprompt_text = (
+                        _UNPARSEABLE_STORE_TEXT_RETRY if attempts >= 2
+                        else _UNPARSEABLE_STORE_TEXT
+                    )
                     data["bot_response"] = [
-                        {"type": "text", "text": _UNPARSEABLE_STORE_TEXT}
+                        {"type": "text", "text": reprompt_text}
                     ]
                     user_profile["awaiting_store_pincode"] = True
                     return data
@@ -390,12 +407,14 @@ class AdFlowAgent(Processor):
             if not stores:
                 user_profile["awaiting_store_pincode"] = False
                 user_profile["service_selected"] = ""
+                user_profile["store_pincode_attempts"] = 0
                 data["bot_response"] = [{"type": "text", "text": _zero_results_message()}]
                 return data
 
             data["bot_response"] = _build_store_responses(stores)
             user_profile["awaiting_store_pincode"] = False
             user_profile["service_selected"] = ""
+            user_profile["store_pincode_attempts"] = 0
             return data
 
         except ClaraAPIError as e:

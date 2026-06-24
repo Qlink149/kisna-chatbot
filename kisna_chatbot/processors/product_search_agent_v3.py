@@ -68,6 +68,10 @@ PAGE_SIZE = 3
 _CAROUSEL_SCAN_LIMIT = 15
 _BUDGET_SCAN_MAX_PAGES = 5
 _SHOW_MORE_PAGE_RETRIES = 2
+_MAX_SHOWN_IDS = 100
+_SHOWN_IDS_TRIM_TO = 50
+_SEARCH_SESSION_EXPIRY_SECONDS = 2 * 60 * 60  # 2 hours
+_MAX_CUSTOM_BUDGET_ATTEMPTS = 3
 
 
 def _compute_show_more_retries(filter_ratio: float, api_page_size: int) -> int:
@@ -104,8 +108,8 @@ _PREF_CAT_ENTITY_MAP: dict[str, dict] = {
     "nose_wear": {"category": "nosewear"},
     "watch_wear": {"category": "watchwear"},
     "mangalsutra_bracelet": {"category": "mangalsutra", "title": "bracelet"},
-    "pendant_set": {"category": "pendant", "title": "set"},
-    "necklace_set": {"category": "necklace", "title": "set"},
+    "pendant_set": {"category": "pendant_set"},
+    "necklace_set": {"category": "necklace_set"},
 }
 
 _GENERIC_ERROR = (
@@ -984,6 +988,9 @@ def _append_shown_product_ids(user_profile: dict, products: list[dict]) -> None:
         if pid and pid not in shown_set:
             shown.append(pid)
             shown_set.add(pid)
+    # Cap to avoid unbounded MongoDB growth (keep newest entries)
+    if len(shown) > _MAX_SHOWN_IDS:
+        user_profile["shown_product_ids"] = shown[-_SHOWN_IDS_TRIM_TO:]
 
 
 def _filter_unshown_products(
@@ -991,6 +998,82 @@ def _filter_unshown_products(
 ) -> list[dict]:
     shown_set = {str(x) for x in shown_product_ids}
     return [p for p in products if _product_id(p) and _product_id(p) not in shown_set]
+
+
+def _should_escape_custom_budget(user_message: str) -> bool:
+    """
+    Return True when the message is clearly a new product query or service
+    request — not a budget answer.  Used to break out of the
+    awaiting_custom_budget loop without requiring a valid budget string.
+
+    Uses regex-only entity extraction (fast, zero latency, no LLM cost).
+    """
+    if not user_message or not user_message.strip():
+        return False
+
+    msg_lower = user_message.strip().lower()
+
+    # Explicit escape keywords
+    _ESCAPE_WORDS = {
+        "menu", "cancel", "back", "nahi", "no", "skip",
+        "nevermind", "change", "different", "kuch aur",
+    }
+    if msg_lower in _ESCAPE_WORDS:
+        return True
+
+    # Category keywords (English + common Hindi/Hinglish)
+    _CATEGORY_KW = {
+        "ring", "rings", "earring", "earrings", "necklace", "necklaces",
+        "pendant", "pendants", "bangle", "bangles", "bracelet", "bracelets",
+        "mangalsutra", "chain", "chains", "maang tikka", "maang tika",
+        "nose pin", "watch", "solitaire",
+        # Hindi
+        "anguthi", "bali", "jhumka", "jhumki", "haar", "kangan", "kada", "payal",
+    }
+    for kw in _CATEGORY_KW:
+        if kw in msg_lower:
+            return True
+
+    # Material keywords
+    _MATERIAL_KW = {
+        "gold", "diamond", "sona", "heera", "gemstone",
+        "rose gold", "white gold", "silver",
+    }
+    for kw in _MATERIAL_KW:
+        if kw in msg_lower:
+            return True
+
+    # Service-intent keywords
+    _SERVICE_KW = {
+        "offer", "store", "showroom", "track", "order",
+        "return", "exchange", "complaint", "help",
+        "hi", "hello", "hey", "namaste",
+    }
+    for kw in _SERVICE_KW:
+        if kw in msg_lower:
+            return True
+
+    # Regex entity extraction (category or material_type present → product query)
+    quick = extract_entities(user_message)
+    if quick.get("category") or quick.get("material_type"):
+        return True
+
+    return False
+
+
+def _clear_session_if_expired(user_profile: dict) -> None:
+    """Clear all search/preference state when the search session has expired."""
+    last_at = user_profile.get("last_search_at") or 0
+    if last_at and (time.time() - last_at) > _SEARCH_SESSION_EXPIRY_SECONDS:
+        from kisna_chatbot.processors.service_list import _clear_explore_browse_session
+        _clear_explore_browse_session(user_profile)
+        user_profile["awaiting_custom_budget"] = False
+        user_profile["custom_budget_attempts"] = 0
+        _clear_preference_state(user_profile)
+        logger.info(
+            "product_search: session expired — state cleared",
+            extra={"age_seconds": int(time.time() - last_at)},
+        )
 
 
 class ProductSearchAgentV3(Processor):
@@ -1012,7 +1095,13 @@ class ProductSearchAgentV3(Processor):
         if _search_button_msgid(messages):
             return True
 
-        if user_profile.get("awaiting_custom_budget") and _extract_search_query(messages):
+        query_for_escape = _extract_search_query(messages)
+        if user_profile.get("awaiting_custom_budget") and query_for_escape:
+            # If the message is a product/service query, let it escape the budget loop
+            if _should_escape_custom_budget(query_for_escape):
+                user_profile["awaiting_custom_budget"] = False
+                user_profile["custom_budget_attempts"] = 0
+                # Fall through to normal routing (return True so process() runs)
             return True
         if _parse_budget_flow_reply(messages) is not None:
             return True
@@ -1058,6 +1147,9 @@ class ProductSearchAgentV3(Processor):
             return data
 
         user_profile = data.get("user_profile", {})
+
+        # --- FIX 3: Enforce 2-hour session expiry ---
+        _clear_session_if_expired(user_profile)
 
         pref_postback = _parse_pref_cat_button_postback(messages)
         if pref_postback:
@@ -1218,7 +1310,13 @@ class ProductSearchAgentV3(Processor):
             return data
 
         if user_profile.get("awaiting_custom_budget"):
-            return await self._handle_custom_budget_input(data, phone_number, query)
+            # Second escape gate (greeting check above may have passed; check again).
+            if _should_escape_custom_budget(query):
+                user_profile["awaiting_custom_budget"] = False
+                user_profile["custom_budget_attempts"] = 0
+                # Fall through to normal search path below
+            else:
+                return await self._handle_custom_budget_input(data, phone_number, query)
 
         if _is_show_more_request(query, data):
             return await self._handle_show_more(data, phone_number)
@@ -1266,7 +1364,7 @@ class ProductSearchAgentV3(Processor):
         prior = {
             k: v
             for k, v in (user_profile.get("last_search_filters") or {}).items()
-            if k not in _NEVER_INHERIT_FIELDS
+            if k not in _NEVER_INHERIT_FIELDS and v is not None  # FIX 4: exclude None values
         } or None
         entities = merge_search_entities(prior, extracted, query)
         entities = finalize_search_entities(
@@ -1370,6 +1468,7 @@ class ProductSearchAgentV3(Processor):
                 if not _clara_configured():
                     data["bot_response"] = _build_catalog_not_configured_response()
                     return data
+                _clear_preference_state(user_profile)  # FIX 11: clear any stale pref state
                 return await self._execute_search(
                     data,
                     phone_number,
@@ -1442,15 +1541,40 @@ class ProductSearchAgentV3(Processor):
     async def _handle_custom_budget_input(
         self, data: dict, phone_number: str, query: str
     ) -> dict:
+        """Parse a free-text budget reply.  Context-isolated: only pref_category
+        and pref_material flow through — never prior search title/collection/etc."""
         user_profile = data.get("user_profile", {})
         min_p, max_p = _parse_custom_budget_text(query)
         if min_p is None and max_p is None:
+            # Track consecutive failures; bail out after _MAX_CUSTOM_BUDGET_ATTEMPTS
+            attempts = user_profile.get("custom_budget_attempts", 0) + 1
+            user_profile["custom_budget_attempts"] = attempts
+            if attempts >= _MAX_CUSTOM_BUDGET_ATTEMPTS:
+                # Give up on the budget loop — clear flags and fall back to open browse
+                user_profile["awaiting_custom_budget"] = False
+                user_profile["custom_budget_attempts"] = 0
+                _clear_preference_state(user_profile)
+                data["bot_response"] = [
+                    {
+                        "type": "text",
+                        "text": (
+                            "No worries! Let me show you some jewellery you might love."
+                        ),
+                    }
+                ]
+                if not _clara_configured():
+                    data["bot_response"] = _build_catalog_not_configured_response()
+                    return data
+                return await self._execute_search(
+                    data, phone_number, _empty_entities(), query_label="budget_fallback"
+                )
             data["bot_response"] = [
                 {
                     "type": "text",
                     "text": (
                         "I couldn't understand that budget. Please try again, e.g. "
-                        "'25000', '15000-35000', or '50000 tak'."
+                        "'25000', '15000-35000', or '50000 tak'.\n"
+                        "_Tip: Type *cancel* to go back to the main menu._"
                     ),
                 },
                 build_custom_budget_prompt(),
@@ -1461,25 +1585,44 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
-        entities = _entities_from_preferences(user_profile)
-        entities["min_price"] = min_p
-        entities["max_price"] = max_p
+        # FIX 2: Context-isolated entity build — only pref_category + pref_material,
+        # never inherit title/collection/karat/etc from a prior search session.
+        search_entities = {
+            "category": user_profile.get("pref_category"),
+            "material_type": user_profile.get("pref_material"),
+            "min_price": min_p,
+            "max_price": max_p,
+            # All remaining fields explicitly None — never inherit from prior filter
+            "title": None,
+            "collection": None,
+            "size": None,
+            "karat": None,
+            "metal_colour": None,
+            "occasion": None,
+            "style": None,
+            "gender": None,
+            "city": None,
+            "pincode": None,
+        }
         user_profile["awaiting_custom_budget"] = False
+        user_profile["custom_budget_attempts"] = 0
         _clear_preference_state(user_profile)
         return await self._execute_search(
             data,
             phone_number,
-            entities,
+            search_entities,
             query_label=f"custom_budget:{query}",
         )
 
     async def _handle_budget_flow_reply(
         self, data: dict, phone_number: str, budget_text: str
     ) -> dict:
-        """Handle a WhatsApp Flow nfm_reply carrying budget_input from the user."""
+        """Handle a WhatsApp Flow nfm_reply carrying budget_input from the user.
+        Context-isolated: only pref_category + pref_material pass through."""
         user_profile = data.get("user_profile", {})
         # Flow closes itself — clear the flag regardless of parse outcome.
         user_profile["awaiting_custom_budget"] = False
+        user_profile["custom_budget_attempts"] = 0
 
         min_p, max_p = _parse_custom_budget_text(budget_text)
         if min_p is None and max_p is None:
@@ -1499,14 +1642,28 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
-        entities = _entities_from_preferences(user_profile)
-        entities["min_price"] = min_p
-        entities["max_price"] = max_p
+        # FIX 2: Context-isolated entity build (same as text path)
+        search_entities = {
+            "category": user_profile.get("pref_category"),
+            "material_type": user_profile.get("pref_material"),
+            "min_price": min_p,
+            "max_price": max_p,
+            "title": None,
+            "collection": None,
+            "size": None,
+            "karat": None,
+            "metal_colour": None,
+            "occasion": None,
+            "style": None,
+            "gender": None,
+            "city": None,
+            "pincode": None,
+        }
         _clear_preference_state(user_profile)
         return await self._execute_search(
             data,
             phone_number,
-            entities,
+            search_entities,
             query_label=f"custom_budget:{budget_text}",
         )
 
@@ -1605,6 +1762,7 @@ class ProductSearchAgentV3(Processor):
 
         user_profile["last_search_page"] = next_page
         user_profile["last_search_products"] = products[:PAGE_SIZE]
+        user_profile["last_search_at"] = int(time.time())  # FIX 3: refresh session on Show More
         _append_shown_product_ids(user_profile, products[:PAGE_SIZE])
 
         entities = filters

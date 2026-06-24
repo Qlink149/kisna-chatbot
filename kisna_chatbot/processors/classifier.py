@@ -648,9 +648,11 @@ def _maybe_prompt_flow_switch(
     ):
         return False
     data["bot_response"] = build_flow_switch_bot_response(current, intent)
+    # FIX 13: stamp created_at so the TTL expiry check in service_list can measure age
     user_profile["pending_flow_switch"] = {
         "intent": intent,
         "service": new_service.value,
+        "created_at": time.time(),
     }
     return True
 

@@ -1617,8 +1617,9 @@ def apply_occasion_style_hints(
     if occasion == "anniversary":
         prefix_note = _OCCASION_PREFIX_MESSAGES["anniversary"]
 
-    if occasion == "birthday" and not enhanced.get("category"):
-        enhanced["category"] = "earring"
+    # FIX 7: Do NOT assume category for birthday occasion.
+    # Birthday occasion is still stored for client-side tag filtering,
+    # but we must not force-set a category the user never stated.
 
     if style == "traditional" and not enhanced.get("title"):
         enhanced["title"] = "traditional"

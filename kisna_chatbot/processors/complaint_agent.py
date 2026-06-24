@@ -10,12 +10,16 @@ from kisna_chatbot.utils.logger_config import logger
 
 
 def _complaint_flow_ids() -> frozenset[str]:
+    # FIX 8: guard against None when KISNA_DAMAGE_FLOW_ID env var is unset.
+    # Without this, any nfm_reply with flow_token=None would match and falsely
+    # trigger complaint handling.
+    flow_id = get_damage_complaint_flow_id()
     ids = {
         FLowId.DAMAGE_COMPLAINT.value,
         FlowId.COMPLAINT_FLOW.value,
-        get_damage_complaint_flow_id(),
+        flow_id,
     }
-    return frozenset(ids)
+    return frozenset(f for f in ids if f)  # exclude None and empty strings
 
 _GENERIC_ERROR = (
     "Sorry, we couldn't register your complaint right now. "

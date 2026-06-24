@@ -1,10 +1,13 @@
 import json
+import time
 
 from kisna_chatbot.models.enums import ListIds, QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
 from kisna_chatbot.utils.logger_config import logger
+
+_FLOW_SWITCH_PENDING_TTL = 300  # 5 minutes — FIX 13b
 
 _GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please try again?"
 
@@ -321,6 +324,10 @@ def _clear_explore_browse_session(user_profile: dict) -> None:
     user_profile["pref_type"] = None
     user_profile.pop("pref_category", None)
     user_profile.pop("pending_explore_search", None)
+    # FIX 12: reset Show-More exhaustion counters so stale values don't
+    # cause incorrect exhaustion on the very first Show More after a fresh browse.
+    user_profile["last_search_filter_ratio"] = 1.0
+    user_profile["last_search_api_total"] = 0
 
 
 def build_pref_step1_material_list() -> dict:
@@ -610,6 +617,14 @@ def handle_flow_switch_quick_reply(
     """Route flow-switch quick-reply taps; return True if handled."""
     if btn_msgid != QuickReplyId.FLOW_SWITCH_CONFIRM.value:
         return False
+
+    # FIX 13b: discard stale pending_flow_switch (older than 5 minutes)
+    raw_pending = user_profile.get("pending_flow_switch") or {}
+    created_at = raw_pending.get("created_at", 0)
+    if created_at and (time.time() - created_at) > _FLOW_SWITCH_PENDING_TTL:
+        user_profile.pop("pending_flow_switch", None)
+        logger.info("pending_flow_switch expired — discarding")
+        return False  # treat as unhandled; let normal routing proceed
 
     title = (data.get("_flow_switch_button_title") or "").strip().lower()
     pending = user_profile.pop("pending_flow_switch", None) or {}

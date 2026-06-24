@@ -24,6 +24,15 @@ _CATALOG_FOLLOWUP_RE = re.compile(
     re.I,
 )
 
+# FIX 6: Only reroute when query explicitly references a shown product.
+# Without this, generic questions like "price of gold?" would get rerouted
+# to product search whenever stale search history exists.
+_PRODUCT_REFERENCE_RE = re.compile(
+    r"\b(this|that|it\b|ye|yeh|woh|iska|iski|uska|the\s+one|which|"
+    r"above|shown|earlier|last\s+one|pehle\s+wala)\b",
+    re.I,
+)
+
 
 class GeneralAgent(Processor):
     """Handles brand questions, design advice, and policy/FAQ queries for Kisna."""
@@ -61,14 +70,18 @@ class GeneralAgent(Processor):
                 user_query or ""
             ):
                 from kisna_chatbot.processors.classifier import _is_competitor_comparison
-                if not _is_competitor_comparison(user_query):
-                    logger.info(
-                        "GeneralAgent rerouting catalog follow-up to product search",
-                        extra={"phone_number": phone_number, "query": user_query},
-                    )
-                    user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-                    data["classified_category"] = "product_info"
-                    return data
+                # FIX 6: only reroute when the query explicitly refers to a specific
+                # shown product (demonstrative pronoun). Generic questions like
+                # "what is the price of gold?" should stay in GeneralAgent / KB.
+                if _PRODUCT_REFERENCE_RE.search(user_query or ""):
+                    if not _is_competitor_comparison(user_query):
+                        logger.info(
+                            "GeneralAgent rerouting catalog follow-up to product search",
+                            extra={"phone_number": phone_number, "query": user_query},
+                        )
+                        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                        data["classified_category"] = "product_info"
+                        return data
 
             chat_history_str = format_recent_history_str(user_profile, 8)
 

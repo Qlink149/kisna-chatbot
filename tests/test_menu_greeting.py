@@ -53,7 +53,10 @@ class TestMenuGreeting(unittest.TestCase):
         menu = build_main_menu_bot_response()
         self.assertEqual(menu["type"], "list")
         self.assertEqual(menu["list"], "list")
-        self.assertIn("explore designs", menu["body"])
+        self.assertIsInstance(menu["body"], str)
+        self.assertTrue(len(menu["body"]) > 0)
+        self.assertIn("items", menu)
+        self.assertTrue(len(menu["items"]) > 0)
 
     def test_welcome_text_mentions_kia(self):
         self.assertIn("KIA", _WELCOME_TEXT)

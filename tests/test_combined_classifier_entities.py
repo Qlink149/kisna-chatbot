@@ -117,9 +117,12 @@ class OccasionStyleHintsTests(unittest.TestCase):
         entities, prefix = apply_occasion_style_hints({"occasion": "anniversary"})
         self.assertIn("anniversary", prefix.lower())
 
-    def test_birthday_defaults_to_earring(self):
+    def test_birthday_does_not_force_earring_category(self):
+        # FIX 7: birthday occasion must NOT set a default category.
+        # Previously this incorrectly set category="earring" without the user asking.
         entities, _ = apply_occasion_style_hints({"occasion": "birthday"})
-        self.assertEqual(entities["category"], "earring")
+        self.assertIsNone(entities.get("category"),
+                          "birthday must not force category=earring")
 
 
 class ClassifierEntityStorageTests(unittest.TestCase):
