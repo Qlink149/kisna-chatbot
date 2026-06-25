@@ -115,7 +115,7 @@ Examples of low-confidence inputs: bare "gold", "help", "kuch dikhao", "1 lakh" 
   "intent": "<intent_name>",
   "confidence": <0.0 to 1.0>,
   "entities": {
-    "category": "<ring|earring|necklace|pendant|bracelet|bangle|mangalsutra|anklet|nose_ring|maang_tikka|chain|null>",
+    "category": "<ring|earring|necklace|pendant|pendant_set|necklace_set|bracelet|bangle|mangalsutra|mangalsutra_bracelet|anklet|nose_ring|maang_tikka|chain|null>",
     "material_type": "<gold|diamond|silver|platinum|white_gold|rose_gold|gemstone|null>",
     "min_price": <integer or null>,
     "max_price": <integer or null>,
@@ -146,6 +146,10 @@ Fallback for unclear or spam/gibberish:
   latkan→pendant, kangan/chudi→bangle, payal→anklet, nath→nose_ring.
 - CRITICAL: If the user names ANY jewellery type (rings, chains, necklace, etc.),
   category MUST NOT be null — even when price/material are also present.
+- CRITICAL: composite product types must use their full canonical key:
+    pendant set/pendant sets → pendant_set  (NEVER just "pendant")
+    necklace set/necklace sets → necklace_set  (NEVER just "necklace")
+    mangalsutra bracelet → mangalsutra_bracelet  (NEVER just "mangalsutra")
 - material_type: sona/sone ka→gold, heera/heere ka→diamond, chandi→silver.
 - Price: extract integer INR values. 50k→50000, 1.5 lakh→150000,
   das hazaar→10000, ek lakh→100000. under X→max_price=X, above X→min_price=X,
@@ -329,8 +333,9 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
    (chains, rings, gold). title is ONLY for named products/collections.
 
 {
-  "category": "ring|earring|necklace|pendant|bracelet|bangle|
-               mangalsutra|anklet|nose_ring|maang_tikka|chain|null",
+  "category": "ring|earring|necklace|pendant|pendant_set|necklace_set|
+               bracelet|bangle|mangalsutra|mangalsutra_bracelet|
+               anklet|nose_ring|maang_tikka|chain|null",
   "material_type": "gold|diamond|silver|platinum|
                     rose_gold|white_gold|gemstone|null",
   "min_price": <integer INR or null>,
@@ -355,6 +360,9 @@ category (REQUIRED when type word in message):
   necklace/haar/mala → necklace
   chain/chains/gold chain/sone ki chain → chain  (NOT necklace)
   pendant/locket/latkan → pendant
+  pendant set/pendant sets → pendant_set  (NOT pendant — different catalog)
+  necklace set/necklace sets → necklace_set  (NOT necklace — different catalog)
+  mangalsutra bracelet → mangalsutra_bracelet
   bangle/kangan/chudi → bangle
   bracelet/kada/kadi → bracelet
   mangalsutra/tanmaniya → mangalsutra
@@ -497,6 +505,16 @@ Current: white gold mein dikhao →
 Context: User: gold earrings under 30k
 Current: same budget mein necklace →
 {"category":"necklace","material_type":null,"max_price":30000,"min_price":null,
+ "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
+ "gender":null,"occasion":null,"style":null,"action":null}
+
+"gold pendant sets above 50k" →
+{"category":"pendant_set","material_type":"gold","min_price":50000,"max_price":null,
+ "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
+ "gender":null,"occasion":null,"style":null,"action":null}
+
+"show me necklace sets under 1 lakh" →
+{"category":"necklace_set","material_type":null,"max_price":100000,"min_price":null,
  "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
  "gender":null,"occasion":null,"style":null,"action":null}
 """

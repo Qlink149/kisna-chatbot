@@ -405,9 +405,12 @@ _LLM_ENTITY_CATEGORIES = frozenset(
         "earring",
         "necklace",
         "pendant",
+        "pendant_set",       # e.g. "pendant sets above 50k"
+        "necklace_set",      # e.g. "necklace sets under 1 lakh"
         "bracelet",
         "bangle",
         "mangalsutra",
+        "mangalsutra_bracelet",  # e.g. "mangalsutra bracelet"
         "anklet",
         "nose_ring",
         "nosewear",
@@ -454,7 +457,16 @@ _LLM_ENTITY_STYLES = frozenset(
 _LLM_ENTITY_KARATS = frozenset({"9KT", "14KT", "18KT", "22KT", "24KT"})
 _LLM_ENTITY_COLOURS = frozenset({"yellow", "white", "rose"})
 _LLM_ENTITY_GENDERS = frozenset({"women", "men", "kids"})
-_LLM_CATEGORY_ALIASES = {"nose_ring": "nosewear"}
+_LLM_CATEGORY_ALIASES = {
+    "nose_ring":         "nosewear",
+    # Space-separated forms the LLM may produce for composite categories
+    "pendant set":       "pendant_set",
+    "pendant sets":      "pendant_set",
+    "necklace set":      "necklace_set",
+    "necklace sets":     "necklace_set",
+    "mangalsutra bracelet": "mangalsutra_bracelet",
+    "mangalsutra bracelets": "mangalsutra_bracelet",
+}
 
 
 def _coerce_null(val: Any) -> Any:

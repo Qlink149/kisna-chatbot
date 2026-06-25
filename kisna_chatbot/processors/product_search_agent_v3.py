@@ -890,14 +890,12 @@ def _fallback_prefix_note(
         return "Showing results outside your budget:"
     if note_kind == "material":
         material = original_entities.get("material_type") or "matching"
-        category = original_entities.get("category") or "jewellery"
-        cat_label = category if str(category).endswith("s") else f"{category}s"
-        if cat_label == "mangalsutras":
-            cat_label = "mangalsutra"
+        cat_label = _category_label_plural(original_entities.get("category") or "jewellery")
         return (
             f"I couldn't find {material} {cat_label}, "
             f"but here are other {cat_label} options you might like:"
         )
+
     if note_kind == "category":
         category = original_entities.get("category") or "jewellery"
         cat_label = _category_label_plural(category)

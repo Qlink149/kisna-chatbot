@@ -674,12 +674,26 @@ def supplement_semantic_entities_from_query(
     """
     Last-resort fill when LLM missed obvious category/material in the query text.
     Does not set prices (regex + LLM own structured fields).
+
+    Also promotes a base LLM category to its composite form when the regex
+    extractor finds a longer composite match (e.g. 'pendant' -> 'pendant_set'
+    when the query contains 'pendant set'). This corrects the known LLM blind
+    spot where composite nouns are collapsed to their base token because the
+    prompt enum previously lacked the composite entries.
     """
     out = dict(entities or {})
     if not (query or "").strip():
         return out
 
     normalized = _normalize_text(query)
+
+    # Pairs where base category must be promoted to composite when regex confirms it.
+    # Key = what LLM might incorrectly output; value = correct composite key.
+    _COMPOSITE_UPGRADES: dict[str, str] = {
+        "pendant":     "pendant_set",
+        "necklace":    "necklace_set",
+        "mangalsutra": "mangalsutra_bracelet",
+    }
 
     if not out.get("category"):
         if _CHAIN_CATEGORY_RE.search(normalized):
@@ -691,6 +705,18 @@ def supplement_semantic_entities_from_query(
             elif len(categories) > 1:
                 out["categories"] = categories
                 out["multi_category"] = True
+    else:
+        # Safety net: upgrade base category -> composite when regex finds it.
+        current = out["category"]
+        target_composite = _COMPOSITE_UPGRADES.get(current)
+        if target_composite:
+            regex_cats = _extract_categories(normalized)
+            if regex_cats and regex_cats[0] == target_composite:
+                out["category"] = target_composite
+                logger.info(
+                    "composite_category_upgrade",
+                    extra={"query": query, "from": current, "to": target_composite},
+                )
 
     if not out.get("material_type"):
         material = _match_synonym(normalized, _MATERIAL_SYNONYMS)
