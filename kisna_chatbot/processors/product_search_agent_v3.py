@@ -567,11 +567,28 @@ def _parse_budget_flow_reply(messages: dict) -> str | None:
 
 def _is_show_more_request(query: str, data: dict) -> bool:
     user_profile = data.get("user_profile", {})
+    # Gap 8: If classifier explicitly routed to a non-product intent, don't hijack
+    # with show-more. Prevents "more" in order tracking context from surfacing stale
+    # product results.
+    classified = data.get("classified_category") or ""
+    if classified and classified not in ("product_search", "product_info"):
+        return False
     filters = user_profile.get("last_search_filters")
     if not filters:
         return False
     llm_entities = data.get("llm_extracted_entities") or {}
     if llm_entities.get("action") == "more":
+        # If the classifier also extracted new price bounds that differ from the
+        # saved session, this is a budget refinement, not pagination — let it
+        # fall through to the normal search path so the new prices are applied.
+        new_min = llm_entities.get("min_price")
+        new_max = llm_entities.get("max_price")
+        if new_min is not None or new_max is not None:
+            if (
+                new_min != filters.get("min_price")
+                or new_max != filters.get("max_price")
+            ):
+                return False
         return True
     return bool(_SHOW_MORE_RE.search(query or ""))
 
@@ -1374,6 +1391,18 @@ class ProductSearchAgentV3(Processor):
             else:
                 return await self._handle_custom_budget_input(data, phone_number, query)
 
+        # Gap 5: If user interrupted a guided-browse preference flow with a direct text
+        # query (not a budget answer), clear stale pref state before searching.
+        if user_profile.get("preference_step") and not user_profile.get("awaiting_custom_budget"):
+            logger.debug(
+                "product_search: clearing interrupted preference state",
+                extra={
+                    "phone_number": phone_number,
+                    "preference_step": user_profile.get("preference_step"),
+                },
+            )
+            _clear_preference_state(user_profile)
+
         if _is_show_more_request(query, data):
             return await self._handle_show_more(data, phone_number)
 
@@ -1477,6 +1506,28 @@ class ProductSearchAgentV3(Processor):
                     llm_source = "entity_llm"
                 elif llm_source == "classifier" and extracted_llm:
                     llm_source = "classifier+entity_llm"
+
+                # Anti-bleed guard: LLMs infer material from assistant product captions
+                # in chat history (e.g. "KISNA 18KT Gold Ring") even when the user didn't
+                # say a material word. Regex is ground truth for what the user actually typed.
+                # If regex finds no material in the current query, discard LLM's inference.
+                if llm_entities.get("material_type") or llm_entities.get("metal_colour"):
+                    regex_quick = extract_entities(query)
+                    if not regex_quick.get("material_type") and not regex_quick.get("metal_colour"):
+                        logger.debug(
+                            "entity anti-bleed: LLM material not in query — discarding",
+                            extra={
+                                "query": query,
+                                "llm_material": llm_entities.get("material_type"),
+                                "llm_colour": llm_entities.get("metal_colour"),
+                            },
+                        )
+                        llm_entities = {
+                            **llm_entities,
+                            "material_type": None,
+                            "metal_colour": None,
+                        }
+
                 data["llm_extracted_entities"] = llm_entities
                 user_profile["llm_extracted_entities"] = llm_entities
 
@@ -1706,7 +1757,16 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
-        # FIX 2: Context-isolated entity build — only pref_category + pref_material,
+        # Gap 10: Guard — no category selected (budget arrived out of sequence)
+        if not user_profile.get("pref_category"):
+            _clear_preference_state(user_profile)
+            data["bot_response"] = [
+                {"type": "text", "text": "What type of jewellery are you looking for? 💎"},
+                build_main_category_list(),
+            ]
+            return data
+
+        # Context-isolated entity build — only pref_category + pref_material,
         # never inherit title/collection/karat/etc from a prior search session.
         search_entities = {
             "category": user_profile.get("pref_category"),
@@ -1763,7 +1823,16 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
-        # FIX 2: Context-isolated entity build (same as text path)
+        # Gap 10: Guard — no category selected (budget flow arrived out of sequence)
+        if not user_profile.get("pref_category"):
+            _clear_preference_state(user_profile)
+            data["bot_response"] = [
+                {"type": "text", "text": "What type of jewellery are you looking for? 💎"},
+                build_main_category_list(),
+            ]
+            return data
+
+        # Context-isolated entity build (same as text path)
         search_entities = {
             "category": user_profile.get("pref_category"),
             "material_type": user_profile.get("pref_material"),

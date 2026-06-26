@@ -68,12 +68,14 @@ def format_assistant(assistant_message, phone_number):
 
             elif message_type == "image_with_cta":
                 caption = assistant.get("caption", "")
-                cta_title = assistant.get("cta_title", "Buy on KISNA")
                 cta_url = assistant.get("cta_url", "")
-                if caption:
-                    body += f"\n{caption}"
+                cta_title = assistant.get("cta_title", "Buy on KISNA")
+                # Store only product title (first line), not material/karat/price lines.
+                # Full captions bleed material info into the LLM entity extractor context.
+                first_line = caption.split("\n")[0].strip("* \n") if caption else ""
+                body += f"\n[Product: {first_line}]" if first_line else "\n[Product shown]"
                 if cta_url:
-                    body += f"\n[Button: {cta_title} -> {cta_url}]"
+                    body += f" [{cta_title} → {cta_url}]"
 
             elif message_type == "cta_url":
                 text = assistant.get("text", "")
