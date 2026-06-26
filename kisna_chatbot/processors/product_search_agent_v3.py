@@ -16,7 +16,6 @@ from kisna_chatbot.processors.service_list import (
     build_other_jewellery_list,
     build_pref_step1_material_list,
     build_pref_step2_type_list,
-    build_pref_step3_budget_list,
     build_greeting_welcome_bot_responses,
 )
 from kisna_chatbot.processors.abstract_processor import Processor
@@ -1434,14 +1433,18 @@ class ProductSearchAgentV3(Processor):
                 "title": None,       # never inherit
                 "collection": None,  # never inherit
             }
-            if price_entities.get("min_price") is not None:
-                search_entities["min_price"] = price_entities["min_price"]
-                # Clear prior max_price to avoid impossible range (min > max)
-                search_entities["max_price"] = None
-            if price_entities.get("max_price") is not None:
-                search_entities["max_price"] = price_entities["max_price"]
-                # Clear prior min_price to avoid impossible range (max < min)
-                search_entities["min_price"] = None
+            new_min = price_entities.get("min_price")
+            new_max = price_entities.get("max_price")
+            if new_min is not None:
+                search_entities["min_price"] = new_min
+                # Only clear prior max when no new max was given (avoids impossible range)
+                if new_max is None:
+                    search_entities["max_price"] = None
+            if new_max is not None:
+                search_entities["max_price"] = new_max
+                # Only clear prior min when no new min was given (avoids impossible range)
+                if new_min is None:
+                    search_entities["min_price"] = None
             logger.debug(
                 "product_search: price-only refinement fast-path",
                 extra={
@@ -1665,7 +1668,11 @@ class ProductSearchAgentV3(Processor):
             user_profile["pref_material"] = material
             if user_profile.get("pref_category"):
                 user_profile["preference_step"] = 2
-                data["bot_response"] = [build_pref_step3_budget_list()]
+                user_profile["awaiting_custom_budget"] = True
+                if get_budget_flow_id():
+                    data["bot_response"] = [{"type": "flow", "flow": "budget_custom_input"}]
+                else:
+                    data["bot_response"] = [build_custom_budget_prompt()]
             else:
                 user_profile["preference_step"] = 2
                 data["bot_response"] = [build_pref_step2_type_list()]
@@ -1675,7 +1682,11 @@ class ProductSearchAgentV3(Processor):
             category = postback.rsplit("$", 1)[-1]
             user_profile["pref_type"] = category
             user_profile["preference_step"] = 3
-            data["bot_response"] = [build_pref_step3_budget_list()]
+            user_profile["awaiting_custom_budget"] = True
+            if get_budget_flow_id():
+                data["bot_response"] = [{"type": "flow", "flow": "budget_custom_input"}]
+            else:
+                data["bot_response"] = [build_custom_budget_prompt()]
             return data
 
         if postback == "pref$budget$custom":
