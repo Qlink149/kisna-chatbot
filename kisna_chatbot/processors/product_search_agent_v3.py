@@ -242,7 +242,8 @@ _ASK_PINCODE_TEXT = (
 
 _BUDGET_POSTBACK_RE = re.compile(r"^pref\$budget\$(\d+)-(\d+)$")
 _CUSTOM_BUDGET_RANGE_RE = re.compile(
-    r"^\s*([\d,]+)\s*-\s*([\d,]+)\s*$"
+    r"^\s*([\d,]+)\s*(?:-|to|se)\s*([\d,]+)(?:\s*tak)?\s*$",
+    re.I,
 )
 
 
@@ -535,9 +536,12 @@ def _parse_custom_budget_text(text: str) -> tuple[int | None, int | None]:
         if min_p is not None and max_p is not None:
             return int(min_p), int(max_p)
         if max_p is not None:
-            return _snap_single_price_to_band(float(max_p))
+            # "Under X" / "Below X" — entity extractor already resolved the direction;
+            # don't snap to a band above X, treat it as a hard ceiling.
+            return 0, int(max_p)
         if min_p is not None:
-            return _snap_single_price_to_band(float(min_p))
+            # "Above X" / "Over X" — entity extractor resolved direction; no upper cap.
+            return int(min_p), None
 
     normalized = (text or "").strip().replace(",", "")
     range_match = _CUSTOM_BUDGET_RANGE_RE.match(normalized)
