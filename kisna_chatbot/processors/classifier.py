@@ -229,6 +229,15 @@ _BUDGET_BROWSE_RE = re.compile(
     re.I,
 )
 
+# Fuzzy pagination/continuation phrases — kept in sync with _SHOW_MORE_RE in
+# product_search_agent_v3.py (duplicated locally to avoid a circular import).
+_CONTINUATION_RE = re.compile(
+    r"\b(show\s+more|more|next|aur\s+dikhao|next\s+3|kuch\s+aur|show\s+next|and\s+more|"
+    r"any\s+other\s+options?|anything\s+else|something\s+else|other\s+options?|"
+    r"alternate\s*s?|alternatives?|aur\s+kuch|koi\s+aur)\b",
+    re.I,
+)
+
 # FIX 2: price signal regex for active-session clarification guard
 _PRICE_SIGNAL_RE = re.compile(
     r"\b("
@@ -854,8 +863,10 @@ def _should_offer_clarification(data: dict, user_query: str, user_profile: dict)
     if service == ServiceList.PRODUCT_SEARCH.value:
         chat_history = user_profile.get("chat_history", [])
         if chat_history and not _REROUTE_RE.search(user_query):
-            if _BROWSE_ACTION_RE.search(user_query) or _CATEGORY_WORD_RE.search(
-                user_query
+            if (
+                _BROWSE_ACTION_RE.search(user_query)
+                or _CATEGORY_WORD_RE.search(user_query)
+                or _CONTINUATION_RE.search(user_query)
             ):
                 return False
             # FIX 2: price-only refinement in active session is unambiguous —

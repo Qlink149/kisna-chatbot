@@ -319,6 +319,7 @@ def _clear_explore_browse_session(user_profile: dict) -> None:
     user_profile["last_search_filters"] = {}
     user_profile["last_search_products"] = []
     user_profile["last_search_page"] = 0
+    user_profile["last_search_buffer"] = []
     user_profile["shown_product_ids"] = []
     user_profile["pref_material"] = None
     user_profile["pref_type"] = None

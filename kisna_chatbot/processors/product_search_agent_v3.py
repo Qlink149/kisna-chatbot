@@ -232,7 +232,9 @@ _BROWSE_ALL_RE = re.compile(
 )
 
 _SHOW_MORE_RE = re.compile(
-    r"\b(show\s+more|more|next|aur\s+dikhao|next\s+3|kuch\s+aur|show\s+next|and\s+more)\b",
+    r"\b(show\s+more|more|next|aur\s+dikhao|next\s+3|kuch\s+aur|show\s+next|and\s+more|"
+    r"any\s+other\s+options?|anything\s+else|something\s+else|other\s+options?|"
+    r"alternate\s*s?|alternatives?|aur\s+kuch|koi\s+aur)\b",
     re.I,
 )
 
@@ -1097,6 +1099,12 @@ def _should_escape_custom_budget(user_message: str) -> bool:
     if msg_lower in _ESCAPE_WORDS:
         return True
 
+    # A pagination/continuation phrase ("any other option", "kuch aur", ...) means
+    # the user has moved on from the budget question — let it fall through to the
+    # active search context instead of being swallowed by budget parsing.
+    if _SHOW_MORE_RE.search(user_message):
+        return True
+
     # Category keywords (English + common Hindi/Hinglish)
     _CATEGORY_KW = {
         "ring", "rings", "earring", "earrings", "necklace", "necklaces",
@@ -1384,6 +1392,14 @@ class ProductSearchAgentV3(Processor):
                 chat_history=user_profile.get("chat_history", []),
             )
             return data
+
+        # An active pagination context (last_search_filters set) takes priority over
+        # a stale awaiting_custom_budget slot-fill: a continuation phrase like "any
+        # other option" should resume browsing, not get swallowed by budget parsing.
+        if user_profile.get("awaiting_custom_budget") and _is_show_more_request(query, data):
+            user_profile["awaiting_custom_budget"] = False
+            user_profile["custom_budget_attempts"] = 0
+            return await self._handle_show_more(data, phone_number)
 
         if user_profile.get("awaiting_custom_budget"):
             # Second escape gate (greeting check above may have passed; check again).
@@ -1886,6 +1902,40 @@ class ProductSearchAgentV3(Processor):
             return data
         filters = filters or _empty_entities()
 
+        # UI cursor: serve the next PAGE_SIZE items from the leftover of the last
+        # API fetch before making another API call. This decouples the WhatsApp
+        # display page (PAGE_SIZE=3) from the Clara API page (up to 15) so items
+        # already fetched but not yet shown are never skipped.
+        buffer = _filter_unshown_products(
+            user_profile.get("last_search_buffer") or [], shown_ids
+        )
+        if buffer:
+            products_to_show = buffer[:PAGE_SIZE]
+            user_profile["last_search_buffer"] = buffer[PAGE_SIZE:]
+            user_profile["last_search_products"] = products_to_show
+            user_profile["last_search_at"] = int(time.time())
+            _append_shown_product_ids(user_profile, products_to_show)
+
+            data["bot_response"] = _build_search_success_response(
+                products_to_show,
+                total,
+                last_page,
+                filters,
+                carousel_pool=buffer,
+                show_more_intro=False,
+            )
+            logger.info(
+                "Show More results sent from buffer",
+                extra={
+                    "phone_number": phone_number,
+                    "page": last_page,
+                    "returned": len(products_to_show),
+                    "buffer_remaining": len(user_profile["last_search_buffer"]),
+                    "total": total,
+                },
+            )
+            return data
+
         api_page_size = resolve_api_page_size(filters)
 
         # When client filters are active, judge exhaustion by API pages so we don't
@@ -1967,6 +2017,7 @@ class ProductSearchAgentV3(Processor):
 
         user_profile["last_search_page"] = next_page
         user_profile["last_search_products"] = products[:PAGE_SIZE]
+        user_profile["last_search_buffer"] = products[PAGE_SIZE:]
         user_profile["last_search_at"] = int(time.time())  # FIX 3: refresh session on Show More
         _append_shown_product_ids(user_profile, products[:PAGE_SIZE])
 
@@ -2219,6 +2270,7 @@ class ProductSearchAgentV3(Processor):
         user_profile["last_search_filter_ratio"] = _filter_ratio
         user_profile["last_search_api_total"] = api_total
         user_profile["last_search_products"] = products_to_show
+        user_profile["last_search_buffer"] = carousel_pool[PAGE_SIZE:]
         user_profile["last_search_at"] = int(time.time())
         _append_shown_product_ids(user_profile, products_to_show)
         
