@@ -1650,6 +1650,8 @@ class ProductSearchAgentV3(Processor):
     ) -> dict:
         user_profile = data.get("user_profile", {})
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        # Refresh session TTL on every preference-flow step, not just completed searches.
+        user_profile["last_search_at"] = int(time.time())
         postback = (postback or "").strip()
 
         if postback.startswith("pref$cat$"):
