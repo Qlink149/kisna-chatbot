@@ -25,6 +25,8 @@ from kisna_chatbot.processors.service_list import (
     is_menu_request,
     is_pure_greeting,
 )
+from kisna_chatbot.processors.gold_rate_handler import build_gold_rate_bot_response
+from kisna_chatbot.processors.support_handler import build_expert_support_bot_response
 from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
@@ -162,8 +164,20 @@ _CUSTOM_JEWELLERY_HANDOFF_MESSAGE = (
 )
 
 _HUMAN_HANDOFF_RE = re.compile(
-    r"\b(human|agent\s+se|customer\s+care|live\s+agent|support\s+chahiye|"
-    r"baat\s+karni\s+hai|kisi\s+se\s+baat)\b",
+    r"\b("
+    r"human|agent\s+se|customer\s+care|live\s+agent|support\s+chahiye|"
+    r"baat\s+karni\s+hai|kisi\s+se\s+baat|call\s+me\s+back|connect\s+me|"
+    r"need\s+urgent\s+support|talk\s+to\s+(?:an?\s+)?(?:agent|human|expert)|"
+    r"baat\s+karao|call\s+karwao"
+    r")\b",
+    re.I,
+)
+
+_GOLD_RATE_RE = re.compile(
+    r"\b("
+    r"gold\s+rate|gold\s+price\s+today|today'?s?\s+rate|aaj\s+ka\s+rate|"
+    r"sone\s+ka\s+bhav|sone\s+ka\s+rate|gold\s+price"
+    r")\b",
     re.I,
 )
 
@@ -314,6 +328,8 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("general", 0.95)
     if _is_custom_jewellery_query(normalized):
         return ("human_handoff", 0.95)
+    if _GOLD_RATE_RE.search(normalized):
+        return ("gold_rate", 0.95)
     if _is_policy_action_query(normalized):
         return ("returns_refund", 0.9)
     if _is_policy_information_query(normalized):
@@ -337,6 +353,8 @@ def _in_active_input_flow(user_profile: dict) -> bool:
     if user_profile.get("pending_clarification"):
         return True
     if user_profile.get("service_selected") == ServiceList.COMPLAINT.value:
+        return True
+    if user_profile.get("callback_capture_step"):
         return True
     return False
 
@@ -706,20 +724,17 @@ def _handle_custom_jewellery_handoff(
 
 
 def _handle_human_handoff(data: dict, user_profile: dict, phone_number: str) -> None:
-    user_profile["live_agent_requested_at"] = int(time.time())
-    user_profile["live_agent_required"] = True
-    for admin in ADMINS:
-        send_customer_support_template(
-            phone_number=admin,
-            customer_name=user_profile.get("username", "Customer"),
-            customer_phone=phone_number,
+    data["bot_response"] = build_expert_support_bot_response(
+        phone_number, user_profile
+    )
+
+
+async def _finalize_classifier_response(data: dict) -> None:
+    if data.get("_fetch_gold_rate"):
+        data["bot_response"] = await build_gold_rate_bot_response(
+            data.get("app_state")
         )
-    data["bot_response"] = [
-        {
-            "type": "text",
-            "text": KIA_HANDOFF_MESSAGE,
-        }
-    ]
+        data.pop("_fetch_gold_rate", None)
 
 
 def _route_resolved_intent(
@@ -748,6 +763,11 @@ def _route_resolved_intent(
             _handle_custom_jewellery_handoff(data, user_profile, phone_number)
         else:
             _handle_human_handoff(data, user_profile, phone_number)
+        return True
+
+    if intent == "gold_rate":
+        user_profile["service_selected"] = ""
+        data["_fetch_gold_rate"] = True
         return True
 
     if (
@@ -1042,6 +1062,11 @@ class Classifier(Processor):
                 return True
             return False
 
+        if user_profile.get("callback_capture_step"):
+            if _flow_escape_should_classify(user_query):
+                return True
+            return False
+
         service = user_profile.get("service_selected")
         if service == ServiceList.AD_FLOW.value and _looks_like_store_query(user_query):
             return False
@@ -1234,6 +1259,7 @@ class Classifier(Processor):
                         intent,
                         confidence,
                     ):
+                        await _finalize_classifier_response(data)
                         return data
                     return data
 
@@ -1312,6 +1338,7 @@ class Classifier(Processor):
                     intent,
                     confidence,
                 ):
+                    await _finalize_classifier_response(data)
                     return data
 
             return data

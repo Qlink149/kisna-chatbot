@@ -4,6 +4,7 @@ import os
 import unittest
 
 os.environ.setdefault("ENV_MODE", "dev")
+os.environ.setdefault("KISNA_UTM_ENABLED", "false")
 
 from kisna_chatbot.utils.product_formatter import build_catalogue_url
 

@@ -1,6 +1,9 @@
 """Tests for KISNA product URL building."""
 
+import os
 import unittest
+
+os.environ.setdefault("KISNA_UTM_ENABLED", "false")
 
 from kisna_chatbot.utils.product_formatter import build_product_url
 

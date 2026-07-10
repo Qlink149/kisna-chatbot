@@ -23,6 +23,7 @@ os.environ.setdefault("GUPSHUP_TOKEN", "test-token")
 os.environ.setdefault("GUPSHUP_APP_NAME", "test-app")
 os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
 os.environ.setdefault("KISNA_PHONE_NUMBER_ID", "850788844795304")
+os.environ.setdefault("KISNA_UTM_ENABLED", "false")
 
 from kisna_chatbot.config.clients import get_client_config, refresh_client_registry
 from kisna_chatbot.main import _pipeline_for_service
@@ -1053,7 +1054,15 @@ class TrackOrderTests(unittest.TestCase):
         self.assertTrue(any(item.get("type") == "cta_url" for item in data["bot_response"]))
 
     def test_build_track_order_bot_response_has_cta(self):
-        response = build_track_order_bot_response()
+        with patch.dict(
+            os.environ,
+            {
+                "KISNA_ORDER_TRACKING_URL": "https://www.kisna.com/pages/track-order",
+                "KISNA_TRACK_ORDER_URL": "",
+            },
+            clear=False,
+        ):
+            response = build_track_order_bot_response()
         self.assertEqual(response[-1]["type"], "cta_url")
         self.assertIn("track-order", response[-1]["url"])
 

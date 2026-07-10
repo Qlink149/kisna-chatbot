@@ -1,0 +1,69 @@
+{
+  "version": "7.0",
+  "screens": [
+    {
+      "data": {},
+      "id": "CALLBACK_REQUEST",
+      "terminal": true,
+      "title": "Callback Request",
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "name": "flow_path",
+            "type": "Form",
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Request a callback from our support team."
+              },
+              {
+                "type": "TextInput",
+                "label": "Mobile Number",
+                "name": "mobile",
+                "required": true,
+                "input-type": "text"
+              },
+              {
+                "type": "Dropdown",
+                "label": "Reason",
+                "name": "reason",
+                "required": true,
+                "data-source": [
+                  {"id": "product_enquiry", "title": "Product Enquiry"},
+                  {"id": "order_support", "title": "Order Support"},
+                  {"id": "store_assistance", "title": "Store Assistance"},
+                  {"id": "exchange_return", "title": "Exchange/Return"},
+                  {"id": "other", "title": "Other"}
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "label": "Preferred Time",
+                "name": "preferred_time",
+                "required": true,
+                "data-source": [
+                  {"id": "morning", "title": "Morning (10 AM–1 PM)"},
+                  {"id": "afternoon", "title": "Afternoon (1 PM–5 PM)"}
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Submit",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "mobile": "${form.mobile}",
+                    "reason": "${form.reason}",
+                    "preferred_time": "${form.preferred_time}",
+                    "request_type": "callback"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

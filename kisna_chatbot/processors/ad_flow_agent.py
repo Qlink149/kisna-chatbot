@@ -57,6 +57,15 @@ def _store_phone(store: dict) -> str | None:
     return None
 
 
+def _exclude_ecom_stores(stores: list) -> list:
+    """Remove ECOM warehouse/online-only locations from customer-facing results."""
+    return [
+        s
+        for s in stores
+        if isinstance(s, dict) and "ecom" not in _store_name(s).lower()
+    ]
+
+
 def _store_name(store: dict) -> str:
     return (store.get("name") or store.get("title") or "KISNA Store").strip()
 
@@ -96,6 +105,7 @@ def _build_store_text(store: dict) -> str:
 
 def _build_store_responses(stores: list) -> list[dict]:
     """One interactive message per store: details in body, map link as URL button."""
+    stores = _exclude_ecom_stores(stores)
     responses: list[dict] = []
     for store in stores:
         if not isinstance(store, dict):
@@ -152,6 +162,7 @@ def _filter_cached_stores(
         ]
         stores = filtered
 
+    stores = _exclude_ecom_stores(stores)
     return {"stores": stores, "total_count": len(stores)}
 
 
@@ -208,7 +219,9 @@ def _nearest_stores_from_cache(cached: dict, lat: float, lng: float) -> dict:
         distance = _haversine_km(lat, lng, coords[0], coords[1])
         ranked.append((distance, store))
     ranked.sort(key=lambda item: item[0])
-    stores = [store for _distance, store in ranked[:_MAX_NEAREST_BY_LOCATION]]
+    stores = _exclude_ecom_stores(
+        [store for _distance, store in ranked[:_MAX_NEAREST_BY_LOCATION]]
+    )
     return {"stores": stores, "total_count": len(ranked)}
 
 
@@ -236,9 +249,13 @@ class AdFlowAgent(Processor):
     ) -> dict:
         try:
             if pincode:
-                return await get_stores(pincode=pincode)
-            if city:
-                return await get_stores(city=city)
+                result = await get_stores(pincode=pincode)
+            elif city:
+                result = await get_stores(city=city)
+            else:
+                result = {"stores": [], "total_count": 0}
+            stores = _exclude_ecom_stores(result.get("stores") or [])
+            return {"stores": stores, "total_count": len(stores)}
         except ClaraAPIError:
             raise
         except Exception:

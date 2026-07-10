@@ -162,7 +162,14 @@ class FlowSwitchPromptTests(unittest.TestCase):
                     return_value='{"intent": "human_handoff", "confidence": 0.95, "entities": {}}',
                 ),
                 patch(
+                    "kisna_chatbot.processors.support_handler.get_support_status",
+                    return_value={"status": "open"},
+                ),
+                patch(
                     "kisna_chatbot.processors.classifier.send_customer_support_template"
+                ),
+                patch(
+                    "kisna_chatbot.processors.support_handler.send_customer_support_template"
                 ),
             ):
                 result = await clf.process(data)

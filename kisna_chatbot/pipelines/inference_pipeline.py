@@ -1,6 +1,7 @@
 from kisna_chatbot.pipelines.pipeline import Pipeline
 from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
 from kisna_chatbot.processors.classifier import Classifier
+from kisna_chatbot.processors.callback_agent import CallbackAgent
 from kisna_chatbot.processors.complaint_agent import ComplaintAgent
 from kisna_chatbot.processors.general_agent import GeneralAgent
 from kisna_chatbot.processors.offers_agent import OffersAgent
@@ -75,6 +76,14 @@ class ComplaintPipeline(Pipeline):
 
     def __init__(self) -> None:
         processors = [ComplaintAgent()]
+        super().__init__(processors)
+
+
+class CallbackPipeline(Pipeline):
+    """Pipeline for callback and video-call requests."""
+
+    def __init__(self) -> None:
+        processors = [CallbackAgent()]
         super().__init__(processors)
 
 

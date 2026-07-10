@@ -11,5 +11,6 @@ class ServiceList(Enum):
     ORDER_TRACKING = "order_tracking"
     RETURNS_REFUND = "returns_refund"
     COMPLAINT = "complaint"
+    CALLBACK = "callback"
     PRODUCT_CHECKOUT = "product_checkout"
     AD_FLOW = "ad_flow"

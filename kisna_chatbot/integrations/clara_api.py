@@ -307,6 +307,11 @@ async def get_stores(
     return {"stores": stores, "total_count": total_count}
 
 
+async def get_gold_rates() -> Any:
+    """Fetch live gold rates; caller is responsible for caching."""
+    return await _request("GET", "/api/v1/clara/rates")
+
+
 def get_discount_for_product(product: dict) -> Optional[str]:
     """
     Pure function: match variant price against promotion labour discount ranges.

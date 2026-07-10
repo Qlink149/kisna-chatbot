@@ -14,7 +14,7 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test")
 
 from kisna_chatbot.processors.service_list import (
     _handle_menu_selection,
-    _MENU_BODY,
+    _WELCOME_BACK_TEXT,
     _WELCOME_TEXT,
     _normalize_menu_key,
     build_main_menu_bot_response,
@@ -54,12 +54,15 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertEqual(menu["type"], "list")
         self.assertEqual(menu["list"], "list")
         self.assertIsInstance(menu["body"], str)
-        self.assertTrue(len(menu["body"]) > 0)
+        self.assertEqual(menu["body"], "")
+        self.assertEqual(menu["items"][0]["title"], "Menu")
         self.assertIn("items", menu)
         self.assertTrue(len(menu["items"]) > 0)
 
     def test_welcome_text_mentions_kia(self):
         self.assertIn("KIA", _WELCOME_TEXT)
+        self.assertIn("Welcome to Kisna", _WELCOME_TEXT)
+        self.assertIn("What would you like to do today?", _WELCOME_TEXT)
 
     def test_greeting_suffix_detection(self):
         self.assertTrue(is_greeting_message("hey there"))
@@ -70,12 +73,17 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertIn("Kisna representative", KIA_HANDOFF_MESSAGE)
         self.assertNotIn("live designer", KIA_HANDOFF_MESSAGE.lower())
 
+    def test_welcome_back_text(self):
+        self.assertIn("Welcome back to Kisna", _WELCOME_BACK_TEXT)
+        self.assertIn("KIA", _WELCOME_BACK_TEXT)
+
     def test_greeting_responses_returning_user(self):
         responses = build_greeting_welcome_bot_responses(
             chat_history=[{"role": "user", "content": "hi"}],
         )
         self.assertEqual(len(responses), 2)
         self.assertEqual(responses[0]["type"], "text")
+        self.assertIn("Welcome back", responses[0]["text"])
         self.assertEqual(responses[1]["type"], "list")
 
     def test_greeting_responses_new_session(self):
@@ -85,6 +93,8 @@ class TestMenuGreeting(unittest.TestCase):
         )
         self.assertEqual(len(responses), 2)
         self.assertEqual(responses[0]["type"], "text")
+        self.assertIn("Welcome to Kisna", responses[0]["text"])
+        self.assertNotIn("Welcome back", responses[0]["text"])
         self.assertEqual(responses[1]["type"], "list")
 
     def test_complaint_flow_shape(self):
@@ -109,7 +119,7 @@ class TestMenuGreeting(unittest.TestCase):
         )
         self.assertEqual(
             _normalize_menu_key("Help / Complaint", ""),
-            "raise_complaint",
+            "help_center",
         )
         self.assertEqual(
             _normalize_menu_key("FAQs / About Kisna", ""),
@@ -118,11 +128,9 @@ class TestMenuGreeting(unittest.TestCase):
 
     def test_handle_raise_complaint_legacy_title(self):
         user_profile = {}
-        data = {}
+        data = {"phone_number": "919999999999"}
         _handle_menu_selection("Raise Complaint", user_profile, data, "damage_complaint")
-        self.assertEqual(user_profile["service_selected"], "complaint")
-        self.assertEqual(data["bot_response"][0]["type"], "flow")
-        self.assertEqual(data["bot_response"][0]["flow"], "damage_complaint")
+        self.assertEqual(data["bot_response"][0]["msgid"], "help$center$list")
 
     def test_complaint_cta_click_opens_flow(self):
         processor = ServiceList()

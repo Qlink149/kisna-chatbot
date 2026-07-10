@@ -101,12 +101,46 @@ KISNA_KNOWLEDGE_BASE = """\
 - Report delivery issues immediately to support@kisna.com.
 - Buy online, pick up in store: select "In-Store Delivery" at checkout and choose your store.
 
-## DIGITAL GOLD (SafeGold)
-- Kisna offers Digital Gold (powered by SafeGold/DGIPL): buy, sell, exchange, KYC.
-- Convert SafeGold balance to jewellery: balance converts at the current SafeGold sell rate (Redemption Value); jewellery price (gold rate + making + fees) is the Purchase Value; if Purchase Value > Redemption Value, pay the difference.
-- Online redemption: add to cart → checkout → select "Digital Gold" → enter amount (minimum ₹100) → OTP → balance applied.
-- Redemption allowed only 3 working days after the digital gold purchase date.
-- Redeemable only at Kisna stores / kisna.com — not at other brands; digital gold from other platforms is not eligible at Kisna.
+## DIGITAL GOLD (SafeGold) — kisna.com/digital-gold
+- Platform: Kisna Digital Gold is powered by SafeGold, a product offered by Digital Gold India Private Limited (DGIPL). It is NOT a financial instrument or deposit scheme — it is a way to purchase 24K gold for personal use.
+- On each successful payment, physical gold is purchased on the customer's behalf and the quantity (accurate to 4 decimal places) is credited to their account.
+
+### Eligibility & Account
+- Who can buy: any Indian citizen with a valid PAN card. NRIs are NOT permitted to buy, sell, or redeem Kisna Digital Gold.
+- Registration: online ONLY at kisna.com/digital-gold — provide name, mobile number, email, PIN code, and PAN.
+- At physical stores: customers may ONLY redeem their SafeGold balance. Buying and selling are available exclusively on the Kisna website.
+- Joint accounts: NOT permitted.
+- Account inactive/suspended: contact DGIPL customer service for reactivation; Kisna customer service is a secondary support channel.
+
+### Purity & Pricing
+- Purity: 24 Karat, 995 fineness (99.5% pure gold or higher).
+- Minimum purchase: ₹10. No upper limit (subject to successful KYC verification).
+- No lock-in period — one-time purchase with no obligation for recurring payments.
+- Rate note: SafeGold price reflects real-time commodity/market rates. Kisna's e-commerce gold price is higher because it includes manufacturing, processing, and operational costs across the jewellery value chain. SafeGold prices fluctuate throughout the day.
+
+### Buying
+- Cheque payments (including post-dated cheques): NOT accepted — fully digital product only.
+- Order cancellation: NOT possible once a digital gold purchase order is placed.
+- Invoice: downloadable from the platform directly.
+- Holding statement: always available on the platform.
+
+### Storage & Safety
+- Gold is stored with Brink's (global precious metal vaulting leader). Fully insured during storage and transit.
+- Administrator: Vistra Corporate Services (India) Private Limited — holds a charge over all stored gold, ensuring customer gold is protected and segregated regardless of DGIPL's operational status.
+- Storage duration: up to 10 years from purchase date. Free for the first 5 years; a nominal custody fee applies after 5 years (customer notified before any charge; option to sell or request delivery).
+- If DGIPL goes into liquidation: customer holdings are legally separate from DGIPL's corporate assets. The Administrator retains a charge. Physical gold is NOT treated as DGIPL's asset. Redemption dispatched via reputable logistics provider upon request.
+
+### Selling
+- Can sell any portion of holdings at the live sell rate.
+- Minimum sell amount: ₹100, up to total gold owned.
+
+### Redemption (converting SafeGold balance to jewellery)
+- Balance converts at the current SafeGold sell rate ("Redemption Value"). Jewellery price (gold rate + making + fees) is "Purchase Value". Customer pays the difference if Purchase Value > Redemption Value.
+- Online: add to cart → checkout → select "Digital Gold" → enter amount (minimum ₹100) → OTP confirmation → balance applied.
+- In-store: share registered mobile number + redemption amount → OTP → balance adjusted; store discounts/offers still apply.
+- Waiting period: redemption is only allowed 3 working days AFTER the digital gold purchase date.
+- Redeemable only at Kisna stores / kisna.com. Digital gold from other platforms is NOT eligible at Kisna.
+- Kisna SafeGold balance cannot be redeemed at other jewellery brands.
 
 ## STORE & IN-STORE SERVICES
 - Store locator: kisna.com/store (searchable by city). Authorized dealers: kisna.com/kisna-authorized-dealers.
@@ -115,7 +149,7 @@ KISNA_KNOWLEDGE_BASE = """\
 
 ## SUPPORT & CONTACT
 - Customer support phone: +91 80651 55600.
-- Support hours: 9:00 am–6:00 pm IST Mon–Fri; 9:00 am–4:00 pm IST Sat.
+- Support hours: 10:00 am–6:30 pm IST Mon–Fri; 10:00 am–4:00 pm IST Sat.
 - WhatsApp ("Chat with Experts"): +91 89768 74310.
 - General support email: support@kisna.com.
 - Exchange/buyback email: ecom@kisna.com.
@@ -135,4 +169,52 @@ KISNA_KNOWLEDGE_BASE = """\
 ## ACCOUNT
 - Sign up at www.kisna.com with name, email, and a password.
 - Forgot password: click "forgot password" under sign-in, enter registered email, receive a reset link.
+
+## KISNA MERI ROSHNI (KMR) — Monthly Savings Plan — meriroshni.kisna.com
+- KMR is Kisna's "10+1" monthly jewellery savings plan with two variants: KMR-Amount and KMR-Gram.
+- How to join: visit any Kisna exclusive store (store staff will assist), or enroll online at meriroshni.kisna.com.
+- Support phone: 8065155600.
+
+### KYC Requirements
+- Aadhaar Card or Passport required at store enrollment.
+- PAN Card required if the monthly installment amount is ₹19,000 or above.
+- PAN Card mandatory at redemption for any redemption value above ₹2,00,000 (per RBI guidelines).
+
+### Installment Rules
+- Minimum monthly installment: ₹2,000 (in multiples of ₹500). No maximum cap.
+- Installment amount cannot be changed after the plan has started.
+- Due date: same date each month as the first installment.
+- No additional benefit for paying early or in advance.
+- Confirmation: via email, SMS, and online passbook/dashboard.
+
+### Payment Options
+- Online: Credit card, Debit card, Net banking, UPI.
+- In-store: cash, card, cheque, demand draft.
+- Failed online payment: wait 48 hours; if not credited, contact support with payment screenshot.
+- Subsequent installments can be paid at ANY Kisna exclusive store or on the website.
+
+### KMR-Amount Plan
+- Pay a fixed installment for 10 months. The 11th month's installment value is given by Kisna as a discount at redemption.
+- Maturity benefit: Diamond jewellery 100% of 1st installment value; Gold jewellery 75% of 1st installment value.
+- Example: ₹2,000/month × 10 months → ₹2,000 discount for diamond, or ₹1,500 for gold.
+
+### KMR-Gram Plan (Gold Saving Scheme)
+- Each monthly installment converts into 24KT gold grams at the live gold rate on payment date.
+- Structure: 10 monthly deposits; bonus gram month credited at maturity.
+- Maturity benefit: Diamond 100% of bonus month grams; Gold 75% of bonus month grams.
+
+### Defaulting & Early Closure
+- Defaulting any installment: maturity benefit forfeited; customer receives only principal at maturity.
+- Early closure: principal only refunded to bank within 15 banking working days. No cash refunds.
+
+### Pre-Maturity Redemption
+- Eligible after more than 6 monthly installments paid.
+- Pre-maturity benefit: Diamond 50% of 1st installment; Gold 37.5% of 1st installment.
+
+### Redemption Rules
+- Redeem at any Kisna exclusive store or kisna.com.
+- Eligible: diamond jewellery and gold jewellery ONLY.
+- NOT eligible: Gold Coins, Silver Coins, Rare Solitaire, Plain Platinum, Studded Diamond Platinum.
+- Cannot split redemption across diamond and gold — one category per plan.
+- Cash withdrawal instead of jewellery: NOT allowed.
 """

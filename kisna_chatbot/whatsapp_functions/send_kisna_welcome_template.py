@@ -7,8 +7,11 @@ in the Gupshup dashboard to match KIA's first message. Code cannot change
 approved template text — only the template ID is referenced here.
 
 Suggested dashboard copy:
-  Welcome to Kisna. I'm KIA, your jewellery assistant. ✨
-  How may I assist you today?
+  💎 Welcome to Kisna!
+  I'm KIA, your trusted jewellery assistant. Whether you're looking for the perfect piece,
+  exploring our latest collections, checking today's offers, tracking an order, or need support,
+  I'm here to make your shopping experience simple and enjoyable.
+  What would you like to do today?
 """
 
 import json

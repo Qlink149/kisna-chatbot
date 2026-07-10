@@ -1,0 +1,55 @@
+{
+  "version": "7.0",
+  "screens": [
+    {
+      "data": {},
+      "id": "VIDEO_CALL_REQUEST",
+      "terminal": true,
+      "title": "Schedule Video Call",
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "name": "flow_path",
+            "type": "Form",
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Schedule a video call with our team."
+              },
+              {
+                "type": "TextInput",
+                "label": "Mobile Number",
+                "name": "mobile",
+                "required": true,
+                "input-type": "text"
+              },
+              {
+                "type": "Dropdown",
+                "label": "Preferred Time",
+                "name": "preferred_time",
+                "required": true,
+                "data-source": [
+                  {"id": "morning", "title": "Morning (10 AM–1 PM)"},
+                  {"id": "afternoon", "title": "Afternoon (1 PM–5 PM)"}
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Submit",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "mobile": "${form.mobile}",
+                    "preferred_time": "${form.preferred_time}",
+                    "request_type": "video_call"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

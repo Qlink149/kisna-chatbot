@@ -4,7 +4,13 @@ from datetime import datetime
 
 from pymongo import ReturnDocument
 
-from kisna_chatbot.database.collections import complaints, ratings, store_visits, users
+from kisna_chatbot.database.collections import (
+    callback_requests,
+    complaints,
+    ratings,
+    store_visits,
+    users,
+)
 from kisna_chatbot.utils.format_chathistory import format_chat_history, trim_chat_history
 from kisna_chatbot.utils.logger_config import logger
 
@@ -514,6 +520,65 @@ def get_complaints_by_phone(phone_number: str, client_id: str = "kisna") -> list
         logger.exception(
             "Failed to fetch complaints by phone",
             extra={"phone_number": phone_number, "client_id": client_id},
+        )
+        raise
+
+
+def get_all_callback_requests(
+    page: int = 1,
+    limit: int = 20,
+    client_id: str = "kisna",
+    status: str | None = None,
+    request_type: str | None = None,
+) -> dict:
+    """Paginated callback/video-call requests for a client."""
+    try:
+        query: dict = {"client_id": client_id}
+        if status:
+            query["status"] = status
+        if request_type:
+            query["request_type"] = request_type
+        skip = (page - 1) * limit
+        cursor = (
+            callback_requests.find(query, {"_id": 0})
+            .sort("created_at", -1)
+            .skip(skip)
+            .limit(limit)
+        )
+        results = list(cursor)
+        total = callback_requests.count_documents(query)
+        return {
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "callbacks": results,
+        }
+    except Exception as e:
+        logger.exception(
+            "Failed to fetch callback requests",
+            extra={"client_id": client_id},
+        )
+        raise
+
+
+def update_callback_status(
+    request_id: str,
+    status: str,
+    client_id: str = "kisna",
+) -> dict | None:
+    """Update callback request status (e.g. pending → completed)."""
+    try:
+        result = callback_requests.find_one_and_update(
+            {"request_id": request_id, "client_id": client_id},
+            {"$set": {"status": status}},
+            return_document=ReturnDocument.AFTER,
+            projection={"_id": 0},
+        )
+        return result
+    except Exception as e:
+        logger.exception(
+            "Failed to update callback status",
+            extra={"request_id": request_id, "client_id": client_id},
         )
         raise
 

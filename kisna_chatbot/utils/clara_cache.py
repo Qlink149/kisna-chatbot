@@ -5,11 +5,12 @@ In-memory cache for Clara promotions and stores (refreshed on TTL or startup).
 import time
 from typing import Any
 
-from kisna_chatbot.integrations.clara_api import get_promotions, get_stores
+from kisna_chatbot.integrations.clara_api import get_gold_rates, get_promotions, get_stores
 from kisna_chatbot.utils.logger_config import logger
 
 PROMOTIONS_TTL_SECONDS = 2 * 3600
 STORES_TTL_SECONDS = 24 * 3600
+GOLD_RATES_TTL_SECONDS = 15 * 60
 
 _EMPTY_STORES = {"stores": [], "total_count": 0}
 
@@ -49,6 +50,8 @@ async def warm_clara_caches(app_state: Any) -> None:
     app_state.promotions_fetched_at = None
     app_state.stores_cache = dict(_EMPTY_STORES)
     app_state.stores_fetched_at = None
+    app_state.gold_rates_cache = None
+    app_state.gold_rates_fetched_at = None
 
     try:
         app_state.promotions_cache = await get_promotions()
@@ -107,3 +110,27 @@ async def get_cached_stores(app_state: Any) -> dict:
         if isinstance(cache, dict):
             return cache
         return dict(_EMPTY_STORES)
+
+
+async def get_cached_gold_rates(app_state: Any) -> Any:
+    """Return gold rates payload; refresh if older than 15 minutes."""
+    if app_state is None:
+        return await get_gold_rates()
+
+    cache = getattr(app_state, "gold_rates_cache", None)
+    fetched_at = getattr(app_state, "gold_rates_fetched_at", None)
+
+    if not _is_stale(fetched_at, GOLD_RATES_TTL_SECONDS) and cache is not None:
+        return cache
+
+    try:
+        rates = await get_gold_rates()
+        if app_state is not None:
+            app_state.gold_rates_cache = rates
+            app_state.gold_rates_fetched_at = _now()
+        return rates
+    except Exception:
+        logger.warning("Gold rates cache refresh failed", exc_info=True)
+        if cache is not None:
+            return cache
+        raise

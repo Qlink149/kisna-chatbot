@@ -11,6 +11,7 @@ os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("KISNA_CLARA_BASE_URL", "https://clara.example.com")
 os.environ.setdefault("CLARA_API_KEY", "test-clara-key")
+os.environ.setdefault("KISNA_UTM_ENABLED", "false")
 
 from kisna_chatbot.main import app  # noqa: F401
 from kisna_chatbot.models.service_list import ServiceList as SL

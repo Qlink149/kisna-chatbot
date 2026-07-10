@@ -5,8 +5,14 @@ from kisna_chatbot.whatsapp_functions.flow.send_site_visit import (
 from kisna_chatbot.whatsapp_functions.flow.send_budget_input_flow import (
     send_budget_input_flow,
 )
+from kisna_chatbot.whatsapp_functions.flow.send_callback_request_flow import (
+    send_callback_request_flow,
+)
 from kisna_chatbot.whatsapp_functions.flow.send_damage_complaint import (
     send_damage_complaint_flow,
+)
+from kisna_chatbot.whatsapp_functions.flow.send_video_call_request_flow import (
+    send_video_call_request_flow,
 )
 from kisna_chatbot.whatsapp_functions.flow.send_store_locator import (
     send_store_locator_flow,
@@ -231,6 +237,28 @@ class ResponseManager:
                         ),
                     },
                 )
+        elif flow_name == "callback_request":
+            result = send_callback_request_flow(phone_number=phone_number)
+            if result is None:
+                return send_text_message_with_retry(
+                    phone_number=phone_number,
+                    bot_response={
+                        "type": "text",
+                        "text": "Please share the mobile number we should call you on.",
+                    },
+                )
+            return result
+        elif flow_name == "video_call_request":
+            result = send_video_call_request_flow(phone_number=phone_number)
+            if result is None:
+                return send_text_message_with_retry(
+                    phone_number=phone_number,
+                    bot_response={
+                        "type": "text",
+                        "text": "Please share the mobile number for your video call.",
+                    },
+                )
+            return result
         else:
             raise ValueError(f"Unknown flow: {flow_name}")
 

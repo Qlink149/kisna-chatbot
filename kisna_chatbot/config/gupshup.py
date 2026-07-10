@@ -24,6 +24,16 @@ def get_budget_flow_id() -> str:
     return os.getenv("KISNA_BUDGET_FLOW_ID", "").strip()
 
 
+def get_callback_flow_id() -> str:
+    """WhatsApp Flow id for callback request form."""
+    return os.getenv("KISNA_CALLBACK_FLOW_ID", "").strip()
+
+
+def get_videocall_flow_id() -> str:
+    """WhatsApp Flow id for video call request form."""
+    return os.getenv("KISNA_VIDEOCALL_FLOW_ID", "").strip()
+
+
 @lru_cache(maxsize=1)
 def build_phone_number_id_map() -> dict[str, str]:
     """

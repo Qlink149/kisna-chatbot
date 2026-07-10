@@ -1,6 +1,7 @@
 import os
 
 from kisna_chatbot.prompts.kisna_knowledge_base import KISNA_KNOWLEDGE_BASE
+from kisna_chatbot.utils.support_hours import format_support_hours_text
 
 _KISNA_DOMAIN = os.getenv("KISNA_WEBSITE_DOMAIN", "www.kisna.com")
 _SUPPORT_PHONE_RAW = (os.getenv("KISNA_SUPPORT_PHONE") or "").strip()
@@ -145,7 +146,7 @@ Plain text only — no bullet points or markdown in responses.
 Contact details (use exactly — do not invent):
 Phone: {_SUPPORT_PHONE}
 Email: {_SUPPORT_EMAIL}
-Hours: 9:00 am–6:00 pm IST Mon–Fri; 9:00 am–4:00 pm IST Sat
+Hours: {format_support_hours_text()}
 
 Approved URLs — use exactly, never guess other links:
 Store locator / showroom: {_STORE_LOCATOR_URL}

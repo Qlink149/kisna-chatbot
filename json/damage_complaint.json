@@ -13,38 +13,16 @@
               },
               {
                 "data-source": [
-                  {
-                    "id": "0_Delayed_Delivery",
-                    "title": "Delayed Delivery"
-                  },
-                  {
-                    "id": "1_Order_Cancellation",
-                    "title": "Order Cancellation"
-                  },
-                  {
-                    "id": "2_Wrong_Item_Delivered",
-                    "title": "Wrong Item Delivered"
-                  },
-                  {
-                    "id": "3_Damaged_Defective_Product",
-                    "title": "Damaged / Defective Item"
-                  },
-                  {
-                    "id": "4_Making_Charges_Dispute",
-                    "title": "Making Charges Dispute"
-                  },
-                  {
-                    "id": "5_Return_Refund_Request",
-                    "title": "Return & Refund"
-                  },
-                  {
-                    "id": "6_Modification_Request",
-                    "title": "Order Modification"
-                  },
-                  {
-                    "id": "7_Order_Tracking_Escalation",
-                    "title": "Tracking Escalation"
-                  }
+                  {"id": "0_Want_to_Buy", "title": "Want to Buy"},
+                  {"id": "1_Order_Related", "title": "Order Related"},
+                  {"id": "2_Payment_Related", "title": "Payment Related"},
+                  {"id": "3_Stores_Related", "title": "Stores Related"},
+                  {"id": "4_Returns_Related", "title": "Returns Related"},
+                  {"id": "5_Exchange_Buyback", "title": "Exchange/Buyback"},
+                  {"id": "6_Digital_Gold", "title": "Digital Gold"},
+                  {"id": "7_Kisna_Points", "title": "Kisna Points"},
+                  {"id": "8_10_Plus_1_Monthly_Plan", "title": "10+1 Monthly Plan"},
+                  {"id": "9_Other", "title": "Other"}
                 ],
                 "label": "Complaint Type",
                 "name": "Complaint_Type_522e3f",

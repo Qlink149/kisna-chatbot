@@ -9,6 +9,7 @@ from kisna_chatbot.routes.system_sub_routes import ai as ai_router
 from kisna_chatbot.routes.system_sub_routes import auth as auth_router
 from kisna_chatbot.routes.system_sub_routes import chat_history as chat_history_router
 from kisna_chatbot.routes.system_sub_routes import conversation as conversation_module
+from kisna_chatbot.routes.system_sub_routes import callbacks as callbacks_router
 from kisna_chatbot.routes.system_sub_routes import damage as damage_router
 from kisna_chatbot.routes.system_sub_routes import dashboard as dashboard_router
 from kisna_chatbot.routes.system_sub_routes import kb as kb_router
@@ -30,6 +31,8 @@ router.include_router(
 )
 
 router.include_router(damage_router.router, dependencies=[Depends(verify_token)])
+
+router.include_router(callbacks_router.router, dependencies=[Depends(verify_token)])
 
 router.include_router(kb_router.router, dependencies=[Depends(verify_api_key)])
 

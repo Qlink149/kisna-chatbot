@@ -1,22 +1,27 @@
 import json
 import time
 
+from kisna_chatbot.config.gupshup import get_callback_flow_id, get_videocall_flow_id
 from kisna_chatbot.models.enums import ListIds, QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
+from kisna_chatbot.processors.support_handler import (
+    HELP_CALLBACK_POSTBACK,
+    HELP_CALLBACK_QR_MSGID,
+    build_expert_support_bot_response,
+)
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.support_hours import format_support_hours_text
 
 _FLOW_SWITCH_PENDING_TTL = 300  # 5 minutes — FIX 13b
 
 _GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please try again?"
 
-_MENU_BODY = (
-    "You can pick an option from the menu below, or simply type what's on your mind — "
-    "whether that's \"gold earrings under ₹80,000\" or \"what's your return policy\" — I'll understand."
-)
+_MENU_BODY = ""
 
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
+_HELP_CENTER_MSGID = "help$center$list"
 _PREF_STEP1_MSGID = "pref$step1$list"
 _PREF_STEP2_MSGID = "pref$step2$list"
 _PREF_STEP3_MSGID = "pref$step3$list"
@@ -25,15 +30,16 @@ _FIND_STORE_TEXT = (
     "Share your pincode or city and I'll help you find the nearest Kisna store."
 )
 
-_WELCOME_TEXT = (
-    "✨ Namaste! Welcome to Kisna Diamond & Gold. 💎\n"
-    "I'm KIA, your personal jewellery assistant — here to help you discover the perfect piece, find answers, and make your Kisna experience truly special."
+_KIA_GREETING_BODY = (
+    "I'm KIA, your trusted jewellery assistant. Whether you're looking for the perfect piece, "
+    "exploring our latest collections, checking today's offers, tracking an order, or need support, "
+    "I'm here to make your shopping experience simple and enjoyable.\n"
+    "What would you like to do today?"
 )
 
-_WELCOME_BACK_TEXT = (
-    "✨ Namaste! Welcome back to Kisna Diamond & Gold. 💎\n"
-    "I'm KIA, your personal jewellery assistant — here to help you discover the perfect piece, find answers, and make your Kisna experience truly special."
-)
+_WELCOME_TEXT = f"💎 Welcome to Kisna!\n{_KIA_GREETING_BODY}"
+
+_WELCOME_BACK_TEXT = f"💎 Welcome back to Kisna!\n{_KIA_GREETING_BODY}"
 
 _GREETING_TOKENS = frozenset(
     {
@@ -64,7 +70,8 @@ _FAQ_TEXT = (
     "• Certification — BIS + IGI/GIA certified\n"
     "• Delivery — Free shipping, ~6 working day dispatch\n"
     "• Payment — No COD; EMI available on checkout\n"
-    "• Support — +91 80651 55600, 9am–6pm Mon–Fri / 9am–4pm Sat\n\n"
+    "• Support — +91 80651 55600, "
+    f"{format_support_hours_text().replace(' IST', '')}\n\n"
     "What would you like to know more about?"
 )
 
@@ -193,6 +200,124 @@ def build_complaint_flow_bot_response() -> dict:
     }
 
 
+def build_callback_flow_bot_response() -> dict:
+    """WhatsApp Flow payload for callback requests."""
+    return {
+        "type": "flow",
+        "flow": "callback_request",
+        "text": "Please share your details for a callback.",
+    }
+
+
+def build_video_call_flow_bot_response() -> dict:
+    """WhatsApp Flow payload for video call scheduling."""
+    return {
+        "type": "flow",
+        "flow": "video_call_request",
+        "text": "Please share your details to schedule a video call.",
+    }
+
+
+def _start_callback_text_capture(
+    user_profile: dict, request_type: str = "callback"
+) -> list[dict]:
+    user_profile["service_selected"] = SL.CALLBACK.value
+    user_profile["callback_capture_step"] = 1
+    user_profile["callback_draft"] = {"request_type": request_type}
+    from kisna_chatbot.processors.callback_agent import (
+        build_callback_text_prompt,
+        build_video_call_text_prompt,
+    )
+
+    if request_type == "video_call":
+        return [{"type": "text", "text": build_video_call_text_prompt(1)}]
+    return [{"type": "text", "text": build_callback_text_prompt(1)}]
+
+
+def _build_help_center_list() -> dict:
+    return {
+        "type": "list",
+        "list": "list",
+        "body": "How can we help you today?",
+        "footer": "Kisna",
+        "msgid": _HELP_CENTER_MSGID,
+        "globalButtons": [{"type": "text", "title": "Help Options"}],
+        "items": [
+            {
+                "title": "Help Center",
+                "subtitle": "",
+                "options": [
+                    {
+                        "type": "text",
+                        "title": "Talk to an Expert",
+                        "description": "Connect with a Kisna support expert",
+                        "postbackText": "help$expert",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Raise a Complaint",
+                        "description": "Report an issue with your order",
+                        "postbackText": "help$complaint",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Callback Request",
+                        "description": "We'll call you back",
+                        "postbackText": "help$callback",
+                    },
+                    {
+                        "type": "text",
+                        "title": "Schedule a Video Call",
+                        "description": "Book a video consultation",
+                        "postbackText": "help$videocall",
+                    },
+                ],
+            }
+        ],
+    }
+
+
+def _handle_help_center_selection(
+    postback: str, user_profile: dict, data: dict, phone_number: str
+) -> None:
+    key = (postback or "").strip().lower()
+
+    if key == "help$expert":
+        user_profile["service_selected"] = ""
+        data["bot_response"] = build_expert_support_bot_response(
+            phone_number, user_profile
+        )
+        return
+
+    if key == "help$complaint":
+        user_profile["service_selected"] = SL.COMPLAINT.value
+        data["bot_response"] = [build_complaint_flow_bot_response()]
+        return
+
+    if key == "help$callback":
+        if get_callback_flow_id():
+            user_profile["service_selected"] = SL.CALLBACK.value
+            data["bot_response"] = [build_callback_flow_bot_response()]
+        else:
+            data["bot_response"] = _start_callback_text_capture(
+                user_profile, request_type="callback"
+            )
+        return
+
+    if key == "help$videocall":
+        if get_videocall_flow_id():
+            user_profile["service_selected"] = SL.CALLBACK.value
+            data["bot_response"] = [build_video_call_flow_bot_response()]
+        else:
+            data["bot_response"] = _start_callback_text_capture(
+                user_profile, request_type="video_call"
+            )
+        return
+
+    logger.warning("Unknown help center selection", extra={"postback": postback})
+    data["bot_response"] = [_build_help_center_list()]
+
+
 def build_complaint_entry_cta_bot_response() -> dict:
     """Quick reply CTA that opens the complaint flow on click."""
     return {
@@ -218,7 +343,7 @@ def _build_main_menu_list() -> dict:
         "globalButtons": [{"type": "text", "title": "Open Menu"}],
         "items": [
             {
-                "title": "How can we help?",
+                "title": "Menu",
                 "subtitle": "",
                 "options": [
                     {
@@ -247,9 +372,9 @@ def _build_main_menu_list() -> dict:
                     },
                     {
                         "type": "text",
-                        "title": "Help / Complaint",
-                        "description": "Report an issue with your order",
-                        "postbackText": "raise_complaint",
+                        "title": "Help Center",
+                        "description": "Expert support, complaints & callbacks",
+                        "postbackText": "help_center",
                     },
                     {
                         "type": "text",
@@ -301,7 +426,8 @@ def _normalize_menu_key(title: str, postback: str) -> str:
     aliases = {
         "raise complaint": "raise_complaint",
         "raise a complaint": "raise_complaint",
-        "help / complaint": "raise_complaint",
+        "help / complaint": "help_center",
+        "help center": "help_center",
         "locate store": "find_store",
         "locate_store": "find_store",
         "find store near me": "find_store",
@@ -1019,7 +1145,9 @@ def _is_product_search_postback(postback: str) -> bool:
     return postback.startswith("search$") or postback.startswith("pref$")
 
 
-def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback: str = "") -> None:
+def _handle_menu_selection(
+    title: str, user_profile: dict, data: dict, postback: str = "", phone_number: str = ""
+) -> None:
     """Route Kisna main menu selection (legacy postbacks mapped via aliases)."""
     if _is_product_search_postback(postback):
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
@@ -1049,9 +1177,20 @@ def _handle_menu_selection(title: str, user_profile: dict, data: dict, postback:
         data["bot_response"] = build_track_order_bot_response()
         return
 
+    if key in ("help_center",):
+        user_profile["service_selected"] = ""
+        data["bot_response"] = [_build_help_center_list()]
+        return
+
     if key in ("raise_complaint", "damage_complaint", "complaint"):
-        user_profile["service_selected"] = SL.COMPLAINT.value
-        data["bot_response"] = [build_complaint_flow_bot_response()]
+        user_profile["service_selected"] = ""
+        data["bot_response"] = [_build_help_center_list()]
+        return
+
+    if key.startswith("help$"):
+        _handle_help_center_selection(
+            key, user_profile, data, phone_number or data.get("phone_number", "")
+        )
         return
 
     if key in ("faqs_help",):
@@ -1161,6 +1300,15 @@ class ServiceList(Processor):
                     data["bot_response"] = [build_complaint_flow_bot_response()]
                     return data
 
+                if btn_msgid in (HELP_CALLBACK_QR_MSGID, HELP_CALLBACK_POSTBACK):
+                    _handle_help_center_selection(
+                        HELP_CALLBACK_POSTBACK,
+                        user_profile,
+                        data,
+                        phone_number,
+                    )
+                    return data
+
                 if _is_delegated_button(btn_msgid):
                     return data
 
@@ -1189,6 +1337,19 @@ class ServiceList(Processor):
                     user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
                     return data
 
+                if list_msgid.startswith("help$") or (postback or "").startswith("help$"):
+                    if list_msgid == _HELP_CENTER_MSGID and not postback:
+                        user_profile["service_selected"] = ""
+                        data["bot_response"] = [_build_help_center_list()]
+                    else:
+                        _handle_help_center_selection(
+                            postback or list_msgid,
+                            user_profile,
+                            data,
+                            phone_number,
+                        )
+                    return data
+
                 if list_msgid == ListIds.SERVICE_LIST_ID.value or postback:
                     logger.info(
                         "User selected menu option",
@@ -1198,7 +1359,9 @@ class ServiceList(Processor):
                             "postback": postback,
                         },
                     )
-                    _handle_menu_selection(title, user_profile, data, postback)
+                    _handle_menu_selection(
+                        title, user_profile, data, postback, phone_number
+                    )
                     return data
 
             if user_profile.get("service_selected", "") == "":

@@ -27,6 +27,7 @@ from kisna_chatbot.database.db_utils import (
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.pipelines.inference_pipeline import (
     AdFlowPipeline,
+    CallbackPipeline,
     ComplaintPipeline,
     GeneralPipeline,
     InitialPipeline,
@@ -252,6 +253,7 @@ def _pipeline_for_service(service_selected: str):
         SL.PRODUCT_CHECKOUT.value: ProductCheckoutPipeline,
         SL.ORDER_TRACKING.value: OrderTrackingPipeline,
         SL.COMPLAINT.value: ComplaintPipeline,
+        SL.CALLBACK.value: CallbackPipeline,
         SL.AD_FLOW.value: AdFlowPipeline,
     }
     pipeline_cls = mapping.get(service_selected)
