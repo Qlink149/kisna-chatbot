@@ -18,7 +18,7 @@ _FLOW_SWITCH_PENDING_TTL = 300  # 5 minutes — FIX 13b
 
 _GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please try again?"
 
-_MENU_BODY = ""
+_MENU_BODY = "What would you like to do today?"
 
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
 _HELP_CENTER_MSGID = "help$center$list"

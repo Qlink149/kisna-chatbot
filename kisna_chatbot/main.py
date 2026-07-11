@@ -242,6 +242,69 @@ def verify_webhook_request(body: bytes, signature: str | None) -> bool:
     return verify_gupshup_signature(body, signature, secret)
 
 
+def _log_gupshup_delivery_failure(request_data: dict) -> bool:
+    """
+    Log async Gupshup/Meta delivery failures (message-event / failed status).
+
+    Returns True when the payload is a non-message event that should not
+    enter the inbound message pipeline.
+    """
+    event_type = request_data.get("type")
+    if event_type == "message-event" or (
+        "payload" in request_data and "entry" not in request_data
+    ):
+        payload = request_data.get("payload") or {}
+        payload_type = payload.get("type") or payload.get("status")
+        failure_detail = (
+            payload.get("payload")
+            or payload.get("error")
+            or payload.get("errors")
+            or {}
+        )
+        is_failure = str(payload_type or "").lower() in (
+            "failed",
+            "undelivered",
+            "error",
+        ) or bool(failure_detail)
+        log_fn = logger.error if is_failure else logger.info
+        log_fn(
+            "Gupshup message-event",
+            extra={
+                "event_type": event_type,
+                "payload_type": payload_type,
+                "gs_id": payload.get("id") or payload.get("gsId"),
+                "destination": payload.get("destination"),
+                "failure": failure_detail if is_failure else None,
+                "raw": sanitize_for_log(request_data),
+            },
+        )
+        return True
+    return False
+
+
+def _log_whatsapp_status_failures(whatsapp_event: dict) -> None:
+    """Log Cloud-API style status updates, emphasizing failed deliveries."""
+    for status_item in whatsapp_event.get("statuses") or []:
+        status = status_item.get("type") or status_item.get("status", "unknown")
+        errors = status_item.get("errors") or status_item.get("error")
+        is_failure = str(status).lower() in ("failed", "undelivered") or bool(
+            errors
+        )
+        log_fn = logger.error if is_failure else logger.info
+        log_fn(
+            "WhatsApp status update",
+            extra={
+                "status": status,
+                "message_id": status_item.get("id"),
+                "recipient_id": status_item.get("recipient_id"),
+                "errors": errors,
+                "raw_status": sanitize_for_log(status_item)
+                if is_failure
+                else None,
+            },
+        )
+
+
 def _pipeline_for_service(service_selected: str):
     """Return pipeline instance for service_selected value."""
     mapping = {
@@ -545,8 +608,7 @@ async def messages_kisna(
         except Exception:
             logger.exception("Failed to log raw webhook payload")
 
-    if "payload" in request_data:
-        logger.info("Payload wrapper found, ignoring")
+    if _log_gupshup_delivery_failure(request_data):
         return JSONResponse(content={"success": True}, status_code=200)
 
     try:
@@ -573,9 +635,7 @@ async def messages_kisna(
             logger.exception("Failed to log whatsapp_event payload")
 
     if "statuses" in whatsapp_event:
-        status_item = whatsapp_event["statuses"][0]
-        status = status_item.get("type") or status_item.get("status", "unknown")
-        logger.info("Ignoring status update", extra={"status": status})
+        _log_whatsapp_status_failures(whatsapp_event)
         return JSONResponse(content={"success": True}, status_code=200)
 
     if "messages" not in whatsapp_event:
