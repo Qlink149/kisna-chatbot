@@ -837,7 +837,12 @@ def get_store_visit_growth(period: str = "month", client_id: str = "kisna") -> l
 
 
 def get_dashboard_stats(client_id: str = "kisna") -> dict:
-    """Aggregate dashboard stats for a client."""
+    """Aggregate dashboard stats for a client.
+
+    Message totals come from ``chat_messages`` (full archive after migration).
+    ``users.chat_history`` is only a trimmed rolling window for the bot and must
+    not be used for dashboard message counts.
+    """
     try:
         match = {"client_id": client_id}
         pipeline = [
@@ -846,12 +851,6 @@ def get_dashboard_stats(client_id: str = "kisna") -> dict:
                 "$group": {
                     "_id": None,
                     "total_users": {"$sum": 1},
-                    "total_messages": {
-                        "$sum": {"$size": {"$ifNull": ["$chat_history", []]}}
-                    },
-                    "avg_messages_per_user": {
-                        "$avg": {"$size": {"$ifNull": ["$chat_history", []]}}
-                    },
                     "total_response_time_ms": {"$sum": "$stats.total_response_time_ms"},
                     "total_response_count": {"$sum": "$stats.response_count"},
                 }
@@ -862,15 +861,16 @@ def get_dashboard_stats(client_id: str = "kisna") -> dict:
         if result:
             row = result[0]
             total_users = row["total_users"]
-            total_messages = row["total_messages"]
-            avg_messages = round(row["avg_messages_per_user"], 2)
             count = row["total_response_count"]
             avg_ms = round(row["total_response_time_ms"] / count, 2) if count else None
         else:
             total_users = 0
-            total_messages = 0
-            avg_messages = 0.0
             avg_ms = None
+
+        total_messages = chat_messages.count_documents(match)
+        avg_messages = (
+            round(total_messages / total_users, 2) if total_users else 0.0
+        )
 
         total_store_visits = store_visits.count_documents(match)
         total_complaints_count = complaints.count_documents(match)
