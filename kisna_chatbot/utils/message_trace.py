@@ -95,16 +95,63 @@ def build_clara_query_params(
     return out
 
 
+def _product_trace_price(product: dict) -> int:
+    """Best-effort listing price for dashboard traces (never raises)."""
+    try:
+        from kisna_chatbot.utils.price_calculator import base_listing_price
+
+        return int(base_listing_price(product) or 0)
+    except Exception:
+        try:
+            price_block = product.get("price") or {}
+            raw = price_block.get("variantPrice") or price_block.get("finalPrice")
+            return int(float(str(raw).replace(",", ""))) if raw is not None else 0
+        except Exception:
+            return 0
+
+
+def summarize_top_products(
+    products: list | None,
+    *,
+    limit: int = 2,
+    max_title_len: int = 48,
+) -> str:
+    """
+    Compact top-N products for What Happened, e.g.
+    Nitara Diamond Ring ₹45,999 · Elegant Gold Band ₹52,000
+    """
+    if not products or limit <= 0:
+        return ""
+    parts: list[str] = []
+    for item in products:
+        if len(parts) >= limit:
+            break
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "Product").strip() or "Product"
+        if len(title) > max_title_len:
+            title = title[: max_title_len - 1].rstrip() + "…"
+        price = _product_trace_price(item)
+        if price > 0:
+            parts.append(f"{title} ₹{price:,}")
+        else:
+            parts.append(title)
+    return " · ".join(parts)
+
+
 def summarize_api_call(
     *,
     path: str = _PRODUCTS_PATH,
     query_params: dict[str, Any] | None = None,
     total_count: int | None = None,
     empty: bool = False,
+    products: list | None = None,
+    top_n: int = 2,
 ) -> str:
     """
     Dashboard line for a catalogue call, e.g.
-    GET /api/v1/clara/products | category=Rings minPrice=45000 … → 0 products
+    GET /api/v1/clara/products | category=Rings minPrice=45000 … → 14 products
+    · Nitara Diamond Ring ₹45,999 · Elegant Gold Band ₹52,000
     """
     param_str = format_query_params(query_params)
     base = f"GET {path} | {param_str}"
@@ -113,6 +160,9 @@ def summarize_api_call(
         base = f"{base} → {n} product{'s' if n != 1 else ''}"
     elif empty:
         base = f"{base} → 0 products"
+    top = summarize_top_products(products, limit=top_n)
+    if top:
+        base = f"{base} · {top}"
     return base
 
 

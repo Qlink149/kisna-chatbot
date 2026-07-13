@@ -2096,6 +2096,7 @@ class ProductSearchAgentV3(Processor):
 
         strategies = _build_fallback_strategies(entities)
         products: list[dict] = []
+        raw_products: list[dict] = []
         total_count = 0
         page = 1
         winning_entities = entities
@@ -2300,9 +2301,12 @@ class ProductSearchAgentV3(Processor):
                         or 0
                     )
                     status = "warn" if api_total_for_trace == 0 else "ok"
+                    # Prefer filtered page products; fall back to raw API page.
+                    top_products = products or raw_products or []
                     detail = summarize_api_call(
                         query_params=query_params,
                         total_count=api_total_for_trace,
+                        products=top_products,
                     )
                     if log_label == "full":
                         trace_step(data, "API call", detail, status=status)

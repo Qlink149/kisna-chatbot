@@ -84,6 +84,36 @@ class TestMessageTrace(unittest.TestCase):
         self.assertIn("→ 0 products", detail)
         self.assertNotIn("http", detail)
 
+    def test_summarize_api_call_includes_top_products_with_price(self):
+        detail = summarize_api_call(
+            query_params={"pageNo": 1, "category": "Rings", "searchUrl": "true"},
+            total_count=14,
+            products=[
+                {
+                    "title": "Nitara Diamond Ring",
+                    "price": {"variantPrice": 45999},
+                },
+                {
+                    "title": "Elegant Gold Band",
+                    "price": {"variantPrice": 52000},
+                },
+                {
+                    "title": "Third Should Be Omitted",
+                    "price": {"variantPrice": 1000},
+                },
+            ],
+        )
+        self.assertIn("→ 14 products", detail)
+        self.assertIn("Nitara Diamond Ring ₹45,999", detail)
+        self.assertIn("Elegant Gold Band ₹52,000", detail)
+        self.assertNotIn("Third Should Be Omitted", detail)
+
+    def test_summarize_top_products_empty(self):
+        from kisna_chatbot.utils.message_trace import summarize_top_products
+
+        self.assertEqual(summarize_top_products(None), "")
+        self.assertEqual(summarize_top_products([]), "")
+
     def test_zero_result_warn_outcome(self):
         data = {
             "request_id": "rid-zero",
