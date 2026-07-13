@@ -10,15 +10,11 @@ from kisna_chatbot.utils.logger_config import logger
 _EMPTY_OFFERS_TEXT = (
     "No active offers right now. Check back soon — we've got fresh deals coming!"
 )
-_PARTIAL_OFFERS_TEXT = (
-    "We have promotions available but none match making-charge offers right now. "
-    "Browse pieces below:"
-)
 _ERROR_TEXT = (
     "Sorry, we couldn't load offers right now. Please try again in a moment."
 )
 
-_FOOTER_LINES = (
+_MAKING_CHARGES_FOOTER = (
     "_Making charges are the craftsmanship cost added to the gold rate._\n"
     "_These offers apply to the making charges portion of your order._"
 )
@@ -27,8 +23,19 @@ _FOOTER_LINES = (
 def _is_labour_promo(promo: dict) -> bool:
     disc_on = (promo.get("discOn") or "").strip().lower()
     if not disc_on:
-        return True
+        return False
     return disc_on in ("labour", "making charges", "making charge")
+
+
+def _is_active_promo(promo: dict) -> bool:
+    if not isinstance(promo, dict):
+        return False
+    if promo.get("active") is False:
+        return False
+    status = (promo.get("status") or "").strip().lower()
+    if status and status not in ("active", "true", "1"):
+        return False
+    return True
 
 
 def _format_amount_range(promo: dict) -> str:
@@ -70,19 +77,26 @@ def _sorted_category_promos(promos: list[dict], category: str) -> list[dict]:
             p
             for p in promos
             if isinstance(p, dict)
-            and p.get("category", "").lower() == category
+            and (p.get("category") or "").lower() == category
         ],
         key=lambda p: p.get("fromAmt", 0),
     )
 
 
-def _build_offers_text(promotions: list) -> str:
-    labour_promos = [
-        p for p in promotions if isinstance(p, dict) and _is_labour_promo(p)
-    ]
+def _active_promotions(promotions: list) -> list[dict]:
+    return [p for p in promotions if _is_active_promo(p)]
 
-    diamond_promos = _sorted_category_promos(labour_promos, "diamond")
-    gold_promos = _sorted_category_promos(labour_promos, "gold")
+
+def _build_offers_text(promotions: list) -> str:
+    active = _active_promotions(promotions)
+
+    diamond_promos = _sorted_category_promos(active, "diamond")
+    gold_promos = _sorted_category_promos(active, "gold")
+    known = set(id(p) for p in diamond_promos) | set(id(p) for p in gold_promos)
+    other_promos = sorted(
+        [p for p in active if id(p) not in known],
+        key=lambda p: ((p.get("category") or ""), p.get("fromAmt", 0)),
+    )
 
     parts = ["*Current KISNA Offers* 🎁", ""]
 
@@ -106,41 +120,28 @@ def _build_offers_text(promotions: list) -> str:
         parts.extend(gold_lines)
     else:
         parts.append("• No active gold offers at the moment")
-    parts.append("")
-    parts.append(_FOOTER_LINES)
+
+    if other_promos:
+        parts.append("")
+        parts.append("*Other Offers*")
+        for p in other_promos:
+            line = _format_promo_line(p)
+            if line:
+                parts.append(line)
+
+    if any(_is_labour_promo(p) for p in active):
+        parts.append("")
+        parts.append(_MAKING_CHARGES_FOOTER)
 
     return "\n".join(parts)
 
 
-def _build_material_ctas() -> list[dict]:
-    return [
-        {
-            "type": "quickreply",
-            "text": "Want to see pieces with these offers?",
-            "caption": "",
-            "options": [{"title": "Browse Gold"}],
-            "msgid": "search$material$gold",
-        },
-        {
-            "type": "quickreply",
-            "text": "Or browse diamond pieces:",
-            "caption": "",
-            "options": [{"title": "Browse Diamond"}],
-            "msgid": "search$material$diamond",
-        },
-    ]
-
-
 def _build_bot_response(offers_text: str) -> list:
-    return [{"type": "text", "text": offers_text}, *_build_material_ctas()]
+    return [{"type": "text", "text": offers_text}]
 
 
 def _build_empty_response() -> list:
-    return [{"type": "text", "text": _EMPTY_OFFERS_TEXT}, *_build_material_ctas()]
-
-
-def _build_partial_response() -> list:
-    return [{"type": "text", "text": _PARTIAL_OFFERS_TEXT}, *_build_material_ctas()]
+    return [{"type": "text", "text": _EMPTY_OFFERS_TEXT}]
 
 
 def _clara_configured() -> bool:
@@ -151,7 +152,7 @@ def _clara_configured() -> bool:
 
 
 def _build_error_response() -> list:
-    return [{"type": "text", "text": _ERROR_TEXT}, *_build_material_ctas()]
+    return [{"type": "text", "text": _ERROR_TEXT}]
 
 
 class OffersAgent(Processor):
@@ -256,7 +257,24 @@ class OffersAgent(Processor):
                 status="warn" if not promotions else "ok",
             )
 
-            if not promotions:
+            active = _active_promotions(promotions or [])
+            logger.info(
+                "Offers active filter",
+                extra={
+                    "phone_number": phone_number,
+                    "client_id": client_id,
+                    "raw_promotion_count": len(promotions or []),
+                    "active_promotion_count": len(active),
+                },
+            )
+            try_trace(
+                data,
+                "Filter",
+                f"Active offers: {len(active)} of {len(promotions or [])}",
+                status="warn" if not active else "ok",
+            )
+
+            if not active:
                 data["bot_response"] = _build_empty_response()
                 self._clear_offers_session(data, user_profile)
                 try_trace(
@@ -271,48 +289,9 @@ class OffersAgent(Processor):
                 )
                 return data
 
-            labour_promos = [
-                p for p in promotions if isinstance(p, dict) and _is_labour_promo(p)
-            ]
-            logger.info(
-                "Offers promotion filter",
-                extra={
-                    "phone_number": phone_number,
-                    "client_id": client_id,
-                    "raw_promotion_count": len(promotions),
-                    "labour_promotion_count": len(labour_promos),
-                },
-            )
-            try_trace(
-                data,
-                "Filter",
-                f"Making-charge offers: {len(labour_promos)} of "
-                f"{len(promotions)} promotions",
-                status="warn" if not labour_promos else "ok",
-            )
-            if not labour_promos:
-                if promotions:
-                    data["bot_response"] = _build_partial_response()
-                    try_trace(
-                        data,
-                        "Result",
-                        "Promotions found but none are making-charge offers",
-                        status="warn",
-                    )
-                else:
-                    data["bot_response"] = _build_empty_response()
-                    try_trace(
-                        data,
-                        "Result",
-                        "No active promotions",
-                        status="warn",
-                    )
-                self._clear_offers_session(data, user_profile)
-                return data
-
-            diamond_n = len(_sorted_category_promos(labour_promos, "diamond"))
-            gold_n = len(_sorted_category_promos(labour_promos, "gold"))
-            offers_text = _build_offers_text(promotions)
+            diamond_n = len(_sorted_category_promos(active, "diamond"))
+            gold_n = len(_sorted_category_promos(active, "gold"))
+            offers_text = _build_offers_text(active)
             data["bot_response"] = _build_bot_response(offers_text)
             self._clear_offers_session(data, user_profile)
             try_trace(
@@ -325,8 +304,8 @@ class OffersAgent(Processor):
                 extra={
                     "phone_number": phone_number,
                     "client_id": client_id,
-                    "promotion_count": len(promotions),
-                    "labour_promotion_count": len(labour_promos),
+                    "promotion_count": len(promotions or []),
+                    "active_promotion_count": len(active),
                 },
             )
             return data

@@ -63,6 +63,8 @@ class OffersFormatTests(unittest.TestCase):
                 "toAmt": 199999,
                 "discOn": "Labour",
                 "category": "Gold",
+                "active": True,
+                "status": "active",
             },
             {
                 "discountLable": "15% off on Making Charges",
@@ -70,16 +72,49 @@ class OffersFormatTests(unittest.TestCase):
                 "toAmt": 99999,
                 "discOn": "Labour",
                 "category": "Diamond",
+                "active": True,
+                "status": "active",
+            },
+            {
+                "discountLable": "21 % off on Diamond Prices",
+                "fromAmt": 0,
+                "toAmt": 9999999,
+                "discOn": "Diamond",
+                "category": "Diamond",
+                "active": True,
+                "status": "active",
             },
         ]
         text = _build_offers_text(promos)
         self.assertIn("*Current KISNA Offers*", text)
         self.assertIn("*Gold Jewellery*", text)
         self.assertIn("*Diamond Jewellery*", text)
+        self.assertIn("21% off on Diamond Prices", text)
         diamond_pos = text.index("*Diamond Jewellery*")
         gold_pos = text.index("*Gold Jewellery*")
         self.assertLess(diamond_pos, gold_pos)
         self.assertIn("_Making charges are", text)
+
+    def test_build_offers_text_is_text_only_no_browse_ctas(self):
+        from kisna_chatbot.processors.offers_agent import _build_bot_response
+
+        text = _build_offers_text(
+            [
+                {
+                    "discountLable": "21% off on Making Charges",
+                    "fromAmt": 0,
+                    "toAmt": 999999,
+                    "discOn": "Labour",
+                    "category": "Gold",
+                    "active": True,
+                }
+            ]
+        )
+        resp = _build_bot_response(text)
+        self.assertEqual(len(resp), 1)
+        self.assertEqual(resp[0]["type"], "text")
+        self.assertNotIn("Browse Gold", str(resp))
+        self.assertNotIn("Browse Diamond", str(resp))
 
     def test_amount_range_up_to(self):
         line = _format_promo_line(
