@@ -154,8 +154,11 @@ def summarize_api_call(
     GET /api/v1/clara/products | category=Rings minPrice=45000 … → 14 products
     · Nitara Diamond Ring ₹45,999 · Elegant Gold Band ₹52,000
 
-    When Clara returns rows that fail client filters, pass matched_count so the
-    panel stays honest, e.g. → 3 products · 0 matched · Gleaming… ₹48,233
+    When Clara returns rows that fail client filters entirely, pass
+    matched_count=0 so the panel stays honest, e.g.
+    → 3 products · 0 matched · Gleaming… ₹48,233
+    Do not pass a positive matched_count against catalogue totalCount — that
+    confuses page keepers (e.g. 13 of pageSize=15) with "13 of 249".
     """
     param_str = format_query_params(query_params)
     base = f"GET {path} | {param_str}"

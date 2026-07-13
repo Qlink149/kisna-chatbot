@@ -2333,15 +2333,15 @@ class ProductSearchAgentV3(Processor):
                         or 0
                     )
                     matched_for_trace = len(products or [])
-                    raw_n = len(raw_products or [])
-                    # Only flag a mismatch when client filters dropped rows from
-                    # the Clara page (or kept none while API claimed hits). Do
-                    # not compare page keepers to catalogue totalCount.
-                    matched_arg = None
-                    if matched_for_trace == 0 and api_total_for_trace > 0:
-                        matched_arg = 0
-                    elif raw_n > 0 and matched_for_trace < raw_n:
-                        matched_arg = matched_for_trace
+                    # Only annotate when Clara returned hits but client filters
+                    # kept none (e.g. category=ring page full of earrings).
+                    # Do NOT compare page keepers to totalCount — that reads as
+                    # "13 of 249 matched" when we only fetched pageSize=15.
+                    matched_arg = (
+                        0
+                        if matched_for_trace == 0 and api_total_for_trace > 0
+                        else None
+                    )
                     status = "warn" if matched_for_trace == 0 else "ok"
                     # Prefer matched products for samples; if none matched, show
                     # raw Clara hits so the panel explains the mismatch.
