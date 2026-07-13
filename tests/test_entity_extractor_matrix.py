@@ -76,8 +76,20 @@ MATRIX = [
     ("₹50,000", {"max_price": 50000}),
     ("50,000/-", {"max_price": 50000}),
     ("1.5 lakh", {"min_price": 135000, "max_price": 165000}),
-    ("around 50000", {"min_price": 40000, "max_price": 60000}),
-    ("approximately 1 lakh", {"min_price": 80000, "max_price": 120000}),
+    ("around 50000", {"min_price": 45000, "max_price": 55000}),
+    ("approximately 1 lakh", {"min_price": 90000, "max_price": 110000}),
+    ("of price 50000", {"min_price": 45000, "max_price": 55000}),
+    ("price 50000", {"min_price": 45000, "max_price": 55000}),
+    (
+        "Show me gold rings of price 50000",
+        {
+            "category": "ring",
+            "material_type": "gold",
+            "min_price": 45000,
+            "max_price": 55000,
+            "metal_colour": None,
+        },
+    ),
     # Price — Hindi
     ("ek lakh tak", {"max_price": 100000}),
     ("das hazaar tak rings", {"category": "ring", "max_price": 10000}),

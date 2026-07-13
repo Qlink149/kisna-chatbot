@@ -154,6 +154,9 @@ Fallback for unclear or spam/gibberish:
 - Price: extract integer INR values. 50k→50000, 1.5 lakh→150000,
   das hazaar→10000, ek lakh→100000. under X→max_price=X, above X→min_price=X,
   between X and Y→min_price=X max_price=Y.
+  Single target with no under/above/range (of price X, price X, budget X,
+  around X, bare 50k) → set BOTH min_price and max_price as ±10% of X
+  (e.g. 50000 → min_price=45000, max_price=55000).
 - title: proper nouns that look like a product/collection name (Rivaah, Elysia, Maggio).
   NEVER extract question words (what/how/why), brand name (kisna), or generic words (jewellery).
 - collection: named collections (Evil Eye, Tanishta, Nishka, Rivaah).
@@ -328,6 +331,8 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
    ring/rings/anguthi → ring | earring/bali/jhumka → earring | etc.
 2. If ANY price/budget phrase appears → extract min_price and/or max_price
    as integers (INR). "above 50k" → min_price=50000. "under 50k" → max_price=50000.
+   Single target (of price / price / budget / around / bare 50k) with no
+   under/above/range → BOTH min and max as ±10% (50000 → 45000 and 55000).
 3. If material appears (gold, diamond, rose gold) → material_type MUST be set.
 4. NEVER set title to command words (show, send, me) or generic type words
    (chains, rings, gold). title is ONLY for named products/collections.
@@ -387,13 +392,17 @@ karat: extract 9KT/14KT/18KT/22KT/24KT if mentioned
   "14 carat" → 14KT, "18k" → 18KT, "22 karat" → 22KT
 
 price (ALWAYS extract when budget words present — integers in INR):
-  "under X" / "below X" / "X tak" / "upto X" → max_price=X
-  "above X" / "over X" / "more than X" / "X se zyada" → min_price=X
+  "under X" / "below X" / "X tak" / "upto X" → max_price=X only (no band)
+  "above X" / "over X" / "more than X" / "X se zyada" → min_price=X only
   "X to Y" / "X-Y" / "between X and Y" / "X se Y tak" →
-    min_price=X, max_price=Y
+    min_price=X, max_price=Y (keep as given)
+  Single target with NO under/above/range → ±10% BAND (both fields):
+    "of price X" / "price X" / "budget X" / "around X" / bare "50k" /
+    "X ka" → min_price=round(X*0.9), max_price=round(X*1.1)
+    Example: 50000 → min_price=45000, max_price=55000
   "50k" alone with under/below → max_price=50000
   "above 50k" / "over 50k" → min_price=50000
-  "50k" → 50000, "1 lakh" → 100000, "1.5 lakh" → 150000
+  Amounts: "50k" → 50000, "1 lakh" → 100000, "1.5 lakh" → 150000
   "das hazaar" → 10000, "paanch hazaar" → 5000, "50 hazaar" → 50000
   "30 hazaar" → 30000, "bees hazaar" → 20000
   "das hazaar se upar" → min_price=10000
@@ -463,6 +472,14 @@ Examples:
 "Send me diamond rings between 20000-50000" →
 {"category":"ring","material_type":"diamond",
  "min_price":20000,"max_price":50000,"title":null,...nulls}
+
+"Show me gold rings of price 50000" →
+{"category":"ring","material_type":"gold","min_price":45000,"max_price":55000,
+ "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
+ "gender":null,"occasion":null,"style":null,"action":null}
+
+"budget 50000" →
+{"min_price":45000,"max_price":55000,...all others null}
 
 "gold rings above 50k" →
 {"category":"ring","material_type":"gold","min_price":50000,"max_price":null,

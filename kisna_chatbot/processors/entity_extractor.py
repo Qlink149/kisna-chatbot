@@ -381,6 +381,26 @@ _MAX_DIRECTION_RE = re.compile(
     re.I,
 )
 
+_MIN_DIRECTION_RE = re.compile(
+    r"\b(above|over|more than|minimum|min|at\s*least|atleast|se\s*zyada|se\s*upar|ke\s*upar)\b",
+    re.I,
+)
+
+# "of price 50000" / "price 50000" / "price of 50k" → ±10% band (not hard max).
+_SINGLE_TARGET_PRICE_PATTERNS = [
+    re.compile(
+        r"(?:(?:of|at|for)\s+)?price\s*(?:of\s*|is\s*|at\s*|around\s*)?"
+        r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
+        re.I,
+    ),
+]
+
+_SINGLE_TARGET_HINT_RE = re.compile(
+    r"\b(price|budget|around|approximately|roughly)\b|"
+    r"\b\d[\d,]*(?:\.\d+)?\s*(?:k|lakh|lac|hazaar)?\s*ka\b",
+    re.I,
+)
+
 _EXPLICIT_MAX_PATTERNS = [
     re.compile(
         r"(?:under|below|upto|up to|max|maximum|within|less than|kam|se kam)\s*"
@@ -797,6 +817,7 @@ def finalize_search_entities(
                 extra={"query": query, "category": out.get("category")},
             )
     out = normalize_internal_category(out)
+    out = normalize_price_entities(query, out)
     _log_entity_merge_conflicts(
         query=query,
         regex_entities=regex_entities,
@@ -808,6 +829,52 @@ def finalize_search_entities(
     material = out.get("material_type")
     if material in _CLARA_UNSUPPORTED_MATERIALS:
         out["unsupported_material"] = True
+    return out
+
+
+def normalize_price_entities(
+    query: str | None,
+    entities: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Deterministic price gate: single-target amounts become a ±10% band.
+
+    Keeps hard under/above and explicit unequal ranges unchanged.
+    Snaps LLM exact matches (min == max) and undirected max-only targets.
+    """
+    out = dict(entities or {})
+    min_p = out.get("min_price")
+    max_p = out.get("max_price")
+    if min_p is None and max_p is None:
+        return out
+
+    text = _normalize_text(query) if query else ""
+    if text and (_MAX_DIRECTION_RE.search(text) or _MIN_DIRECTION_RE.search(text)):
+        return out
+
+    try:
+        min_f = float(min_p) if min_p is not None else None
+        max_f = float(max_p) if max_p is not None else None
+    except (TypeError, ValueError):
+        return out
+
+    target: float | None = None
+    if min_f is not None and max_f is not None:
+        if min_f == max_f:
+            target = min_f
+    elif max_f is not None and min_f is None:
+        if text and (
+            _SINGLE_TARGET_HINT_RE.search(text) or re.search(r"\d", text)
+        ):
+            target = max_f
+    elif min_f is not None and max_f is None:
+        if text and _SINGLE_TARGET_HINT_RE.search(text):
+            target = min_f
+
+    if target is not None and target > 0:
+        lo, hi = _snap_single_price_to_band(target)
+        out["min_price"] = lo
+        out["max_price"] = hi
     return out
 
 
@@ -975,7 +1042,7 @@ def _extract_around_price(text: str) -> tuple[float | None, float | None]:
             suffix = m.group(2) if m.lastindex and m.lastindex >= 2 else None
             val = _parse_amount(m.group(1), suffix)
             if val is not None and _accept_extracted_price(text, val, suffix, require_strong_hint=True):
-                return val * 0.8, val * 1.2
+                return _snap_single_price_to_band(val)
     return None, None
 
 
@@ -986,6 +1053,22 @@ def _snap_single_price_to_band(price: float) -> tuple[float, float]:
     if hi < lo:
         hi = lo
     return lo, hi
+
+
+def _extract_single_target_listed_price(text: str) -> tuple[float | None, float | None]:
+    """'of price X' / 'price X' without under/tak → ±10% band."""
+    if _MAX_DIRECTION_RE.search(text) or _MIN_DIRECTION_RE.search(text):
+        return None, None
+    for pattern in _SINGLE_TARGET_PRICE_PATTERNS:
+        m = pattern.search(text)
+        if m:
+            suffix = m.group(2) if m.lastindex and m.lastindex >= 2 else None
+            val = _parse_amount(m.group(1), suffix)
+            if val is not None and _accept_extracted_price(
+                text, val, suffix, require_strong_hint=False
+            ):
+                return _snap_single_price_to_band(val)
+    return None, None
 
 
 def _extract_single_budget_price(text: str) -> tuple[float | None, float | None]:
@@ -1104,6 +1187,9 @@ def _extract_prices(text: str) -> tuple[float | None, float | None]:
     if max_p is not None:
         return None, max_p
     min_p, max_p = _extract_single_budget_price(preprocessed)
+    if min_p is not None or max_p is not None:
+        return min_p, max_p
+    min_p, max_p = _extract_single_target_listed_price(preprocessed)
     if min_p is not None or max_p is not None:
         return min_p, max_p
     standalone_max = _extract_standalone_hindi_number_max(text)
@@ -1233,6 +1319,151 @@ _NEVER_INHERIT_FIELDS = frozenset({
     "style",
     "gender",
 })
+
+_COLOUR_EVIDENCE_RE = re.compile(
+    r"\b(yellow|white|rose|pink|rosegold|rose\s*gold|white\s*gold|yellow\s*gold)\b",
+    re.I,
+)
+
+_KARAT_EVIDENCE_RE = re.compile(
+    r"\b(?:9|14|18|22|24)\s*(?:kt|k|carat|karat)\b",
+    re.I,
+)
+
+_SIZE_EVIDENCE_RE = re.compile(
+    r"\b(?:size|sz)\s*[:=]?\s*([7-9]|1[0-9]|2[0-2])\b|"
+    r"\b([7-9]|1[0-9]|2[0-2])\s*(?:size|sz)\b",
+    re.I,
+)
+
+# Synonym evidence for LLM-only fields (must appear in the current user message).
+_OCCASION_EVIDENCE: dict[str, tuple[str, ...]] = {
+    "wedding": ("wedding", "shaadi", "shadi", "marriage", "reception", "vivah", "bridal"),
+    "engagement": ("engagement", "sagai", "roka"),
+    "anniversary": ("anniversary",),
+    "birthday": ("birthday", "janamdin", "bday"),
+    "daily_wear": ("daily wear", "daily", "everyday", "office wear", "casual", "roz pehenna", "roz"),
+    "gift": ("gift", "present", "tuhfa"),
+}
+
+_STYLE_EVIDENCE: dict[str, tuple[str, ...]] = {
+    "traditional": ("traditional", "ethnic"),
+    "modern": ("modern",),
+    "minimal": ("minimal", "simple", "sada"),
+    "heavy": ("heavy", "bold"),
+    "fashion": ("fashion",),
+    "cocktail": ("cocktail", "party"),
+    "couple_bands": ("couple band", "couple bands", "couple"),
+    "infinity": ("infinity",),
+    "hearts": ("hearts", "heart"),
+    "floral": ("floral", "flower"),
+    "adjustable": ("adjustable",),
+}
+
+_GENDER_EVIDENCE: dict[str, tuple[str, ...]] = {
+    "women": ("for her", "wife", "ladies", "women", "woman", "girlfriend"),
+    "men": ("for him", "men's", "mens", "husband", "men ", " men"),
+    "kids": ("kids", "children", "child", "baby", "for kids"),
+}
+
+
+def _text_has_any_synonym(text: str, synonyms: tuple[str, ...] | list[str]) -> bool:
+    normalized = (text or "").lower()
+    if not normalized:
+        return False
+    return any(syn in normalized for syn in synonyms if syn)
+
+
+def _occasion_evidenced(query: str, occasion: str | None) -> bool:
+    if not occasion:
+        return False
+    key = str(occasion).strip().lower()
+    synonyms = _OCCASION_EVIDENCE.get(key, (key.replace("_", " "),))
+    return _text_has_any_synonym(query, synonyms)
+
+
+def _style_evidenced(query: str, style: str | None) -> bool:
+    if not style:
+        return False
+    key = str(style).strip().lower()
+    synonyms = _STYLE_EVIDENCE.get(key, (key.replace("_", " "),))
+    return _text_has_any_synonym(query, synonyms)
+
+
+def _gender_evidenced(query: str, gender: str | None) -> bool:
+    if not gender:
+        return False
+    key = str(gender).strip().lower()
+    synonyms = _GENDER_EVIDENCE.get(key)
+    if not synonyms:
+        return False
+    normalized = (query or "").lower()
+    if key == "men":
+        # Avoid matching "women" / "recommendation" via bare "men"
+        if re.search(r"\b(for\s+him|men'?s|mens|husband)\b", normalized):
+            return True
+        if re.search(r"\bmen\b", normalized) and not re.search(r"\bwomen\b", normalized):
+            return True
+        return False
+    return _text_has_any_synonym(query, synonyms)
+
+
+def _collection_evidenced(query: str, collection: str | None) -> bool:
+    if not collection:
+        return False
+    needle = str(collection).strip().lower()
+    normalized = (query or "").lower()
+    if not needle or not normalized:
+        return False
+    if needle in normalized:
+        return True
+    for coll in _KISNA_COLLECTIONS:
+        if coll in normalized and (coll in needle or needle in coll):
+            return True
+    return False
+
+
+def apply_llm_evidence_gate(query: str, llm_entities: dict) -> dict:
+    """
+    Strip LLM-only attributes that lack evidence in the current user text.
+
+    metal_colour requires an explicit colour word (not bare 'gold').
+    material_type requires regex material match.
+    karat/size require KT/size evidence in the query.
+    occasion/style/gender/collection require synonym evidence in the query.
+    """
+    out = dict(llm_entities or {})
+    text = query or ""
+    regex_quick = extract_entities(text) if text.strip() else {}
+
+    if out.get("material_type") and not regex_quick.get("material_type"):
+        out["material_type"] = None
+
+    if out.get("metal_colour"):
+        if not (
+            regex_quick.get("metal_colour") or _COLOUR_EVIDENCE_RE.search(text)
+        ):
+            out["metal_colour"] = None
+
+    if out.get("karat") and not _KARAT_EVIDENCE_RE.search(text):
+        out["karat"] = None
+
+    if out.get("size") is not None and not _SIZE_EVIDENCE_RE.search(text):
+        out["size"] = None
+
+    if out.get("occasion") and not _occasion_evidenced(text, out.get("occasion")):
+        out["occasion"] = None
+
+    if out.get("style") and not _style_evidenced(text, out.get("style")):
+        out["style"] = None
+
+    if out.get("gender") and not _gender_evidenced(text, out.get("gender")):
+        out["gender"] = None
+
+    if out.get("collection") and not _collection_evidenced(text, out.get("collection")):
+        out["collection"] = None
+
+    return out
 
 
 def extract_category_from_product(product: dict) -> str | None:
@@ -1674,8 +1905,15 @@ _OCCASION_PREFIX_MESSAGES: dict[str, str] = {
 
 def apply_occasion_style_hints(
     entities: dict[str, Any],
+    *,
+    query: str | None = None,
 ) -> tuple[dict[str, Any], str | None]:
-    """Apply occasion/style UX hints; return enhanced entities and optional prefix."""
+    """Apply occasion/style UX hints; return enhanced entities and optional prefix.
+
+    Title injection (bridal / traditional / …) only runs when the occasion/style
+    value is evidenced in ``query`` (or query is omitted for unit tests that
+    pass already-gated entities).
+    """
     enhanced = dict(entities or {})
     occasion = enhanced.get("occasion")
     style = enhanced.get("style")
@@ -1686,6 +1924,15 @@ def apply_occasion_style_hints(
             "Occasion/style search hints",
             extra={"occasion": occasion, "style": style},
         )
+
+    # Defense in depth: never inject Clara title filters from unevidenced fields.
+    if query is not None:
+        if occasion and not _occasion_evidenced(query, occasion):
+            enhanced["occasion"] = None
+            occasion = None
+        if style and not _style_evidenced(query, style):
+            enhanced["style"] = None
+            style = None
 
     if occasion == "wedding" and not enhanced.get("title"):
         enhanced["title"] = "bridal"

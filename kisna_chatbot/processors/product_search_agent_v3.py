@@ -21,6 +21,7 @@ from kisna_chatbot.processors.service_list import (
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import (
     _NEVER_INHERIT_FIELDS,
+    apply_llm_evidence_gate,
     apply_occasion_style_hints,
     build_search_context,
     enrich_entities_for_client_filter,
@@ -895,13 +896,20 @@ def _fallback_prefix_note(
     strategy_entities: dict,
 ) -> str | None:
     if note_kind == "budget":
+        min_p = original_entities.get("min_price")
         max_p = original_entities.get("max_price")
+        if min_p is not None and max_p is not None and float(min_p) > 0:
+            mid = int(round((float(min_p) + float(max_p)) / 2))
+            return (
+                f"No pieces found around ₹{mid:,} "
+                f"(₹{int(min_p):,}–₹{int(max_p):,}) right now — "
+                f"here are our closest picks ✨"
+            )
         if max_p is not None:
             return (
                 f"No pieces found under ₹{int(max_p):,} right now — "
                 f"here are our closest picks ✨"
             )
-        min_p = original_entities.get("min_price")
         if min_p is not None:
             return (
                 f"No pieces found above ₹{int(min_p):,} right now — "
@@ -1255,8 +1263,14 @@ class ProductSearchAgentV3(Processor):
                 return data
             secondary = search_btn.rsplit("$", 1)[-1]
             last_filters = user_profile.get("last_search_filters") or _empty_entities()
+            inherited = {
+                k: v
+                for k, v in last_filters.items()
+                if k not in _NEVER_INHERIT_FIELDS and v is not None
+            }
             entities = {
-                **last_filters,
+                **_empty_entities(),
+                **inherited,
                 "category": secondary,
                 "categories": [secondary],
                 "multi_category": False,
@@ -1534,32 +1548,36 @@ class ProductSearchAgentV3(Processor):
                 elif llm_source == "classifier" and extracted_llm:
                     llm_source = "classifier+entity_llm"
 
-                # Anti-bleed guard: LLMs infer material from assistant product captions
-                # in chat history (e.g. "KISNA 18KT Gold Ring") even when the user didn't
-                # say a material word. Regex is ground truth for what the user actually typed.
-                # If regex finds no material in the current query, discard LLM's inference.
-                if llm_entities.get("material_type") or llm_entities.get("metal_colour"):
-                    regex_quick = extract_entities(query)
-                    if not regex_quick.get("material_type") and not regex_quick.get("metal_colour"):
-                        logger.debug(
-                            "entity anti-bleed: LLM material not in query — discarding",
-                            extra={
-                                "query": query,
-                                "llm_material": llm_entities.get("material_type"),
-                                "llm_colour": llm_entities.get("metal_colour"),
-                            },
-                        )
-                        llm_entities = {
-                            **llm_entities,
-                            "material_type": None,
-                            "metal_colour": None,
-                        }
+            # Per-field evidence gate: LLM may not invent colour/karat/size or
+            # material that the user did not write. Applies to classifier + entity LLM.
+            before_gate = {
+                "material_type": llm_entities.get("material_type"),
+                "metal_colour": llm_entities.get("metal_colour"),
+                "karat": llm_entities.get("karat"),
+                "size": llm_entities.get("size"),
+                "occasion": llm_entities.get("occasion"),
+                "style": llm_entities.get("style"),
+                "gender": llm_entities.get("gender"),
+                "collection": llm_entities.get("collection"),
+            }
+            llm_entities = apply_llm_evidence_gate(query, llm_entities)
+            if any(before_gate[k] != llm_entities.get(k) for k in before_gate):
+                logger.debug(
+                    "entity evidence-gate: stripped unevidenced LLM fields",
+                    extra={
+                        "query": query,
+                        "before": before_gate,
+                        "after": {k: llm_entities.get(k) for k in before_gate},
+                    },
+                )
 
-                data["llm_extracted_entities"] = llm_entities
-                user_profile["llm_extracted_entities"] = llm_entities
+            data["llm_extracted_entities"] = llm_entities
+            user_profile["llm_extracted_entities"] = llm_entities
 
         extracted = combine_search_entities(llm_entities, structured_fields)
-        extracted, occasion_prefix = apply_occasion_style_hints(extracted)
+        extracted, occasion_prefix = apply_occasion_style_hints(
+            extracted, query=query
+        )
         prior = {
             k: v
             for k, v in (user_profile.get("last_search_filters") or {}).items()

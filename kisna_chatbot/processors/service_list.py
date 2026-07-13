@@ -450,6 +450,10 @@ def _clear_explore_browse_session(user_profile: dict) -> None:
     user_profile["pref_material"] = None
     user_profile["pref_type"] = None
     user_profile.pop("pref_category", None)
+    user_profile.pop("pref_title", None)
+    user_profile.pop("preference_step", None)
+    user_profile.pop("awaiting_custom_budget", None)
+    user_profile.pop("custom_budget_attempts", None)
     user_profile.pop("pending_explore_search", None)
     # FIX 12: reset Show-More exhaustion counters so stale values don't
     # cause incorrect exhaustion on the very first Show More after a fresh browse.

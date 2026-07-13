@@ -224,6 +224,13 @@ class ClaraFixtureTests(unittest.TestCase):
         note = _fallback_prefix_note("budget", [], {"max_price": 10000.0}, {})
         self.assertIn("No pieces found under ₹10,000", note)
 
+    def test_fallback_budget_note_band_says_around(self):
+        note = _fallback_prefix_note(
+            "budget", [], {"min_price": 45000, "max_price": 55000}, {}
+        )
+        self.assertIn("around ₹50,000", note)
+        self.assertNotIn("under ₹", note)
+
     def test_pendant_set_maps_to_category_not_title(self):
         """'pendant set' must produce category=pendant set, not category=pendant&title=set."""
         entities = extract_entities("pendant sets in gold")
