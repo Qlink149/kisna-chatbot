@@ -68,7 +68,7 @@ def _format_promo_line(promo: dict) -> str | None:
         except (TypeError, ValueError):
             return None
         label = f"{disc_val}% off on {disc_on}"
-    return f"• {label} — {_format_amount_range(promo)}"
+    return f"• {label}"
 
 
 def _sorted_category_promos(promos: list[dict], category: str) -> list[dict]:

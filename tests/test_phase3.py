@@ -41,7 +41,7 @@ class OffersFormatTests(unittest.TestCase):
         self.assertIn("20% off on Making Charges", line)
         self.assertNotIn("20 %", line)
 
-    def test_promo_line_uses_discount_lable_and_range(self):
+    def test_promo_line_uses_discount_lable(self):
         line = _format_promo_line(
             {
                 "discountLable": "10% off on Making Charges",
@@ -52,8 +52,8 @@ class OffersFormatTests(unittest.TestCase):
             }
         )
         self.assertIn("Making Charges", line)
-        self.assertIn("₹100,000", line)
-        self.assertIn("₹199,999", line)
+        self.assertNotIn("₹", line)
+        self.assertNotIn("up to", line)
 
     def test_build_offers_text_sections(self):
         promos = [
@@ -116,7 +116,7 @@ class OffersFormatTests(unittest.TestCase):
         self.assertNotIn("Browse Gold", str(resp))
         self.assertNotIn("Browse Diamond", str(resp))
 
-    def test_amount_range_up_to(self):
+    def test_promo_line_omits_amount_range(self):
         line = _format_promo_line(
             {
                 "discountLable": "20% off on Making Charges",
@@ -125,7 +125,8 @@ class OffersFormatTests(unittest.TestCase):
                 "discOn": "Labour",
             }
         )
-        self.assertIn("up to ₹49,999", line)
+        self.assertEqual(line, "• 20% off on Making Charges")
+        self.assertNotIn("up to", line)
 
     def test_making_charges_disc_on_is_labour_promo(self):
         self.assertTrue(_is_labour_promo({"discOn": "Making Charges"}))
