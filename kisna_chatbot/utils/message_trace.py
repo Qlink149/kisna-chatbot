@@ -5,7 +5,14 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from kisna_chatbot.utils.logger_config import logger
+def _log_warning(msg: str, **kwargs) -> None:
+    try:
+        from kisna_chatbot.utils.logger_config import logger
+
+        logger.warning(msg, **kwargs)
+    except Exception:
+        pass
+
 
 _OUTCOMES = {
     "products_sent",
@@ -15,6 +22,16 @@ _OUTCOMES = {
     "handoff",
     "error",
     "info_sent",
+}
+
+_PRODUCTS_PATH = "/api/v1/clara/products"
+
+_FALLBACK_DROP_LABELS = {
+    "drop_price": "price filter",
+    "drop_title": "title filter",
+    "drop_material": "material filter",
+    "title_only": "category/material filters",
+    "category_only": "all filters except category",
 }
 
 
@@ -36,7 +53,67 @@ def trace_step(
             }
         )
     except Exception:
-        logger.warning("trace_step failed", exc_info=True)
+        _log_warning("trace_step failed", exc_info=True)
+
+
+def format_query_params(params: dict[str, Any] | None) -> str:
+    """Compact query params for dashboard (no base URL)."""
+    if not params:
+        return "(none)"
+    parts: list[str] = []
+    for key, value in params.items():
+        if value is None or value == "":
+            continue
+        parts.append(f"{key}={value}")
+    return " ".join(parts) if parts else "(none)"
+
+
+def build_clara_query_params(
+    api_params: dict[str, Any] | None,
+    *,
+    page_no: int = 1,
+    page_size: int | None = None,
+) -> dict[str, Any]:
+    """Map search kwargs → Clara query-string keys shown on the dashboard."""
+    raw = api_params or {}
+    out: dict[str, Any] = {
+        "pageNo": page_no,
+    }
+    if page_size is not None:
+        out["pageSize"] = page_size
+    if raw.get("category"):
+        out["category"] = raw["category"]
+    if raw.get("material_type"):
+        out["materialType"] = raw["material_type"]
+    if raw.get("min_price") is not None:
+        out["minPrice"] = raw["min_price"]
+    if raw.get("max_price") is not None:
+        out["maxPrice"] = raw["max_price"]
+    if raw.get("title"):
+        out["title"] = raw["title"]
+    out["searchUrl"] = "true"
+    return out
+
+
+def summarize_api_call(
+    *,
+    path: str = _PRODUCTS_PATH,
+    query_params: dict[str, Any] | None = None,
+    total_count: int | None = None,
+    empty: bool = False,
+) -> str:
+    """
+    Dashboard line for a catalogue call, e.g.
+    GET /api/v1/clara/products | category=Rings minPrice=45000 … → 0 products
+    """
+    param_str = format_query_params(query_params)
+    base = f"GET {path} | {param_str}"
+    if total_count is not None:
+        n = int(total_count)
+        base = f"{base} → {n} product{'s' if n != 1 else ''}"
+    elif empty:
+        base = f"{base} → 0 products"
+    return base
 
 
 def _summarize_reply(bot_response: Any) -> str:
@@ -55,8 +132,13 @@ def _summarize_reply(bot_response: Any) -> str:
         counts[t] = counts.get(t, 0) + 1
 
     parts: list[str] = []
-    if counts.get("product") or counts.get("image"):
-        n = counts.get("product") or counts.get("image") or 0
+    if counts.get("product") or counts.get("image") or counts.get("image_with_cta"):
+        n = (
+            counts.get("product")
+            or counts.get("image")
+            or counts.get("image_with_cta")
+            or 0
+        )
         parts.append(f"{n} product card{'s' if n != 1 else ''}")
     if counts.get("list"):
         parts.append("menu list")
@@ -80,15 +162,29 @@ def _derive_outcome(steps: list[dict], bot_response: Any) -> str:
         return "error"
     details = " ".join((s.get("detail") or "").lower() for s in steps)
     if "handoff" in details or "live agent" in details or "human" in " ".join(labels).lower():
-        if any("handoff" in (s.get("label") or "").lower() or "live" in (s.get("detail") or "").lower() for s in steps):
+        if any(
+            "handoff" in (s.get("label") or "").lower()
+            or "live" in (s.get("detail") or "").lower()
+            for s in steps
+        ):
             return "handoff"
-    if any(s.get("label") == "Closest-match search" for s in steps):
+    if any(s.get("label") == "Closest-match search" for s in steps) or any(
+        s.get("label") == "Search fallback" for s in steps
+    ):
         return "fallback_used"
-    if any(s.get("label") == "Searched catalogue" for s in steps):
-        searched = [s for s in steps if s.get("label") == "Searched catalogue"]
+    if any(s.get("label") == "API call" for s in steps) or any(
+        s.get("label") == "Searched catalogue" for s in steps
+    ):
+        searched = [
+            s
+            for s in steps
+            if s.get("label") in ("API call", "Searched catalogue")
+        ]
         if searched and all(s.get("status") == "warn" for s in searched):
-            # Check if products still went out via fallback
-            if any(s.get("label") == "Closest-match search" for s in steps):
+            if any(
+                s.get("label") in ("Closest-match search", "Search fallback")
+                for s in steps
+            ):
                 return "fallback_used"
             reply = _summarize_reply(bot_response).lower()
             if "product" in reply:
@@ -136,31 +232,13 @@ def summarize_filters(entities: dict | None) -> str:
 
 
 def summarize_search_params(api_params: dict | None, total_count: int | None = None) -> str:
-    if not api_params:
-        base = "Catalogue search"
-    else:
-        bits: list[str] = []
-        if api_params.get("category"):
-            bits.append(f"Category: {api_params['category']}")
-        if api_params.get("material_type") or api_params.get("materialType"):
-            bits.append(
-                f"Material: {api_params.get('material_type') or api_params.get('materialType')}"
-            )
-        min_p = api_params.get("min_price") or api_params.get("minPrice")
-        max_p = api_params.get("max_price") or api_params.get("maxPrice")
-        if min_p is not None or max_p is not None:
-            lo = int(min_p or 0)
-            hi = int(max_p) if max_p is not None else None
-            if hi is not None:
-                bits.append(f"Price: ₹{lo:,}–₹{hi:,}")
-            else:
-                bits.append(f"Price: from ₹{lo:,}")
-        if api_params.get("title"):
-            bits.append(f"Title: {api_params['title']}")
-        base = ", ".join(bits) if bits else "Catalogue search"
-    if total_count is not None:
-        base = f"{base} → {int(total_count)} product{'s' if total_count != 1 else ''} found"
-    return base
+    """Legacy helper — prefer summarize_api_call for new traces."""
+    query = build_clara_query_params(api_params or {})
+    return summarize_api_call(query_params=query, total_count=total_count)
+
+
+def fallback_drop_label(log_label: str) -> str:
+    return _FALLBACK_DROP_LABELS.get(log_label, log_label.replace("_", " "))
 
 
 def ensure_reply_step(data: dict) -> None:
@@ -173,7 +251,7 @@ def ensure_reply_step(data: dict) -> None:
             return
         trace_step(data, "Reply sent", _summarize_reply(data.get("bot_response")))
     except Exception:
-        logger.warning("ensure_reply_step failed", exc_info=True)
+        _log_warning("ensure_reply_step failed", exc_info=True)
 
 
 def persist_message_trace(data: dict) -> None:
@@ -226,7 +304,7 @@ def persist_message_trace(data: dict) -> None:
             upsert=True,
         )
     except Exception:
-        logger.warning("persist_message_trace failed", exc_info=True)
+        _log_warning("persist_message_trace failed", exc_info=True)
 
 
 def ensure_message_traces_ttl_index() -> None:
@@ -240,7 +318,7 @@ def ensure_message_traces_ttl_index() -> None:
             name="message_traces_ttl_30d",
         )
     except Exception:
-        logger.warning("Failed to ensure message_traces TTL index", exc_info=True)
+        _log_warning("Failed to ensure message_traces TTL index", exc_info=True)
 
 
 def get_message_trace(request_id: str, client_id: str = "kisna") -> dict | None:
@@ -253,5 +331,5 @@ def get_message_trace(request_id: str, client_id: str = "kisna") -> dict | None:
         )
         return doc
     except Exception:
-        logger.warning("get_message_trace failed", exc_info=True)
+        _log_warning("get_message_trace failed", exc_info=True)
         return None

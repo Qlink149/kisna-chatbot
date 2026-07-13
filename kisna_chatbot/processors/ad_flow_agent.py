@@ -261,12 +261,7 @@ class AdFlowAgent(Processor):
         except Exception:
             if not use_cache_fallback:
                 raise
-            logger.warning(
-                f"Store lookup fallback | live API failed → using cache | "
-                f"pincode={pincode or '-'} city={city or '-'}",
-                exc_info=True,
-                extra={"pincode": pincode, "city": city},
-            )
+            logger.warning("Live store lookup failed; trying cache", exc_info=True)
 
         if use_cache_fallback and app_state is not None:
             cached = await get_cached_stores(app_state)

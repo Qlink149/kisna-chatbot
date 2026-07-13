@@ -9,7 +9,9 @@ os.environ.setdefault("GROQ_API_KEY", "test")
 
 from kisna_chatbot.utils.message_trace import (  # noqa: E402
     persist_message_trace,
+    summarize_api_call,
     summarize_filters,
+    summarize_search_params,
     trace_step,
 )
 
@@ -40,7 +42,10 @@ class TestMessageTrace(unittest.TestCase):
         trace_step(
             data,
             "Searched catalogue",
-            "Category: Earrings, Material: Gold, Price: ₹0–₹10,000 → 14 products found",
+            summarize_search_params(
+                {"category": "Earrings", "material_type": "Gold", "max_price": 10000},
+                14,
+            ),
         )
         trace_step(data, "Reply sent", "3 product cards + buttons")
 
@@ -56,6 +61,28 @@ class TestMessageTrace(unittest.TestCase):
             ],
         )
         self.assertIn("Earring", data["_trace_steps"][2]["detail"])
+        api_detail = data["_trace_steps"][3]["detail"]
+        self.assertIn("GET /api/v1/clara/products", api_detail)
+        self.assertIn("category=", api_detail)
+        self.assertNotIn("https://", api_detail)
+
+    def test_summarize_api_call_has_params_no_host(self):
+        detail = summarize_api_call(
+            query_params={
+                "pageNo": 1,
+                "pageSize": 50,
+                "category": "Rings",
+                "materialType": "Gold",
+                "minPrice": 50000,
+                "maxPrice": 50000,
+                "searchUrl": "true",
+            },
+            total_count=0,
+        )
+        self.assertTrue(detail.startswith("GET /api/v1/clara/products |"))
+        self.assertIn("minPrice=50000", detail)
+        self.assertIn("→ 0 products", detail)
+        self.assertNotIn("http", detail)
 
     def test_zero_result_warn_outcome(self):
         data = {
