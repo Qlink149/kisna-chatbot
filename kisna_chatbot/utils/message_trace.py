@@ -125,34 +125,69 @@ def _summarize_reply(bot_response: Any) -> str:
         return "Reply sent"
 
     counts: dict[str, int] = {}
+    text_preview = ""
     for item in bot_response:
         if not isinstance(item, dict):
             continue
-        t = item.get("type") or "text"
+        t = (item.get("type") or "text").lower().replace("_", "")
+        # Normalize quick_reply / quickreply / QuickReply
+        if t in ("quickreply", "quick_reply"):
+            t = "quickreply"
         counts[t] = counts.get(t, 0) + 1
+        if not text_preview and t == "text":
+            raw = (item.get("text") or "").strip()
+            if raw:
+                # First meaningful line without markdown stars
+                first = next(
+                    (
+                        ln.strip().strip("*").strip()
+                        for ln in raw.splitlines()
+                        if ln.strip()
+                    ),
+                    "",
+                )
+                text_preview = first[:80]
 
     parts: list[str] = []
-    if counts.get("product") or counts.get("image") or counts.get("image_with_cta"):
+    if counts.get("product") or counts.get("image") or counts.get("imagewithcta"):
         n = (
             counts.get("product")
             or counts.get("image")
-            or counts.get("image_with_cta")
+            or counts.get("imagewithcta")
             or 0
         )
         parts.append(f"{n} product card{'s' if n != 1 else ''}")
     if counts.get("list"):
         parts.append("menu list")
-    if counts.get("button") or counts.get("quick_reply"):
+    if counts.get("button") or counts.get("quickreply"):
         parts.append("buttons")
-    if counts.get("cta_url"):
+    if counts.get("ctaurl"):
         parts.append("link button")
-    if counts.get("text") and not parts:
-        parts.append("text reply")
-    elif counts.get("text") and parts:
-        parts.append("text")
     if counts.get("flow"):
         parts.append("WhatsApp form")
+    if counts.get("text"):
+        if text_preview and not parts:
+            parts.append(f"text — {text_preview}")
+        elif text_preview and parts:
+            parts.insert(0, f"text — {text_preview}")
+        elif not parts:
+            parts.append("text reply")
+        else:
+            parts.append("text")
     return " + ".join(parts) if parts else "Reply sent"
+
+
+def try_trace(
+    data: dict | None,
+    label: str,
+    detail: str,
+    status: str = "ok",
+) -> None:
+    """Safe wrapper used by agents (no-op if data is missing)."""
+    if not isinstance(data, dict):
+        return
+    trace_step(data, label, detail, status=status)
+
 
 
 def _derive_outcome(steps: list[dict], bot_response: Any) -> str:

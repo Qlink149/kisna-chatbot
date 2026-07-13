@@ -195,15 +195,24 @@ class OffersAgent(Processor):
             )
             return data
 
+        from kisna_chatbot.utils.message_trace import try_trace
+
         try:
             logger.info(
                 "Offers requested",
                 extra={"phone_number": phone_number, "client_id": client_id},
             )
+            try_trace(data, "Action", "Loading promotions")
 
             if not _clara_configured():
                 data["bot_response"] = _build_error_response()
                 self._clear_offers_session(data, user_profile)
+                try_trace(
+                    data,
+                    "API call",
+                    "GET /api/v1/clara/promotions — Clara not configured",
+                    status="error",
+                )
                 logger.warning(
                     "Offers requested but Clara API is not configured",
                     extra={"phone_number": phone_number, "client_id": client_id},
@@ -211,22 +220,51 @@ class OffersAgent(Processor):
                 return data
 
             promotions = await get_cached_promotions(app_state)
+            source = "cache"
 
             if not promotions:
                 try:
                     promotions = await get_promotions() or []
+                    source = "live"
                 except ClaraAPIError:
                     data["bot_response"] = _build_error_response()
                     self._clear_offers_session(data, user_profile)
+                    try_trace(
+                        data,
+                        "API call",
+                        "GET /api/v1/clara/promotions → failed",
+                        status="error",
+                    )
                     return data
                 except Exception:
                     data["bot_response"] = _build_error_response()
                     self._clear_offers_session(data, user_profile)
+                    try_trace(
+                        data,
+                        "API call",
+                        "GET /api/v1/clara/promotions → failed",
+                        status="error",
+                    )
                     return data
+
+            try_trace(
+                data,
+                "API call",
+                f"GET /api/v1/clara/promotions ({source}) → "
+                f"{len(promotions or [])} promotion"
+                f"{'s' if len(promotions or []) != 1 else ''}",
+                status="warn" if not promotions else "ok",
+            )
 
             if not promotions:
                 data["bot_response"] = _build_empty_response()
                 self._clear_offers_session(data, user_profile)
+                try_trace(
+                    data,
+                    "Result",
+                    "No active promotions",
+                    status="warn",
+                )
                 logger.info(
                     "No active promotions returned",
                     extra={"phone_number": phone_number, "client_id": client_id},
@@ -245,17 +283,43 @@ class OffersAgent(Processor):
                     "labour_promotion_count": len(labour_promos),
                 },
             )
+            try_trace(
+                data,
+                "Filter",
+                f"Making-charge offers: {len(labour_promos)} of "
+                f"{len(promotions)} promotions",
+                status="warn" if not labour_promos else "ok",
+            )
             if not labour_promos:
                 if promotions:
                     data["bot_response"] = _build_partial_response()
+                    try_trace(
+                        data,
+                        "Result",
+                        "Promotions found but none are making-charge offers",
+                        status="warn",
+                    )
                 else:
                     data["bot_response"] = _build_empty_response()
+                    try_trace(
+                        data,
+                        "Result",
+                        "No active promotions",
+                        status="warn",
+                    )
                 self._clear_offers_session(data, user_profile)
                 return data
 
+            diamond_n = len(_sorted_category_promos(labour_promos, "diamond"))
+            gold_n = len(_sorted_category_promos(labour_promos, "gold"))
             offers_text = _build_offers_text(promotions)
             data["bot_response"] = _build_bot_response(offers_text)
             self._clear_offers_session(data, user_profile)
+            try_trace(
+                data,
+                "Result",
+                f"Sent offers — diamond {diamond_n}, gold {gold_n}",
+            )
             logger.info(
                 "Offers loaded successfully",
                 extra={
@@ -274,4 +338,10 @@ class OffersAgent(Processor):
             )
             data["bot_response"] = _build_error_response()
             self._clear_offers_session(data, user_profile)
+            try:
+                from kisna_chatbot.utils.message_trace import try_trace as _try
+
+                _try(data, "Result", "Offers failed — error reply sent", status="error")
+            except Exception:
+                pass
             return data

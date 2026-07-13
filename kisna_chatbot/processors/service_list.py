@@ -1149,8 +1149,11 @@ def _handle_menu_selection(
     title: str, user_profile: dict, data: dict, postback: str = "", phone_number: str = ""
 ) -> None:
     """Route Kisna main menu selection (legacy postbacks mapped via aliases)."""
+    from kisna_chatbot.utils.message_trace import try_trace
+
     if _is_product_search_postback(postback):
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        try_trace(data, "Understood as", "Product search (menu)")
         return
 
     key = _normalize_menu_key(title, postback)
@@ -1159,35 +1162,47 @@ def _handle_menu_selection(
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
         _clear_explore_browse_session(user_profile)
         data["bot_response"] = [_build_explore_products_list()]
+        try_trace(data, "Understood as", "Explore products menu")
+        try_trace(data, "Action", "Sent category browse list")
         return
 
     if key in ("view_offers",):
         user_profile["service_selected"] = SL.OFFERS.value
         data["classified_category"] = "offers"
+        try_trace(data, "Understood as", "Offers (menu selection)")
         return
 
     if key in ("find_store", "store_info"):
         user_profile["service_selected"] = SL.AD_FLOW.value
         user_profile["awaiting_store_pincode"] = True
         data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
+        try_trace(data, "Understood as", "Store locator (menu)")
+        try_trace(data, "Action", "Asked for pincode / city")
         return
 
     if key in ("track_order",):
         user_profile["service_selected"] = SL.ORDER_TRACKING.value
         data["bot_response"] = build_track_order_bot_response()
+        try_trace(data, "Understood as", "Order tracking (menu)")
+        try_trace(data, "Action", "Sent order tracking link / prompt")
         return
 
     if key in ("help_center",):
         user_profile["service_selected"] = ""
         data["bot_response"] = [_build_help_center_list()]
+        try_trace(data, "Understood as", "Help Center (menu)")
+        try_trace(data, "Action", "Sent Help Center options list")
         return
 
     if key in ("raise_complaint", "damage_complaint", "complaint"):
         user_profile["service_selected"] = ""
         data["bot_response"] = [_build_help_center_list()]
+        try_trace(data, "Understood as", "Complaint / help (menu)")
+        try_trace(data, "Action", "Sent Help Center options list")
         return
 
     if key.startswith("help$"):
+        try_trace(data, "Understood as", f"Help Center option ({key})")
         _handle_help_center_selection(
             key, user_profile, data, phone_number or data.get("phone_number", "")
         )
@@ -1196,11 +1211,18 @@ def _handle_menu_selection(
     if key in ("faqs_help",):
         user_profile["service_selected"] = SL.GENERAL.value
         data["bot_response"] = [{"type": "text", "text": _FAQ_TEXT}]
+        try_trace(data, "Understood as", "FAQs (menu)")
         return
 
     logger.warning(
         "Unknown service list selection",
         extra={"title": title, "postback": postback, "key": key},
+    )
+    try_trace(
+        data,
+        "Understood as",
+        f"Unknown menu option ({title or postback})",
+        status="warn",
     )
     data["bot_response"] = [
         {

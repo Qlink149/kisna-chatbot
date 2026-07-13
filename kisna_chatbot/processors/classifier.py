@@ -731,10 +731,37 @@ def _handle_human_handoff(data: dict, user_profile: dict, phone_number: str) -> 
 
 async def _finalize_classifier_response(data: dict) -> None:
     if data.get("_fetch_gold_rate"):
+        from kisna_chatbot.utils.message_trace import try_trace
+
+        try_trace(data, "Action", "Fetching live gold rates")
         data["bot_response"] = await build_gold_rate_bot_response(
             data.get("app_state")
         )
         data.pop("_fetch_gold_rate", None)
+        text = ""
+        if data.get("bot_response"):
+            first = data["bot_response"][0] if data["bot_response"] else {}
+            text = (first.get("text") or "") if isinstance(first, dict) else ""
+        if "couldn't fetch" in text.lower():
+            try_trace(
+                data,
+                "API call",
+                "GET /api/v1/clara/rates → failed / empty",
+                status="warn",
+            )
+        else:
+            # Count karat lines like "• *24KT*"
+            karat_lines = [
+                ln
+                for ln in text.splitlines()
+                if ln.strip().startswith("•") and "KT" in ln.upper()
+            ]
+            try_trace(
+                data,
+                "API call",
+                f"GET /api/v1/clara/rates → {len(karat_lines) or 'rates'} shown",
+            )
+            try_trace(data, "Result", "Sent gold rate message")
 
 
 def _route_resolved_intent(
