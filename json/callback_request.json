@@ -1,8 +1,36 @@
 {
   "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "CALLBACK_REQUEST": []
+  },
   "screens": [
     {
-      "data": {},
+      "data": {
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-07-13"
+        },
+        "time_slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "title": {"type": "string"}
+            }
+          },
+          "__example__": [
+            {"id": "14-15", "title": "Afternoon — 2 PM–3 PM"},
+            {"id": "15-16", "title": "Afternoon — 3 PM–4 PM"},
+            {"id": "16-17", "title": "Afternoon — 4 PM–5 PM"}
+          ]
+        },
+        "slot_error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
       "id": "CALLBACK_REQUEST",
       "terminal": true,
       "title": "Callback Request",
@@ -38,14 +66,31 @@
                 ]
               },
               {
+                "type": "DatePicker",
+                "name": "preferred_date",
+                "label": "Preferred Date",
+                "required": true,
+                "min-date": "${data.min_date}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "preferred_date": "${form.preferred_date}",
+                    "trigger": "date_selected",
+                    "mobile": "${form.mobile}",
+                    "reason": "${form.reason}"
+                  }
+                }
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.slot_error}"
+              },
+              {
                 "type": "Dropdown",
                 "label": "Preferred Time",
                 "name": "preferred_time",
                 "required": true,
-                "data-source": [
-                  {"id": "morning", "title": "Morning (10 AM–1 PM)"},
-                  {"id": "afternoon", "title": "Afternoon (1 PM–5 PM)"}
-                ]
+                "data-source": "${data.time_slots}"
               },
               {
                 "type": "Footer",
@@ -55,6 +100,7 @@
                   "payload": {
                     "mobile": "${form.mobile}",
                     "reason": "${form.reason}",
+                    "preferred_date": "${form.preferred_date}",
                     "preferred_time": "${form.preferred_time}",
                     "request_type": "callback"
                   }

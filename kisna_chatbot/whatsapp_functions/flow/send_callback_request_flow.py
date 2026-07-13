@@ -1,8 +1,11 @@
 import httpx
+from datetime import datetime, timedelta, timezone
 
 from kisna_chatbot.config.gupshup import get_callback_flow_id
 from kisna_chatbot.utils.env_load import gupshup_app_id, gupshup_token
 from kisna_chatbot.utils.logger_config import logger
+
+_IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def send_callback_request_flow(phone_number: str):
@@ -15,9 +18,10 @@ def send_callback_request_flow(phone_number: str):
         )
         return None
 
+    min_date = datetime.now(_IST).date().isoformat()
     logger.info(
         "Sending callback request flow",
-        extra={"phone_number": phone_number},
+        extra={"phone_number": phone_number, "min_date": min_date},
     )
     url = f"https://partner.gupshup.io/partner/app/{gupshup_app_id}/v3/message"
     headers = {
@@ -40,8 +44,12 @@ def send_callback_request_flow(phone_number: str):
                     "flow_token": flow_id,
                     "flow_id": flow_id,
                     "flow_message_version": "3",
-                    "flow_action": "navigate",
+                    "flow_action": "data_exchange",
                     "flow_cta": "Request Callback",
+                    "flow_action_payload": {
+                        "screen": "CALLBACK_REQUEST",
+                        "data": {"min_date": min_date},
+                    },
                 },
             },
         },

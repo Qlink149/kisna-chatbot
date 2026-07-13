@@ -749,6 +749,34 @@ def _route_resolved_intent(
     """Route a resolved intent; return True when processing should stop."""
     data["classified_category"] = intent
     data["classifier_confidence"] = confidence
+    try:
+        from kisna_chatbot.utils.message_trace import trace_step
+
+        _INTENT_LABELS = {
+            "product_search": "Product search",
+            "store_info": "Store lookup",
+            "offers": "Offers",
+            "order_tracking": "Order tracking",
+            "returns_refund": "Returns & refunds",
+            "complaint": "Complaint",
+            "greeting": "Greeting",
+            "menu_help": "Main menu",
+            "human_handoff": "Live agent handoff",
+            "gold_rate": "Gold rate",
+            "general": "FAQ / general",
+        }
+        label = _INTENT_LABELS.get(intent, intent.replace("_", " ").title())
+        status = "warn" if confidence < 0.45 else "ok"
+        trace_step(
+            data,
+            "Understood as",
+            f"{label} ({confidence:.0%} confidence)",
+            status=status,
+        )
+        if intent == "human_handoff":
+            data["_trace_outcome"] = "handoff"
+    except Exception:
+        pass
 
     if intent == "greeting":
         user_profile["service_selected"] = ""

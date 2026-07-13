@@ -20,8 +20,9 @@ python-dotenv==1.0.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
-# Auth (JWT for /system routes)
+# Auth (JWT for /system routes) — also pulls cryptography for Flow endpoint crypto
 python-jose[cryptography]==3.3.0
+cryptography>=41.0.0
 
 # Knowledge base file parsing
 pypdf==4.2.0

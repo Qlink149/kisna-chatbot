@@ -168,9 +168,9 @@ class CustomBudgetContextIsolationTests(unittest.TestCase):
             ents = captured.get("entities", {})
             self.assertIsNone(ents.get("title"), "title must not bleed from prior session")
             self.assertEqual(ents.get("category"), "ring", "pref_category should be used")
-            # _parse_custom_budget_text("25000") brackets into a range (e.g. 20000-30000);
-            # assert a budget was set (not None) rather than the exact value.
-            self.assertIsNotNone(ents.get("max_price"), "max_price must be set from budget input")
+            # _parse_custom_budget_text("25000") → ±10% band (22500–27500)
+            self.assertEqual(ents.get("min_price"), 22500)
+            self.assertEqual(ents.get("max_price"), 27500)
         asyncio.run(_run())
 
     def test_three_failures_resets_flag_and_falls_back(self):

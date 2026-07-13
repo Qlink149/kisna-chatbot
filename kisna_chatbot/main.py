@@ -134,6 +134,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to create processed_inbound_messages indexes")
 
+    try:
+        from kisna_chatbot.database.collections import chat_messages
+        from kisna_chatbot.utils.message_trace import ensure_message_traces_ttl_index
+
+        chat_messages.create_index(
+            [("client_id", ASCENDING), ("phone", ASCENDING), ("ts", ASCENDING)],
+            name="chat_messages_client_phone_ts",
+        )
+        ensure_message_traces_ttl_index()
+    except Exception:
+        logger.exception("Failed to create chat_messages / message_traces indexes")
+
     from kisna_chatbot.database.database import ping_database
 
     try:
@@ -166,6 +178,10 @@ app.add_middleware(
 app.add_middleware(LoggingMiddleware)
 
 app.include_router(system_router.router)
+
+from kisna_chatbot.routes import whatsapp_flows as whatsapp_flows_router
+
+app.include_router(whatsapp_flows_router.router)
 
 
 @app.exception_handler(HTTPException)
@@ -327,6 +343,12 @@ async def _persist_session(
     data: dict, phone_number: str, pipeline_start: float
 ) -> None:
     client_id = data.get("client_id", DEFAULT_CLIENT_ID)
+    try:
+        from kisna_chatbot.utils.message_trace import persist_message_trace
+
+        persist_message_trace(data)
+    except Exception:
+        logger.warning("message trace persist skipped", exc_info=True)
     save_to_mongo(data=data)
     save_response_time(
         phone_number,
@@ -449,7 +471,26 @@ async def process_message(
                 "client_id": client_id,
                 "client_config": client_config,
                 "app_state": app_state,
+                "request_id": request_id,
             }
+            try:
+                from kisna_chatbot.utils.message_trace import trace_step
+
+                preview = ""
+                if messages.get("type") == "text":
+                    preview = (messages.get("text") or {}).get("body") or ""
+                elif messages.get("type") == "interactive":
+                    interactive = messages.get("interactive") or {}
+                    preview = (
+                        (interactive.get("button_reply") or {}).get("title")
+                        or (interactive.get("list_reply") or {}).get("title")
+                        or "Button / form"
+                    )
+                else:
+                    preview = messages.get("type") or "message"
+                trace_step(data, "Message received", preview)
+            except Exception:
+                pass
             logger.info(
                 "Data object to pipeline",
                 extra={"phone_number": phone_number, "client_id": client_id},

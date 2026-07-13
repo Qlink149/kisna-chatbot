@@ -6,6 +6,7 @@ from pymongo import ReturnDocument
 
 from kisna_chatbot.database.collections import (
     callback_requests,
+    chat_messages,
     complaints,
     ratings,
     store_visits,
@@ -19,6 +20,123 @@ MAX_CHAT_HISTORY = int(os.getenv("CHAT_HISTORY_MAX_LENGTH", "50"))
 
 def _user_filter(phone_number: str, client_id: str) -> dict:
     return {"phone_number": phone_number, "client_id": client_id}
+
+
+def _insert_chat_message(
+    *,
+    phone: str,
+    client_id: str,
+    role: str,
+    content: str,
+    ts: int | None,
+    request_id: str | None = None,
+    msg_type: str | None = None,
+    migrated: bool = False,
+) -> None:
+    """Dual-write a single message into chat_messages (fire-and-forget safe)."""
+    try:
+        doc = {
+            "phone": phone,
+            "client_id": client_id,
+            "role": role,
+            "content": content,
+            "ts": int(ts) if ts is not None else int(time.time()),
+        }
+        if request_id:
+            doc["request_id"] = request_id
+        if msg_type:
+            doc["type"] = msg_type
+        if migrated:
+            doc["migrated"] = True
+        chat_messages.insert_one(doc)
+    except Exception:
+        logger.warning(
+            "chat_messages dual-write failed",
+            extra={"phone": phone, "client_id": client_id, "role": role},
+            exc_info=True,
+        )
+
+
+def dual_write_chat_entries(
+    phone: str,
+    client_id: str,
+    entries: list[dict],
+) -> None:
+    for entry in entries or []:
+        _insert_chat_message(
+            phone=phone,
+            client_id=client_id,
+            role=entry.get("role", "user"),
+            content=entry.get("content", ""),
+            ts=entry.get("timestamp") or entry.get("ts"),
+            request_id=entry.get("request_id"),
+            msg_type=entry.get("type"),
+        )
+
+
+def get_paginated_chat_messages(
+    phone: str,
+    client_id: str = "kisna",
+    *,
+    before: int | None = None,
+    before_id: str | None = None,
+    limit: int = 50,
+) -> dict:
+    """
+    Return up to `limit` messages immediately before the cursor.
+    Messages are returned oldest→newest for display; has_more indicates older pages.
+    """
+    limit = max(1, min(int(limit or 50), 100))
+    query: dict = {"phone": phone, "client_id": client_id}
+    if before is not None:
+        try:
+            before_ts = int(before)
+        except (TypeError, ValueError):
+            before_ts = None
+        if before_ts is not None:
+            if before_id:
+                from bson import ObjectId
+
+                try:
+                    oid = ObjectId(before_id)
+                    query["$or"] = [
+                        {"ts": {"$lt": before_ts}},
+                        {"ts": before_ts, "_id": {"$lt": oid}},
+                    ]
+                except Exception:
+                    query["ts"] = {"$lt": before_ts}
+            else:
+                query["ts"] = {"$lt": before_ts}
+
+    cursor = (
+        chat_messages.find(query)
+        .sort([("ts", -1), ("_id", -1)])
+        .limit(limit + 1)
+    )
+    rows = list(cursor)
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    rows.reverse()  # oldest → newest for UI
+
+    messages = []
+    for row in rows:
+        messages.append(
+            {
+                "role": row.get("role"),
+                "content": row.get("content"),
+                "timestamp": row.get("ts"),
+                "request_id": row.get("request_id"),
+                "type": row.get("type"),
+                "_id": str(row.get("_id")) if row.get("_id") is not None else None,
+            }
+        )
+
+    return {
+        "phone_number": phone,
+        "messages": messages,
+        "has_more": has_more,
+        "limit": limit,
+    }
 
 
 def save_to_mongo(data: dict) -> dict | None:
@@ -35,8 +153,12 @@ def save_to_mongo(data: dict) -> dict | None:
         user_profile_data = data["user_profile"]
 
         new_chat = format_chat_history(
-            user=messages, assistant=assistant, phone_number=phone_number
+            user=messages,
+            assistant=assistant,
+            phone_number=phone_number,
+            request_id=data.get("request_id"),
         )
+        dual_write_chat_entries(phone_number, client_id, new_chat)
         current_history = user_profile_data.get("chat_history", [])
         combined_history = current_history + new_chat
         if len(combined_history) > MAX_CHAT_HISTORY:
@@ -76,23 +198,27 @@ def save_to_mongo(data: dict) -> dict | None:
 
 
 def save_user_message_silent(
-    phone_number: str, text: str, client_id: str = "kisna"
+    phone_number: str,
+    text: str,
+    client_id: str = "kisna",
+    request_id: str | None = None,
 ) -> None:
     """Append user message to chat_history without bot response (human takeover)."""
     try:
         now = int(time.time())
+        entry = {
+            "role": "user",
+            "content": text,
+            "timestamp": now,
+        }
+        if request_id:
+            entry["request_id"] = request_id
         users.update_one(
             _user_filter(phone_number, client_id),
             {
                 "$push": {
                     "chat_history": {
-                        "$each": [
-                            {
-                                "role": "user",
-                                "content": text,
-                                "timestamp": now,
-                            }
-                        ],
+                        "$each": [entry],
                         "$slice": -MAX_CHAT_HISTORY,
                     }
                 },
@@ -100,6 +226,7 @@ def save_user_message_silent(
             },
             upsert=True,
         )
+        dual_write_chat_entries(phone_number, client_id, [entry])
         logger.info(
             "Silent user message saved",
             extra={"phone_number": phone_number, "client_id": client_id},
@@ -439,29 +566,34 @@ def resolve_live_agent(phone_number: str, client_id: str = "kisna") -> None:
 
 
 def save_agent_message(
-    phone_number: str, message: str, client_id: str = "kisna"
+    phone_number: str,
+    message: str,
+    client_id: str = "kisna",
+    request_id: str | None = None,
 ) -> None:
     """Append an agent message to chat_history."""
     try:
         now = int(time.time())
+        entry = {
+            "role": "assistant",
+            "content": message,
+            "timestamp": now,
+        }
+        if request_id:
+            entry["request_id"] = request_id
         users.update_one(
             _user_filter(phone_number, client_id),
             {
                 "$push": {
                     "chat_history": {
-                        "$each": [
-                            {
-                                "role": "assistant",
-                                "content": message,
-                                "timestamp": now,
-                            }
-                        ],
+                        "$each": [entry],
                         "$slice": -MAX_CHAT_HISTORY,
                     }
                 },
                 "$set": {"updated_at": now},
             },
         )
+        dual_write_chat_entries(phone_number, client_id, [entry])
         logger.info(
             "Agent message saved",
             extra={"phone_number": phone_number, "client_id": client_id},
@@ -541,7 +673,13 @@ def get_all_callback_requests(
         skip = (page - 1) * limit
         cursor = (
             callback_requests.find(query, {"_id": 0})
-            .sort("created_at", -1)
+            .sort(
+                [
+                    ("preferred_date", 1),
+                    ("preferred_time_order", 1),
+                    ("created_at", -1),
+                ]
+            )
             .skip(skip)
             .limit(limit)
         )

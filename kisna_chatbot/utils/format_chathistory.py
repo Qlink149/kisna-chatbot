@@ -137,24 +137,26 @@ def format_user(user_message, phone_number):
         raise
 
 
-def format_chat_history(user, assistant, phone_number):
+def format_chat_history(user, assistant, phone_number, request_id: str | None = None):
     """Format chat history as user/assistant message pairs."""
     try:
         now = int(time.time())
-        return [
-            {
-                "role": "user",
-                "content": format_user(user_message=user, phone_number=phone_number),
-                "timestamp": now,
-            },
-            {
-                "role": "assistant",
-                "content": format_assistant(
-                    assistant_message=assistant, phone_number=phone_number
-                ),
-                "timestamp": now,
-            },
-        ]
+        user_entry = {
+            "role": "user",
+            "content": format_user(user_message=user, phone_number=phone_number),
+            "timestamp": now,
+        }
+        assistant_entry = {
+            "role": "assistant",
+            "content": format_assistant(
+                assistant_message=assistant, phone_number=phone_number
+            ),
+            "timestamp": now,
+        }
+        if request_id:
+            user_entry["request_id"] = request_id
+            assistant_entry["request_id"] = request_id
+        return [user_entry, assistant_entry]
     except Exception as e:
         logger.exception(
             "formatting chat history failed",

@@ -375,18 +375,20 @@ _AROUND_PATTERNS = [
     ),
 ]
 
+# Hard ceiling / floor direction words (do NOT apply ±10% single-price band).
+_MAX_DIRECTION_RE = re.compile(
+    r"\b(under|below|upto|up to|within|tak|se kam|ke andar|ke neeche|less than|max|maximum)\b",
+    re.I,
+)
+
 _EXPLICIT_MAX_PATTERNS = [
     re.compile(
-        r"(?:under|below|upto|up to|max|maximum|budget|within|less than|kam|se kam)\s*"
+        r"(?:under|below|upto|up to|max|maximum|within|less than|kam|se kam)\s*"
         r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
         re.I,
     ),
     re.compile(
         r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?\s*(?:tak|se kam|ke andar|ke neeche)",
-        re.I,
-    ),
-    re.compile(
-        r"budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
         re.I,
     ),
     re.compile(
@@ -401,12 +403,24 @@ _EXPLICIT_MAX_PATTERNS = [
         r"([\d,]+(?:\.\d+)?)/-",
         re.I,
     ),
+]
+
+# Plain "budget X" / "X budget" → single-price ±10% band (not a hard max).
+_SINGLE_BUDGET_PATTERNS = [
+    re.compile(
+        r"budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
+        re.I,
+    ),
     re.compile(
         r"([\d,]+(?:\.\d+)?)\s+budget\b",
         re.I,
     ),
     re.compile(
         r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)\b\s*budget",
+        re.I,
+    ),
+    re.compile(
+        r"budget\s+([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?\s*hai\b",
         re.I,
     ),
 ]
@@ -965,6 +979,31 @@ def _extract_around_price(text: str) -> tuple[float | None, float | None]:
     return None, None
 
 
+def _snap_single_price_to_band(price: float) -> tuple[float, float]:
+    """±10% band around a single price, rounded to nearest 100."""
+    lo = float(int(round(price * 0.9 / 100) * 100))
+    hi = float(int(round(price * 1.1 / 100) * 100))
+    if hi < lo:
+        hi = lo
+    return lo, hi
+
+
+def _extract_single_budget_price(text: str) -> tuple[float | None, float | None]:
+    """Plain 'budget X' / 'X budget' without under/tak → ±10% band."""
+    if _MAX_DIRECTION_RE.search(text):
+        return None, None
+    for pattern in _SINGLE_BUDGET_PATTERNS:
+        m = pattern.search(text)
+        if m:
+            suffix = m.group(2) if m.lastindex and m.lastindex >= 2 else None
+            val = _parse_amount(m.group(1), suffix)
+            if val is not None and _accept_extracted_price(
+                text, val, suffix, require_strong_hint=False
+            ):
+                return _snap_single_price_to_band(val)
+    return None, None
+
+
 def _extract_explicit_max_price(text: str) -> float | None:
     for pattern in _EXPLICIT_MAX_PATTERNS:
         m = pattern.search(text)
@@ -1064,15 +1103,25 @@ def _extract_prices(text: str) -> tuple[float | None, float | None]:
     max_p = _extract_explicit_max_price(preprocessed)
     if max_p is not None:
         return None, max_p
+    min_p, max_p = _extract_single_budget_price(preprocessed)
+    if min_p is not None or max_p is not None:
+        return min_p, max_p
     standalone_max = _extract_standalone_hindi_number_max(text)
     if standalone_max is not None:
-        return None, standalone_max
+        if _MAX_DIRECTION_RE.search(preprocessed):
+            return None, standalone_max
+        return _snap_single_price_to_band(standalone_max)
     hazaar_max = _extract_hazaar_standalone_max(preprocessed)
     if hazaar_max is not None:
-        return None, hazaar_max
+        if _MAX_DIRECTION_RE.search(preprocessed):
+            return None, hazaar_max
+        return _snap_single_price_to_band(hazaar_max)
     max_p = _extract_greedy_max_catchall(preprocessed)
     if max_p is not None:
-        return None, max_p
+        # "50k ka ring" / bare "50k" without under/tak → ±10% band
+        if _MAX_DIRECTION_RE.search(preprocessed):
+            return None, max_p
+        return _snap_single_price_to_band(max_p)
     return None, None
 
 

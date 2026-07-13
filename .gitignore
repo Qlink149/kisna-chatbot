@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 .gupshup_flow_state.json
+secrets/
+*.pem
 
 # Clara API JSON data (sensitive / generated)
 json/Clara_WhatsApp_API.json

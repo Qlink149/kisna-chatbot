@@ -625,7 +625,7 @@ def build_custom_budget_prompt() -> dict:
         "type": "text",
         "text": (
             "Please type your budget, e.g.:\n"
-            "• '25000' (we'll find products around ₹25k)\n"
+            "• '50000' → around ₹50,000 (₹45,000–₹55,000)\n"
             "• '15000-35000' (range)\n"
             "• '50000 tak' (up to ₹50k)"
         ),

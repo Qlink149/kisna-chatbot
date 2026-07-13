@@ -526,8 +526,12 @@ def _entities_from_preferences(user_profile: dict) -> dict:
 
 
 def _snap_single_price_to_band(price: float) -> tuple[int, int]:
-    base = int(price // 10000) * 10000
-    return base, base + 10000
+    """±10% band around a single price, rounded to nearest 100."""
+    lo = int(round(price * 0.9 / 100) * 100)
+    hi = int(round(price * 1.1 / 100) * 100)
+    if hi < lo:
+        hi = lo
+    return lo, hi
 
 
 def _parse_custom_budget_text(text: str) -> tuple[int | None, int | None]:
@@ -1778,7 +1782,7 @@ class ProductSearchAgentV3(Processor):
                     "type": "text",
                     "text": (
                         "I couldn't understand that budget. Please try again, e.g. "
-                        "'25000', '15000-35000', or '50000 tak'.\n"
+                        "'50000' (around ₹50,000), '15000-35000', or '50000 tak'.\n"
                         "_Tip: Type *cancel* to go back to the main menu._"
                     ),
                 },
@@ -1845,7 +1849,7 @@ class ProductSearchAgentV3(Processor):
                     "type": "text",
                     "text": (
                         "I couldn't understand that budget. Please try again, e.g. "
-                        "'25000', '15000-35000', or '50000 tak'."
+                        "'50000' (around ₹50,000), '15000-35000', or '50000 tak'."
                     ),
                 },
                 build_custom_budget_prompt(),
@@ -2061,6 +2065,19 @@ class ProductSearchAgentV3(Processor):
         if not _entities_equal(entities, last_filters):
             user_profile["shown_product_ids"] = []
 
+        try:
+            from kisna_chatbot.utils.message_trace import (
+                summarize_filters,
+                summarize_search_params,
+                trace_step,
+            )
+
+            trace_step(data, "Filters detected", summarize_filters(entities))
+        except Exception:
+            summarize_filters = None  # type: ignore
+            summarize_search_params = None  # type: ignore
+            trace_step = None  # type: ignore
+
         strategies = _build_fallback_strategies(entities)
         products: list[dict] = []
         total_count = 0
@@ -2207,6 +2224,45 @@ class ProductSearchAgentV3(Processor):
                 data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
                 return data
 
+            try:
+                if trace_step and summarize_search_params:
+                    api_total_for_trace = int(
+                        (result or {}).get("total_count")
+                        or len(products or [])
+                        or 0
+                    )
+                    status = "warn" if api_total_for_trace == 0 else "ok"
+                    if log_label == "full":
+                        trace_step(
+                            data,
+                            "Searched catalogue",
+                            summarize_search_params(api_params, api_total_for_trace),
+                            status=status,
+                        )
+                    else:
+                        dropped = {
+                            "drop_price": "price filter",
+                            "drop_title": "title filter",
+                            "drop_material": "material filter",
+                            "title_only": "category/material filters",
+                            "category_only": "all filters except category",
+                        }.get(log_label, log_label.replace("_", " "))
+                        trace_step(
+                            data,
+                            "Closest-match search",
+                            f"No results with prior filters — retried without {dropped} → {api_total_for_trace} found",
+                            status="warn" if api_total_for_trace == 0 else "ok",
+                        )
+                        data["_trace_outcome"] = (
+                            "fallback_used"
+                            if api_total_for_trace > 0
+                            else "no_products"
+                        )
+                    if log_label == "full" and api_total_for_trace == 0:
+                        data["_trace_outcome"] = "no_products"
+            except Exception:
+                pass
+
             if products:
                 api_total = result.get("total_count", 0)
                 products, extras_note = filter_products_by_extracted_extras(
@@ -2241,6 +2297,7 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = [
                 {"type": "text", "text": format_zero_results_message(entities)}
             ]
+            data.setdefault("_trace_outcome", "no_products")
             return data
 
         if exclude_product_id:
@@ -2289,6 +2346,13 @@ class ProductSearchAgentV3(Processor):
             prefix_note=prefix_note,
             intro_relaxed=intro_relaxed,
         )
+        if any(
+            (s.get("label") == "Closest-match search")
+            for s in (data.get("_trace_steps") or [])
+        ):
+            data["_trace_outcome"] = "fallback_used"
+        else:
+            data["_trace_outcome"] = "products_sent"
 
         has_product_images = any(
             r.get("type") == "image_with_cta" for r in data["bot_response"]
