@@ -108,6 +108,37 @@ class TestMessageTrace(unittest.TestCase):
         self.assertIn("Elegant Gold Band ₹52,000", detail)
         self.assertNotIn("Third Should Be Omitted", detail)
 
+    def test_summarize_api_call_honest_when_client_filter_drops_all(self):
+        """Clara returned rows; none matched category — do not claim 0 from API."""
+        detail = summarize_api_call(
+            query_params={
+                "pageNo": 1,
+                "pageSize": 15,
+                "category": "ring",
+                "materialType": "gold",
+                "minPrice": 45000,
+                "maxPrice": 55000,
+                "searchUrl": "true",
+            },
+            total_count=3,
+            matched_count=0,
+            products=[
+                {
+                    "title": "Gleaming Gold Domed Jhumkas",
+                    "price": {"variantPrice": 48233},
+                },
+                {
+                    "title": "Nature Grace Gold Gemstone Earring",
+                    "price": {"variantPrice": 54637},
+                },
+            ],
+        )
+        self.assertIn("→ 3 products", detail)
+        self.assertIn("0 matched", detail)
+        self.assertIn("Gleaming Gold Domed Jhumkas ₹48,233", detail)
+        self.assertIn("Nature Grace Gold Gemstone Earring ₹54,637", detail)
+        self.assertNotIn("→ 0 products", detail)
+
     def test_summarize_top_products_empty(self):
         from kisna_chatbot.utils.message_trace import summarize_top_products
 

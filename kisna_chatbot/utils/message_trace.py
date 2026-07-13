@@ -144,6 +144,7 @@ def summarize_api_call(
     path: str = _PRODUCTS_PATH,
     query_params: dict[str, Any] | None = None,
     total_count: int | None = None,
+    matched_count: int | None = None,
     empty: bool = False,
     products: list | None = None,
     top_n: int = 2,
@@ -152,12 +153,18 @@ def summarize_api_call(
     Dashboard line for a catalogue call, e.g.
     GET /api/v1/clara/products | category=Rings minPrice=45000 … → 14 products
     · Nitara Diamond Ring ₹45,999 · Elegant Gold Band ₹52,000
+
+    When Clara returns rows that fail client filters, pass matched_count so the
+    panel stays honest, e.g. → 3 products · 0 matched · Gleaming… ₹48,233
     """
     param_str = format_query_params(query_params)
     base = f"GET {path} | {param_str}"
     if total_count is not None:
         n = int(total_count)
         base = f"{base} → {n} product{'s' if n != 1 else ''}"
+        if matched_count is not None and int(matched_count) != n:
+            m = int(matched_count)
+            base = f"{base} · {m} matched"
     elif empty:
         base = f"{base} → 0 products"
     top = summarize_top_products(products, limit=top_n)

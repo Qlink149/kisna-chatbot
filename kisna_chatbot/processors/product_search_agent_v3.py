@@ -677,19 +677,26 @@ async def _fetch_budget_filtered_products(
     *,
     max_pages: int = _BUDGET_SCAN_MAX_PAGES,
     page_size: int | None = None,
-) -> tuple[list[dict], int, int]:
-    """Scan multiple API pages with price filters before budget fallback."""
+) -> tuple[list[dict], int, int, list[dict]]:
+    """Scan multiple API pages with price filters before budget fallback.
+
+    Returns (matched_products, api_total_count, last_page, raw_api_sample).
+    raw_api_sample is the first page from Clara (pre client-filter) for traces.
+    """
     fetch_size = page_size or resolve_api_page_size(strategy_entities)
     collected: list[dict] = []
     seen_ids: set[str] = set()
     api_total = 0
     last_page = 1
+    raw_sample: list[dict] = []
 
     for page_no in range(1, max_pages + 1):
         result = await search_products(
             **api_params, page_no=page_no, page_size=fetch_size
         )
         raw_products = result.get("products") or []
+        if not raw_sample:
+            raw_sample = list(raw_products)
         api_total = max(api_total, int(result.get("total_count") or 0))
         last_page = int(result.get("page") or page_no)
 
@@ -706,7 +713,7 @@ async def _fetch_budget_filtered_products(
         if not _has_more_pages(page_no, api_total, fetch_size):
             break
 
-    return collected, api_total, last_page
+    return collected, api_total, last_page, raw_sample
 
 
 async def _fetch_multi_category_products(
@@ -715,11 +722,15 @@ async def _fetch_multi_category_products(
     strategy_entities: dict,
     *,
     page_size: int,
-) -> tuple[list[dict], int, int]:
-    """Query Clara once per category, merge, dedupe by product id, sort by price."""
+) -> tuple[list[dict], int, int, list[dict]]:
+    """Query Clara once per category, merge, dedupe by product id, sort by price.
+
+    Returns (matched_products, api_total_count, page, raw_api_sample).
+    """
     collected: list[dict] = []
     seen_ids: set[str] = set()
     api_total = 0
+    raw_sample: list[dict] = []
 
     for clara_category in clara_categories:
         params = dict(api_params)
@@ -729,6 +740,8 @@ async def _fetch_multi_category_products(
         )
         api_total += int(result.get("total_count") or 0)
         raw_products = result.get("products") or []
+        if not raw_sample:
+            raw_sample = list(raw_products)
         for product in filter_products_by_entities(raw_products, strategy_entities):
             pid = _product_id_key(product)
             if pid and pid in seen_ids:
@@ -740,8 +753,7 @@ async def _fetch_multi_category_products(
     collected.sort(
         key=lambda product: get_product_display_price(product) or 0
     )
-    return collected, api_total, 1
-
+    return collected, api_total, 1, raw_sample
 
 def _build_prompt_response() -> list:
     return [{"type": "text", "text": _PROMPT_TEXT}]
@@ -2166,13 +2178,17 @@ class ProductSearchAgentV3(Processor):
                 clara_norm = normalize_entities_for_clara(strategy_entities)
                 multi_cats = clara_norm.get("clara_multi_categories")
                 if log_label == "full" and has_price_filter and multi_cats:
-                    products, api_total, page = await _fetch_multi_category_products(
+                    (
+                        products,
+                        api_total,
+                        page,
+                        raw_products,
+                    ) = await _fetch_multi_category_products(
                         api_params,
                         multi_cats,
                         strategy_entities,
                         page_size=api_page_size,
                     )
-                    raw_products = products
                     result = {
                         "products": products,
                         "total_count": api_total,
@@ -2185,6 +2201,8 @@ class ProductSearchAgentV3(Processor):
                                 "phone_number": phone_number,
                                 "pages_scanned": len(multi_cats),
                                 "entities": strategy_entities,
+                                "api_total": api_total,
+                                "raw_returned": len(raw_products),
                             },
                         )
                         if trace_step and summarize_api_call:
@@ -2193,18 +2211,24 @@ class ProductSearchAgentV3(Processor):
                                 "API call",
                                 summarize_api_call(
                                     query_params=query_params,
-                                    total_count=0,
+                                    total_count=api_total,
+                                    matched_count=0,
+                                    products=raw_products,
                                 ),
                                 status="warn",
                             )
                         continue
                 elif log_label == "full" and has_price_filter:
-                    products, api_total, page = await _fetch_budget_filtered_products(
+                    (
+                        products,
+                        api_total,
+                        page,
+                        raw_products,
+                    ) = await _fetch_budget_filtered_products(
                         api_params,
                         strategy_entities,
                         page_size=api_page_size,
                     )
-                    raw_products = products
                     result = {
                         "products": products,
                         "total_count": api_total,
@@ -2217,6 +2241,8 @@ class ProductSearchAgentV3(Processor):
                                 "phone_number": phone_number,
                                 "pages_scanned": _BUDGET_SCAN_MAX_PAGES,
                                 "entities": strategy_entities,
+                                "api_total": api_total,
+                                "raw_returned": len(raw_products),
                             },
                         )
                         if trace_step and summarize_api_call:
@@ -2225,20 +2251,26 @@ class ProductSearchAgentV3(Processor):
                                 "API call",
                                 summarize_api_call(
                                     query_params=query_params,
-                                    total_count=0,
+                                    total_count=api_total,
+                                    matched_count=0,
+                                    products=raw_products,
                                 ),
                                 status="warn",
                             )
                         continue
                 else:
                     if multi_cats:
-                        products, api_total, page = await _fetch_multi_category_products(
+                        (
+                            products,
+                            api_total,
+                            page,
+                            raw_products,
+                        ) = await _fetch_multi_category_products(
                             api_params,
                             multi_cats,
                             strategy_entities,
                             page_size=api_page_size,
                         )
-                        raw_products = products
                         result = {
                             "products": products,
                             "total_count": api_total,
@@ -2297,15 +2329,27 @@ class ProductSearchAgentV3(Processor):
                 if trace_step and summarize_api_call:
                     api_total_for_trace = int(
                         (result or {}).get("total_count")
-                        or len(products or [])
+                        or len(raw_products or [])
                         or 0
                     )
-                    status = "warn" if api_total_for_trace == 0 else "ok"
-                    # Prefer filtered page products; fall back to raw API page.
+                    matched_for_trace = len(products or [])
+                    raw_n = len(raw_products or [])
+                    # Only flag a mismatch when client filters dropped rows from
+                    # the Clara page (or kept none while API claimed hits). Do
+                    # not compare page keepers to catalogue totalCount.
+                    matched_arg = None
+                    if matched_for_trace == 0 and api_total_for_trace > 0:
+                        matched_arg = 0
+                    elif raw_n > 0 and matched_for_trace < raw_n:
+                        matched_arg = matched_for_trace
+                    status = "warn" if matched_for_trace == 0 else "ok"
+                    # Prefer matched products for samples; if none matched, show
+                    # raw Clara hits so the panel explains the mismatch.
                     top_products = products or raw_products or []
                     detail = summarize_api_call(
                         query_params=query_params,
                         total_count=api_total_for_trace,
+                        matched_count=matched_arg,
                         products=top_products,
                     )
                     if log_label == "full":
@@ -2320,14 +2364,14 @@ class ProductSearchAgentV3(Processor):
                             data,
                             "Closest-match search",
                             f"Without {dropped} — {detail}",
-                            status="warn" if api_total_for_trace == 0 else "ok",
+                            status="warn" if matched_for_trace == 0 else "ok",
                         )
                         data["_trace_outcome"] = (
                             "fallback_used"
-                            if api_total_for_trace > 0
+                            if matched_for_trace > 0
                             else "no_products"
                         )
-                    if log_label == "full" and api_total_for_trace == 0:
+                    if log_label == "full" and matched_for_trace == 0:
                         data["_trace_outcome"] = "no_products"
             except Exception:
                 pass
