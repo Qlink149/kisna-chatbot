@@ -61,7 +61,7 @@ async def _request(
     params: dict[str, Any] | None = None,
 ) -> Any:
     url = f"{_base_url()}{path}"
-    start = log_http_request("clara", method, url, params=params)
+    start = log_http_request("clara", method, url, params=params, path=path)
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             response = await client.request(
@@ -79,23 +79,37 @@ async def _request(
                 start=start,
                 status_code=response.status_code,
                 body_preview=data,
+                path=path,
+                params=params,
             )
             return data
     except httpx.TimeoutException:
         log_http_response(
-            "clara", method, url, start=start, error="timeout"
+            "clara",
+            method,
+            url,
+            start=start,
+            error="timeout",
+            path=path,
+            params=params,
         )
-        logger.error("Clara API timeout", extra={"url": url, "params": params})
+        logger.error(
+            f"Clara API timeout | {method} {path}",
+            extra={"path": path, "params": params},
+        )
         raise ClaraAPIError(_USER_TIMEOUT) from None
     except httpx.HTTPStatusError as e:
         status = e.response.status_code
         body_preview = (e.response.text or "")[:200]
+        req_params = (
+            dict(e.request.url.params) if e.request.url else params
+        )
         if status == 400:
             logger.error(
-                "Clara API 400",
+                f"Clara API 400 | {method} {path}",
                 extra={
-                    "url": str(e.response.url),
-                    "params": dict(e.request.url.params) if e.request.url else params,
+                    "path": path,
+                    "params": req_params,
                     "body": (e.response.text or "")[:500],
                 },
             )
@@ -107,19 +121,30 @@ async def _request(
             status_code=status,
             body_preview=body_preview,
             error="http_error",
+            path=path,
+            params=req_params,
         )
         logger.error(
-            "Clara API HTTP error",
-            extra={"url": url, "status": status, "body": body_preview},
+            f"Clara API HTTP error | {method} {path} → {status}",
+            extra={"path": path, "status": status, "params": req_params, "body": body_preview},
         )
         raise ClaraAPIError(_USER_GENERIC, status_code=status) from e
     except ClaraAPIError:
         raise
     except Exception as exc:
         log_http_response(
-            "clara", method, url, start=start, error=str(exc)
+            "clara",
+            method,
+            url,
+            start=start,
+            error=str(exc),
+            path=path,
+            params=params,
         )
-        logger.exception("Clara API unexpected error", extra={"url": url})
+        logger.exception(
+            f"Clara API unexpected error | {method} {path}",
+            extra={"path": path, "params": params},
+        )
         raise ClaraAPIError(_USER_GENERIC) from None
 
 
@@ -246,13 +271,20 @@ async def search_products(
     body = await _request("GET", "/api/v1/clara/products", params=params)
     result = parse_products_response(body, page_no=page_no)
 
+    from kisna_chatbot.utils.http_log import format_params_for_log
+
+    result_count = len(result["products"])
+    total_count = result["total_count"]
     logger.info(
-        "Clara product search completed",
+        f"Clara products | {format_params_for_log(params)} → "
+        f"{result_count} returned / {total_count} total",
         extra={
+            "path": "/api/v1/clara/products",
+            "query_params": params,
             "page": page_no,
             "page_size": page_size,
-            "result_count": len(result["products"]),
-            "total_count": result["total_count"],
+            "result_count": result_count,
+            "total_count": total_count,
         },
     )
     return result
@@ -304,6 +336,18 @@ async def get_stores(
     except (TypeError, ValueError):
         total_count = len(stores)
 
+    from kisna_chatbot.utils.http_log import format_params_for_log
+
+    logger.info(
+        f"Clara stores | {format_params_for_log(params)} → "
+        f"{len(stores)} returned / {total_count} total",
+        extra={
+            "path": "/api/v1/clara/stores",
+            "query_params": params,
+            "result_count": len(stores),
+            "total_count": total_count,
+        },
+    )
     return {"stores": stores, "total_count": total_count}
 
 

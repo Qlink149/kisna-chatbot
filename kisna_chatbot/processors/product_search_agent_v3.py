@@ -47,6 +47,7 @@ from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
     merge_jewellery_profile,
 )
+from kisna_chatbot.utils.http_log import format_params_for_log
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.kisna_url_tracking import kisna_home_url
 from kisna_chatbot.utils.product_formatter import (
@@ -2096,23 +2097,46 @@ class ProductSearchAgentV3(Processor):
         for strategy_entities, note_kind, log_label in strategies:
             api_params = entities_to_api_params(strategy_entities)
             api_page_size = resolve_api_page_size(strategy_entities)
-            logger.info(
-                "Product search",
-                extra={
-                    "phone_number": phone_number,
-                    "query": query_label,
-                    "strategy": log_label,
-                    "entities": strategy_entities,
-                    "api_params": api_params,
-                    "page_size": api_page_size,
-                },
+
+            _fallback_labels = {
+                "full": "full filters",
+                "drop_price": "dropped price filter",
+                "drop_title": "dropped title filter",
+                "drop_material": "dropped material filter",
+                "title_only": "title only",
+                "category_only": "category only",
+            }
+            strategy_label = _fallback_labels.get(log_label, log_label)
+            param_str = format_params_for_log(
+                {
+                    **{k: v for k, v in api_params.items() if v is not None},
+                    "pageSize": api_page_size,
+                }
             )
-            if log_label != "full":
+
+            if log_label == "full":
                 logger.info(
-                    "Search fallback",
+                    f"Product search | strategy=full | {param_str}",
                     extra={
                         "phone_number": phone_number,
+                        "query": query_label,
+                        "strategy": log_label,
+                        "entities": strategy_entities,
+                        "api_params": api_params,
+                        "page_size": api_page_size,
+                    },
+                )
+            else:
+                logger.info(
+                    f"Search fallback | {strategy_label} | {param_str}",
+                    extra={
+                        "phone_number": phone_number,
+                        "query": query_label,
+                        "strategy": log_label,
                         "dropped_filter": log_label,
+                        "entities": strategy_entities,
+                        "api_params": api_params,
+                        "page_size": api_page_size,
                     },
                 )
 
@@ -2124,6 +2148,7 @@ class ProductSearchAgentV3(Processor):
             try:
                 clara_norm = normalize_entities_for_clara(strategy_entities)
                 multi_cats = clara_norm.get("clara_multi_categories")
+                title_relaxed = False
                 if log_label == "full" and has_price_filter and multi_cats:
                     products, api_total, page = await _fetch_multi_category_products(
                         api_params,
@@ -2139,11 +2164,13 @@ class ProductSearchAgentV3(Processor):
                     }
                     if not products:
                         logger.warning(
-                            "api_price_filter_mismatch",
+                            f"Search attempt empty | strategy={log_label} | "
+                            f"budget multi-cat scan found 0 | trying next fallback | {param_str}",
                             extra={
                                 "phone_number": phone_number,
                                 "pages_scanned": len(multi_cats),
                                 "entities": strategy_entities,
+                                "api_params": api_params,
                             },
                         )
                         continue
@@ -2161,11 +2188,13 @@ class ProductSearchAgentV3(Processor):
                     }
                     if not products:
                         logger.warning(
-                            "api_price_filter_mismatch",
+                            f"Search attempt empty | strategy={log_label} | "
+                            f"budget scan found 0 | trying next fallback | {param_str}",
                             extra={
                                 "phone_number": phone_number,
                                 "pages_scanned": _BUDGET_SCAN_MAX_PAGES,
                                 "entities": strategy_entities,
+                                "api_params": api_params,
                             },
                         )
                         continue
@@ -2201,7 +2230,18 @@ class ProductSearchAgentV3(Processor):
                                 raw_products, relaxed_entities
                             )
                             if products:
+                                title_relaxed = True
                                 strategy_entities = relaxed_entities
+                                logger.info(
+                                    f"Client filter relaxed | dropped title match | "
+                                    f"raw={len(raw_products)} kept={len(products)} | {param_str}",
+                                    extra={
+                                        "phone_number": phone_number,
+                                        "raw_count": len(raw_products),
+                                        "filtered_count": len(products),
+                                        "api_params": api_params,
+                                    },
+                                )
             except ClaraAPIError as e:
                 logger.exception(
                     "Product search failed",
@@ -2223,6 +2263,26 @@ class ProductSearchAgentV3(Processor):
                 )
                 data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
                 return data
+
+            raw_n = len(raw_products or [])
+            kept_n = len(products or [])
+            api_total_n = int((result or {}).get("total_count") or raw_n or 0)
+            logger.info(
+                f"Search attempt result | strategy={log_label} | "
+                f"api_total={api_total_n} raw={raw_n} after_filter={kept_n}"
+                f"{' | title_relaxed' if title_relaxed else ''}"
+                f"{' | empty → next fallback' if not products else ' | using these results'}"
+                f" | {param_str}",
+                extra={
+                    "phone_number": phone_number,
+                    "strategy": log_label,
+                    "api_total": api_total_n,
+                    "raw_count": raw_n,
+                    "filtered_count": kept_n,
+                    "title_relaxed": title_relaxed,
+                    "api_params": api_params,
+                },
+            )
 
             try:
                 if trace_step and summarize_search_params:
@@ -2270,6 +2330,16 @@ class ProductSearchAgentV3(Processor):
                 )
                 if extras_note:
                     intro_relaxed = True
+                    logger.info(
+                        f"Extras filter relaxed | {extras_note} | "
+                        f"kept={len(products)} | strategy={log_label}",
+                        extra={
+                            "phone_number": phone_number,
+                            "strategy": log_label,
+                            "extras_note": extras_note,
+                            "filtered_count": len(products),
+                        },
+                    )
                 _actually_filtered = len(products) < len(raw_products)
                 if extras_note or _actually_filtered:
                     total_count = len(products)
@@ -2289,11 +2359,27 @@ class ProductSearchAgentV3(Processor):
                 )
                 if fallback_note:
                     prefix_parts.append(fallback_note)
+                    logger.info(
+                        f"User-facing fallback note | strategy={log_label} | {fallback_note}",
+                        extra={
+                            "phone_number": phone_number,
+                            "strategy": log_label,
+                            "note_kind": note_kind,
+                        },
+                    )
                 break
 
         prefix_note = "\n".join(prefix_parts) if prefix_parts else None
 
         if not products:
+            logger.info(
+                f"Product search exhausted | no products after {len(strategies)} strategies | query={query_label!r}",
+                extra={
+                    "phone_number": phone_number,
+                    "query": query_label,
+                    "strategies_tried": [s[2] for s in strategies],
+                },
+            )
             data["bot_response"] = [
                 {"type": "text", "text": format_zero_results_message(entities)}
             ]
