@@ -51,14 +51,10 @@ class TestMenuGreeting(unittest.TestCase):
 
     def test_main_menu_builder_shape(self):
         menu = build_main_menu_bot_response()
-        self.assertEqual(menu["type"], "list")
-        self.assertEqual(menu["list"], "list")
-        self.assertIsInstance(menu["body"], str)
-        self.assertTrue(menu["body"].strip(), "WhatsApp list body must be non-empty")
-        self.assertLessEqual(len(menu["body"]), 1024)
-        self.assertEqual(menu["items"][0]["title"], "Menu")
-        self.assertIn("items", menu)
-        self.assertTrue(len(menu["items"]) > 0)
+        self.assertEqual(menu["type"], "text")
+        self.assertIsInstance(menu["text"], str)
+        self.assertTrue(menu["text"].strip())
+        self.assertIn("tell me what you need", menu["text"].lower())
 
     def test_welcome_text_mentions_kia(self):
         self.assertIn("KIA", _WELCOME_TEXT)
@@ -82,21 +78,19 @@ class TestMenuGreeting(unittest.TestCase):
         responses = build_greeting_welcome_bot_responses(
             chat_history=[{"role": "user", "content": "hi"}],
         )
-        self.assertEqual(len(responses), 2)
+        self.assertEqual(len(responses), 1)
         self.assertEqual(responses[0]["type"], "text")
         self.assertIn("Welcome back", responses[0]["text"])
-        self.assertEqual(responses[1]["type"], "list")
 
     def test_greeting_responses_new_session(self):
         responses = build_greeting_welcome_bot_responses(
             phone_number="919999999999",
             chat_history=[],
         )
-        self.assertEqual(len(responses), 2)
+        self.assertEqual(len(responses), 1)
         self.assertEqual(responses[0]["type"], "text")
         self.assertIn("Welcome to Kisna", responses[0]["text"])
         self.assertNotIn("Welcome back", responses[0]["text"])
-        self.assertEqual(responses[1]["type"], "list")
 
     def test_complaint_flow_shape(self):
         flow = build_complaint_flow_bot_response()
@@ -163,7 +157,7 @@ class TestMenuGreeting(unittest.TestCase):
         with patch("kisna_chatbot.processors.classifier.complete_chat") as mocked:
             mocked.side_effect = AssertionError("LLM should not be called for menu requests")
             result = asyncio.run(processor.process(data))
-        self.assertEqual(result["bot_response"][0]["type"], "list")
+        self.assertEqual(result["bot_response"][0]["type"], "text")
         self.assertEqual(result["classified_category"], "menu_help")
 
     def test_classifier_complaint_category_sends_flow(self):

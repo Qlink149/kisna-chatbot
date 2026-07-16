@@ -1228,7 +1228,7 @@ class Classifier(Processor):
                         chat_history=chat_history,
                     )
                     logger.info(
-                        "Greeting shortcut — welcome and main menu",
+                        "Greeting shortcut — welcome text only",
                         extra={"phone_number": phone_number},
                     )
                     return data
@@ -1238,7 +1238,7 @@ class Classifier(Processor):
                     data["classified_category"] = "menu_help"
                     data["bot_response"] = [build_main_menu_bot_response()]
                     logger.info(
-                        "Menu request shortcut — sending main menu",
+                        "Menu request shortcut — sending text help",
                         extra={"phone_number": phone_number},
                     )
                     return data

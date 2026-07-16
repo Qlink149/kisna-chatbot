@@ -30,11 +30,10 @@ _UNPARSEABLE_STORE_TEXT = (
     "I couldn't read that pincode or city. Please send a 6-digit pincode "
     "(e.g. 400001) or a city name like Mumbai."
 )
-# FIX 5: Retry version includes escape tip (shown from 2nd failed attempt onwards)
+# FIX 5: Retry version (shown from 2nd failed attempt onwards)
 _UNPARSEABLE_STORE_TEXT_RETRY = (
     "I couldn't read that pincode or city. Please send a 6-digit pincode "
-    "(e.g. 400001) or a city name like Mumbai.\n\n"
-    "_Tip: Type *menu* or *cancel* to go back to the main menu._"
+    "(e.g. 400001) or a city name like Mumbai."
 )
 _ESCAPE_RE = re.compile(r"^(menu|cancel|back)$", re.I)
 _GENERIC_ERROR = (

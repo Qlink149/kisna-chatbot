@@ -70,7 +70,7 @@ class ProductCheckoutAgent(Processor):
                 "type": "text",
                 "text": (
                     "Checkout is being set up. For now, use *Pre-Order* on a product "
-                    "or browse our collection from the main menu."
+                    "or tell me what you'd like to browse."
                 ),
             }
         ]

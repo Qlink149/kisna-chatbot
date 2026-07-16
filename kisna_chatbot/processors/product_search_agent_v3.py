@@ -175,7 +175,7 @@ _GENERIC_ERROR = (
 )
 _CATALOG_NOT_CONFIGURED = (
     "Our jewellery catalogue isn't connected yet. You can still check offers, "
-    "find a store, or track an order from the menu — type *hi* to open it."
+    "find a store, or track an order — just tell me what you need."
 )
 _PROMPT_TEXT = (
     "Tell me what you're looking for — e.g. *gold ring*, "
@@ -1812,8 +1812,7 @@ class ProductSearchAgentV3(Processor):
                     "type": "text",
                     "text": (
                         "I couldn't understand that budget. Please try again, e.g. "
-                        "'50000' (around ₹50,000), '15000-35000', or '50000 tak'.\n"
-                        "_Tip: Type *cancel* to go back to the main menu._"
+                        "'50000' (around ₹50,000), '15000-35000', or '50000 tak'."
                     ),
                 },
                 build_custom_budget_prompt(),

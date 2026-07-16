@@ -34,7 +34,7 @@ _SEARCH_ERROR_TEXT = (
     "Sorry, we couldn't search the catalogue right now. Please try again."
 )
 _CACHE_MISS_TEXT = (
-    "Sorry, we couldn't find that product. Try searching again from the menu."
+    "Sorry, we couldn't find that product. Try searching again — tell me what you're looking for."
 )
 _BUY_CTA_TEXT = (
     "Tap below to choose size, metal & colour and place your order on kisna.com."

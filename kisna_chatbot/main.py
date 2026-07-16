@@ -570,7 +570,7 @@ async def process_message(
 
                 if "bot_response" not in data:
                     logger.warning(
-                        "Pipeline completed without bot_response — sending main menu",
+                        "Pipeline completed without bot_response — sending text help",
                         extra={
                             "phone_number": phone_number,
                             "service_selected": service_selected,

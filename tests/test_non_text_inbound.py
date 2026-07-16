@@ -103,7 +103,7 @@ class TestNonTextHandler:
         user_profile = {}
         data = {"_non_text_button_title": "Open Menu"}
         assert handle_non_text_quick_reply(QuickReplyId.NON_TEXT_BROWSE.value, user_profile, data)
-        assert data["bot_response"][0]["type"] == "list"
+        assert data["bot_response"][0]["type"] == "text"
 
 
 def test_process_message_image_skips_initial_pipeline():

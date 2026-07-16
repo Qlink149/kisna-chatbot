@@ -20,6 +20,11 @@ _GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please
 
 _MENU_BODY = "What would you like to do today?"
 
+_TEXT_HELP_PROMPT = (
+    "Just tell me what you need — browse products, check offers, find a store, "
+    "track an order, or get help. I'm here to assist."
+)
+
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
 _HELP_CENTER_MSGID = "help$center$list"
 _PREF_STEP1_MSGID = "pref$step1$list"
@@ -129,18 +134,12 @@ def build_greeting_welcome_bot_responses(
     phone_number: str | None = None,
     chat_history: list | None = None,
 ) -> list[dict]:
-    """Welcome for new users (text + menu) or returning users (text + menu)."""
+    """Welcome for new users or returning users (text only — no main menu)."""
     history = chat_history if chat_history is not None else []
     if is_new_session(history):
-        return [
-            {"type": "text", "text": _WELCOME_TEXT},
-            _build_main_menu_list(),
-        ]
+        return [{"type": "text", "text": _WELCOME_TEXT}]
 
-    return [
-        {"type": "text", "text": _WELCOME_BACK_TEXT},
-        _build_main_menu_list(),
-    ]
+    return [{"type": "text", "text": _WELCOME_BACK_TEXT}]
 
 
 def handle_non_text_quick_reply(
@@ -168,8 +167,8 @@ def handle_non_text_quick_reply(
 
 
 def build_main_menu_bot_response() -> dict:
-    """Public menu builder used by other processors."""
-    return _build_main_menu_list()
+    """Text-only help prompt used wherever the main menu list was sent."""
+    return {"type": "text", "text": _TEXT_HELP_PROMPT}
 
 
 def build_acknowledgement_bot_response() -> list[dict]:
@@ -1233,7 +1232,8 @@ def _handle_menu_selection(
             "type": "text",
             "text": (
                 "Sorry, I didn't recognize that option. "
-                "Type *hi* to open the menu again."
+                "Just tell me what you need — products, offers, a store, "
+                "order tracking, or help."
             ),
         }
     ]
@@ -1311,9 +1311,9 @@ class ServiceList(Processor):
 
                 if btn_msgid == "menu$back":
                     user_profile["service_selected"] = ""
-                    data["bot_response"] = [_build_main_menu_list()]
+                    data["bot_response"] = [build_main_menu_bot_response()]
                     logger.info(
-                        "Main menu sent via menu$back",
+                        "Text help sent via menu$back",
                         extra={"phone_number": phone_number},
                     )
                     return data
@@ -1392,10 +1392,10 @@ class ServiceList(Processor):
 
             if user_profile.get("service_selected", "") == "":
                 logger.info(
-                    "Sending service list",
+                    "Sending text help (no service selected)",
                     extra={"phone_number": phone_number},
                 )
-                data["bot_response"] = [_build_main_menu_list()]
+                data["bot_response"] = [build_main_menu_bot_response()]
 
             return data
 

@@ -1256,7 +1256,7 @@ class HardeningAuditTests(unittest.TestCase):
             ):
                 result = await clf.process(data)
             self.assertIn("bot_response", result)
-            self.assertEqual(result["bot_response"][0]["type"], "list")
+            self.assertEqual(result["bot_response"][0]["type"], "text")
 
         import asyncio
 
@@ -1276,6 +1276,7 @@ class HardeningAuditTests(unittest.TestCase):
             self.assertIn("bot_response", result)
             self.assertEqual(result["user_profile"]["awaiting_store_pincode"], False)
             self.assertEqual(result["user_profile"]["service_selected"], "")
+            self.assertEqual(result["bot_response"][0]["type"], "text")
 
         import asyncio
 

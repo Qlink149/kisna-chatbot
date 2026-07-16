@@ -18,11 +18,10 @@ from kisna_chatbot.processors.service_list import (  # noqa: E402
 
 
 class TestHelpCenter(unittest.TestCase):
-    def test_main_menu_shows_help_center(self):
-        menu = build_main_menu_bot_response()
-        titles = [opt["title"] for opt in menu["items"][0]["options"]]
-        self.assertIn("Help Center", titles)
-        self.assertNotIn("Help / Complaint", titles)
+    def test_main_menu_bot_response_is_text_help(self):
+        resp = build_main_menu_bot_response()
+        self.assertEqual(resp["type"], "text")
+        self.assertIn("tell me what you need", resp["text"].lower())
 
     def test_help_center_list_has_four_options(self):
         lst = _build_help_center_list()
