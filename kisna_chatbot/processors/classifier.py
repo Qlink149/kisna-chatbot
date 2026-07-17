@@ -182,7 +182,27 @@ _HUMAN_HANDOFF_RE = re.compile(
 _GOLD_RATE_RE = re.compile(
     r"\b("
     r"gold\s+rate|gold\s+price\s+today|today'?s?\s+rate|aaj\s+ka\s+rate|"
-    r"sone\s+ka\s+bhav|sone\s+ka\s+rate|gold\s+price"
+    r"sone\s+ka\s+bhav|sone\s+ka\s+rate|gold\s+price|"
+    r"sona\s+kitne\s+ka|22\s*kt?\s+ka\s+(rate|bhav)|24\s*kt?\s+ka\s+(rate|bhav)"
+    r")\b",
+    re.I,
+)
+
+_VIDEO_CALL_RE = re.compile(
+    r"\b("
+    r"video\s*call|video\s*calling|video\s*consult\w*|video\s*shopping|"
+    r"video\s*meeting|video\s*chat|"
+    r"video\s*(par|pe)\s+(?:\w+\s+){0,3}(dikha|dekh|baat)\w*"
+    r")\b",
+    re.I,
+)
+
+# Savings-plan / scheme queries (KMR = Kisna Meri Roshni) answered from the KB,
+# never by the offers agent.
+_SCHEME_RE = re.compile(
+    r"\b("
+    r"schemes?|kmr|meri\s+roshni|savings?\s+plan|gold\s+plan|"
+    r"monthly\s+plan|installment\s+plan|kisht?\s+plan|10\s*\+\s*1"
     r")\b",
     re.I,
 )
@@ -336,6 +356,10 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("human_handoff", 0.95)
     if _GOLD_RATE_RE.search(normalized):
         return ("gold_rate", 0.95)
+    if _VIDEO_CALL_RE.search(normalized):
+        return ("video_call", 0.95)
+    if _SCHEME_RE.search(normalized):
+        return ("general", 0.9)
     if _is_policy_action_query(normalized):
         return ("returns_refund", 0.9)
     if _is_policy_information_query(normalized):
@@ -711,6 +735,10 @@ def _flow_escape_should_classify(user_query: str) -> bool:
         return True
     if _HUMAN_HANDOFF_RE.search(user_query):
         return True
+    if _VIDEO_CALL_RE.search(user_query) or _SCHEME_RE.search(user_query):
+        return True
+    if _GOLD_RATE_RE.search(user_query):
+        return True
     if _COMPLAINT_RE.search(user_query) and not _CATEGORY_WORD_RE.search(user_query):
         return True
     return False
@@ -847,6 +875,7 @@ def _route_resolved_intent(
             "menu_help": "Main menu",
             "human_handoff": "Live agent handoff",
             "gold_rate": "Gold rate",
+            "video_call": "Video call scheduling",
             "general": "FAQ / general",
         }
         label = _INTENT_LABELS.get(intent, intent.replace("_", " ").title())
@@ -881,6 +910,22 @@ def _route_resolved_intent(
     if intent == "gold_rate":
         user_profile["service_selected"] = ""
         data["_fetch_gold_rate"] = True
+        return True
+
+    if intent == "video_call":
+        from kisna_chatbot.config.gupshup import get_videocall_flow_id
+        from kisna_chatbot.processors.service_list import (
+            _start_callback_text_capture,
+            build_video_call_flow_bot_response,
+        )
+
+        if get_videocall_flow_id():
+            user_profile["service_selected"] = ServiceList.CALLBACK.value
+            data["bot_response"] = [build_video_call_flow_bot_response()]
+        else:
+            data["bot_response"] = _start_callback_text_capture(
+                user_profile, request_type="video_call"
+            )
         return True
 
     if (

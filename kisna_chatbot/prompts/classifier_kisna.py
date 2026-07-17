@@ -38,9 +38,19 @@ NOT general EMI/policy questions.
 **complaint** — Damaged/wrong/defective received goods: "damage ho gaya", "galat product aaya".
 
 **human_handoff** — Explicit request for live agent OR custom/personalized jewellery requests:
-"human", "customer care", "custom ring banwana hai", "engraving chahiye".
+"human", "customer care", "custom ring banwana hai", "engraving chahiye". Also order
+cancellation/modification requests ("order cancel karna hai") — the bot cannot cancel orders.
 
-**general** — Brand FAQs, policies, care tips, hallmark, BIS, EMI policy (NOT product price/availability).
+**video_call** — Request for a video call / video consultation / video shopping:
+"schedule a video call", "video pe dikhao", "video consultation chahiye".
+
+**gold_rate** — Today's gold price / live rate: "gold rate today", "aaj ka rate",
+"sone ka bhav", "sona kitne ka chal raha hai", "22kt ka rate". NOT product prices.
+
+**general** — Brand FAQs, policies, care tips, hallmark, BIS, EMI policy (NOT product
+price/availability). ALSO savings plans and schemes: KMR / "Kisna Meri Roshni" monthly
+savings plan, "koi scheme hai", "gold saving plan", digital gold — these are answered
+from the knowledge base, NEVER offers.
 
 ---
 
@@ -57,11 +67,17 @@ Price hints: "50k", "1 lakh", "under 50000", "20k se 50k tak".
 
 ---
 
-## Classification rules
+## Context you receive
 
-All intent routing is handled by this classifier (no regex overrides). Use examples below for
-order_tracking, returns_refund, complaint, offers, store_info, product_info vs product_search,
-general FAQ, and human_handoff.
+The system message may include:
+- "Active context: user recently viewed <product>" — the user is looking at a specific
+  product; short follow-ups ("price?", "isme kitna?", "available hai?") are about THAT
+  product → product_info.
+- "Active context: user recently searched <filters>" — short refinements ("under 20k",
+  "gold mein", "2nd wala") continue that search → product_search / product_info.
+- "Chat history: ..." — recent turns. Use it to resolve short or ambiguous messages.
+
+## Classification rules
 
 1. Menu/options/help → menu_help
 2. Product discovery/browse/search → product_search
@@ -87,6 +103,26 @@ general FAQ, and human_handoff.
 19. Bare material alone ("gold", "diamond") with no action word → low confidence (do not guess)
 20. If user has been browsing products and asks comparative questions ("cheapest", "sabse sasta",
     "best one", "compare these", "which is better") → product_info, NOT general
+21. Gold rate / live price of gold as a metal → gold_rate. Price of a jewellery piece → product_info.
+22. Video call / video consultation / video shopping → video_call
+23. Scheme / savings plan / KMR / Meri Roshni / monthly installment plan → general (KB answer).
+    NEVER offers — offers is only discounts/promotions on purchases.
+24. Damaged, wrong, or defective item in a delivered ORDER ("mera order damage aaya",
+    "order me galat item tha") → complaint, NOT order_tracking.
+25. Order cancellation or modification → human_handoff (bot cannot cancel orders).
+26. MULTI-INTENT message ("gold ring dikhao aur store bhi batao") → classify the PRIMARY
+    shopping action (usually the first concrete request); the user will ask the rest next.
+27. Bare 6-digit number: if active context or history shows store lookup → store_info.
+    If user was browsing/asked budget → treat as budget → product_search with ±10% price band.
+    No context at all → store_info (pincode is the more common bare 6-digit message).
+28. "yes"/"haan"/"ok" right after the bot asked a question → continue the active flow from
+    history (e.g. bot offered to show products → product_search). Never greeting.
+29. Ordinal/reference picks during browsing ("2nd wala", "pehla dikhao", "the last one")
+    → product_info.
+30. Completely out-of-domain requests (flights, food, loans unrelated to jewellery,
+    coding help) → general with confidence 0.5-0.6; the general agent politely redirects.
+31. Emoji-only message (😍/❤️/🙏) after results → treat as acknowledgement/continuation of
+    the active flow with low-mid confidence; NEVER start a new flow from an emoji.
 
 ---
 
@@ -176,6 +212,12 @@ Fallback for unclear or spam/gibberish:
   roz pehenna→daily_wear.
 - style: fashion, cocktail, couple_bands, minimal, infinity, hearts, floral,
   adjustable; also traditional, modern, heavy.
+  lightweight/light weight/halka/halki → minimal. sleek/contemporary → modern.
+- NEGATION: never extract an excluded value ("bina diamond ke gold ring" →
+  material_type=gold only).
+- "22k"/"18k": karat when describing metal ("22k gold ring" → karat=22KT);
+  price when near a budget word ("under 22k" → max_price=22000).
+- Gram weights ("5 gram ki chain") are NOT price and NOT size.
 - action: set "more" when user asks for more results (show more, aur dikhao, next 3).
 - If a field cannot be confidently extracted, return null.
 - NEVER hallucinate entity values not present in the query.
@@ -266,6 +308,26 @@ Fallback for unclear or spam/gibberish:
 62. "aur mehnga dikhao" | active: product_search → {"intent": "product_search", "confidence": 0.85}
 63. "delivery kab hogi?" | order context → {"intent": "order_tracking", "confidence": 0.9}
 64. "damage ho gaya" → {"intent": "complaint", "confidence": 0.94}
+65. "aaj ka gold rate kya hai?" → {"intent": "gold_rate", "confidence": 0.95}
+66. "sona kitne ka chal raha hai aajkal" → {"intent": "gold_rate", "confidence": 0.9}
+67. "22kt ka bhav batao" → {"intent": "gold_rate", "confidence": 0.9}
+68. "is ring ki price kya hai" | active: viewed product → {"intent": "product_info", "confidence": 0.9}
+69. "koi scheme hai kya? KMR vgera" → {"intent": "general", "confidence": 0.9}
+70. "gold saving scheme batao" → {"intent": "general", "confidence": 0.9}
+71. "monthly installment plan hai kya jewellery ke liye?" → {"intent": "general", "confidence": 0.88}
+72. "can you schedule a video call?" → {"intent": "video_call", "confidence": 0.95}
+73. "video pe jewellery dikha sakte ho?" → {"intent": "video_call", "confidence": 0.9}
+74. "video consultation book karni hai" → {"intent": "video_call", "confidence": 0.93}
+75. "mera order damage aa gaya" → {"intent": "complaint", "confidence": 0.93}
+76. "order cancel karna hai" → {"intent": "human_handoff", "confidence": 0.88}
+77. "gold ring dikhao aur nearest store bhi batao" → {"intent": "product_search", "confidence": 0.85}
+78. "book me a flight to Delhi" → {"intent": "general", "confidence": 0.55}
+79. "😍😍" | active: product_search → {"intent": "product_search", "confidence": 0.5}
+80. "haan" | bot just offered to show rings → {"intent": "product_search", "confidence": 0.8}
+81. "2nd wala dikhao" | active: product_search → {"intent": "product_info", "confidence": 0.88}
+82. "560001" | active: store_info → {"intent": "store_info", "confidence": 0.95}
+83. "50000" | bot just asked budget → {"intent": "product_search", "confidence": 0.85,
+    "entities": min_price 45000, max_price 55000}
 
 ---
 
@@ -343,6 +405,23 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
 3. If material appears (gold, diamond, rose gold) → material_type MUST be set.
 4. NEVER set title to command words (show, send, me) or generic type words
    (chains, rings, gold). title is ONLY for named products/collections.
+   Also NEVER: brand name (kisna), city names, greetings, "jewellery".
+
+## DISAMBIGUATION (common traps — read carefully)
+1. "22k"/"18k" alone: KARAT when describing the metal ("22k gold ring" → karat=22KT).
+   PRICE when a budget word is nearby ("under 22k" → max_price=22000,
+   "budget 18k" → min_price=16200, max_price=19800). Never both from one token.
+2. Gram weights are NOT price and NOT size: "5 gram ki chain" → category=chain,
+   no price, no size. "2 gm ring" → category=ring only.
+3. A bare 6-digit number that looks like a pincode (400001) is NOT a price.
+4. NEGATION — never extract a value the user is EXCLUDING:
+   "bina diamond ke gold ring" → category=ring, material_type=gold (diamond NOT set)
+   "without stones" → do not set diamond/gemstone.
+5. Two categories in one message ("rings aur earrings") → category = FIRST mentioned.
+6. Numbers 7-22 are size ONLY next to a size word (size/sz/number/no.):
+   "ring size 12" → size=12. "12 rings dikhao" → size=null.
+7. "sasta"/"cheaper"/"mehnga" WITHOUT a number → do NOT invent prices; leave
+   min_price/max_price null (the system handles relative price elsewhere).
 
 {
   "category": "ring|earring|necklace|pendant|pendant_set|necklace_set|
@@ -360,8 +439,8 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
   "gender": "women|men|kids|null",
   "occasion": "wedding|engagement|anniversary|birthday|
                daily_wear|gift|null",
-  "style": "fashion|cocktail|minimal|traditional|
-            adjustable|hearts|floral|heavy|null",
+  "style": "fashion|cocktail|minimal|traditional|modern|couple_bands|
+            infinity|adjustable|hearts|floral|heavy|null",
   "action": "more|null"
 }
 
@@ -379,8 +458,14 @@ category (REQUIRED when type word in message):
   bracelet/kada/kadi → bracelet
   mangalsutra/tanmaniya → mangalsutra
   payal/pajeb → anklet
-  nath/nose pin → nose_ring
+  nath/nathiya/nose pin/koka → nose_ring
   tikka/maang tikka → maang_tikka
+  solitaire ring → ring (ALSO material_type=diamond)
+  Common misspellings map to the same value:
+    earings/earing → earring, neckless/necklase → necklace,
+    braclet/bracelete → bracelet, mangalsutr → mangalsutra, pendent → pendant
+  bichhiya/toe ring/hathphool/kamarband/coin/sikka → category=null
+  (not carried — do NOT force a wrong category)
 
 material_type:
   gold/sona/sone ka → gold
@@ -410,8 +495,10 @@ price (ALWAYS extract when budget words present — integers in INR):
   "50k" alone with under/below → max_price=50000
   "above 50k" / "over 50k" → min_price=50000
   Amounts: "50k" → 50000, "1 lakh" → 100000, "1.5 lakh" → 150000
+  lakh/lac/lacs/lakhs all mean lakh. "1 crore" → 10000000.
+  Comma/currency formats: "₹50,000" → 50000, "Rs. 25,000" → 25000
   "das hazaar" → 10000, "paanch hazaar" → 5000, "50 hazaar" → 50000
-  "30 hazaar" → 30000, "bees hazaar" → 20000
+  "30 hazaar" → 30000, "bees hazaar" → 20000 (hazaar/hazar/hajar same)
   "das hazaar se upar" → min_price=10000
   "ek lakh" → 100000, "do lakh" → 200000
   "X se upar" / "X se zyada" / "minimum X" / "at least X" → min_price=X
@@ -422,27 +509,32 @@ title — ONLY real product/collection names:
   want, need, please, suggest, recommend (command verbs)
 
 action:
-  "aur dikhao" / "show more" / "next" / "more" → action=more
+  "aur dikhao" / "show more" / "next" / "more" / "aur options" /
+  "kuch aur" / "koi aur" → action=more
 
 occasion:
-  shaadi/wedding/bridal → wedding
+  shaadi/wedding/bridal/dulhan → wedding
   anniversary → anniversary
-  birthday/janamdin → birthday
-  engagement → engagement
-  daily wear/roz pehenna/everyday → daily_wear
-  gift/tuhfa/present → gift
+  birthday/janamdin/bday → birthday
+  engagement/sagai/propose/proposal → engagement
+  daily wear/roz pehenna/everyday/office wear → daily_wear
+  gift/tuhfa/present/valentine/diwali gift/rakhi/festive → gift
 
 style:
   minimal/simple/sada → minimal
+  lightweight/light weight/halka/halki/halke → minimal
   traditional/ethnic → traditional
-  heavy/bold → heavy
-  cocktail/party → cocktail
+  modern/sleek/contemporary/stylish → modern
+  heavy/bold/bhari → heavy
+  cocktail/party/party wear → cocktail
+  couple rings/couple bands/couple set → couple_bands
+  infinity design → infinity
   adjustable → adjustable
 
 gender:
-  for her/wife/ladies → women
-  for him/men's/husband → men
-  for kids/children/baby → kids
+  for her/wife/ladies/girlfriend/gf/mummy/maa/behen/sister/beti/daughter → women
+  for him/men's/husband/boyfriend/bf/papa/bhai/brother/beta/son (adult) → men
+  for kids/children/baby/bacche → kids
 
 If a field is not present → null.
 NEVER invent values not in the message.
@@ -541,4 +633,46 @@ Current: same budget mein necklace →
 {"category":"necklace_set","material_type":null,"max_price":100000,"min_price":null,
  "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
  "gender":null,"occasion":null,"style":null,"action":null}
+
+"show me some lightweight rings" →
+{"category":"ring","style":"minimal",...all others null}
+
+"halki gold chain office ke liye" →
+{"category":"chain","material_type":"gold","style":"minimal",
+ "occasion":"daily_wear",...nulls}
+
+"bina diamond ke gold ring" →
+{"category":"ring","material_type":"gold",...all others null}
+(diamond is NEGATED — not extracted)
+
+"5 gram ki gold chain" →
+{"category":"chain","material_type":"gold",...all others null}
+(gram weight is NOT a price or size)
+
+"earrings under 22k" →
+{"category":"earring","max_price":22000,"karat":null,...nulls}
+(budget word before 22k → price, not karat)
+
+"22k gold kangan" →
+{"category":"bangle","material_type":"gold","karat":"22KT",...nulls}
+
+"couple rings for engagement" →
+{"category":"ring","style":"couple_bands","occasion":"engagement",...nulls}
+
+"gf ke liye valentine gift under 15k" →
+{"gender":"women","occasion":"gift","max_price":15000,...all others null}
+
+"₹50,000 tak ki neckless" →
+{"category":"necklace","max_price":50000,...nulls}
+(misspelling still maps; comma amount parsed)
+
+"thoda sasta dikhao" | Context: bot showed gold rings →
+{"category":"ring","material_type":"gold","min_price":null,"max_price":null,
+ ...nulls}
+(relative price words never invent numbers)
+
+Context: User: gold rings under 50k
+Current: same but in 18kt →
+{"category":"ring","material_type":"gold","karat":"18KT","max_price":50000,
+ "min_price":null,...nulls}
 """
