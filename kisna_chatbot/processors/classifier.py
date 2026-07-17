@@ -197,6 +197,12 @@ _VIDEO_CALL_RE = re.compile(
     re.I,
 )
 
+# Any Indic script (Devanagari through Malayalam). The regex shortcut/gate layer
+# is Latin-only, so these messages must ALWAYS reach the LLM classifier — otherwise
+# a sticky session silently reuses stale filters (e.g. Gujarati "ring" continued a
+# necklace search).
+_INDIC_SCRIPT_RE = re.compile(r"[ऀ-ൿ]")
+
 # Savings-plan / scheme queries (KMR = Kisna Meri Roshni) answered from the KB,
 # never by the offers agent.
 _SCHEME_RE = re.compile(
@@ -1225,6 +1231,11 @@ class Classifier(Processor):
         user_query = messages["text"].get("body", "") or ""
 
         _maybe_expire_product_search_session(user_profile)
+
+        # Indic-script text bypasses every Latin-only regex gate below — the LLM
+        # classifier is the only component that can understand it.
+        if _INDIC_SCRIPT_RE.search(user_query):
+            return True
 
         if is_greeting_message(user_query):
             return True

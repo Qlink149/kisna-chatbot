@@ -1103,6 +1103,23 @@ def _filter_unshown_products(
     return [p for p in products if _product_id(p) and _product_id(p) not in shown_set]
 
 
+_BUDGET_REPLY_SIGNAL_RE = re.compile(
+    r"\d|₹|\b(lakh|lac|lacs|lakhs|hazaar|hazar|hajar|crore|thousand|"
+    r"das|bees|tees|chalis|pachas|paanch|panch|ek|do|teen|char|sau|"
+    r"budget|tak|under|upto|below|above|between)\b",
+    re.I,
+)
+
+
+def _looks_like_budget_reply(user_message: str) -> bool:
+    """True when the message plausibly contains a budget (digit or amount word).
+
+    A sentence with neither ("इसका price बहुत ज्यादा है", "that's too costly")
+    must NOT be force-parsed as a budget — it escapes to normal routing.
+    """
+    return bool(_BUDGET_REPLY_SIGNAL_RE.search(user_message or ""))
+
+
 def _should_escape_custom_budget(user_message: str) -> bool:
     """
     Return True when the message is clearly a new product query or service
@@ -1432,7 +1449,9 @@ class ProductSearchAgentV3(Processor):
 
         if user_profile.get("awaiting_custom_budget"):
             # Second escape gate (greeting check above may have passed; check again).
-            if _should_escape_custom_budget(query):
+            # A message with no digits/amount words is not a budget answer either —
+            # let normal routing (entity extraction / LLM) handle it.
+            if _should_escape_custom_budget(query) or not _looks_like_budget_reply(query):
                 user_profile["awaiting_custom_budget"] = False
                 user_profile["custom_budget_attempts"] = 0
                 # Fall through to normal search path below
@@ -1842,16 +1861,8 @@ class ProductSearchAgentV3(Processor):
                 return await self._execute_search(
                     data, phone_number, _empty_entities(), query_label="budget_fallback"
                 )
-            data["bot_response"] = [
-                {
-                    "type": "text",
-                    "text": (
-                        "I couldn't understand that budget. Please try again, e.g. "
-                        "'50000' (around ₹50,000), '15000-35000', or '50000 tak'."
-                    ),
-                },
-                build_custom_budget_prompt(),
-            ]
+            # Single localized re-ask — no English parse-error prefix.
+            data["bot_response"] = [build_custom_budget_prompt()]
             return data
 
         if not _clara_configured():

@@ -1,12 +1,23 @@
-"""Run the classifier accuracy matrix and print a results table."""
+"""Run the classifier accuracy matrix and print a results table.
+
+Usage:
+    python scripts/run_classifier_audit.py          # regex/shortcut layer only
+    python scripts/run_classifier_audit.py --llm    # full audit against live LLM
+                                                    # (needs real OPENAI_API_KEY in .env)
+"""
 
 import asyncio
 import os
 import sys
 
+USE_LLM = "--llm" in sys.argv
+
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("OPENAI_API_KEY", "test-key")
+if not USE_LLM:
+    # Fake key only for the offline run; in --llm mode load_dotenv() (override=False)
+    # must see the real key from .env, so we must not pre-set it here.
+    os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt")
 os.environ.setdefault("SYSTEM_API_KEY", "test-api")
 os.environ.setdefault("KISNA_PRODUCT_API", "https://example.com/products")
@@ -65,7 +76,8 @@ MATRIX = [
     ("return karna hai", "returns_refund"),
     ("refund chahiye", "returns_refund"),
     ("product wapas karna hai", "returns_refund"),
-    ("exchange possible hai?", "returns_refund"),
+    # "possible hai?" is a policy QUESTION (rule 11a) -> general
+    ("exchange possible hai?", "general"),
     ("complaint darz karni hai", "complaint"),
     ("product kharab nikla", "complaint"),
     ("wrong item aaya", "complaint"),
@@ -83,27 +95,66 @@ MATRIX = [
     ("hello", "greeting"),
     ("namaste", "greeting"),
     ("hey", "greeting"),
+    # --- routing v2: gold rate ---
+    ("aaj ka gold rate kya hai?", "gold_rate"),
+    ("sona kitne ka chal raha hai", "gold_rate"),
+    ("22kt ka bhav batao", "gold_rate"),
+    ("gold price today", "gold_rate"),
+    # --- routing v2: video call ---
+    ("can you schedule a video call?", "video_call"),
+    ("video pe jewellery dikha sakte ho", "video_call"),
+    ("video consultation book karni hai", "video_call"),
+    # --- routing v2: schemes / KMR -> KB ---
+    ("koi scheme hai kya", "general"),
+    ("KMR ke baare mein batao", "general"),
+    ("gold saving plan available?", "general"),
+    ("meri roshni plan kya hai", "general"),
+    # --- routing v2: custom jewellery ---
+    ("custom ring banwana hai", "human_handoff"),
+    ("engraving karwana hai", "human_handoff"),
+]
+
+# LLM-only rows: no regex shortcut exists on purpose; skipped in offline mode.
+LLM_MATRIX = [
+    ("mera order damage aa gaya", "complaint"),
+    ("order cancel karna hai", "human_handoff"),
+    ("show me some lightweight rings", "product_search"),
+    ("necklaces under 50k", "product_search"),
+    ("shaadi ke liye kuch dikhao budget 1 lakh", "product_search"),
+    ("book me a flight to Delhi", "general"),
+    ("monthly installment plan hai kya jewellery ke liye?", "general"),
+    ("kya aap hindi samajhte ho?", "general"),
+    ("gold ring dikhao aur nearest store bhi batao", "product_search"),
+    ("mujhe kuch gift karna hai wife ko", "product_search"),
 ]
 
 
 async def main() -> None:
+    rows = list(MATRIX) + (list(LLM_MATRIX) if USE_LLM else [])
+    mode = "LLM + shortcuts" if USE_LLM else "shortcuts only"
+    print(f"Mode: {mode} ({len(rows)} queries)")
     print("Input | Expected | Actual | Confidence | Source | PASS/FAIL")
     print("-" * 80)
     passed = 0
-    failed = 0
-    for text, expected in MATRIX:
-        result = await classify_query_for_audit(text, use_llm=False)
+    failures: list[tuple[str, str, str, float, str]] = []
+    for text, expected in rows:
+        result = await classify_query_for_audit(text, use_llm=USE_LLM)
         actual = result["intent"]
         conf = result["confidence"]
         source = result["source"]
         ok = actual == expected
         passed += int(ok)
-        failed += int(not ok)
+        if not ok:
+            failures.append((text, expected, actual, conf, source))
         status = "PASS" if ok else "FAIL"
         print(
             f"{text!r} | {expected} | {actual} | {conf} | {source} | {status}"
         )
-    print(f"\nProgrammatic/shortcut: {passed} passed, {failed} failed")
+    print(f"\n{mode}: {passed}/{len(rows)} passed, {len(failures)} failed")
+    if failures:
+        print("\nFailures:")
+        for text, expected, actual, conf, source in failures:
+            print(f"  {text!r}: expected {expected}, got {actual} ({conf}, {source})")
 
 
 if __name__ == "__main__":

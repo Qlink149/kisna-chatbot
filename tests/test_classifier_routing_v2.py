@@ -154,6 +154,69 @@ class EntityExtractorPromptTests(unittest.TestCase):
         self.assertIn("NEGATION", kisna_classifier)
 
 
+class IndicScriptGateTests(unittest.TestCase):
+    """Indic-script messages must always reach the LLM classifier."""
+
+    def _profile_in_product_session(self):
+        from kisna_chatbot.models.service_list import ServiceList as SL
+
+        return {
+            "service_selected": SL.PRODUCT_SEARCH.value,
+            "chat_history": [{"role": "user", "content": "necklace dikhao"}],
+            "last_search_filters": {"category": "necklace"},
+        }
+
+    def _should_run(self, text, profile):
+        from kisna_chatbot.processors.classifier import Classifier
+
+        data = {
+            "phone_number": "919999999999",
+            "messages": {"text": {"body": text}},
+            "user_profile": profile,
+        }
+        return Classifier().should_run(data)
+
+    def test_devanagari_always_classifies_in_sticky_session(self):
+        # Gujarati-in-Devanagari "do you have rings" previously reused the
+        # stale necklace search because no Latin regex matched.
+        self.assertTrue(
+            self._should_run("तमारा पासे रिंग छे", self._profile_in_product_session())
+        )
+
+    def test_gujarati_script_always_classifies(self):
+        self.assertTrue(
+            self._should_run("તમારી પાસે રિંગ છે?", self._profile_in_product_session())
+        )
+
+    def test_latin_refinement_still_skips_llm(self):
+        # Cost control: plain Latin in-session refinements keep skipping the LLM.
+        self.assertFalse(
+            self._should_run("show me gold rings", self._profile_in_product_session())
+        )
+
+
+class BudgetReplyGateTests(unittest.TestCase):
+    def test_budget_like_replies(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _looks_like_budget_reply,
+        )
+
+        for text in ("50000", "under 25k", "1 lakh", "das hazaar", "15000-35000"):
+            self.assertTrue(_looks_like_budget_reply(text), text)
+
+    def test_non_budget_sentences_escape(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _looks_like_budget_reply,
+        )
+
+        for text in (
+            "इसका price बहुत ज्यादा है।",
+            "that's too costly",
+            "mehnga hai yaar",
+        ):
+            self.assertFalse(_looks_like_budget_reply(text), text)
+
+
 class ClassifierPromptContentTests(unittest.TestCase):
     """The LLM prompt must agree with the code's intent set."""
 

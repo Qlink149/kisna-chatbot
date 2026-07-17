@@ -172,7 +172,11 @@ language codes:
 - "en" — English
 - "hi" — Hindi in Devanagari script
 - "hi-Latn" — Hinglish / Hindi written in Latin script
-- other short codes (ta, te, mr, bn, gu, kn, …) for other languages
+- "gu" — Gujarati, in ANY script: Gujarati script ("તમારી પાસે રિંગ છે?"),
+  Devanagari ("तमारा पासे रिंग छे"), or romanized ("tamara kem che").
+  Marker words: che/chho/tamara/tame/kem/su/mate/joie → Gujarati, NOT Hinglish.
+- other short codes (ta, te, mr, bn, kn, …) for other languages, romanized or not.
+  Detect the LANGUAGE, not the script — romanized Marathi/Gujarati is not Hinglish.
 
 Fallback for unclear or spam/gibberish:
 {"intent": "general", "confidence": 0.3, "language": "en", "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
@@ -328,6 +332,11 @@ Fallback for unclear or spam/gibberish:
 82. "560001" | active: store_info → {"intent": "store_info", "confidence": 0.95}
 83. "50000" | bot just asked budget → {"intent": "product_search", "confidence": 0.85,
     "entities": min_price 45000, max_price 55000}
+84. "तमारा पासे रिंग छे" → {"intent": "product_search", "confidence": 0.9, "language": "gu",
+    "entities": category ring}
+85. "Tamara kem haal che" → {"intent": "greeting", "confidence": 0.9, "language": "gu"}
+86. "इसका price बहुत ज्यादा है" | active: product_search → {"intent": "product_search",
+    "confidence": 0.8, "language": "hi"} (wants cheaper — do NOT invent prices)
 
 ---
 
