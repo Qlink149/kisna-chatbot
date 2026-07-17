@@ -18,8 +18,6 @@ _FLOW_SWITCH_PENDING_TTL = 300  # 5 minutes — FIX 13b
 
 _GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please try again?"
 
-_MENU_BODY = "What would you like to do today?"
-
 _TEXT_HELP_PROMPT = (
     "Just tell me what you need — browse products, check offers, find a store, "
     "track an order, or get help. I'm here to assist."
@@ -27,24 +25,34 @@ _TEXT_HELP_PROMPT = (
 
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
 _HELP_CENTER_MSGID = "help$center$list"
-_PREF_STEP1_MSGID = "pref$step1$list"
-_PREF_STEP2_MSGID = "pref$step2$list"
-_PREF_STEP3_MSGID = "pref$step3$list"
 
 _FIND_STORE_TEXT = (
     "Share your pincode or city and I'll help you find the nearest Kisna store."
 )
 
-_KIA_GREETING_BODY = (
-    "I'm KIA, your trusted jewellery assistant. Whether you're looking for the perfect piece, "
-    "exploring our latest collections, checking today's offers, tracking an order, or need support, "
-    "I'm here to make your shopping experience simple and enjoyable.\n"
-    "What would you like to do today?"
+_CAPABILITY_HINT = (
+    "Just tell me what you're looking for — rings, necklaces, offers, "
+    "a store near you, or your order status."
 )
 
-_WELCOME_TEXT = f"💎 Welcome to Kisna!\n{_KIA_GREETING_BODY}"
+_SLOT_FILL_QUESTION = (
+    "Lovely! Are you thinking rings, earrings, necklaces…? "
+    "And any budget in mind? e.g. under 25k, 15–35k, around 1 lakh"
+)
 
-_WELCOME_BACK_TEXT = f"💎 Welcome back to Kisna!\n{_KIA_GREETING_BODY}"
+_BUDGET_TEXT_PROMPT = (
+    "What budget do you have in mind? e.g. under 25k, 15–35k, around 1 lakh"
+)
+
+_ACK_TEXT = (
+    "Happy to help! Ask me anything else — jewellery, offers, your order… 😊"
+)
+
+_RATING_TEXT_PROMPT = "How was your experience? Reply with a rating from 1 to 5."
+
+_PRODUCT_DETAIL_HINT = (
+    "You can ask me for *similar designs*, a *store near you*, or keep browsing 💎"
+)
 
 _GREETING_TOKENS = frozenset(
     {
@@ -130,16 +138,123 @@ def is_new_session(chat_history: list) -> bool:
     return len(chat_history or []) == 0
 
 
+def _is_valid_display_name(name: str | None) -> bool:
+    """Reject garbage WhatsApp names for greeting personalization."""
+    if not name or not isinstance(name, str):
+        return False
+    cleaned = name.strip()
+    if not cleaned or len(cleaned) > 30:
+        return False
+    if "@" in cleaned:
+        return False
+    if cleaned.replace(" ", "").isdigit():
+        return False
+    lowered = cleaned.lower()
+    if lowered in ("none", "null", "customer", "user"):
+        return False
+    return True
+
+
+def _display_name_from_profile(user_profile: dict | None) -> str | None:
+    profile = user_profile or {}
+    for key in ("username", "whatsapp_username"):
+        candidate = profile.get(key)
+        if _is_valid_display_name(candidate):
+            return str(candidate).strip()
+    return None
+
+
+def _format_recent_search_hint(user_profile: dict | None) -> str | None:
+    """Optional continue-search line when last_search_filters is fresh (<2h)."""
+    profile = user_profile or {}
+    last_at = profile.get("last_search_at")
+    if not last_at or time.time() - last_at > 2 * 60 * 60:
+        return None
+    filters = profile.get("last_search_filters") or {}
+    parts: list[str] = []
+    category = filters.get("category")
+    if category:
+        parts.append(str(category).replace("_", " "))
+    material = filters.get("material_type")
+    if material:
+        parts.append(str(material))
+    max_p = filters.get("max_price")
+    min_p = filters.get("min_price")
+    if max_p and min_p and max_p != min_p:
+        parts.append(f"₹{min_p:,}–₹{max_p:,}")
+    elif max_p:
+        parts.append(f"under ₹{max_p:,}")
+    elif min_p:
+        parts.append(f"above ₹{min_p:,}")
+    if not parts:
+        return None
+    return f"Want to keep looking at {' '.join(parts)}?"
+
+
+def build_greeting_text(
+    *,
+    chat_history: list | None = None,
+    user_profile: dict | None = None,
+) -> str:
+    """English greeting copy — localized by callers via reply_composer."""
+    history = chat_history if chat_history is not None else []
+    name = _display_name_from_profile(user_profile)
+    if is_new_session(history):
+        if name:
+            return (
+                f"Hi {name}! 👋 Welcome to Kisna — I'm KIA, your jewellery assistant.\n"
+                f"{_CAPABILITY_HINT}"
+            )
+        return (
+            "Hi! 👋 Welcome to Kisna — I'm KIA, your jewellery assistant.\n"
+            f"{_CAPABILITY_HINT}"
+        )
+
+    continue_hint = _format_recent_search_hint(user_profile)
+    if name:
+        text = f"Welcome back, {name}! 👋"
+    else:
+        text = "Welcome back! 👋"
+    if continue_hint:
+        text = f"{text}\n{continue_hint}"
+    else:
+        text = f"{text} {_CAPABILITY_HINT}"
+    return text
+
+
 def build_greeting_welcome_bot_responses(
     phone_number: str | None = None,
     chat_history: list | None = None,
+    user_profile: dict | None = None,
 ) -> list[dict]:
-    """Welcome for new users or returning users (text only — no main menu)."""
+    """Welcome for new or returning users — text only, localized before send."""
     history = chat_history if chat_history is not None else []
-    if is_new_session(history):
-        return [{"type": "text", "text": _WELCOME_TEXT}]
+    profile = user_profile or {}
+    template_key = "greeting_new" if is_new_session(history) else "greeting_return"
+    text = build_greeting_text(chat_history=history, user_profile=profile)
+    return [{"type": "text", "text": text, "_compose": template_key}]
 
-    return [{"type": "text", "text": _WELCOME_BACK_TEXT}]
+
+def build_vague_slot_fill_response() -> dict:
+    """One combined clarifying question for vague jewellery browse."""
+    return {"type": "text", "text": _SLOT_FILL_QUESTION, "_compose": "slot_fill"}
+
+
+def build_budget_text_prompt() -> dict:
+    """Ask for budget in plain text (replaces budget list / flow wizard)."""
+    return {"type": "text", "text": _BUDGET_TEXT_PROMPT, "_compose": "budget_prompt"}
+
+
+def build_product_detail_hint_response() -> dict:
+    return {
+        "type": "text",
+        "text": _PRODUCT_DETAIL_HINT,
+        "_compose": "product_detail_hint",
+    }
+
+
+def build_rating_prompt_response() -> dict:
+    return {"type": "text", "text": _RATING_TEXT_PROMPT, "_compose": "rating_prompt"}
 
 
 def handle_non_text_quick_reply(
@@ -162,7 +277,7 @@ def handle_non_text_quick_reply(
 
     user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
     data["classified_category"] = "product_search"
-    data["bot_response"] = [build_explore_products_list_with_prompt()]
+    data["bot_response"] = [build_vague_slot_fill_response()]
     return True
 
 
@@ -172,22 +287,8 @@ def build_main_menu_bot_response() -> dict:
 
 
 def build_acknowledgement_bot_response() -> list[dict]:
-    """Lightweight thank-you / acknowledgement with next-step quick replies."""
-    return [
-        {
-            "type": "quickreply",
-            "text": (
-                "You're welcome! Is there anything else I can help you with today? 💎"
-            ),
-            "caption": "",
-            "options": [
-                {"title": "Explore Products"},
-                {"title": "View Offers"},
-                {"title": "Open Menu"},
-            ],
-            "msgid": QuickReplyId.NON_TEXT_BROWSE.value,
-        }
-    ]
+    """Lightweight thank-you / acknowledgement — text only."""
+    return [{"type": "text", "text": _ACK_TEXT, "_compose": "acknowledgement"}]
 
 
 def build_complaint_flow_bot_response() -> dict:
@@ -233,49 +334,6 @@ def _start_callback_text_capture(
     return [{"type": "text", "text": build_callback_text_prompt(1)}]
 
 
-def _build_help_center_list() -> dict:
-    return {
-        "type": "list",
-        "list": "list",
-        "body": "How can we help you today?",
-        "footer": "Kisna",
-        "msgid": _HELP_CENTER_MSGID,
-        "globalButtons": [{"type": "text", "title": "Help Options"}],
-        "items": [
-            {
-                "title": "Help Center",
-                "subtitle": "",
-                "options": [
-                    {
-                        "type": "text",
-                        "title": "Talk to an Expert",
-                        "description": "Connect with a Kisna support expert",
-                        "postbackText": "help$expert",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Raise a Complaint",
-                        "description": "Report an issue with your order",
-                        "postbackText": "help$complaint",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Callback Request",
-                        "description": "We'll call you back",
-                        "postbackText": "help$callback",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Schedule a Video Call",
-                        "description": "Book a video consultation",
-                        "postbackText": "help$videocall",
-                    },
-                ],
-            }
-        ],
-    }
-
-
 def _handle_help_center_selection(
     postback: str, user_profile: dict, data: dict, phone_number: str
 ) -> None:
@@ -314,77 +372,12 @@ def _handle_help_center_selection(
         return
 
     logger.warning("Unknown help center selection", extra={"postback": postback})
-    data["bot_response"] = [_build_help_center_list()]
+    data["bot_response"] = [build_main_menu_bot_response()]
 
 
 def build_complaint_entry_cta_bot_response() -> dict:
-    """Quick reply CTA that opens the complaint flow on click."""
-    return {
-        "type": "quickreply",
-        "text": (
-            "To register a complaint, tap *Register Complaint* below. "
-            "It will open a form to capture your order details."
-        ),
-        "caption": "",
-        "options": [{"title": "Register Complaint"}],
-        "msgid": QuickReplyId.COMPLAINT_REGISTER.value,
-    }
-
-
-def _build_main_menu_list() -> dict:
-    """Build WhatsApp list payload for the main service menu."""
-    return {
-        "type": "list",
-        "list": "list",
-        "body": _MENU_BODY,
-        "footer": "Kisna",
-        "msgid": ListIds.SERVICE_LIST_ID.value,
-        "globalButtons": [{"type": "text", "title": "Open Menu"}],
-        "items": [
-            {
-                "title": "Menu",
-                "subtitle": "",
-                "options": [
-                    {
-                        "type": "text",
-                        "title": "Explore Products",
-                        "description": "Browse rings, earrings, necklaces & more",
-                        "postbackText": "explore_products",
-                    },
-                    {
-                        "type": "text",
-                        "title": "View Offers",
-                        "description": "Discounts, bank offers & promo codes",
-                        "postbackText": "view_offers",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Find Store Near Me",
-                        "description": "Locate your nearest Kisna showroom",
-                        "postbackText": "find_store",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Track My Order",
-                        "description": "Check delivery status",
-                        "postbackText": "track_order",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Help Center",
-                        "description": "Expert support, complaints & callbacks",
-                        "postbackText": "help_center",
-                    },
-                    {
-                        "type": "text",
-                        "title": "FAQs / About Kisna",
-                        "description": "Returns, delivery, care & contact",
-                        "postbackText": "faqs_help",
-                    },
-                ],
-            }
-        ],
-    }
+    """Legacy alias — complaint intent sends the form directly."""
+    return build_complaint_flow_bot_response()
 
 
 def _parse_list_reply(messages: dict) -> tuple[str, str, str] | None:
@@ -460,285 +453,48 @@ def _clear_explore_browse_session(user_profile: dict) -> None:
     user_profile["last_search_api_total"] = 0
 
 
-def build_pref_step1_material_list() -> dict:
-    """Step 1 — material preference list (fresh Explore Products)."""
-    return {
-        "type": "list",
-        "list": "list",
-        "body": "What material are you looking for? 💎",
-        "footer": "KISNA Diamond & Gold",
-        "msgid": _PREF_STEP1_MSGID,
-        "globalButtons": [{"type": "text", "title": "Choose Material"}],
-        "items": [
-            {
-                "title": "Materials",
-                "subtitle": "",
-                "options": [
-                    {
-                        "type": "text",
-                        "title": "Gold",
-                        "description": "Hallmarked gold jewellery",
-                        "postbackText": "pref$material$gold",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Diamond",
-                        "description": "Certified diamond pieces",
-                        "postbackText": "pref$material$diamond",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Gemstone",
-                        "description": "Ruby, emerald & more",
-                        "postbackText": "pref$material$gemstone",
-                    },
-                ],
-            }
-        ],
-    }
-
-
-def build_pref_step2_type_list() -> dict:
-    """Step 2 — jewellery type preference list."""
-    return {
-        "type": "list",
-        "list": "list",
-        "body": "What type of jewellery? ✨",
-        "footer": "KISNA Diamond & Gold",
-        "msgid": _PREF_STEP2_MSGID,
-        "globalButtons": [{"type": "text", "title": "Choose Type"}],
-        "items": [
-            {
-                "title": "Types",
-                "subtitle": "",
-                "options": [
-                    {
-                        "type": "text",
-                        "title": "Rings",
-                        "description": "Gold & diamond rings",
-                        "postbackText": "pref$type$ring",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Earrings",
-                        "description": "Studs, hoops & jhumkas",
-                        "postbackText": "pref$type$earring",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Necklace",
-                        "description": "Chains & haars",
-                        "postbackText": "pref$type$necklace",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Pendants",
-                        "description": "Lockets & charms",
-                        "postbackText": "pref$type$pendant",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Bracelets",
-                        "description": "Kadas & cuffs",
-                        "postbackText": "pref$type$bracelet",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Bangles",
-                        "description": "Traditional bangles",
-                        "postbackText": "pref$type$bangle",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Mangalsutra",
-                        "description": "Bridal mangalsutra",
-                        "postbackText": "pref$type$mangalsutra",
-                    },
-                ],
-            }
-        ],
-    }
-
-
-def build_pref_step3_budget_list() -> dict:
-    """Step 3 — budget preference list."""
-    return {
-        "type": "list",
-        "list": "list",
-        "body": "What's your budget? 💰",
-        "footer": "KISNA Diamond & Gold",
-        "msgid": _PREF_STEP3_MSGID,
-        "globalButtons": [{"type": "text", "title": "Choose Budget"}],
-        "items": [
-            {
-                "title": "Budget",
-                "subtitle": "",
-                "options": [
-                    {
-                        "type": "text",
-                        "title": "Under ₹10,000",
-                        "description": "Budget-friendly picks",
-                        "postbackText": "pref$budget$0-10000",
-                    },
-                    {
-                        "type": "text",
-                        "title": "₹10k – ₹20k",
-                        "description": "Everyday elegance",
-                        "postbackText": "pref$budget$10000-20000",
-                    },
-                    {
-                        "type": "text",
-                        "title": "₹20k – ₹30k",
-                        "description": "Mid-range favourites",
-                        "postbackText": "pref$budget$20000-30000",
-                    },
-                    {
-                        "type": "text",
-                        "title": "₹30k – ₹40k",
-                        "description": "Premium selection",
-                        "postbackText": "pref$budget$30000-40000",
-                    },
-                    {
-                        "type": "text",
-                        "title": "₹40k – ₹50k",
-                        "description": "Statement pieces",
-                        "postbackText": "pref$budget$40000-50000",
-                    },
-                    {
-                        "type": "text",
-                        "title": "₹50k & above",
-                        "description": "Luxury collection",
-                        "postbackText": "pref$budget$50000-9999999",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Type my range",
-                        "description": "Enter a custom budget",
-                        "postbackText": "pref$budget$custom",
-                    },
-                ],
-            }
-        ],
-    }
-
-
 def build_custom_budget_prompt() -> dict:
-    """Prompt user to type a custom budget after pref step 3."""
-    return {
-        "type": "text",
-        "text": (
-            "Please type your budget, e.g.:\n"
-            "• '50000' → around ₹50,000 (₹45,000–₹55,000)\n"
-            "• '15000-35000' (range)\n"
-            "• '50000 tak' (up to ₹50k)"
-        ),
+    """Prompt user to type a custom budget."""
+    return build_budget_text_prompt()
+
+
+def flow_switch_acknowledgement(current_service: str, new_intent: str) -> str:
+    """One-line natural acknowledgement when switching flows silently."""
+    acks = {
+        (SL.PRODUCT_SEARCH.value, "offers"): "Sure — let me show you today's offers.",
+        (SL.PRODUCT_SEARCH.value, "order_tracking"): "Sure — let's look at your order.",
+        (SL.PRODUCT_SEARCH.value, "returns_refund"): "Sure — I'll help with returns.",
+        (SL.PRODUCT_SEARCH.value, "complaint"): "Sure — let's get your issue logged.",
+        (SL.PRODUCT_SEARCH.value, "store_info"): "Sure — let's find a store near you.",
+        (SL.OFFERS.value, "product_search"): "Sure — let's browse some jewellery.",
+        (SL.AD_FLOW.value, "product_search"): "Sure — let's look at jewellery.",
+        (SL.AD_FLOW.value, "offers"): "Sure — let me show you offers.",
+        (SL.AD_FLOW.value, "order_tracking"): "Sure — let's check your order.",
     }
-
-
-def build_explore_products_list() -> dict:
-    """Public wrapper for the category browse list (Phase 3 explore menu)."""
-    return _build_explore_products_list()
-
-
-def build_explore_products_list_with_prompt() -> dict:
-    """Category menu with vague-browse prompt body."""
-    payload = _build_explore_products_list()
-    payload["body"] = "What type of jewellery are you looking for?"
-    return payload
-
-
-_SERVICE_LABELS = {
-    SL.PRODUCT_SEARCH.value: "jewellery browsing",
-    SL.OFFERS.value: "offers",
-    SL.ORDER_TRACKING.value: "order tracking",
-    SL.RETURNS_REFUND.value: "returns and refunds",
-    SL.COMPLAINT.value: "complaints",
-    SL.AD_FLOW.value: "store locator",
-    SL.GENERAL.value: "general help",
-}
+    return acks.get(
+        (current_service, (new_intent or "").strip().lower()),
+        "Sure — let me help with that.",
+    )
 
 
 def build_flow_switch_bot_response(current_service: str, new_intent: str) -> list[dict]:
-    """Return a quick-reply confirmation when switching between active flows."""
-    new_intent = (new_intent or "").strip().lower()
-    current_service = (current_service or "").strip()
-
-    transitions: dict[tuple[str, str], tuple[str, str, str]] = {
-        (SL.PRODUCT_SEARCH.value, "offers"): (
-            "It looks like you're asking about offers!\n"
-            "Want me to show you current deals?\n"
-            "(Your jewellery browsing session will be saved)",
-            "Yes, show offers",
-            "No, keep browsing",
-        ),
-        (SL.PRODUCT_SEARCH.value, "order_tracking"): (
-            "Want me to help you track your order?\n"
-            "You can come back to browsing after.",
-            "Yes, track order",
-            "No, keep browsing",
-        ),
-        (SL.PRODUCT_SEARCH.value, "returns_refund"): (
-            "I can help with returns and refunds.\n"
-            "Should I switch to that?",
-            "Yes, help with return",
-            "No, keep browsing",
-        ),
-        (SL.PRODUCT_SEARCH.value, "complaint"): (
-            "I can help you report an issue with your order.\n"
-            "Should I switch to that?",
-            "Yes, report issue",
-            "No, keep browsing",
-        ),
-        (SL.PRODUCT_SEARCH.value, "store_info"): (
-            "Looking for a KISNA store near you?",
-            "Yes, find a store",
-            "No, keep browsing",
-        ),
-        (SL.OFFERS.value, "product_search"): (
-            "Want to browse jewellery?\n"
-            "I'll switch from offers to the catalogue.",
-            "Yes, browse jewellery",
-            "No, stay on offers",
-        ),
-        (SL.AD_FLOW.value, "product_search"): (
-            "You were looking for a store near you —\n"
-            "want me to switch and help you with that instead?",
-            "Yes, switch",
-            "No, find store",
-        ),
-        (SL.AD_FLOW.value, "offers"): (
-            "You were looking for a store near you —\n"
-            "want me to switch and help you with that instead?",
-            "Yes, switch",
-            "No, find store",
-        ),
-        (SL.AD_FLOW.value, "order_tracking"): (
-            "You were looking for a store near you —\n"
-            "want me to switch and help you with that instead?",
-            "Yes, switch",
-            "No, find store",
-        ),
-    }
-
-    text, yes_label, no_label = transitions.get(
-        (current_service, new_intent),
-        (
-            f"Shall I switch from {_SERVICE_LABELS.get(current_service, current_service)} "
-            "to help with that?",
-            "Yes, switch",
-            "No, continue",
-        ),
-    )
-
+    """Legacy alias — silent flow switch uses text ack only."""
     return [
         {
-            "type": "quickreply",
-            "text": text,
-            "caption": "",
-            "options": [{"title": yes_label}, {"title": no_label}],
-            "msgid": QuickReplyId.FLOW_SWITCH_CONFIRM.value,
+            "type": "text",
+            "text": flow_switch_acknowledgement(current_service, new_intent),
         }
     ]
+
+
+def build_explore_products_list() -> dict:
+    """Legacy alias — vague browse now uses a text slot-fill question."""
+    return build_vague_slot_fill_response()
+
+
+def build_explore_products_list_with_prompt() -> dict:
+    """Legacy alias — vague browse now uses a text slot-fill question."""
+    return build_vague_slot_fill_response()
 
 
 def handle_flow_switch_quick_reply(
@@ -778,96 +534,34 @@ def handle_flow_switch_quick_reply(
         }
     ]
     if user_profile.get("service_selected") == SL.PRODUCT_SEARCH.value:
-        data["bot_response"].append(build_explore_products_list_with_prompt())
+        data["bot_response"].append(build_vague_slot_fill_response())
     return True
 
 
 def build_clarification_bot_response(intent: str, confidence: float) -> list[dict]:
-    """Return one quick-reply clarification message for low-confidence classification."""
+    """Return one plain-text clarifying question for low-confidence classification."""
     intent = (intent or "").strip().lower()
     conf = float(confidence or 0)
 
     if conf < 0.3:
-        return [
-            {
-                "type": "quickreply",
-                "text": (
-                    "I want to make sure I help you correctly!\n"
-                    "What would you like to do today?"
-                ),
-                "caption": "",
-                "options": [
-                    {"title": "Browse Jewellery"},
-                    {"title": "View Offers"},
-                    {"title": "Track Order"},
-                    {"title": "Find Store"},
-                    {"title": "Ask a Question"},
-                ],
-                "msgid": QuickReplyId.CLARIFY_BROWSE.value,
-            }
-        ]
+        text = (
+            "I want to make sure I help you right — are you looking to browse jewellery, "
+            "check offers, track an order, or find a store?"
+        )
+    elif intent in ("store_info",):
+        text = "Are you looking for a KISNA store near you? Share your PIN code or city."
+    elif intent in ("order_tracking", "complaint", "returns_refund"):
+        text = (
+            "Is this about tracking an existing order, or reporting an issue with one?"
+        )
+    elif intent in ("offers",) or (intent == "product_search" and conf < 0.42):
+        text = "Are you looking for jewellery to browse, or current offers and deals?"
+    else:
+        text = (
+            "Are you looking for a specific jewellery piece, or a question about KISNA?"
+        )
 
-    if intent in ("store_info",):
-        return [
-            {
-                "type": "quickreply",
-                "text": "Are you looking for a KISNA store near you?",
-                "caption": "",
-                "options": [
-                    {"title": "Yes, find a store"},
-                    {"title": "No, something else"},
-                ],
-                "msgid": QuickReplyId.CLARIFY_STORE_YES.value,
-            }
-        ]
-
-    if intent in ("order_tracking", "complaint", "returns_refund"):
-        return [
-            {
-                "type": "quickreply",
-                "text": (
-                    "Is this about tracking an existing order, or reporting an issue?"
-                ),
-                "caption": "",
-                "options": [
-                    {"title": "Track my order"},
-                    {"title": "Report a problem"},
-                ],
-                "msgid": QuickReplyId.CLARIFY_TRACK.value,
-            }
-        ]
-
-    if intent in ("offers",) or (
-        intent == "product_search" and conf < 0.42
-    ):
-        return [
-            {
-                "type": "quickreply",
-                "text": "Are you looking for jewellery to browse, or current offers?",
-                "caption": "",
-                "options": [
-                    {"title": "Browse jewellery"},
-                    {"title": "See offers"},
-                ],
-                "msgid": QuickReplyId.CLARIFY_OFFERS.value,
-            }
-        ]
-
-    return [
-        {
-            "type": "quickreply",
-            "text": (
-                "Are you looking for a specific jewellery piece, or did you "
-                "have a question about KISNA's policies?"
-            ),
-            "caption": "",
-            "options": [
-                {"title": "Browse Jewellery"},
-                {"title": "Ask a Question"},
-            ],
-            "msgid": QuickReplyId.CLARIFY_BROWSE.value,
-        }
-    ]
+    return [{"type": "text", "text": text}]
 
 
 def handle_clarification_quick_reply(
@@ -899,7 +593,7 @@ def handle_clarification_quick_reply(
             return True
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
         data["classified_category"] = "product_search"
-        data["bot_response"] = [build_explore_products_list_with_prompt()]
+        data["bot_response"] = [build_vague_slot_fill_response()]
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_ASK.value:
@@ -945,7 +639,7 @@ def handle_clarification_quick_reply(
             return True
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
         data["classified_category"] = "product_search"
-        data["bot_response"] = [build_explore_products_list_with_prompt()]
+        data["bot_response"] = [build_vague_slot_fill_response()]
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_VIEW_OFFERS.value:
@@ -985,161 +679,9 @@ _CLARIFY_MSGIDS = frozenset(
 )
 
 
-def _build_explore_products_list() -> dict:
-    """Category browse list shown when user taps Explore Products."""
-    return build_main_category_list()
-
-
-def build_main_category_list() -> dict:
-    """Main 9-row category list for Explore Products."""
-    return {
-        "type": "list",
-        "list": "list",
-        "body": "What are you looking for? Tap a category to browse 💎",
-        "footer": "KISNA Diamond & Gold",
-        "msgid": _EXPLORE_CAT_LIST_MSGID,
-        "globalButtons": [{"type": "text", "title": "Select Category"}],
-        "items": [
-            {
-                "title": "Categories",
-                "subtitle": "",
-                "options": [
-                    {
-                        "type": "text",
-                        "title": "Rings",
-                        "description": "Gold, diamond & solitaires",
-                        "postbackText": "pref$cat$ring",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Earrings",
-                        "description": "Studs, hoops & jhumkas",
-                        "postbackText": "pref$cat$earring",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Necklaces & Chains",
-                        "description": "Sets, layered chains & more",
-                        "postbackText": "pref$cat$necklace",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Pendants",
-                        "description": "Gold & diamond lockets",
-                        "postbackText": "pref$cat$pendant",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Bangles & Bracelets",
-                        "description": "Kadas, cuffs & adjustable bands",
-                        "postbackText": "pref$cat$bangle_bracelet",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Mangalsutra",
-                        "description": "Traditional & modern styles",
-                        "postbackText": "pref$cat$mangalsutra",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Maang Tikka",
-                        "description": "Bridal & everyday wear",
-                        "postbackText": "pref$cat$maang_tikka",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Other Jewellery",
-                        "description": "Solitaire, Nose Ring, Watch, Chain, Sets...",
-                        "postbackText": "pref$cat$other",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Browse All",
-                        "description": "See the full KISNA collection",
-                        "postbackText": "pref$cat$any",
-                    },
-                ],
-            }
-        ],
-    }
-
-
-def build_other_jewellery_list() -> dict:
-    """Secondary category list for Other Jewellery."""
-    return {
-        "type": "list",
-        "list": "list",
-        "body": "Choose a specific jewellery type:",
-        "footer": "KISNA Diamond & Gold",
-        "msgid": "pref$cat$other$list",
-        "globalButtons": [{"type": "text", "title": "Select"}],
-        "items": [
-            {
-                "title": "More Categories",
-                "subtitle": "",
-                "options": [
-                    {
-                        "type": "text",
-                        "title": "Solitaire Rings",
-                        "description": "Diamond solitaire collection",
-                        "postbackText": "pref$cat$solitaire",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Nose Wear",
-                        "description": "Nose pins & nose rings",
-                        "postbackText": "pref$cat$nose_wear",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Watch Wear",
-                        "description": "Watches & accessories",
-                        "postbackText": "pref$cat$watch_wear",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Mangalsutra Bracelets",
-                        "description": "Mangalsutra in bracelet style",
-                        "postbackText": "pref$cat$mangalsutra_bracelet",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Pendant Sets",
-                        "description": "Necklace & pendant set combos",
-                        "postbackText": "pref$cat$pendant_set",
-                    },
-                    {
-                        "type": "text",
-                        "title": "Necklace Sets",
-                        "description": "Matching necklace & earring sets",
-                        "postbackText": "pref$cat$necklace_set",
-                    },
-                    {
-                        "type": "text",
-                        "title": "← Back to Categories",
-                        "description": "Go back to main category list",
-                        "postbackText": "pref$cat$back",
-                    },
-                ],
-            }
-        ],
-    }
-
-
 def _build_rating_quickreply() -> dict:
-    return {
-        "type": "quickreply",
-        "text": "How was your experience with Kisna?",
-        "caption": "",
-        "options": [
-            {"title": "1"},
-            {"title": "2"},
-            {"title": "3"},
-            {"title": "4"},
-            {"title": "5"},
-        ],
-        "msgid": QuickReplyId.RATING_REQUEST.value,
-    }
+    """Legacy alias — rating is now a plain-text prompt."""
+    return build_rating_prompt_response()
 
 
 def _is_product_search_postback(postback: str) -> bool:
@@ -1164,9 +706,9 @@ def _handle_menu_selection(
     if key in ("explore_products",):
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
         _clear_explore_browse_session(user_profile)
-        data["bot_response"] = [_build_explore_products_list()]
-        try_trace(data, "Understood as", "Explore products menu")
-        try_trace(data, "Action", "Sent category browse list")
+        data["bot_response"] = [build_vague_slot_fill_response()]
+        try_trace(data, "Understood as", "Explore products (text slot-fill)")
+        try_trace(data, "Action", "Asked category + budget in text")
         return
 
     if key in ("view_offers",):
@@ -1192,16 +734,16 @@ def _handle_menu_selection(
 
     if key in ("help_center",):
         user_profile["service_selected"] = ""
-        data["bot_response"] = [_build_help_center_list()]
-        try_trace(data, "Understood as", "Help Center (menu)")
-        try_trace(data, "Action", "Sent Help Center options list")
+        data["bot_response"] = [build_main_menu_bot_response()]
+        try_trace(data, "Understood as", "Help Center (text)")
+        try_trace(data, "Action", "Sent capability summary")
         return
 
     if key in ("raise_complaint", "damage_complaint", "complaint"):
-        user_profile["service_selected"] = ""
-        data["bot_response"] = [_build_help_center_list()]
-        try_trace(data, "Understood as", "Complaint / help (menu)")
-        try_trace(data, "Action", "Sent Help Center options list")
+        user_profile["service_selected"] = SL.COMPLAINT.value
+        data["bot_response"] = [build_complaint_flow_bot_response()]
+        try_trace(data, "Understood as", "Complaint (menu legacy)")
+        try_trace(data, "Action", "Sent complaint form")
         return
 
     if key.startswith("help$"):
@@ -1366,7 +908,7 @@ class ServiceList(Processor):
                 if list_msgid.startswith("help$") or (postback or "").startswith("help$"):
                     if list_msgid == _HELP_CENTER_MSGID and not postback:
                         user_profile["service_selected"] = ""
-                        data["bot_response"] = [_build_help_center_list()]
+                        data["bot_response"] = [build_main_menu_bot_response()]
                     else:
                         _handle_help_center_selection(
                             postback or list_msgid,

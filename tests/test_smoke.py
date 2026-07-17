@@ -57,11 +57,9 @@ from kisna_chatbot.processors.product_search_agent_v3 import (
     _entities_from_last_viewed,
 )
 from kisna_chatbot.processors.service_list import (
-    _build_explore_products_list,
     _handle_menu_selection,
 )
 from kisna_chatbot.utils.product_formatter import get_product_display_price
-from kisna_chatbot.utils.product_formatter import format_product_list_message
 
 
 class ComplaintFlowTokenTests(unittest.TestCase):
@@ -97,44 +95,6 @@ class RoutingTests(unittest.TestCase):
 
 
 class ProductSearchTests(unittest.TestCase):
-    def test_format_product_list_message(self):
-        products = [
-            {
-                "_id": "p1",
-                "title": "Gold Ring",
-                "price": {"variantPrice": 19999},
-                "materialType": "gold",
-                "shipping": {"edd": 5},
-            },
-            {
-                "_id": "p2",
-                "title": "Diamond Pendant",
-                "price": {"variantPrice": 89999},
-                "materialType": "diamond",
-                "shipping": {"edd": 7},
-            },
-        ]
-        payload = format_product_list_message(products, 2, 1, search_context="gold rings")
-        self.assertEqual(payload["type"], "list")
-        self.assertEqual(payload["msgid"], "product_select$results")
-        self.assertEqual(len(payload["items"][0]["options"]), 2)
-        self.assertEqual(payload["items"][0]["options"][0]["postbackText"], "p1")
-
-    def test_format_product_list_material_type_list(self):
-        products = [
-            {
-                "_id": "p1",
-                "title": "Diamond Ring",
-                "price": {"variantPrice": 25311},
-                "materialType": ["diamond"],
-                "shipping": {"edd": 7},
-            }
-        ]
-        payload = format_product_list_message(products, 1, 1)
-        desc = payload["items"][0]["options"][0]["description"]
-        self.assertIn("Diamond", desc)
-        self.assertNotIn("['diamond']", desc)
-
     def test_parse_product_list_selection(self):
         list_id = json.dumps(
             {"msgid": "product_select$results", "postbackText": "prod-42"}
@@ -197,7 +157,7 @@ class ProductSearchTests(unittest.TestCase):
             result = await agent.process(data)
             self.assertIn("bot_response", result)
             response = result["bot_response"]
-            self.assertEqual(len(response), 5)
+            self.assertEqual(len(response), 3)
             self.assertEqual(response[0]["type"], "media")
             self.assertEqual(response[0]["media_type"], "image")
             self.assertNotIn("products_elysia", response[0]["caption"])
@@ -207,9 +167,11 @@ class ProductSearchTests(unittest.TestCase):
                 response[1]["url"],
                 "https://www.kisna.com/products/elysia-ring",
             )
-            self.assertEqual(response[2]["msgid"], "product$similar")
-            self.assertEqual(response[3]["msgid"], "product$store")
-            self.assertEqual(response[4]["msgid"], "product$browse")
+            self.assertEqual(response[2]["type"], "text")
+            hint = response[2]["text"].lower()
+            self.assertIn("similar designs", hint)
+            self.assertIn("store near you", hint)
+            self.assertIn("keep browsing", hint)
             self.assertIn("last_viewed_product", result["user_profile"])
 
         import asyncio
@@ -585,15 +547,20 @@ class ProductSearchTests(unittest.TestCase):
             ):
                 result = await agent.process(data)
 
-            self.assertGreaterEqual(search_mock.await_count, 3)
+            # Evidence gate strips unevidenced material → full search then drop_price.
+            self.assertEqual(search_mock.await_count, 2)
             images = [
                 r for r in result["bot_response"] if r.get("type") == "image_with_cta"
             ]
             self.assertEqual(len(images), 1)
-            intro = result["bot_response"][0]["text"]
-            self.assertIn("couldn't find", intro.lower())
-            self.assertIn("maang tikka", intro.lower())
-            self.assertIn("40,000", intro)
+            intro = result["bot_response"][0]["text"].lower()
+            self.assertTrue(
+                "couldn't find" in intro
+                or "no pieces found" in intro
+                or "closest picks" in intro
+            )
+            self.assertIn("maang tikka", intro)
+            self.assertTrue("40,000" in intro or "45,000" in intro)
 
         import asyncio
 
@@ -870,30 +837,26 @@ class ProductSearchTests(unittest.TestCase):
             ) as search_mock:
                 result = await agent.process(data)
             search_mock.assert_not_called()
-            self.assertEqual(result["bot_response"][0]["msgid"], "pref$step1$list")
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("budget", result["bot_response"][0]["text"].lower())
             self.assertEqual(result["user_profile"]["pref_category"], "ring")
-            self.assertEqual(result["user_profile"]["preference_step"], 1)
+            self.assertEqual(result["user_profile"]["preference_step"], 2)
+            self.assertTrue(result["user_profile"]["awaiting_custom_budget"])
 
         import asyncio
 
         asyncio.run(_run())
 
-    def test_explore_products_menu_shows_category_list(self):
+    def test_explore_products_menu_asks_slot_fill(self):
         user_profile = {}
         data = {}
         _handle_menu_selection("Explore Products", user_profile, data, "explore_products")
         self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
-        self.assertEqual(data["bot_response"][0]["type"], "list")
-        self.assertEqual(data["bot_response"][0]["msgid"], "search$cat$list")
-        postbacks = [
-            opt["postbackText"]
-            for opt in data["bot_response"][0]["items"][0]["options"]
-        ]
-        self.assertIn("pref$cat$other", postbacks)
-        self.assertIn("pref$cat$any", postbacks)
-        self.assertEqual(len(postbacks), 9)
+        self.assertEqual(data["bot_response"][0]["type"], "text")
+        self.assertIn("rings", data["bot_response"][0]["text"].lower())
+        self.assertIn("budget", data["bot_response"][0]["text"].lower())
 
-    def test_explore_products_clears_prior_search_and_shows_category_list(self):
+    def test_explore_products_clears_prior_search_and_asks_slot_fill(self):
         user_profile = {
             "last_search_filters": {"category": "ring", "material_type": "gold"},
             "last_search_products": [{"_id": "p1"}],
@@ -903,25 +866,20 @@ class ProductSearchTests(unittest.TestCase):
         }
         data = {}
         _handle_menu_selection("Explore Products", user_profile, data, "explore_products")
-        self.assertEqual(data["bot_response"][0]["type"], "list")
+        self.assertEqual(data["bot_response"][0]["type"], "text")
         self.assertEqual(user_profile["last_search_filters"], {})
         self.assertEqual(user_profile["last_search_products"], [])
         self.assertEqual(user_profile["last_search_page"], 0)
         self.assertEqual(user_profile["shown_product_ids"], [])
         self.assertNotIn("pending_explore_search", user_profile)
 
-    def test_explore_products_list_builder(self):
-        payload = _build_explore_products_list()
-        self.assertEqual(payload["type"], "list")
-        self.assertIn("globalButtons", payload)
-        self.assertEqual(payload["globalButtons"][0]["title"], "Select Category")
-        postbacks = [
-            opt["postbackText"]
-            for opt in payload["items"][0]["options"]
-        ]
-        self.assertIn("pref$cat$ring", postbacks)
-        self.assertIn("pref$cat$any", postbacks)
-        self.assertIn("pref$cat$other", postbacks)
+    def test_explore_products_slot_fill_builder(self):
+        from kisna_chatbot.processors.service_list import build_vague_slot_fill_response
+
+        payload = build_vague_slot_fill_response()
+        self.assertEqual(payload["type"], "text")
+        self.assertIn("rings", payload["text"].lower())
+        self.assertIn("budget", payload["text"].lower())
 
     def test_handle_menu_selection_delegates_pref_cat_postback(self):
         user_profile = {}

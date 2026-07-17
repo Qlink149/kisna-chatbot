@@ -48,19 +48,19 @@ class TestNonTextHandler:
         data = _base_data("image", image={"id": "img123"})
         assert handle_non_text_message(data) is None
         assert len(data["bot_response"]) == 1
-        assert data["bot_response"][0]["type"] == "quickreply"
-        assert "unable to view images" in data["bot_response"][0]["text"].lower()
-        assert data["bot_response"][0]["msgid"] == QuickReplyId.NON_TEXT_BROWSE.value
+        assert data["bot_response"][0]["type"] == "text"
+        assert "can't read images" in data["bot_response"][0]["text"].lower()
 
     def test_audio_reply(self):
         data = _base_data("audio", audio={"id": "aud123"})
         handle_non_text_message(data)
-        assert "voice notes" in data["bot_response"][0]["text"].lower()
+        assert data["bot_response"][0]["type"] == "text"
+        assert "words" in data["bot_response"][0]["text"].lower()
 
     def test_video_reply(self):
         data = _base_data("video", video={"id": "vid123"})
         handle_non_text_message(data)
-        assert "voice notes" in data["bot_response"][0]["text"].lower()
+        assert data["bot_response"][0]["type"] == "text"
 
     def test_sticker_reply(self):
         data = _base_data("sticker", sticker={"id": "stk123"})
@@ -91,18 +91,22 @@ class TestNonTextHandler:
     def test_contacts_reply(self):
         data = _base_data("contacts", contacts=[{"name": {"formatted_name": "A"}}])
         handle_non_text_message(data)
-        assert data["bot_response"][0]["type"] == "quickreply"
+        assert data["bot_response"][0]["type"] == "text"
 
-    def test_non_text_quick_reply_browse(self):
+    def test_non_text_quick_reply_browse_legacy(self):
         user_profile = {}
         data = {"_non_text_button_title": "Browse Jewellery"}
-        assert handle_non_text_quick_reply(QuickReplyId.NON_TEXT_BROWSE.value, user_profile, data)
+        assert handle_non_text_quick_reply(
+            QuickReplyId.NON_TEXT_BROWSE.value, user_profile, data
+        )
         assert user_profile["service_selected"] == SL.PRODUCT_SEARCH.value
 
-    def test_non_text_quick_reply_open_menu(self):
+    def test_non_text_quick_reply_open_menu_legacy(self):
         user_profile = {}
         data = {"_non_text_button_title": "Open Menu"}
-        assert handle_non_text_quick_reply(QuickReplyId.NON_TEXT_BROWSE.value, user_profile, data)
+        assert handle_non_text_quick_reply(
+            QuickReplyId.NON_TEXT_BROWSE.value, user_profile, data
+        )
         assert data["bot_response"][0]["type"] == "text"
 
 

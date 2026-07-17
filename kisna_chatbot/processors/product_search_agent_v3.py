@@ -4,19 +4,15 @@ import os
 import re
 import time
 
-from kisna_chatbot.config.gupshup import get_budget_flow_id
 from kisna_chatbot.integrations.clara_api import ClaraAPIError, search_products
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.classifier import is_greeting_message
 from kisna_chatbot.processors.service_list import (
+    build_budget_text_prompt,
     build_custom_budget_prompt,
-    build_explore_products_list_with_prompt,
-    build_main_category_list,
-    build_main_menu_bot_response,
-    build_other_jewellery_list,
-    build_pref_step1_material_list,
-    build_pref_step2_type_list,
     build_greeting_welcome_bot_responses,
+    build_main_menu_bot_response,
+    build_vague_slot_fill_response,
 )
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import (
@@ -56,7 +52,6 @@ from kisna_chatbot.utils.product_formatter import (
     build_product_url,
     format_product_buy_caption,
     format_product_image_caption,
-    format_product_list_message,
     format_zero_results_message,
     get_product_display_price,
     get_product_image_url_for_whatsapp,
@@ -236,6 +231,12 @@ _SHOW_MORE_RE = re.compile(
     r"\b(show\s+more|more|next|aur\s+dikhao|next\s+3|kuch\s+aur|show\s+next|and\s+more|"
     r"any\s+other\s+options?|anything\s+else|something\s+else|other\s+options?|"
     r"alternate\s*s?|alternatives?|aur\s+kuch|koi\s+aur)\b",
+    re.I,
+)
+
+_SIMILAR_REQUEST_RE = re.compile(
+    r"\b(similar|see\s+similar|more\s+like\s+this|like\s+this|"
+    r"is\s+jaisa|isi?\s+jaisa|jaisa\s+aur|aise\s+hi|same\s+style)\b",
     re.I,
 )
 
@@ -1349,22 +1350,19 @@ class ProductSearchAgentV3(Processor):
                 return data
 
             if product_msgid == "product$browse":
-                products = user_profile.get("last_search_products") or []
-                if not products:
-                    data["bot_response"] = _build_prompt_response()
-                    return data
                 entities = user_profile.get("last_search_filters") or {}
-                total = user_profile.get("last_search_total", len(products))
-                page = user_profile.get("last_search_page", 1)
-                data["bot_response"] = [
-                    format_product_list_message(
-                        products,
-                        total,
-                        page,
-                        search_context=build_search_context(entities),
-                    )
-                ]
-                return data
+                if not entities:
+                    data["bot_response"] = [build_vague_slot_fill_response()]
+                    return data
+                if not _clara_configured():
+                    data["bot_response"] = _build_catalog_not_configured_response()
+                    return data
+                return await self._execute_search(
+                    data,
+                    phone_number,
+                    entities,
+                    query_label="browse_more",
+                )
 
             if product_msgid == "product$similar":
                 last = user_profile.get("last_viewed_product") or {}
@@ -1420,6 +1418,7 @@ class ProductSearchAgentV3(Processor):
             data["bot_response"] = build_greeting_welcome_bot_responses(
                 phone_number=phone_number,
                 chat_history=user_profile.get("chat_history", []),
+                user_profile=user_profile,
             )
             return data
 
@@ -1454,6 +1453,20 @@ class ProductSearchAgentV3(Processor):
 
         if _is_show_more_request(query, data):
             return await self._handle_show_more(data, phone_number)
+
+        if _SIMILAR_REQUEST_RE.search(query) and user_profile.get("last_viewed_product"):
+            last = user_profile.get("last_viewed_product") or {}
+            if not _clara_configured():
+                data["bot_response"] = _build_catalog_not_configured_response()
+                return data
+            entities = _entities_from_last_viewed(last)
+            label = last.get("title") or "similar pieces"
+            return await self._execute_search(
+                data,
+                phone_number,
+                entities,
+                query_label=f"similar:{label}",
+            )
 
         followup = _handle_product_info_followup(data, query)
         if followup is not None:
@@ -1640,20 +1653,46 @@ class ProductSearchAgentV3(Processor):
             and data.get("classified_category") == "product_search"
         ):
             confidence = float(data.get("classifier_confidence") or 1.0)
-            if confidence < 0.45:
+            # One clarifying slot-fill; if still vague after that, soft bestsellers.
+            if user_profile.get("pending_vague_slot_fill"):
+                user_profile.pop("pending_vague_slot_fill", None)
                 data["bot_response"] = [
                     {
                         "type": "text",
                         "text": (
-                            "I'm not sure what you're looking for — "
-                            "let me show you what I can help with! 😊"
+                            "No worries — here are some popular picks to get you started 💎"
                         ),
+                        "_compose": "vague_fallback",
+                    }
+                ]
+                return await self._execute_search(
+                    data,
+                    phone_number,
+                    _empty_entities(),
+                    query_label="vague_bestsellers",
+                    response_mode="browse_all",
+                )
+            if confidence < 0.45:
+                user_profile["pending_vague_slot_fill"] = True
+                data["bot_response"] = [
+                    {
+                        "type": "text",
+                        "text": (
+                            "I'm not quite sure what you're after — "
+                            "tell me a jewellery type and budget if you have one 🙂"
+                        ),
+                        "_compose": "clarification",
                     },
-                    build_main_menu_bot_response(),
+                    build_vague_slot_fill_response(),
                 ]
                 return data
-            data["bot_response"] = [build_explore_products_list_with_prompt()]
+            user_profile["pending_vague_slot_fill"] = True
+            data["bot_response"] = [build_vague_slot_fill_response()]
             return data
+
+        # Fresh search with usable entities — clear vague / last-viewed bleed
+        user_profile.pop("pending_vague_slot_fill", None)
+        user_profile.pop("last_viewed_product", None)
 
         api_params_preview = entities_to_api_params(entities)
         if not has_clara_search_scope(
@@ -1668,7 +1707,17 @@ class ProductSearchAgentV3(Processor):
                     "api_params": api_params_preview,
                 },
             )
-            data["bot_response"] = [build_explore_products_list_with_prompt()]
+            if user_profile.get("pending_vague_slot_fill"):
+                user_profile.pop("pending_vague_slot_fill", None)
+                return await self._execute_search(
+                    data,
+                    phone_number,
+                    _empty_entities(),
+                    query_label="scope_fallback",
+                    response_mode="browse_all",
+                )
+            user_profile["pending_vague_slot_fill"] = True
+            data["bot_response"] = [build_vague_slot_fill_response()]
             return data
 
         return await self._execute_search(
@@ -1682,24 +1731,21 @@ class ProductSearchAgentV3(Processor):
     async def _handle_preference_list(
         self, data: dict, phone_number: str, postback: str
     ) -> dict:
+        """Handle legacy pref$* list taps as conversational text prompts / searches."""
         user_profile = data.get("user_profile", {})
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-        # Refresh session TTL on every preference-flow step, not just completed searches.
         user_profile["last_search_at"] = int(time.time())
         postback = (postback or "").strip()
 
         if postback.startswith("pref$cat$"):
-            if postback == "pref$cat$other":
-                data["bot_response"] = [build_other_jewellery_list()]
-                return data
-            if postback == "pref$cat$back":
-                data["bot_response"] = [build_main_category_list()]
+            if postback in ("pref$cat$other", "pref$cat$back"):
+                data["bot_response"] = [build_vague_slot_fill_response()]
                 return data
             if postback == "pref$cat$any":
                 if not _clara_configured():
                     data["bot_response"] = _build_catalog_not_configured_response()
                     return data
-                _clear_preference_state(user_profile)  # FIX 11: clear any stale pref state
+                _clear_preference_state(user_profile)
                 return await self._execute_search(
                     data,
                     phone_number,
@@ -1710,13 +1756,14 @@ class ProductSearchAgentV3(Processor):
             cat_key = postback.rsplit("$", 2)[-1]
             entities = _entities_from_pref_cat(cat_key)
             if entities is None:
-                data["bot_response"] = _build_prompt_response()
+                data["bot_response"] = [build_vague_slot_fill_response()]
                 return data
             user_profile["pref_category"] = entities.get("category") or cat_key
             if entities.get("title"):
                 user_profile["pref_title"] = entities.get("title")
-            user_profile["preference_step"] = 1
-            data["bot_response"] = [build_pref_step1_material_list()]
+            user_profile["preference_step"] = 2
+            user_profile["awaiting_custom_budget"] = True
+            data["bot_response"] = [build_budget_text_prompt()]
             return data
 
         if postback.startswith("pref$material$"):
@@ -1725,35 +1772,23 @@ class ProductSearchAgentV3(Processor):
             if user_profile.get("pref_category"):
                 user_profile["preference_step"] = 2
                 user_profile["awaiting_custom_budget"] = True
-                if get_budget_flow_id():
-                    data["bot_response"] = [{"type": "flow", "flow": "budget_custom_input"}]
-                else:
-                    data["bot_response"] = [build_custom_budget_prompt()]
+                data["bot_response"] = [build_budget_text_prompt()]
             else:
-                user_profile["preference_step"] = 2
-                data["bot_response"] = [build_pref_step2_type_list()]
+                data["bot_response"] = [build_vague_slot_fill_response()]
             return data
 
         if postback.startswith("pref$type$"):
             category = postback.rsplit("$", 1)[-1]
             user_profile["pref_type"] = category
+            user_profile["pref_category"] = user_profile.get("pref_category") or category
             user_profile["preference_step"] = 3
             user_profile["awaiting_custom_budget"] = True
-            if get_budget_flow_id():
-                data["bot_response"] = [{"type": "flow", "flow": "budget_custom_input"}]
-            else:
-                data["bot_response"] = [build_custom_budget_prompt()]
+            data["bot_response"] = [build_budget_text_prompt()]
             return data
 
         if postback == "pref$budget$custom":
             user_profile["awaiting_custom_budget"] = True
-            if get_budget_flow_id():
-                data["bot_response"] = [{"type": "flow", "flow": "budget_custom_input"}]
-            else:
-                logger.warning(
-                    "KISNA_BUDGET_FLOW_ID not set — using text fallback for budget input"
-                )
-                data["bot_response"] = [build_custom_budget_prompt()]
+            data["bot_response"] = [build_budget_text_prompt()]
             return data
 
         budget_match = _BUDGET_POSTBACK_RE.match(postback)
@@ -1774,7 +1809,7 @@ class ProductSearchAgentV3(Processor):
                 query_label=f"pref:{entities.get('material_type')}:{entities.get('category')}",
             )
 
-        data["bot_response"] = _build_prompt_response()
+        data["bot_response"] = [build_vague_slot_fill_response()]
         return data
 
     async def _handle_custom_budget_input(
@@ -1827,8 +1862,12 @@ class ProductSearchAgentV3(Processor):
         if not user_profile.get("pref_category"):
             _clear_preference_state(user_profile)
             data["bot_response"] = [
-                {"type": "text", "text": "What type of jewellery are you looking for? 💎"},
-                build_main_category_list(),
+                {
+                    "type": "text",
+                    "text": "What type of jewellery are you looking for? 💎",
+                    "_compose": "slot_fill",
+                },
+                build_vague_slot_fill_response(),
             ]
             return data
 
@@ -1893,8 +1932,12 @@ class ProductSearchAgentV3(Processor):
         if not user_profile.get("pref_category"):
             _clear_preference_state(user_profile)
             data["bot_response"] = [
-                {"type": "text", "text": "What type of jewellery are you looking for? 💎"},
-                build_main_category_list(),
+                {
+                    "type": "text",
+                    "text": "What type of jewellery are you looking for? 💎",
+                    "_compose": "slot_fill",
+                },
+                build_vague_slot_fill_response(),
             ]
             return data
 

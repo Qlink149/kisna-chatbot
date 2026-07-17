@@ -203,30 +203,14 @@ def _build_buy_now_response(product: dict) -> list:
         }
     )
 
-    responses.extend(
-        [
-            {
-                "type": "quickreply",
-                "text": "What would you like to do next?",
-                "caption": "",
-                "options": [{"title": "🔍 See Similar"}],
-                "msgid": "product$similar",
-            },
-            {
-                "type": "quickreply",
-                "text": "Need a showroom?",
-                "caption": "",
-                "options": [{"title": "🏪 Find a Store"}],
-                "msgid": "product$store",
-            },
-            {
-                "type": "quickreply",
-                "text": "Back to your search results:",
-                "caption": "",
-                "options": [{"title": "◀ Browse More"}],
-                "msgid": "product$browse",
-            },
-        ]
+    responses.append(
+        {
+            "type": "text",
+            "text": (
+                "You can ask me for *similar designs*, a *store near you*, "
+                "or keep browsing 💎"
+            ),
+        }
     )
     return responses
 

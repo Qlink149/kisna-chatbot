@@ -61,31 +61,53 @@ def _parse_variant_list_reply(list_reply: dict) -> tuple[str, str] | None:
     return product_id, str(variant_id)
 
 
-def _build_variant_list_response(variants: list[dict], product_id: str) -> dict:
-    """Build a WhatsApp list bot_response for variant selection."""
-    options = []
-    for variant in variants[:_MAX_VARIANTS]:
-        label = (variant.get("label") or "Option")[:19]
+def _build_variant_text_response(variants: list[dict]) -> dict:
+    """Build a plain-text numbered variant prompt for pre-order selection."""
+    lines = ["This design comes in a few options:"]
+    for idx, variant in enumerate(variants[:_MAX_VARIANTS], start=1):
+        label = variant.get("label") or "Option"
         price = variant.get("price")
-        description = f"₹{price}" if price is not None else ""
-        options.append(
-            {
-                "type": "text",
-                "title": label,
-                "description": description,
-                "postbackText": str(variant.get("id", "")),
-            }
-        )
+        price_part = f" — ₹{price}" if price is not None else ""
+        lines.append(f"{idx}. {label}{price_part}")
+    lines.append("Just reply with the number you'd like 😊")
+    return {"type": "text", "text": "\n".join(lines)}
 
-    return {
-        "type": "list",
-        "list": "list",
-        "body": "Please select a variant for your pre-order:",
-        "footer": "Kisna",
-        "msgid": f"variant_select${product_id}",
-        "globalButtons": [{"type": "text", "title": "Select Variant"}],
-        "items": [{"title": "Variants", "subtitle": "", "options": options}],
+
+def _set_pending_variant_select(
+    user_profile: dict, product_id: str, variants: list[dict]
+) -> None:
+    user_profile["pending_variant_select"] = {
+        "product_id": product_id,
+        "variants": [
+            {
+                "id": str(v.get("id", "")),
+                "label": v.get("label") or "Option",
+                "price": v.get("price"),
+            }
+            for v in variants[:_MAX_VARIANTS]
+        ],
+        "created_at": int(time.time()),
     }
+
+
+def match_pending_variant(user_profile: dict, text: str) -> dict | None:
+    """Match a text reply (number or label) against pending variant options."""
+    pending = user_profile.get("pending_variant_select")
+    if not isinstance(pending, dict):
+        return None
+    variants = pending.get("variants") or []
+    normalized = (text or "").strip().lower().rstrip(".")
+    if not normalized or not variants:
+        return None
+    if normalized.isdigit():
+        idx = int(normalized)
+        if 1 <= idx <= len(variants):
+            return variants[idx - 1]
+        return None
+    for variant in variants:
+        if (variant.get("label") or "").strip().lower() == normalized:
+            return variant
+    return None
 
 
 def _build_error_response(text: str) -> list:
@@ -162,7 +184,7 @@ class PreOrderAgent(Processor):
     """
 
     def should_run(self, data: dict) -> bool:
-        """Run for preorder$ button taps or variant_select$ list selections."""
+        """Run for preorder$ buttons, variant list replies, or pending text picks."""
         if "bot_response" in data:
             return False
 
@@ -177,6 +199,11 @@ class PreOrderAgent(Processor):
         if interactive_type == "list_reply":
             list_reply = interactive.get("list_reply", {})
             return _parse_variant_list_reply(list_reply) is not None
+
+        if "text" in messages:
+            user_profile = data.get("user_profile", {})
+            text = (messages.get("text", {}) or {}).get("body", "")
+            return match_pending_variant(user_profile, text) is not None
 
         return False
 
@@ -290,9 +317,24 @@ class PreOrderAgent(Processor):
                         variant_label=variant.get("label") or "",
                     )
 
-                data["bot_response"] = [
-                    _build_variant_list_response(variants, product_id)
-                ]
+                _set_pending_variant_select(user_profile, product_id, variants)
+                data["bot_response"] = [_build_variant_text_response(variants)]
+                return data
+
+            if "text" in messages:
+                text = (messages.get("text", {}) or {}).get("body", "")
+                matched = match_pending_variant(user_profile, text)
+                pending = user_profile.pop("pending_variant_select", None) or {}
+                if matched and pending.get("product_id"):
+                    return await self._complete_pre_order(
+                        data,
+                        adapter,
+                        phone_number=phone_number,
+                        client_id=client_id,
+                        product_id=str(pending["product_id"]),
+                        variant_id=str(matched.get("id", "")),
+                        variant_label=matched.get("label") or "",
+                    )
                 return data
 
             if interactive_type == "list_reply":

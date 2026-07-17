@@ -1,4 +1,4 @@
-"""Vague browse queries show category menu instead of unfiltered API search."""
+"""Vague browse queries ask a text slot-fill question instead of a category menu."""
 
 import asyncio
 import os
@@ -24,7 +24,7 @@ from kisna_chatbot.processors.product_search_agent_v3 import ProductSearchAgentV
 
 
 class VagueBrowseMenuTests(unittest.TestCase):
-    def test_kuch_dikhao_shows_category_menu(self):
+    def test_kuch_dikhao_asks_slot_fill(self):
         async def _run():
             agent = ProductSearchAgentV3()
             data = {
@@ -40,11 +40,9 @@ class VagueBrowseMenuTests(unittest.TestCase):
             ) as mock_search:
                 result = await agent.process(data)
             mock_search.assert_not_called()
-            self.assertEqual(result["bot_response"][0]["type"], "list")
-            self.assertIn(
-                "jewellery",
-                result["bot_response"][0]["body"].lower(),
-            )
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("rings", result["bot_response"][0]["text"].lower())
+            self.assertTrue(result["user_profile"].get("pending_vague_slot_fill"))
 
         asyncio.run(_run())
 

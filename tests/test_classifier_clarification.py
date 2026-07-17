@@ -30,10 +30,10 @@ from kisna_chatbot.processors.service_list import (
 class ClarificationFlowTests(unittest.TestCase):
     def test_build_clarification_completely_unclear(self):
         resp = build_clarification_bot_response("general", 0.2)
-        self.assertEqual(resp[0]["type"], "quickreply")
-        self.assertEqual(len(resp[0]["options"]), 5)
+        self.assertEqual(resp[0]["type"], "text")
+        self.assertIn("jewellery", resp[0]["text"].lower())
 
-    def test_clarify_browse_quick_reply(self):
+    def test_clarify_browse_quick_reply_legacy(self):
         user_profile = {"pending_clarification": True}
         data = {"_clarify_button_title": "Browse Jewellery"}
         handled = handle_clarification_quick_reply(
@@ -42,6 +42,7 @@ class ClarificationFlowTests(unittest.TestCase):
         self.assertTrue(handled)
         self.assertFalse(user_profile["pending_clarification"])
         self.assertEqual(user_profile["service_selected"], SL.PRODUCT_SEARCH.value)
+        self.assertEqual(data["bot_response"][0]["type"], "text")
 
     def test_pending_clarification_prepends_context(self):
         async def _run():
@@ -59,7 +60,7 @@ class ClarificationFlowTests(unittest.TestCase):
             with patch(
                 "kisna_chatbot.processors.classifier.complete_chat",
                 new_callable=AsyncMock,
-                return_value='{"intent": "product_search", "confidence": 0.9}',
+                return_value='{"intent": "product_search", "confidence": 0.9, "language": "en"}',
             ) as mock_llm:
                 result = await clf.process(data)
             call_messages = mock_llm.await_args.kwargs["messages"]

@@ -267,7 +267,7 @@ class StorePincodeRetryTipTests(unittest.TestCase):
             self.assertEqual(result["user_profile"].get("store_pincode_attempts"), 1)
         asyncio.run(_run())
 
-    def test_second_failure_shows_escape_tip(self):
+    def test_second_failure_reprompts_and_tracks_attempts(self):
         async def _run():
             from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
             agent = AdFlowAgent()
@@ -275,8 +275,9 @@ class StorePincodeRetryTipTests(unittest.TestCase):
             data = {"phone_number": "919999999999", "messages": _make_text_msg("abcdef not a pincode"), "user_profile": profile}
             result = await agent.process(data)
             resp_text = result["bot_response"][0]["text"]
-            self.assertIn("menu", resp_text.lower())
-            self.assertIn("cancel", resp_text.lower())
+            self.assertIn("pincode", resp_text.lower())
+            self.assertEqual(result["user_profile"].get("store_pincode_attempts"), 2)
+            self.assertTrue(result["user_profile"].get("awaiting_store_pincode"))
         asyncio.run(_run())
 
     def test_success_resets_attempt_counter(self):
@@ -503,7 +504,7 @@ class PendingFlowSwitchExpiryTests(unittest.TestCase):
         handled = handle_flow_switch_quick_reply(QuickReplyId.FLOW_SWITCH_CONFIRM.value, user_profile, data)
         self.assertTrue(handled)
 
-    def test_classifier_setter_includes_created_at(self):
+    def test_classifier_silent_switch_no_pending_flow_switch(self):
         async def _run():
             from kisna_chatbot.processors.classifier import Classifier
             clf = Classifier()
@@ -518,22 +519,29 @@ class PendingFlowSwitchExpiryTests(unittest.TestCase):
                 "client_id": "kisna",
             }
             with patch("kisna_chatbot.processors.classifier.complete_chat", new_callable=AsyncMock,
-                       return_value='{"intent": "returns_refund", "confidence": 0.9, "entities": {}}'):
+                       return_value='{"intent": "returns_refund", "confidence": 0.9, "language": "en", "entities": {}}'):
                 result = await clf.process(data)
-            pending = result["user_profile"].get("pending_flow_switch", {})
-            self.assertIn("created_at", pending)
-            self.assertAlmostEqual(pending["created_at"], time.time(), delta=5)
+            self.assertNotIn("pending_flow_switch", result["user_profile"])
+            self.assertEqual(
+                result["user_profile"]["service_selected"],
+                SL.RETURNS_REFUND.value,
+            )
         asyncio.run(_run())
 
-    def test_ad_flow_setter_includes_created_at(self):
+    def test_ad_flow_silent_switch_no_pending_flow_switch(self):
         async def _run():
             from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
             agent = AdFlowAgent()
             profile = {"awaiting_store_pincode": True, "service_selected": SL.AD_FLOW.value}
             data = {"phone_number": "919999999999", "messages": _make_text_msg("gold rings"), "user_profile": profile}
             result = await agent.process(data)
-            pending = result["user_profile"].get("pending_flow_switch", {})
-            self.assertIn("created_at", pending)
+            self.assertNotIn("pending_flow_switch", result["user_profile"])
+            self.assertFalse(result["user_profile"].get("awaiting_store_pincode"))
+            self.assertEqual(
+                result["user_profile"]["service_selected"],
+                SL.PRODUCT_SEARCH.value,
+            )
+            self.assertEqual(result["bot_response"][0]["type"], "text")
         asyncio.run(_run())
 
 

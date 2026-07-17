@@ -8,7 +8,7 @@ from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import extract_entities
 from kisna_chatbot.processors.service_list import (
-    build_flow_switch_bot_response,
+    flow_switch_acknowledgement,
     build_main_menu_bot_response,
 )
 from kisna_chatbot.utils.clara_cache import get_cached_stores
@@ -321,8 +321,13 @@ class AdFlowAgent(Processor):
 
                 escape_intent = _store_pincode_escape_intent(user_message)
                 if escape_intent:
+                    from kisna_chatbot.utils.session_state import (
+                        clear_transient_for_service_change,
+                    )
+
                     user_profile["awaiting_store_pincode"] = False
                     user_profile["store_pincode_attempts"] = 0
+                    user_profile.pop("pending_flow_switch", None)
                     new_service = (
                         SL.PRODUCT_SEARCH.value
                         if escape_intent in ("product_search", "product_info")
@@ -333,16 +338,28 @@ class AdFlowAgent(Processor):
                             "complaint": SL.COMPLAINT.value,
                         }.get(escape_intent, SL.GENERAL.value)
                     )
-                    # FIX 13: stamp created_at on all pending_flow_switch writes
-                    user_profile["pending_flow_switch"] = {
-                        "intent": escape_intent,
-                        "service": new_service,
-                        "created_at": time.time(),
-                    }
                     current = user_profile.get("service_selected") or SL.AD_FLOW.value
-                    data["bot_response"] = build_flow_switch_bot_response(
-                        current, escape_intent
+                    clear_transient_for_service_change(
+                        user_profile,
+                        from_service=current,
+                        to_service=new_service,
                     )
+                    user_profile["service_selected"] = new_service
+                    data["classified_category"] = escape_intent
+                    ack = flow_switch_acknowledgement(current, escape_intent)
+                    data["bot_response"] = [
+                        {
+                            "type": "text",
+                            "text": ack,
+                            "_compose": "flow_switch_ack",
+                        }
+                    ]
+                    if escape_intent == "complaint":
+                        from kisna_chatbot.processors.service_list import (
+                            build_complaint_flow_bot_response,
+                        )
+
+                        data["bot_response"].append(build_complaint_flow_bot_response())
                     return data
 
                 user_profile["awaiting_store_pincode"] = False

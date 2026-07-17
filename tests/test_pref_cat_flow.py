@@ -1,4 +1,4 @@
-"""Tests for pref$cat$ category browse flow."""
+"""Tests for pref$cat$ legacy list taps → conversational text prompts."""
 
 import asyncio
 import json
@@ -16,28 +16,10 @@ os.environ.setdefault("KISNA_UTM_ENABLED", "false")
 from kisna_chatbot.main import app  # noqa: F401
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.product_search_agent_v3 import ProductSearchAgentV3
-from kisna_chatbot.processors.service_list import (
-    build_main_category_list,
-    build_other_jewellery_list,
-)
 
 
 class PrefCatFlowTests(unittest.TestCase):
-    def test_main_category_list_has_nine_rows(self):
-        payload = build_main_category_list()
-        options = payload["items"][0]["options"]
-        self.assertEqual(len(options), 9)
-        titles = [opt["title"] for opt in options]
-        self.assertIn("Other Jewellery", titles)
-        self.assertIn("Browse All", titles)
-
-    def test_other_jewellery_list_has_back_button(self):
-        payload = build_other_jewellery_list()
-        postbacks = [opt["postbackText"] for opt in payload["items"][0]["options"]]
-        self.assertIn("pref$cat$back", postbacks)
-        self.assertIn("pref$cat$solitaire", postbacks)
-
-    def test_pref_cat_other_shows_secondary_list(self):
+    def test_pref_cat_other_asks_slot_fill(self):
         async def _run():
             agent = ProductSearchAgentV3()
             list_id = json.dumps(
@@ -57,11 +39,12 @@ class PrefCatFlowTests(unittest.TestCase):
                 "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
             }
             result = await agent.process(data)
-            self.assertEqual(result["bot_response"][0]["msgid"], "pref$cat$other$list")
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("rings", result["bot_response"][0]["text"].lower())
 
         asyncio.run(_run())
 
-    def test_pref_cat_back_shows_main_list(self):
+    def test_pref_cat_back_asks_slot_fill(self):
         async def _run():
             agent = ProductSearchAgentV3()
             list_id = json.dumps(
@@ -78,11 +61,12 @@ class PrefCatFlowTests(unittest.TestCase):
                 "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
             }
             result = await agent.process(data)
-            self.assertEqual(result["bot_response"][0]["msgid"], "search$cat$list")
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("budget", result["bot_response"][0]["text"].lower())
 
         asyncio.run(_run())
 
-    def test_pref_cat_ring_shows_material_list(self):
+    def test_pref_cat_ring_asks_budget_in_text(self):
         async def _run():
             agent = ProductSearchAgentV3()
             list_id = json.dumps(
@@ -104,11 +88,15 @@ class PrefCatFlowTests(unittest.TestCase):
             ) as search_mock:
                 result = await agent.process(data)
             search_mock.assert_not_called()
-            self.assertEqual(result["bot_response"][0]["msgid"], "pref$step1$list")
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("budget", result["bot_response"][0]["text"].lower())
+            self.assertEqual(result["user_profile"]["pref_category"], "ring")
+            self.assertEqual(result["user_profile"]["preference_step"], 2)
+            self.assertTrue(result["user_profile"]["awaiting_custom_budget"])
 
         asyncio.run(_run())
 
-    def test_legacy_search_cat_ring_shows_material_list(self):
+    def test_legacy_search_cat_ring_asks_budget_in_text(self):
         async def _run():
             agent = ProductSearchAgentV3()
             list_id = json.dumps(
@@ -130,7 +118,10 @@ class PrefCatFlowTests(unittest.TestCase):
             ) as search_mock:
                 result = await agent.process(data)
             search_mock.assert_not_called()
-            self.assertEqual(result["bot_response"][0]["msgid"], "pref$step1$list")
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("budget", result["bot_response"][0]["text"].lower())
+            self.assertEqual(result["user_profile"]["pref_category"], "ring")
+            self.assertTrue(result["user_profile"]["awaiting_custom_budget"])
 
         asyncio.run(_run())
 
@@ -188,7 +179,7 @@ class PrefCatFlowTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_low_confidence_shows_main_menu(self):
+    def test_low_confidence_shows_text_clarification(self):
         async def _run():
             agent = ProductSearchAgentV3()
             data = {
@@ -199,8 +190,12 @@ class PrefCatFlowTests(unittest.TestCase):
                 "classifier_confidence": 0.3,
             }
             result = await agent.process(data)
-            self.assertEqual(result["bot_response"][-1]["type"], "list")
-            self.assertIn("not sure", result["bot_response"][0]["text"].lower())
+            self.assertTrue(
+                all(m.get("type") == "text" for m in result["bot_response"])
+            )
+            joined = " ".join(m["text"].lower() for m in result["bot_response"])
+            self.assertTrue("not sure" in joined or "rings" in joined)
+            self.assertTrue(result["user_profile"].get("pending_vague_slot_fill"))
 
         asyncio.run(_run())
 

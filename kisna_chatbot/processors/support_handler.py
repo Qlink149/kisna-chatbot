@@ -33,7 +33,7 @@ def build_expert_support_bot_response(
     Build bot_response for expert / human-handoff requests.
 
     During open hours: flag live agent + handoff message.
-    Outside hours / holiday: offline message + Request Callback quick reply.
+    Outside hours / holiday: send callback form directly (agent = pick a slot).
     """
     status = get_support_status(now)
     customer_name = user_profile.get("username") or "Customer"
@@ -46,25 +46,33 @@ def build_expert_support_bot_response(
 
     if status["status"] == "closed_holiday":
         holiday = status.get("holiday", "a holiday")
-        text = (
+        offline_text = (
             f"Our team is currently offline for {holiday}. 🙏\n"
             "We'll be back the next working day.\n"
-            "Would you like to request a callback?"
+            "Meanwhile, you can pick a callback slot below and we'll call you back."
         )
     else:
         hours = format_support_hours_text()
-        text = (
+        offline_text = (
             "Our team is currently offline.\n"
             f"Support hours: {hours}.\n"
-            "Would you like to request a callback?"
+            "Meanwhile, you can pick a callback slot below and we'll call you back."
         )
 
-    return [
-        {
-            "type": "quickreply",
-            "text": text,
-            "caption": "",
-            "options": [{"title": "Request Callback"}],
-            "msgid": HELP_CALLBACK_QR_MSGID,
-        }
-    ]
+    # Offline / holiday → offline message + callback form (or text capture fallback)
+    from kisna_chatbot.config.gupshup import get_callback_flow_id
+    from kisna_chatbot.models.service_list import ServiceList as SL
+    from kisna_chatbot.processors.service_list import (
+        _start_callback_text_capture,
+        build_callback_flow_bot_response,
+    )
+
+    user_profile["service_selected"] = SL.CALLBACK.value
+    responses: list[dict] = [{"type": "text", "text": offline_text}]
+    if get_callback_flow_id():
+        responses.append(build_callback_flow_bot_response())
+    else:
+        responses.extend(
+            _start_callback_text_capture(user_profile, request_type="callback")
+        )
+    return responses

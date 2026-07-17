@@ -176,12 +176,16 @@ class ResponseManager:
         """
         list_name = bot_response["list"]
         if list_name == "service_list":
-            # Legacy alias: inline Kisna menu when list name is service_list.
-            from kisna_chatbot.processors.service_list import _build_main_menu_list
+            # Legacy alias: main menu list is gone — send text help instead.
+            from kisna_chatbot.processors.service_list import build_main_menu_bot_response
+            from kisna_chatbot.whatsapp_functions.send_text_message import (
+                send_text_message,
+            )
 
-            legacy = _build_main_menu_list()
-            legacy["list"] = "list"
-            return send_list(phone_number=phone_number, bot_response=legacy)
+            return send_text_message(
+                phone_number=phone_number,
+                bot_response=build_main_menu_bot_response(),
+            )
         elif list_name == "list":
             return send_list(phone_number=phone_number, bot_response=bot_response)
         else:

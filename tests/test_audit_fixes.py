@@ -11,11 +11,17 @@ os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt")
 os.environ.setdefault("SYSTEM_API_KEY", "test-api")
+os.environ.setdefault("GUPSHUP_APP_ID", "test-app-id")
+os.environ.setdefault("GUPSHUP_TOKEN", "test-token")
+os.environ.setdefault("GUPSHUP_APP_NAME", "test-app")
+os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
+os.environ.setdefault("KISNA_PRODUCT_API", "https://example.com/products")
+os.environ.setdefault("JWT_SECRET_KEY", "test-jwt")
 
+from kisna_chatbot.main import app  # noqa: F401
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
 from kisna_chatbot.processors.classifier import Classifier
-from kisna_chatbot.processors.service_list import QuickReplyId
 
 
 class StorePincodeEscapeTests(unittest.TestCase):
@@ -44,12 +50,16 @@ class StorePincodeEscapeTests(unittest.TestCase):
             }
             result = await agent.process(data)
             self.assertIn("bot_response", result)
-            qr = result["bot_response"][0]
-            self.assertEqual(qr["type"], "quickreply")
-            self.assertEqual(qr["msgid"], QuickReplyId.FLOW_SWITCH_CONFIRM.value)
-            self.assertIn("store near you", qr["text"].lower())
-            self.assertFalse(result["user_profile"]["awaiting_store_pincode"])
-            self.assertIn("pending_flow_switch", result["user_profile"])
+            msg = result["bot_response"][0]
+            self.assertEqual(msg["type"], "text")
+            self.assertIn("jewellery", msg["text"].lower())
+            self.assertFalse(result["user_profile"].get("awaiting_store_pincode"))
+            self.assertNotIn("pending_flow_switch", result["user_profile"])
+            self.assertEqual(
+                result["user_profile"]["service_selected"],
+                SL.PRODUCT_SEARCH.value,
+            )
+            self.assertEqual(result["classified_category"], "product_search")
 
         asyncio.run(_run())
 

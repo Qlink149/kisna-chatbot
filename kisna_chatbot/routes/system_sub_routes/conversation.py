@@ -16,9 +16,9 @@ from kisna_chatbot.database.db_utils import (
 from kisna_chatbot.routes.dependencies.system_dependencies import verify_token_query
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.pubsub import pubsub
-from kisna_chatbot.models.enums import QuickReplyId
-from kisna_chatbot.whatsapp_functions.quick_reply.send_quick_reply import send_quickreply
 from kisna_chatbot.whatsapp_functions.send_text_message import send_text_message
+from kisna_chatbot.database.collections import users
+from kisna_chatbot.processors.service_list import build_rating_prompt_response
 
 # stream_router: no router-level auth — stream validates via ?token= query param itself
 stream_router = APIRouter(prefix="/conversation", tags=["System - Conversation"])
@@ -146,18 +146,15 @@ async def release(phone_number: str):
         )
         save_agent_message(phone_number, RELEASE_MESSAGE)
 
-        send_quickreply(
+        rating_prompt = build_rating_prompt_response()
+        send_text_message(
             phone_number=phone_number,
-            bot_response={
-                "text": "How would you rate your experience with us today?",
-                "caption": "Your feedback helps us improve.",
-                "options": [
-                    {"type": "text", "title": "😊 Excellent"},
-                    {"type": "text", "title": "😐 Average"},
-                    {"type": "text", "title": "😞 Poor"},
-                ],
-                "msgid": QuickReplyId.RATING_REQUEST.value,
-            },
+            bot_response=rating_prompt,
+        )
+        save_agent_message(phone_number, rating_prompt["text"])
+        users.update_one(
+            {"phone_number": phone_number},
+            {"$set": {"awaiting_rating": True, "updated_at": int(time.time())}},
         )
 
         await pubsub.publish(phone_number, {"type": "release", "phone_number": phone_number})

@@ -14,7 +14,6 @@ from kisna_chatbot.utils.kisna_url_tracking import append_kisna_utm, kisna_home_
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.price_calculator import resolve_product_prices
 
-_PRODUCT_LIST_MSGID = "product_select$results"
 BROWSE_PRODUCTS_GLOBAL_TITLE = "Browse Products"
 _VARIANT_KARAT_RE = re.compile(r"\b(9|14|18|22|24)KT\b", re.I)
 _VARIANT_COLOUR_RE = re.compile(r"\b(Yellow|White|Rose)\b", re.I)
@@ -477,72 +476,6 @@ def get_whatsapp_safe_image_url(raw_url: str) -> str | None:
 def format_product_image_caption(product: dict) -> str:
     """WhatsApp image caption for search carousel (no URL — CTA carries link)."""
     return "\n".join(_product_caption_lines(product))
-
-
-def format_product_list_row(product: dict) -> dict:
-    """Single row for WhatsApp interactive list."""
-    title = _truncate(product.get("title") or "Product", 24)
-    material_line = _variant_attributes_line(product)
-    shipping = product.get("shipping") or {}
-    edd = shipping.get("edd", "?")
-    price_line = format_price_line(product)
-    description = _truncate(f"{price_line} · {material_line} · {edd}d shipping", 72)
-    return {
-        "title": title,
-        "description": description,
-        "id": str(product.get("_id") or product.get("id") or ""),
-    }
-
-
-def format_product_list_message(
-    products: list[dict],
-    total_count: int,
-    page: int,
-    search_context: str = "",
-    page_size: int = 5,
-    *,
-    client_filtered: bool = False,
-) -> dict:
-    """WhatsApp interactive list message dict."""
-    header = f"💎 {search_context}" if search_context else "💎 KISNA Jewellery"
-    if client_filtered:
-        n = len(products)
-        body = (
-            f"Showing {n} piece{'s' if n != 1 else ''} matching your search.\n"
-            "Tap to view details."
-        )
-    else:
-        start = (page - 1) * page_size + 1 if total_count else 0
-        end = min(page * page_size, total_count)
-        body = (
-            f"Found *{total_count}* piece{'s' if total_count != 1 else ''}.\n"
-            f"Showing {start}–{end}. Tap to view details."
-        )
-
-    options = []
-    for product in products[:10]:
-        row = format_product_list_row(product)
-        if not row["id"]:
-            continue
-        options.append(
-            {
-                "type": "text",
-                "title": row["title"],
-                "description": row["description"],
-                "postbackText": row["id"],
-            }
-        )
-
-    return {
-        "type": "list",
-        "list": "list",
-        "title": header[:60],
-        "body": body,
-        "footer": "KISNA Diamond & Gold",
-        "msgid": _PRODUCT_LIST_MSGID,
-        "globalButtons": [{"type": "text", "title": BROWSE_PRODUCTS_GLOBAL_TITLE}],
-        "items": [{"title": "Results", "subtitle": "", "options": options}],
-    }
 
 
 def format_zero_results_message(entities: dict[str, Any]) -> str:
