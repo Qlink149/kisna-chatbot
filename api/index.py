@@ -1,4 +1,7 @@
-"""Vercel serverless entrypoint for FastAPI (testing only)."""
+"""Vercel serverless entrypoint for FastAPI (testing only).
+
+Text-only flow branch: main WhatsApp menu removed from greetings and fallbacks.
+"""
 
 import sys
 from pathlib import Path
