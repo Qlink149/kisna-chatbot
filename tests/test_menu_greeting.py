@@ -1,4 +1,4 @@
-"""Tests for greeting menu and complaint flow helpers."""
+"""Tests for greeting and menu helpers (text-only conversational)."""
 
 import os
 import asyncio
@@ -14,12 +14,11 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test")
 
 from kisna_chatbot.processors.service_list import (
     _handle_menu_selection,
-    _WELCOME_BACK_TEXT,
-    _WELCOME_TEXT,
     _normalize_menu_key,
     build_main_menu_bot_response,
     build_complaint_flow_bot_response,
     build_complaint_entry_cta_bot_response,
+    build_greeting_text,
     build_greeting_welcome_bot_responses,
     is_menu_request,
     is_new_session,
@@ -56,10 +55,26 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertTrue(menu["text"].strip())
         self.assertIn("tell me what you need", menu["text"].lower())
 
-    def test_welcome_text_mentions_kia(self):
-        self.assertIn("KIA", _WELCOME_TEXT)
-        self.assertIn("Welcome to Kisna", _WELCOME_TEXT)
-        self.assertIn("What would you like to do today?", _WELCOME_TEXT)
+    def test_greeting_by_name(self):
+        text = build_greeting_text(
+            chat_history=[],
+            user_profile={"username": "Priya"},
+        )
+        self.assertIn("Priya", text)
+        self.assertIn("Welcome to Kisna", text)
+
+    def test_greeting_without_name(self):
+        text = build_greeting_text(chat_history=[], user_profile={})
+        self.assertNotIn("None", text)
+        self.assertIn("Welcome to Kisna", text)
+
+    def test_greeting_garbage_name_omitted(self):
+        for bad in ("12345", "a" * 40, "foo@bar.com", "None"):
+            text = build_greeting_text(
+                chat_history=[],
+                user_profile={"username": bad},
+            )
+            self.assertNotIn(bad[:10], text)
 
     def test_greeting_suffix_detection(self):
         self.assertTrue(is_greeting_message("hey there"))
@@ -70,22 +85,21 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertIn("Kisna representative", KIA_HANDOFF_MESSAGE)
         self.assertNotIn("live designer", KIA_HANDOFF_MESSAGE.lower())
 
-    def test_welcome_back_text(self):
-        self.assertIn("Welcome back to Kisna", _WELCOME_BACK_TEXT)
-        self.assertIn("KIA", _WELCOME_BACK_TEXT)
-
     def test_greeting_responses_returning_user(self):
         responses = build_greeting_welcome_bot_responses(
             chat_history=[{"role": "user", "content": "hi"}],
+            user_profile={"username": "Asha"},
         )
         self.assertEqual(len(responses), 1)
         self.assertEqual(responses[0]["type"], "text")
         self.assertIn("Welcome back", responses[0]["text"])
+        self.assertIn("Asha", responses[0]["text"])
 
     def test_greeting_responses_new_session(self):
         responses = build_greeting_welcome_bot_responses(
             phone_number="919999999999",
             chat_history=[],
+            user_profile={},
         )
         self.assertEqual(len(responses), 1)
         self.assertEqual(responses[0]["type"], "text")
@@ -97,11 +111,10 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertEqual(flow["type"], "flow")
         self.assertEqual(flow["flow"], "damage_complaint")
 
-    def test_complaint_entry_cta_shape(self):
+    def test_complaint_entry_cta_is_now_form(self):
         cta = build_complaint_entry_cta_bot_response()
-        self.assertEqual(cta["type"], "quickreply")
-        self.assertEqual(cta["msgid"], QuickReplyId.COMPLAINT_REGISTER.value)
-        self.assertEqual(cta["options"][0]["title"], "Register Complaint")
+        self.assertEqual(cta["type"], "flow")
+        self.assertEqual(cta["flow"], "damage_complaint")
 
     def test_raise_complaint_menu_titles(self):
         self.assertEqual(
@@ -125,7 +138,8 @@ class TestMenuGreeting(unittest.TestCase):
         user_profile = {}
         data = {"phone_number": "919999999999"}
         _handle_menu_selection("Raise Complaint", user_profile, data, "damage_complaint")
-        self.assertEqual(data["bot_response"][0]["msgid"], "help$center$list")
+        self.assertEqual(data["bot_response"][0]["type"], "flow")
+        self.assertEqual(data["bot_response"][0]["flow"], "damage_complaint")
 
     def test_complaint_cta_click_opens_flow(self):
         processor = ServiceList()
@@ -151,11 +165,16 @@ class TestMenuGreeting(unittest.TestCase):
         data = {
             "phone_number": "919999999999",
             "client_id": "kisna",
-            "user_profile": {"service_selected": "product_search", "chat_history": [{"role": "user", "content": "hi"}]},
+            "user_profile": {
+                "service_selected": "product_search",
+                "chat_history": [{"role": "user", "content": "hi"}],
+            },
             "messages": {"text": {"body": "send me the menu"}},
         }
         with patch("kisna_chatbot.processors.classifier.complete_chat") as mocked:
-            mocked.side_effect = AssertionError("LLM should not be called for menu requests")
+            mocked.side_effect = AssertionError(
+                "LLM should not be called for menu requests"
+            )
             result = asyncio.run(processor.process(data))
         self.assertEqual(result["bot_response"][0]["type"], "text")
         self.assertEqual(result["classified_category"], "menu_help")
@@ -169,7 +188,9 @@ class TestMenuGreeting(unittest.TestCase):
             "messages": {"text": {"body": "My order arrived damaged"}},
         }
         with patch("kisna_chatbot.processors.classifier.complete_chat") as mocked:
-            mocked.return_value = '{"category":"complaint"}'
+            mocked.return_value = (
+                '{"intent":"complaint","confidence":0.9,"language":"en"}'
+            )
             result = asyncio.run(processor.process(data))
         self.assertEqual(result["bot_response"][0]["type"], "flow")
         self.assertEqual(result["bot_response"][0]["flow"], "damage_complaint")
