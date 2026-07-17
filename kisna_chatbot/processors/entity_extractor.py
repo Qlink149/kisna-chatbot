@@ -1538,6 +1538,12 @@ def merge_search_entities(
         and not _CONTEXT_REFINEMENT_RE.search(normalized_query)
     )
 
+    # Fresh category search: do NOT inherit prior price/material unless restated.
+    if new_has_category and prior.get("category") and merged.get("category") != prior.get(
+        "category"
+    ):
+        return merged
+
     refinement_only = (
         not new_has_category
         and not new_has_material
