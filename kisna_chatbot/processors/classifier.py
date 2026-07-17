@@ -647,6 +647,14 @@ def _sanitize_llm_entities(entities: dict) -> dict:
         action = None
     out["action"] = action
 
+    direction = _coerce_null(raw.get("price_direction"))
+    if isinstance(direction, str):
+        direction = direction.strip().lower()
+        direction = direction if direction in ("lower", "higher") else None
+    else:
+        direction = None
+    out["price_direction"] = direction
+
     return out
 
 

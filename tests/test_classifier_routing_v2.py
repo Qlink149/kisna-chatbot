@@ -217,6 +217,88 @@ class BudgetReplyGateTests(unittest.TestCase):
             self.assertFalse(_looks_like_budget_reply(text), text)
 
 
+class PriceDirectionTests(unittest.TestCase):
+    """LLM-detected relative price refinements (cheaper / pricier)."""
+
+    def test_sanitizer_accepts_directions(self):
+        from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+        self.assertEqual(
+            _sanitize_llm_entities({"price_direction": "lower"})["price_direction"],
+            "lower",
+        )
+        self.assertEqual(
+            _sanitize_llm_entities({"price_direction": "HIGHER"})["price_direction"],
+            "higher",
+        )
+        self.assertIsNone(
+            _sanitize_llm_entities({"price_direction": "sideways"})["price_direction"]
+        )
+        self.assertIsNone(_sanitize_llm_entities({})["price_direction"])
+
+    def test_lower_moves_band_30_percent_down(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _entities_for_price_direction,
+        )
+
+        profile = {
+            "last_search_filters": {"category": "necklace", "max_price": 50000},
+        }
+        entities, bound = _entities_for_price_direction(profile, "lower")
+        self.assertEqual(bound, 35000)
+        self.assertEqual(entities["max_price"], 35000)
+        self.assertIsNone(entities["min_price"])
+        self.assertEqual(entities["category"], "necklace")
+
+    def test_lower_anchors_on_shown_products_without_filter(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _entities_for_price_direction,
+        )
+
+        profile = {
+            "last_search_filters": {"category": "ring"},
+            "last_search_products": [{"price": 30000}, {"price": 45000}],
+        }
+        entities, bound = _entities_for_price_direction(profile, "lower")
+        self.assertEqual(bound, 21000)  # 70% of cheapest shown
+        self.assertEqual(entities["max_price"], 21000)
+
+    def test_lower_has_price_floor(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _entities_for_price_direction,
+        )
+
+        profile = {"last_search_filters": {"max_price": 2500}}
+        _entities, bound = _entities_for_price_direction(profile, "lower")
+        self.assertEqual(bound, 2000)
+
+    def test_higher_moves_band_30_percent_up(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _entities_for_price_direction,
+        )
+
+        profile = {"last_search_filters": {"category": "ring", "max_price": 50000}}
+        entities, bound = _entities_for_price_direction(profile, "higher")
+        self.assertEqual(bound, 65000)
+        self.assertEqual(entities["min_price"], 65000)
+        self.assertIsNone(entities["max_price"])
+
+    def test_no_context_returns_none(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _entities_for_price_direction,
+        )
+
+        self.assertEqual(
+            _entities_for_price_direction({}, "lower"), (None, None)
+        )
+
+    def test_prompts_teach_price_direction(self):
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn("price_direction", kisna_classifier)
+        self.assertIn("price_direction", kisna_entity_extractor)
+
+
 class ClassifierPromptContentTests(unittest.TestCase):
     """The LLM prompt must agree with the code's intent set."""
 

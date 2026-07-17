@@ -1111,6 +1111,57 @@ _BUDGET_REPLY_SIGNAL_RE = re.compile(
 )
 
 
+# "Cheaper" moves the band to ~30% below the anchor; "pricier" ~30% above.
+# Detection is LLM-only (price_direction entity from classifier / entity
+# extractor prompts) — regex cannot cover multilingual phrasings. Only the
+# band math lives here.
+_PRICE_DIRECTION_FACTOR = 0.7
+
+
+def _entities_for_price_direction(
+    user_profile: dict, direction: str
+) -> tuple[dict | None, int | None]:
+    """Entities for a cheaper/pricier follow-up: keep category/material from the
+    active search, move the price band ~30% from the anchor. Anchor = the active
+    price filter, else the shown products' price range. (None, None) without
+    context — caller falls through to normal routing."""
+    filters = user_profile.get("last_search_filters") or {}
+    prices = [
+        p.get("price")
+        for p in (user_profile.get("last_search_products") or [])
+        if isinstance(p.get("price"), (int, float)) and p.get("price") > 0
+    ]
+    base = {
+        k: v
+        for k, v in filters.items()
+        if k not in _NEVER_INHERIT_FIELDS and v is not None
+    }
+    base.pop("min_price", None)
+    base.pop("max_price", None)
+    entities = {**_empty_entities(), **base}
+
+    if direction == "lower":
+        anchor = filters.get("max_price") or (min(prices) if prices else None)
+        if not anchor:
+            return None, None
+        bound = max(int(anchor * _PRICE_DIRECTION_FACTOR), 2000)
+        entities["min_price"] = None
+        entities["max_price"] = bound
+        return entities, bound
+
+    anchor = (
+        filters.get("min_price")
+        or filters.get("max_price")
+        or (max(prices) if prices else None)
+    )
+    if not anchor:
+        return None, None
+    bound = int(anchor * (2 - _PRICE_DIRECTION_FACTOR))
+    entities["min_price"] = bound
+    entities["max_price"] = None
+    return entities, bound
+
+
 def _looks_like_budget_reply(user_message: str) -> bool:
     """True when the message plausibly contains a budget (digit or amount word).
 
@@ -1622,6 +1673,44 @@ class ProductSearchAgentV3(Processor):
         extracted, occasion_prefix = apply_occasion_style_hints(
             extracted, query=query
         )
+
+        # ── Relative price follow-up ("too costly", "thoda sasta", "aur mehnga",
+        # any language) — LLM sets price_direction; we move the band ~30%.
+        direction = extracted.pop("price_direction", None)
+        if (
+            direction in ("lower", "higher")
+            and extracted.get("min_price") is None
+            and extracted.get("max_price") is None
+        ):
+            rel_entities, bound = _entities_for_price_direction(
+                user_profile, direction
+            )
+            if rel_entities is not None:
+                # Anything the user just stated (e.g. new category) wins.
+                for key in ("category", "material_type"):
+                    if extracted.get(key):
+                        rel_entities[key] = extracted[key]
+                note = (
+                    f"Got it! 👍 Showing options under ₹{bound:,}."
+                    if direction == "lower"
+                    else f"Sure — here are more premium picks above ₹{bound:,} ✨"
+                )
+                logger.info(
+                    "product_search: relative price refinement",
+                    extra={
+                        "phone_number": phone_number,
+                        "direction": direction,
+                        "bound": bound,
+                    },
+                )
+                return await self._execute_search(
+                    data,
+                    phone_number,
+                    rel_entities,
+                    query_label=f"price_{direction}",
+                    occasion_prefix=note,
+                )
+
         prior = {
             k: v
             for k, v in (user_profile.get("last_search_filters") or {}).items()

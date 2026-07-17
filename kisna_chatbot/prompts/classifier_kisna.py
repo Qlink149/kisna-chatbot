@@ -164,9 +164,20 @@ Examples of low-confidence inputs: bare "gold", "help", "kuch dikhao", "1 lakh" 
     "gender": "<women|men|kids|null>",
     "occasion": "<wedding|engagement|anniversary|birthday|daily_wear|gift|null>",
     "style": "<fashion|cocktail|couple_bands|minimal|infinity|hearts|floral|adjustable|traditional|modern|heavy|null>",
-    "action": "<more|null>"
+    "action": "<more|null>",
+    "price_direction": "<lower|higher|null>"
   }
 }
+
+price_direction (RELATIVE price follow-ups, ANY language):
+- "lower" when the user wants cheaper / says it's too expensive WITHOUT giving a
+  number: "too costly", "price bahut zyada hai", "इसका price बहुत ज्यादा है",
+  "thoda sasta dikhao", "budget se bahar hai", "mane sastu joie che".
+- "higher" when they want pricier/premium: "aur mehnga dikhao", "show premium
+  options", "kuch aur accha wala".
+- null when a number is given (extract min/max instead) or for superlative
+  questions about shown items ("cheapest one?" → product_info, no direction).
+- NEVER invent min_price/max_price for relative phrases — set price_direction.
 
 language codes:
 - "en" — English
@@ -336,7 +347,13 @@ Fallback for unclear or spam/gibberish:
     "entities": category ring}
 85. "Tamara kem haal che" → {"intent": "greeting", "confidence": 0.9, "language": "gu"}
 86. "इसका price बहुत ज्यादा है" | active: product_search → {"intent": "product_search",
-    "confidence": 0.8, "language": "hi"} (wants cheaper — do NOT invent prices)
+    "confidence": 0.8, "language": "hi", "entities": price_direction "lower"}
+87. "thoda sasta dikhao" | active: product_search → {"intent": "product_search",
+    "confidence": 0.85, "entities": price_direction "lower"}
+88. "aur mehnga dikhao" | active: product_search → {"intent": "product_search",
+    "confidence": 0.85, "entities": price_direction "higher"}
+89. "mane sastu joie che" | active: product_search → {"intent": "product_search",
+    "confidence": 0.8, "language": "gu", "entities": price_direction "lower"}
 
 ---
 
@@ -429,8 +446,14 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
 5. Two categories in one message ("rings aur earrings") → category = FIRST mentioned.
 6. Numbers 7-22 are size ONLY next to a size word (size/sz/number/no.):
    "ring size 12" → size=12. "12 rings dikhao" → size=null.
-7. "sasta"/"cheaper"/"mehnga" WITHOUT a number → do NOT invent prices; leave
-   min_price/max_price null (the system handles relative price elsewhere).
+7. RELATIVE price phrases WITHOUT a number (any language) → NEVER invent
+   min_price/max_price. Set price_direction instead:
+   "too costly" / "price bahut zyada" / "thoda sasta" / "mane sastu joie che"
+   → price_direction="lower"
+   "aur mehnga dikhao" / "premium wale" → price_direction="higher"
+   Superlatives about shown items ("cheapest", "sabse sasta wala kaun sa") →
+   price_direction=null (that is a question, not a refinement).
+   A number present → normal min/max extraction, price_direction=null.
 
 {
   "category": "ring|earring|necklace|pendant|pendant_set|necklace_set|
@@ -450,7 +473,8 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
                daily_wear|gift|null",
   "style": "fashion|cocktail|minimal|traditional|modern|couple_bands|
             infinity|adjustable|hearts|floral|heavy|null",
-  "action": "more|null"
+  "action": "more|null",
+  "price_direction": "lower|higher|null"
 }
 
 RULES:
@@ -676,9 +700,15 @@ Current: same budget mein necklace →
 (misspelling still maps; comma amount parsed)
 
 "thoda sasta dikhao" | Context: bot showed gold rings →
-{"category":"ring","material_type":"gold","min_price":null,"max_price":null,
- ...nulls}
-(relative price words never invent numbers)
+{"category":"ring","material_type":"gold","price_direction":"lower",
+ "min_price":null,"max_price":null,...nulls}
+(relative price words never invent numbers — direction only)
+
+"इसका price बहुत ज्यादा है" | Context: bot showed necklaces →
+{"category":"necklace","price_direction":"lower",...all others null}
+
+"aur premium options dikhao" | Context: bot showed rings →
+{"category":"ring","price_direction":"higher",...nulls}
 
 Context: User: gold rings under 50k
 Current: same but in 18kt →
