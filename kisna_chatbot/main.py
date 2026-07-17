@@ -44,6 +44,7 @@ from kisna_chatbot.processors.non_text_handler import handle_non_text_message
 from kisna_chatbot.processors.service_list import build_main_menu_bot_response
 from kisna_chatbot.processors.user_registration import UserRegistration
 from kisna_chatbot.utils.format_chathistory import format_user
+from kisna_chatbot.utils.reply_composer import localize_bot_responses
 from kisna_chatbot.routes import system as system_router
 from kisna_chatbot.whatsapp_functions.typing_indicator import typing_indicator_loop
 from kisna_chatbot.utils.logger_config import (
@@ -538,6 +539,7 @@ async def process_message(
                         }
                     ]
                 if "bot_response" in data:
+                    await localize_bot_responses(data)
                     await _persist_session(data, phone_number, pipeline_start)
                     responses_to_send = data
                 if responses_to_send:
@@ -570,15 +572,36 @@ async def process_message(
 
                 if "bot_response" not in data:
                     logger.warning(
-                        "Pipeline completed without bot_response — sending text help",
+                        "Pipeline completed without bot_response — trying GeneralAgent",
                         extra={
                             "phone_number": phone_number,
                             "service_selected": service_selected,
                         },
                     )
-                    data["bot_response"] = [build_main_menu_bot_response()]
+                    try:
+                        from kisna_chatbot.processors.general_agent import GeneralAgent
+
+                        data["user_profile"]["service_selected"] = SL.GENERAL.value
+                        data = await GeneralAgent().process(data)
+                    except Exception:
+                        logger.exception(
+                            "GeneralAgent fallback failed",
+                            extra={"phone_number": phone_number},
+                        )
+                    if "bot_response" not in data:
+                        data["bot_response"] = [
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Sorry, I couldn't help with that just now. "
+                                    "Try asking about jewellery, offers, a store, or your order."
+                                ),
+                                "_compose": "fallback_error",
+                            }
+                        ]
 
             if "bot_response" in data:
+                await localize_bot_responses(data)
                 await _persist_session(data, phone_number, pipeline_start)
                 responses_to_send = data
 
@@ -592,9 +615,17 @@ async def process_message(
         )
         if data and phone_number:
             data["bot_response"] = [
-                {"type": "text", "text": "Unexpected error occurred."}
+                {
+                    "type": "text",
+                    "text": (
+                        "Sorry — something went wrong on my end. "
+                        "Please try again in a moment."
+                    ),
+                    "_compose": "fallback_error",
+                }
             ]
             try:
+                await localize_bot_responses(data)
                 save_to_mongo(data=data)
             except Exception as save_err:
                 logger.exception(
