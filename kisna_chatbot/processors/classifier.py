@@ -18,7 +18,7 @@ from kisna_chatbot.processors.service_list import (
     build_acknowledgement_bot_response,
     build_clarification_bot_response,
     build_complaint_flow_bot_response,
-    build_flow_switch_bot_response,
+    flow_switch_acknowledgement,
     build_greeting_welcome_bot_responses,
     build_main_menu_bot_response,
     is_new_session,
@@ -30,6 +30,12 @@ from kisna_chatbot.processors.support_handler import build_expert_support_bot_re
 from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.reply_composer import sanitize_classifier_language
+from kisna_chatbot.utils.session_state import (
+    clear_transient_for_service_change,
+    maybe_expire_session,
+    reset_transient_state,
+)
 from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
     send_customer_support_template,
 )
@@ -651,6 +657,7 @@ def _parse_classifier_json(raw: str) -> dict:
         "intent": intent,
         "confidence": confidence,
         "entities": entities,
+        "language": sanitize_classifier_language(parsed.get("language")),
     }
 
 
@@ -661,11 +668,42 @@ def _is_obvious_reset(query: str) -> bool:
 
 
 def _maybe_expire_product_search_session(user_profile: dict) -> None:
-    if user_profile.get("service_selected") != ServiceList.PRODUCT_SEARCH.value:
-        return
-    last_at = user_profile.get("last_search_at")
-    if last_at and time.time() - last_at > PRODUCT_SEARCH_SESSION_EXPIRY_SECONDS:
-        user_profile["service_selected"] = ""
+    maybe_expire_session(user_profile)
+
+
+_RATING_WORD_MAP = {
+    "1": 1,
+    "one": 1,
+    "ek": 1,
+    "2": 2,
+    "two": 2,
+    "do": 2,
+    "3": 3,
+    "three": 3,
+    "teen": 3,
+    "4": 4,
+    "four": 4,
+    "char": 4,
+    "5": 5,
+    "five": 5,
+    "paanch": 5,
+    "panch": 5,
+}
+
+
+def _parse_rating_reply(text: str) -> int | None:
+    normalized = " ".join((text or "").strip().lower().split())
+    if not normalized:
+        return None
+    if normalized.isdigit():
+        val = int(normalized)
+        return val if 1 <= val <= 5 else None
+    return _RATING_WORD_MAP.get(normalized)
+
+
+def _store_language(user_profile: dict, language: str | None) -> None:
+    if language:
+        user_profile["language"] = sanitize_classifier_language(language)
 
 
 def _flow_escape_should_classify(user_query: str) -> bool:
@@ -685,6 +723,7 @@ def _maybe_prompt_flow_switch(
     user_query: str,
     confidence: float,
 ) -> bool:
+    """Silent flow switch with a one-line acknowledgement (no confirmation buttons)."""
     if intent in ("greeting", "menu_help", "human_handoff", "general"):
         return False
     current = user_profile.get("service_selected", "")
@@ -697,14 +736,32 @@ def _maybe_prompt_flow_switch(
         and not _is_obvious_reset(user_query)
     ):
         return False
-    data["bot_response"] = build_flow_switch_bot_response(current, intent)
-    # FIX 13: stamp created_at so the TTL expiry check in service_list can measure age
-    user_profile["pending_flow_switch"] = {
-        "intent": intent,
-        "service": new_service.value,
-        "created_at": time.time(),
-    }
-    return True
+
+    clear_transient_for_service_change(
+        user_profile,
+        from_service=current,
+        to_service=new_service.value,
+    )
+    if current == ServiceList.PRODUCT_SEARCH.value:
+        user_profile["last_search_filters"] = {}
+        user_profile["shown_product_ids"] = []
+    user_profile.pop("pending_flow_switch", None)
+    user_profile["service_selected"] = new_service.value
+    data["classified_category"] = intent
+    data["_flow_switch_ack"] = flow_switch_acknowledgement(current, intent)
+    return False  # continue routing; ack prepended by callers if needed
+
+
+def _prepend_flow_switch_ack(data: dict) -> None:
+    ack = data.pop("_flow_switch_ack", None)
+    if not ack:
+        return
+    responses = data.get("bot_response")
+    ack_msg = {"type": "text", "text": ack, "_compose": "flow_switch_ack"}
+    if isinstance(responses, list):
+        data["bot_response"] = [ack_msg, *responses]
+    else:
+        data["bot_response"] = [ack_msg]
 
 
 def _handle_custom_jewellery_handoff(
@@ -810,6 +867,7 @@ def _route_resolved_intent(
         data["bot_response"] = build_greeting_welcome_bot_responses(
             phone_number=phone_number,
             chat_history=chat_history,
+            user_profile=user_profile,
         )
         return True
 
@@ -840,8 +898,10 @@ def _route_resolved_intent(
         user_query=user_query,
         confidence=confidence,
     ):
+        _prepend_flow_switch_ack(data)
         return True
 
+    _prepend_flow_switch_ack(data)
     return False
 
 
@@ -862,28 +922,34 @@ def _apply_intent_routing(
         data["bot_response"] = build_greeting_welcome_bot_responses(
             phone_number=phone_number,
             chat_history=chat_history,
+            user_profile=user_profile,
         )
         return True
 
     if intent == "menu_help":
-        data["bot_response"] = [build_main_menu_bot_response()]
+        data["bot_response"] = [
+            {
+                "type": "text",
+                "text": build_main_menu_bot_response()["text"],
+                "_compose": "menu_help",
+            }
+        ]
         return True
 
     if intent == "complaint":
-        if _maybe_prompt_flow_switch(
+        _maybe_prompt_flow_switch(
             data, intent, user_profile, user_query, confidence
-        ):
-            return True
+        )
         user_profile["service_selected"] = ServiceList.COMPLAINT.value
         data["bot_response"] = [build_complaint_flow_bot_response()]
+        _prepend_flow_switch_ack(data)
         return True
 
     service = _CATEGORY_TO_SERVICE.get(intent)
     if service:
-        if _maybe_prompt_flow_switch(
+        _maybe_prompt_flow_switch(
             data, intent, user_profile, user_query, confidence
-        ):
-            return True
+        )
         user_profile["service_selected"] = service.value
         return False
 
@@ -891,7 +957,16 @@ def _apply_intent_routing(
         "Unknown classifier intent",
         extra={"intent": intent, "phone_number": phone_number},
     )
-    data["bot_response"] = [build_main_menu_bot_response()]
+    data["bot_response"] = [
+        {
+            "type": "text",
+            "text": (
+                "Sorry, I didn't catch that — could you say it another way? "
+                "You can ask about jewellery, offers, a store, or your order."
+            ),
+            "_compose": "fallback_unclear",
+        }
+    ]
     return True
 
 
@@ -1226,6 +1301,7 @@ class Classifier(Processor):
                     data["bot_response"] = build_greeting_welcome_bot_responses(
                         phone_number=phone_number,
                         chat_history=chat_history,
+                        user_profile=user_profile,
                     )
                     logger.info(
                         "Greeting shortcut — welcome text only",
@@ -1233,10 +1309,37 @@ class Classifier(Processor):
                     )
                     return data
 
+                if user_profile.get("awaiting_rating"):
+                    rating = _parse_rating_reply(user_query)
+                    user_profile.pop("awaiting_rating", None)
+                    if rating is not None:
+                        logger.info(
+                            "User submitted text rating",
+                            extra={"phone_number": phone_number, "rating": rating},
+                        )
+                        data["bot_response"] = [
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Thank you for your feedback! "
+                                    "We're glad to have helped you."
+                                ),
+                                "_compose": "acknowledgement",
+                            }
+                        ]
+                        return data
+                    # Non-rating message — fall through and treat normally
+
                 if is_menu_request(user_query):
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "menu_help"
-                    data["bot_response"] = [build_main_menu_bot_response()]
+                    data["bot_response"] = [
+                        {
+                            "type": "text",
+                            "text": build_main_menu_bot_response()["text"],
+                            "_compose": "menu_help",
+                        }
+                    ]
                     logger.info(
                         "Menu request shortcut — sending text help",
                         extra={"phone_number": phone_number},
@@ -1253,14 +1356,13 @@ class Classifier(Processor):
                         _store_llm_entities(data, user_profile, extra_entities)
                         data["classified_category"] = escape_intent
                         data["classifier_confidence"] = 1.0
-                        if _maybe_prompt_flow_switch(
+                        _maybe_prompt_flow_switch(
                             data,
                             escape_intent,
                             user_profile,
                             user_query,
                             confidence=1.0,
-                        ):
-                            return data
+                        )
                         if _apply_intent_routing(
                             data,
                             escape_intent,
@@ -1268,10 +1370,12 @@ class Classifier(Processor):
                             user_query=user_query,
                             confidence=1.0,
                         ):
+                            _prepend_flow_switch_ack(data)
                             return data
                         user_profile["service_selected"] = (
                             _CATEGORY_TO_SERVICE.get(escape_intent) or ServiceList.GENERAL
                         ).value
+                        _prepend_flow_switch_ack(data)
                         return data
                     if user_query.strip().lower() not in ("cancel", "back"):
                         _store_llm_entities(data, user_profile, {})
@@ -1355,8 +1459,9 @@ class Classifier(Processor):
                 )
 
                 parsed = _parse_classifier_json(classifier_response)
-                intent = parsed["intent"] or "menu_help"
+                intent = parsed["intent"] or "general"
                 confidence = parsed["confidence"]
+                _store_language(user_profile, parsed.get("language"))
                 override = _programmatic_intent_override(user_query)
                 if override:
                     intent, confidence = override
@@ -1379,6 +1484,7 @@ class Classifier(Processor):
                     extra={
                         "intent": intent,
                         "confidence": confidence,
+                        "language": user_profile.get("language"),
                         "entities": data.get("llm_extracted_entities"),
                         "phone_number": phone_number,
                     },
@@ -1404,7 +1510,15 @@ class Classifier(Processor):
             )
             _store_llm_entities(data, user_profile, {})
             user_profile["service_selected"] = ""
-            data["bot_response"] = [build_main_menu_bot_response()]
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": (
+                        "Sorry, I didn't catch that — could you say it another way?"
+                    ),
+                    "_compose": "fallback_unclear",
+                }
+            ]
             return data
         except Exception as e:
             logger.exception(
@@ -1413,5 +1527,13 @@ class Classifier(Processor):
             )
             _store_llm_entities(data, user_profile, {})
             user_profile["service_selected"] = ""
-            data["bot_response"] = [build_main_menu_bot_response()]
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": (
+                        "Sorry, I didn't catch that — could you say it another way?"
+                    ),
+                    "_compose": "fallback_unclear",
+                }
+            ]
             return data

@@ -158,7 +158,11 @@ class ClassifierMatrixTests(unittest.TestCase):
                 result = await clf.process(data)
             self.assertTrue(result["user_profile"]["pending_clarification"])
             self.assertIn("bot_response", result)
-            self.assertEqual(result["bot_response"][0]["type"], "quickreply")
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn(
+                "jewellery",
+                result["bot_response"][0]["text"].lower(),
+            )
 
         asyncio.run(_run())
 

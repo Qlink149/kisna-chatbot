@@ -114,6 +114,7 @@ Examples of low-confidence inputs: bare "gold", "help", "kuch dikhao", "1 lakh" 
 {
   "intent": "<intent_name>",
   "confidence": <0.0 to 1.0>,
+  "language": "<en|hi|hi-Latn|ta|te|mr|bn|gu|kn|...>",
   "entities": {
     "category": "<ring|earring|necklace|pendant|pendant_set|necklace_set|bracelet|bangle|mangalsutra|mangalsutra_bracelet|anklet|nose_ring|maang_tikka|chain|null>",
     "material_type": "<gold|diamond|silver|platinum|white_gold|rose_gold|gemstone|null>",
@@ -131,8 +132,14 @@ Examples of low-confidence inputs: bare "gold", "help", "kuch dikhao", "1 lakh" 
   }
 }
 
+language codes:
+- "en" — English
+- "hi" — Hindi in Devanagari script
+- "hi-Latn" — Hinglish / Hindi written in Latin script
+- other short codes (ta, te, mr, bn, gu, kn, …) for other languages
+
 Fallback for unclear or spam/gibberish:
-{"intent": "general", "confidence": 0.3, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
+{"intent": "general", "confidence": 0.3, "language": "en", "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
 
 ---
 

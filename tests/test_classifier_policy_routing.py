@@ -199,8 +199,8 @@ class PolicyRoutingIntegrationTests(unittest.TestCase):
                 result = await clf.process(data)
             mock_llm.assert_not_called()
             self.assertEqual(result["classified_category"], "acknowledgement")
-            self.assertEqual(result["bot_response"][0]["type"], "quickreply")
-            self.assertIn("welcome", result["bot_response"][0]["text"].lower())
+            self.assertEqual(result["bot_response"][0]["type"], "text")
+            self.assertIn("happy to help", result["bot_response"][0]["text"].lower())
 
         asyncio.run(_run())
 
