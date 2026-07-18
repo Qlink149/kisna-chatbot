@@ -300,38 +300,66 @@ def _material_display_label(material: str | None) -> str:
     return material.replace("_", " ")
 
 
+# Varied natural openers so the intro never feels like the same canned line.
+# {desc} = a phrase like "gold rings under ₹40,000". Kept in English by design
+# (product listings stay English); variety alone removes the robotic feel.
+_INTRO_TEMPLATES = (
+    "Here are some lovely {desc} I picked for you ✨",
+    "Great choice! Take a look at these {desc} 💍",
+    "These {desc} are gorgeous — have a look 💎",
+    "Found some beautiful {desc} for you ✨",
+    "Here's what caught my eye in {desc} 💍",
+    "Ooh, these {desc} are stunning — check them out 💎",
+    "A few {desc} you might love 👇",
+)
+_INTRO_OCCASION_TEMPLATES = (
+    "Here are some beautiful options for your {occ} 💎",
+    "Perfect for your {occ} — take a look ✨",
+    "These would be lovely for your {occ} 💍",
+)
+_INTRO_GENERIC_TEMPLATES = (
+    "Here are a few pieces I think you'll love 💍",
+    "Take a look at some of our favourites ✨",
+    "Here's a handpicked selection for you 💎",
+)
+
+
+def _intro_descriptor(entities: dict) -> str:
+    """Compact natural noun phrase, e.g. 'rose gold 18KT rings'."""
+    parts: list[str] = []
+    if entities.get("metal_colour"):
+        parts.append(str(entities["metal_colour"]).lower())
+    if entities.get("karat"):
+        parts.append(str(entities["karat"]))
+    material = _material_display_label(entities.get("material_type"))
+    if material:
+        parts.append(material)
+    category = _category_label_plural(entities.get("category"))
+    parts.append(category or "pieces")
+    desc = " ".join(p for p in parts if p)
+    return " ".join(desc.split())
+
+
 def build_search_intro(entities: dict, *, relaxed: bool = False) -> str:
-    """Intro text reflecting active search filters."""
+    """Varied, natural intro reflecting the active search filters (English)."""
+    import random
+
     entities = enrich_entities_for_client_filter(entities)
     prefix = ""
     if relaxed:
-        prefix = "Couldn't find exact match, but here are the closest options:\n\n"
+        prefix = "Couldn't find an exact match, but here are the closest options:\n\n"
 
-    metal_colour = entities.get("metal_colour")
-    karat = entities.get("karat")
     occasion = entities.get("occasion")
-    material = _material_display_label(entities.get("material_type"))
-    category = _category_label_plural(entities.get("category"))
-
-    if metal_colour:
-        colour = str(metal_colour).lower()
-        body = f"Here are {colour} {material} {category} for you ✨".strip()
-        body = " ".join(body.split())
-        return prefix + body
-
-    if karat:
-        body = f"Here are {karat} {material} {category} for you ✨".strip()
-        body = " ".join(body.split())
-        return prefix + body
-
-    if occasion:
+    if occasion and not entities.get("category"):
         occ_label = str(occasion).replace("_", " ")
-        return prefix + f"Here are some beautiful options for your {occ_label} 💎"
+        return prefix + random.choice(_INTRO_OCCASION_TEMPLATES).format(occ=occ_label)
 
     context = build_search_context(entities)
-    if context == "KISNA Jewellery":
-        return prefix + "Here are top picks from our KISNA collection 💍"
-    return prefix + f"Here are top picks from our {context} collection 💍"
+    if context == "KISNA Jewellery" and not entities.get("category"):
+        return prefix + random.choice(_INTRO_GENERIC_TEMPLATES)
+
+    desc = _intro_descriptor(entities)
+    return prefix + random.choice(_INTRO_TEMPLATES).format(desc=desc)
 
 
 def _entities_all_none(entities: dict) -> bool:

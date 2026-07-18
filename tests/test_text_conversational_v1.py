@@ -78,6 +78,104 @@ class ReplyComposerTests(unittest.TestCase):
         )
         self.assertEqual(parsed["language"], "hi-Latn")
 
+    def test_cache_keys_by_text_not_template(self):
+        # Regression: flow_switch_ack had 9 variants under one key — the first
+        # cached translation was served for all. Cache must key by actual text.
+        import kisna_chatbot.utils.reply_composer as rc
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                side_effect=["STORE-hi", "RETURN-hi"],
+            ):
+                a = await rc.compose("flow_switch_ack", "find a store", language="hi")
+                b = await rc.compose("flow_switch_ack", "help with returns", language="hi")
+            self.assertEqual(a, "STORE-hi")
+            self.assertEqual(b, "RETURN-hi")  # different text → not the cached store ack
+
+        asyncio.run(_run())
+
+    def test_cache_reuses_identical_text(self):
+        import kisna_chatbot.utils.reply_composer as rc
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value="cached-hi",
+            ) as mocked:
+                await rc.compose("x", "same text", language="hi")
+                await rc.compose("x", "same text", language="hi")
+            self.assertEqual(mocked.call_count, 1)  # second is a cache hit
+
+        asyncio.run(_run())
+
+
+class NarratorTests(unittest.TestCase):
+    def test_narrate_calls_llm_for_english_and_varies(self):
+        from kisna_chatbot.utils.reply_composer import narrate
+
+        async def _run():
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value="Hey there! What can I help you find? 😊",
+            ) as mocked:
+                out = await narrate(
+                    "Greet the customer",
+                    language="en",
+                    user_message="hi",
+                )
+            mocked.assert_called_once()  # English is narrated too (not passthrough)
+            self.assertIn("help you find", out)
+
+        asyncio.run(_run())
+
+    def test_narrate_falls_back_on_failure(self):
+        from kisna_chatbot.utils.reply_composer import narrate
+
+        async def _run():
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("boom"),
+            ):
+                out = await narrate("Original intent text", language="en")
+            self.assertEqual(out, "Original intent text")
+
+        asyncio.run(_run())
+
+    def test_personality_tag_uses_narrate_functional_uses_compose(self):
+        from kisna_chatbot.utils.reply_composer import localize_bot_responses
+
+        async def _run():
+            data = {
+                "phone_number": "919999999999",
+                "client_id": "kisna",
+                "messages": {"type": "text", "text": {"body": "hi"}},
+                "user_profile": {"language": "en"},
+                "bot_response": [
+                    {"type": "text", "text": "Welcome!", "_compose": "greeting_return"},
+                    {"type": "text", "text": "Share your pincode", "_compose": "store_pincode"},
+                ],
+            }
+            with patch(
+                "kisna_chatbot.utils.reply_composer.narrate",
+                new_callable=AsyncMock,
+                return_value="Hey! 👋",
+            ) as m_narrate:
+                await localize_bot_responses(data)
+            # Personality tag → narrated; functional English tag → left as-is.
+            m_narrate.assert_awaited_once()
+            self.assertEqual(data["bot_response"][0]["text"], "Hey! 👋")
+            self.assertEqual(data["bot_response"][1]["text"], "Share your pincode")
+            self.assertNotIn("_compose", data["bot_response"][0])
+
+        asyncio.run(_run())
+
 
 class SessionHygieneTests(unittest.TestCase):
     def test_ttl_clears_stale_wizard(self):
