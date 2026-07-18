@@ -217,6 +217,9 @@ Fallback for unclear or spam/gibberish:
 - Price: extract integer INR values. 50k→50000, 1.5 lakh→150000,
   das hazaar→10000, ek lakh→100000. under X→max_price=X, above X→min_price=X,
   between X and Y→min_price=X max_price=Y.
+  RANGE with suffix on ONE side distributes to both: "25-30k"→min 25000 max
+  30000, "10-20k"→min 10000 max 20000, "1-2 lakh"→min 100000 max 200000.
+  NEVER read the bare side literally (25-30k is NOT 25 and 30000).
   Single target with no under/above/range (of price X, price X, budget X,
   around X, bare 50k, "X ka") → set BOTH min_price AND max_price to exactly X
   (e.g. 50000 → min_price=50000, max_price=50000). NEVER compute a range
@@ -533,6 +536,10 @@ price (ALWAYS extract when budget words present — integers in INR):
   "above X" / "over X" / "more than X" / "X se zyada" → min_price=X only
   "X to Y" / "X-Y" / "between X and Y" / "X se Y tak" →
     min_price=X, max_price=Y (keep as given)
+    Suffix (k/lakh) on ONE side distributes to BOTH:
+    "25-30k" → min 25000, max 30000 (NOT 25 and 30000)
+    "10-20k" → min 10000, max 20000
+    "1-2 lakh" → min 100000, max 200000
   Single target with NO under/above/range → BOTH fields = exactly X:
     "of price X" / "price X" / "budget X" / "around X" / bare "50k" /
     "X ka" → min_price=X, max_price=X
@@ -622,6 +629,10 @@ Examples:
 {"category":"ring","material_type":"gold","min_price":50000,"max_price":50000,
  "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
  "gender":null,"occasion":null,"style":null,"action":null}
+
+"rings 25-30k" →
+{"category":"ring","min_price":25000,"max_price":30000,...all others null}
+(suffix distributes — NOT min 25, max 30000)
 
 "budget 50000" →
 {"min_price":50000,"max_price":50000,...all others null}

@@ -44,6 +44,28 @@ class TestPriceBand(unittest.TestCase):
         self.assertEqual(out["min_price"], 23750)
         self.assertEqual(out["max_price"], 26250)
 
+    def test_range_suffix_distributes_to_both_sides(self):
+        # "25-30k" means 25k-30k — the bare side must not read as ₹25.
+        for text, lo, hi in (
+            ("25-30k ring", 25000, 30000),
+            ("25 to 30k ring", 25000, 30000),
+            ("10-20k earrings", 10000, 20000),
+            ("1-2 lakh necklace", 100000, 200000),
+        ):
+            ents = extract_entities(text)
+            self.assertEqual(ents.get("min_price"), lo, msg=text)
+            self.assertEqual(ents.get("max_price"), hi, msg=text)
+
+    def test_both_sided_range_still_works(self):
+        # Regression guard: explicit both-suffix ranges unchanged.
+        for text, lo, hi in (
+            ("20k-50k ring", 20000, 50000),
+            ("25000-30000 ring", 25000, 30000),
+        ):
+            ents = extract_entities(text)
+            self.assertEqual(ents.get("min_price"), lo, msg=text)
+            self.assertEqual(ents.get("max_price"), hi, msg=text)
+
     def test_genuine_range_left_unchanged(self):
         # A real range carries a range word — never recompute it.
         out = normalize_price_entities(

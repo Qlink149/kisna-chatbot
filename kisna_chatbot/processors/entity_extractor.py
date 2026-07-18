@@ -1029,6 +1029,14 @@ def _extract_price_range(text: str) -> tuple[float | None, float | None]:
             groups = m.groups()
             low_suffix = groups[1] if len(groups) > 1 else None
             high_suffix = groups[3] if len(groups) > 3 else None
+            # A scale suffix on only one side distributes to both: "25-30k"
+            # means 25k–30k, "10-20 lakh" means 10L–20L. Without this the bare
+            # side ("25") reads as ₹25 and the range collapses to the suffixed
+            # number alone.
+            if low_suffix and not high_suffix:
+                high_suffix = low_suffix
+            elif high_suffix and not low_suffix:
+                low_suffix = high_suffix
             low = _parse_amount(groups[0], low_suffix)
             high = _parse_amount(groups[2], high_suffix)
             if low is not None and high is not None:

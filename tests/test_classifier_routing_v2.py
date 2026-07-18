@@ -315,6 +315,15 @@ class PriceDirectionTests(unittest.TestCase):
         self.assertIn("price_direction", kisna_classifier)
         self.assertIn("price_direction", kisna_entity_extractor)
 
+    def test_prompts_teach_range_suffix_distribution(self):
+        # LLM-primary: the suffix-distribution rule (25-30k → 25k-30k) must be
+        # in the prompts, not only the regex fallback.
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn("25-30k", kisna_classifier)
+        self.assertIn("distribute", kisna_classifier.lower())
+        self.assertIn("25-30k", kisna_entity_extractor)
+
 
 class FlowSwitchAckDeadEndTests(unittest.TestCase):
     """The silent-switch ack must never suppress the service pipeline.
