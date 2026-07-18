@@ -44,6 +44,45 @@ class TestPriceBand(unittest.TestCase):
         self.assertEqual(out["min_price"], 23750)
         self.assertEqual(out["max_price"], 26250)
 
+    def test_category_switch_not_treated_as_pagination(self):
+        # Regression: "gold rings dikhao" / "necklaces" during an active necklace
+        # search must NOT page the old results (action='more' over-triggered by
+        # 'dikhao'). A message naming a category is always a fresh search.
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _is_show_more_request,
+            _names_new_search_subject,
+        )
+
+        data = {
+            "classified_category": "product_search",
+            "user_profile": {"last_search_filters": {"category": "necklace"}},
+            "llm_extracted_entities": {"action": "more"},
+        }
+        for q in ("gold rings dikhao", "necklaces dikhao", "necklaces", "earrings"):
+            data["messages"] = {"text": {"body": q}}
+            self.assertTrue(_names_new_search_subject(q), msg=q)
+            self.assertFalse(_is_show_more_request(q, data), msg=q)
+
+    def test_pure_pagination_still_pages(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _is_show_more_request,
+        )
+
+        data = {
+            "classified_category": "product_search",
+            "user_profile": {"last_search_filters": {"category": "necklace"}},
+            "llm_extracted_entities": {"action": "more"},
+        }
+        for q in ("aur dikhao", "show more", "next"):
+            data["messages"] = {"text": {"body": q}}
+            self.assertTrue(_is_show_more_request(q, data), msg=q)
+
+    def test_plural_necklaces_detected(self):
+        # Regression: "necklaces" plural was not recognized as a category.
+        ents = extract_entities("necklaces under 30k")
+        self.assertEqual(ents.get("category"), "necklace")
+        self.assertEqual(ents.get("max_price"), 30000)
+
     def test_range_suffix_distributes_to_both_sides(self):
         # "25-30k" means 25k-30k — the bare side must not read as ₹25.
         for text, lo, hi in (

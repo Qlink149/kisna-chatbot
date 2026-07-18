@@ -577,6 +577,24 @@ def _parse_budget_flow_reply(messages: dict) -> str | None:
     return str(budget_text).strip() if budget_text else None
 
 
+def _names_new_search_subject(query: str) -> bool:
+    """Deterministic: does the current message name a category/material/collection?
+
+    Regex-only (no LLM). A message that names a subject is a NEW search, never
+    pagination — even if the LLM loosely tagged action='more' because the text
+    contained 'dikhao' / 'show'. Guards against 'gold rings dikhao' paging the
+    previous necklace results.
+    """
+    ents = extract_entities(query or "")
+    return bool(
+        ents.get("category")
+        or ents.get("categories")
+        or ents.get("material_type")
+        or ents.get("collection")
+        or ents.get("title")
+    )
+
+
 def _is_show_more_request(query: str, data: dict) -> bool:
     user_profile = data.get("user_profile", {})
     # Gap 8: If classifier explicitly routed to a non-product intent, don't hijack
@@ -587,6 +605,10 @@ def _is_show_more_request(query: str, data: dict) -> bool:
         return False
     filters = user_profile.get("last_search_filters")
     if not filters:
+        return False
+    # A message naming a new subject ("gold rings", "necklaces") is a fresh
+    # search, never pagination — overrides a stray action='more' from the LLM.
+    if _names_new_search_subject(query):
         return False
     llm_entities = data.get("llm_extracted_entities") or {}
     if llm_entities.get("action") == "more":
@@ -1671,6 +1693,27 @@ class ProductSearchAgentV3(Processor):
             user_profile["llm_extracted_entities"] = llm_entities
 
         extracted = combine_search_entities(llm_entities, structured_fields)
+
+        # Category authority: the CURRENT message's own words win. If the user
+        # explicitly named a category/material now, force it over anything the
+        # LLM inherited or mis-carried from a prior turn ("Necklaces under 30k"
+        # after a ring search must search necklaces, not rings). Deterministic
+        # regex, independent of LLM reliability.
+        current = extract_entities(query or "")
+        cur_cat = current.get("category")
+        if cur_cat and extracted.get("category") != cur_cat:
+            extracted["category"] = cur_cat
+            extracted["categories"] = current.get("categories") or None
+            extracted["multi_category"] = current.get("multi_category", False)
+            extracted["secondary_category"] = current.get("secondary_category")
+            # A new category clears stale material/collection/title unless the
+            # current message restated them.
+            for key in ("material_type", "collection", "title"):
+                extracted[key] = current.get(key)
+        cur_mat = current.get("material_type")
+        if cur_mat and extracted.get("material_type") != cur_mat:
+            extracted["material_type"] = cur_mat
+
         extracted, occasion_prefix = apply_occasion_style_hints(
             extracted, query=query
         )

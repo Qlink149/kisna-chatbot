@@ -242,7 +242,10 @@ Fallback for unclear or spam/gibberish:
 - "22k"/"18k": karat when describing metal ("22k gold ring" → karat=22KT);
   price when near a budget word ("under 22k" → max_price=22000).
 - Gram weights ("5 gram ki chain") are NOT price and NOT size.
-- action: set "more" when user asks for more results (show more, aur dikhao, next 3).
+- action: set "more" ONLY for pure pagination of the SAME search with NO new
+  subject — "aur dikhao", "show more", "next", "kuch aur", "koi aur". If the
+  message names ANY category/material/collection ("gold rings dikhao",
+  "necklaces dikhao"), action MUST be null — it is a NEW search, not more.
 - If a field cannot be confidently extracted, return null.
 - NEVER hallucinate entity values not present in the query.
 
@@ -564,6 +567,9 @@ title — ONLY real product/collection names:
 action:
   "aur dikhao" / "show more" / "next" / "more" / "aur options" /
   "kuch aur" / "koi aur" → action=more
+  BUT only when NO category/material is named. "gold rings dikhao",
+  "necklaces dikhao", "diamond earrings dikhao" → action=null (new search).
+  The word "dikhao"/"show" alone is NOT pagination.
 
 occasion:
   shaadi/wedding/bridal/dulhan → wedding
