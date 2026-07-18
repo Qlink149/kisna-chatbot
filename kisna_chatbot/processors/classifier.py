@@ -757,9 +757,42 @@ def _parse_rating_reply(text: str) -> int | None:
     return _RATING_WORD_MAP.get(normalized)
 
 
-def _store_language(user_profile: dict, language: str | None) -> None:
+_INDIC_LANGS = frozenset(
+    {"hi", "gu", "mr", "ta", "te", "bn", "kn", "ml", "pa", "or"}
+)
+
+
+def resolve_reply_language(language: str | None, user_text: str) -> str:
+    """Language identity from the LLM; SCRIPT from the user's actual characters.
+
+    The user's message proves which script they type — never trust the model's
+    -Latn judgement. "Return krna hai" + "hi" → "hi-Latn"; "रिटर्न करना है" +
+    "hi-Latn" → "hi". Reply always mirrors the script of the LAST message.
+    """
+    lang = sanitize_classifier_language(language)
+    base = lang[:-5] if lang.endswith("-Latn") else lang
+    has_indic_script = bool(_INDIC_SCRIPT_RE.search(user_text or ""))
+    if has_indic_script:
+        return base if base in _INDIC_LANGS else lang
+    if base in _INDIC_LANGS:
+        return f"{base}-Latn"
+    return lang
+
+
+def _store_language(
+    user_profile: dict, language: str | None, user_text: str = ""
+) -> None:
+    """Per-message language state — the LAST message always wins.
+
+    Without a fresh LLM label (shortcut paths), still correct the stored
+    language's script to match the current message.
+    """
     if language:
-        user_profile["language"] = sanitize_classifier_language(language)
+        user_profile["language"] = resolve_reply_language(language, user_text)
+        return
+    stored = user_profile.get("language")
+    if stored and user_text:
+        user_profile["language"] = resolve_reply_language(stored, user_text)
 
 
 def _flow_escape_should_classify(user_query: str) -> bool:
@@ -1345,6 +1378,10 @@ class Classifier(Processor):
             if "text" in data["messages"]:
                 user_query = data["messages"]["text"]["body"]
 
+                # Script-mirror the stored language to THIS message even on
+                # shortcut paths that skip the LLM (greeting, ack, overrides).
+                _store_language(user_profile, None, user_query)
+
                 if user_profile.get("pending_clarification"):
                     user_profile["pending_clarification"] = False
                     clarified = user_query.strip()
@@ -1537,7 +1574,7 @@ class Classifier(Processor):
                 parsed = _parse_classifier_json(classifier_response)
                 intent = parsed["intent"] or "general"
                 confidence = parsed["confidence"]
-                _store_language(user_profile, parsed.get("language"))
+                _store_language(user_profile, parsed.get("language"), user_query)
                 override = _programmatic_intent_override(user_query)
                 if override:
                     intent, confidence = override

@@ -371,6 +371,52 @@ class FlowSwitchAckDeadEndTests(unittest.TestCase):
         asyncio.run(_run())
 
 
+class ScriptMirrorLanguageTests(unittest.TestCase):
+    """Reply language: identity from the LLM, SCRIPT from the user's message."""
+
+    def _resolve(self, lang, text):
+        from kisna_chatbot.processors.classifier import resolve_reply_language
+
+        return resolve_reply_language(lang, text)
+
+    def test_latin_message_forces_latn_variant(self):
+        # Model says "hi" but user typed Latin → Hinglish, not Devanagari.
+        self.assertEqual(self._resolve("hi", "Return krna hai"), "hi-Latn")
+        self.assertEqual(self._resolve("gu", "tamara kem che"), "gu-Latn")
+        self.assertEqual(self._resolve("mr", "mala ring pahije"), "mr-Latn")
+
+    def test_native_script_forces_plain_code(self):
+        self.assertEqual(self._resolve("hi-Latn", "रिटर्न करना है"), "hi")
+        self.assertEqual(self._resolve("gu-Latn", "તમારી પાસે રિંગ છે?"), "gu")
+
+    def test_english_unaffected(self):
+        self.assertEqual(self._resolve("en", "I want to return"), "en")
+
+    def test_matching_script_passes_through(self):
+        self.assertEqual(self._resolve("hi", "रिटर्न करना है"), "hi")
+        self.assertEqual(self._resolve("hi-Latn", "Return krna hai"), "hi-Latn")
+
+    def test_store_language_last_message_wins(self):
+        from kisna_chatbot.processors.classifier import _store_language
+
+        profile = {}
+        _store_language(profile, "hi", "रिटर्न करना है")
+        self.assertEqual(profile["language"], "hi")
+        # Next message is Hinglish; even without a fresh LLM label the stored
+        # language's script is corrected to this message.
+        _store_language(profile, None, "Return krna hai")
+        self.assertEqual(profile["language"], "hi-Latn")
+        _store_language(profile, "en", "I want to return")
+        self.assertEqual(profile["language"], "en")
+
+    def test_composer_labels_romanized_variants(self):
+        from kisna_chatbot.utils.reply_composer import _language_label
+
+        self.assertIn("Latin", _language_label("gu-Latn"))
+        self.assertIn("Gujarati", _language_label("gu-Latn"))
+        self.assertIn("Hinglish", _language_label("hi-Latn"))
+
+
 class ClassifierPromptContentTests(unittest.TestCase):
     """The LLM prompt must agree with the code's intent set."""
 

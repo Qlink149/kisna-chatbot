@@ -11,13 +11,28 @@ _CACHE: dict[tuple[str, str], str] = {}
 _LANGUAGE_LABELS = {
     "hi": "Hindi (Devanagari script)",
     "hi-Latn": "Hinglish (Hindi in Latin script)",
-    "ta": "Tamil",
-    "te": "Telugu",
-    "mr": "Marathi",
-    "bn": "Bengali",
-    "gu": "Gujarati",
-    "kn": "Kannada",
+    "ta": "Tamil (Tamil script)",
+    "te": "Telugu (Telugu script)",
+    "mr": "Marathi (Devanagari script)",
+    "bn": "Bengali (Bengali script)",
+    "gu": "Gujarati (Gujarati script)",
+    "kn": "Kannada (Kannada script)",
 }
+
+
+def _language_label(lang: str) -> str:
+    """Human label for the composer prompt; supports romanized (-Latn) variants."""
+    if lang in _LANGUAGE_LABELS:
+        return _LANGUAGE_LABELS[lang]
+    if lang.endswith("-Latn"):
+        base = lang[:-5]
+        base_label = _LANGUAGE_LABELS.get(base, base)
+        base_name = base_label.split(" (")[0]
+        return (
+            f"romanized {base_name} — {base_name} written in Latin/English "
+            f"letters, the way people type it in chats (like Hinglish)"
+        )
+    return lang
 
 # Static canned replies — safe to cache per (template_key, language).
 _CACHEABLE_TEMPLATES = frozenset(
@@ -93,11 +108,13 @@ async def compose(
     if template_key in _CACHEABLE_TEMPLATES and cache_key in _CACHE:
         return _CACHE[cache_key]
 
-    label = _LANGUAGE_LABELS.get(lang, lang)
+    label = _language_label(lang)
     instruction = (
         "You rewrite WhatsApp customer-service messages for KISNA jewellery. "
         "Keep the tone warm, natural, and concise like a helpful salesperson. "
         "Keep emojis. Keep prices, URLs, product names, and numbers EXACTLY unchanged. "
+        "Use EXACTLY the language AND script requested — if Latin/romanized is "
+        "requested, do not output native script, and vice versa. "
         "Output only the rewritten message — no quotes or explanation."
     )
     user_msg = f"Rewrite this message in {label}:\n\n{text}"

@@ -188,6 +188,11 @@ language codes:
   Marker words: che/chho/tamara/tame/kem/su/mate/joie → Gujarati, NOT Hinglish.
 - other short codes (ta, te, mr, bn, kn, …) for other languages, romanized or not.
   Detect the LANGUAGE, not the script — romanized Marathi/Gujarati is not Hinglish.
+- CRITICAL SCRIPT RULE: the code's script MUST match how the user typed THIS
+  message. Latin/English letters only → use the -Latn form (hi-Latn, gu-Latn,
+  mr-Latn, …). Native script → plain code (hi, gu, mr, …).
+  "Return krna hai" → hi-Latn. "रिटर्न करना है" → hi. "Tamara kem che" → gu-Latn.
+  Re-evaluate on EVERY message — users switch scripts mid-conversation.
 
 Fallback for unclear or spam/gibberish:
 {"intent": "general", "confidence": 0.3, "language": "en", "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
@@ -345,7 +350,7 @@ Fallback for unclear or spam/gibberish:
     "entities": min_price 45000, max_price 55000}
 84. "तमारा पासे रिंग छे" → {"intent": "product_search", "confidence": 0.9, "language": "gu",
     "entities": category ring}
-85. "Tamara kem haal che" → {"intent": "greeting", "confidence": 0.9, "language": "gu"}
+85. "Tamara kem haal che" → {"intent": "greeting", "confidence": 0.9, "language": "gu-Latn"}
 86. "इसका price बहुत ज्यादा है" | active: product_search → {"intent": "product_search",
     "confidence": 0.8, "language": "hi", "entities": price_direction "lower"}
 87. "thoda sasta dikhao" | active: product_search → {"intent": "product_search",
@@ -353,7 +358,7 @@ Fallback for unclear or spam/gibberish:
 88. "aur mehnga dikhao" | active: product_search → {"intent": "product_search",
     "confidence": 0.85, "entities": price_direction "higher"}
 89. "mane sastu joie che" | active: product_search → {"intent": "product_search",
-    "confidence": 0.8, "language": "gu", "entities": price_direction "lower"}
+    "confidence": 0.8, "language": "gu-Latn", "entities": price_direction "lower"}
 90. "return gift ke liye kuch dikhao" → {"intent": "product_search", "confidence": 0.9,
     "entities": occasion "gift"} ("return gift" = a present, NOT returns_refund)
 91. "shaadi me exchange karne ke liye rings" → {"intent": "product_search",
