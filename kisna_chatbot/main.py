@@ -601,6 +601,14 @@ async def process_message(
                         ]
 
             if "bot_response" in data:
+                # Silent flow-switch ack deferred by the classifier (it must
+                # never suppress the service pipeline) — prepend it now that
+                # the real response exists.
+                from kisna_chatbot.processors.classifier import (
+                    _prepend_flow_switch_ack,
+                )
+
+                _prepend_flow_switch_ack(data)
                 await localize_bot_responses(data)
                 await _persist_session(data, phone_number, pipeline_start)
                 responses_to_send = data

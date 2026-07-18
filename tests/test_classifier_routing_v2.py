@@ -316,6 +316,61 @@ class PriceDirectionTests(unittest.TestCase):
         self.assertIn("price_direction", kisna_entity_extractor)
 
 
+class FlowSwitchAckDeadEndTests(unittest.TestCase):
+    """The silent-switch ack must never suppress the service pipeline.
+
+    Regression: 'Return krna hai' during browsing produced ONLY 'Sure — I'll
+    help with returns.' because the ack became bot_response and every
+    downstream agent skipped itself.
+    """
+
+    def test_switch_to_returns_still_reaches_returns_agent(self):
+        import asyncio
+        import json
+        from unittest.mock import AsyncMock
+
+        from kisna_chatbot.models.service_list import ServiceList as SL
+        from kisna_chatbot.processors.classifier import (
+            Classifier,
+            _prepend_flow_switch_ack,
+        )
+        from kisna_chatbot.processors.returns_refund_agent import ReturnsRefundAgent
+
+        async def _run():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "Return krna hai"}},
+                "user_profile": {
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "chat_history": [{"role": "user", "content": "gold rings"}],
+                },
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=json.dumps(
+                    {"intent": "returns_refund", "confidence": 0.9, "entities": {}}
+                ),
+            ):
+                data = await Classifier().process(data)
+
+            # Classifier must NOT have produced an ack-only bot_response.
+            self.assertNotIn("bot_response", data)
+            self.assertIn("_flow_switch_ack", data)
+
+            data = await ReturnsRefundAgent().process(data)
+            self.assertIn("bot_response", data)
+
+            _prepend_flow_switch_ack(data)
+            self.assertEqual(len(data["bot_response"]), 2)
+            self.assertEqual(data["bot_response"][0]["type"], "text")
+            self.assertEqual(data["bot_response"][1]["type"], "flow")
+            self.assertNotIn("_flow_switch_ack", data)
+
+        asyncio.run(_run())
+
+
 class ClassifierPromptContentTests(unittest.TestCase):
     """The LLM prompt must agree with the code's intent set."""
 

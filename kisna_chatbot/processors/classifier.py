@@ -813,15 +813,22 @@ def _maybe_prompt_flow_switch(
 
 
 def _prepend_flow_switch_ack(data: dict) -> None:
+    """Prepend the silent-switch ack to an EXISTING bot_response.
+
+    Never creates bot_response from the ack alone — downstream agents skip
+    when bot_response is present, so an ack-only response would dead-end the
+    turn ("Sure — I'll help with returns." and then nothing). When the service
+    pipeline still has to run, the ack stays in data and main.py prepends it
+    after the pipeline produced the real response.
+    """
+    responses = data.get("bot_response")
+    if not isinstance(responses, list):
+        return
     ack = data.pop("_flow_switch_ack", None)
     if not ack:
         return
-    responses = data.get("bot_response")
     ack_msg = {"type": "text", "text": ack, "_compose": "flow_switch_ack"}
-    if isinstance(responses, list):
-        data["bot_response"] = [ack_msg, *responses]
-    else:
-        data["bot_response"] = [ack_msg]
+    data["bot_response"] = [ack_msg, *responses]
 
 
 def _handle_custom_jewellery_handoff(

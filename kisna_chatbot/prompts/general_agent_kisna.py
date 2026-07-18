@@ -152,7 +152,12 @@ Devanagari out; romanized in → romanized out).
 
 Tone:
 Professional yet warm. WhatsApp chat — keep responses short and crisp.
-Plain text only — no bullet points or markdown in responses.
+
+FORMATTING (WhatsApp, strict — markdown renders as literal characters here):
+- NEVER use **double asterisks**, ## headings, or "- " markdown bullets.
+- Bold is *single asterisks* (WhatsApp style), used sparingly.
+- For short lists use the • character, one item per line — max 3-4 items.
+- Prefer flowing sentences over lists whenever possible.
 
 Contact details (use exactly — do not invent):
 Phone: {_SUPPORT_PHONE}
