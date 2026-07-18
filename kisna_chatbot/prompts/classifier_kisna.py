@@ -113,7 +113,7 @@ The system message may include:
 26. MULTI-INTENT message ("gold ring dikhao aur store bhi batao") → classify the PRIMARY
     shopping action (usually the first concrete request); the user will ask the rest next.
 27. Bare 6-digit number: if active context or history shows store lookup → store_info.
-    If user was browsing/asked budget → treat as budget → product_search with ±10% price band.
+    If user was browsing/asked budget → treat as budget → product_search with min_price = max_price = the amount.
     No context at all → store_info (pincode is the more common bare 6-digit message).
 28. "yes"/"haan"/"ok" right after the bot asked a question → continue the active flow from
     history (e.g. bot offered to show products → product_search). Never greeting.
@@ -218,8 +218,9 @@ Fallback for unclear or spam/gibberish:
   das hazaar→10000, ek lakh→100000. under X→max_price=X, above X→min_price=X,
   between X and Y→min_price=X max_price=Y.
   Single target with no under/above/range (of price X, price X, budget X,
-  around X, bare 50k) → set BOTH min_price and max_price as ±10% of X
-  (e.g. 50000 → min_price=45000, max_price=55000).
+  around X, bare 50k, "X ka") → set BOTH min_price AND max_price to exactly X
+  (e.g. 50000 → min_price=50000, max_price=50000). NEVER compute a range
+  yourself — the system widens it deterministically.
 - title: proper nouns that look like a product/collection name (Rivaah, Elysia, Maggio).
   NEVER extract question words (what/how/why), brand name (kisna), or generic words (jewellery).
 - collection: named collections (Evil Eye, Tanishta, Nishka, Rivaah).
@@ -347,7 +348,7 @@ Fallback for unclear or spam/gibberish:
 81. "2nd wala dikhao" | active: product_search → {"intent": "product_info", "confidence": 0.88}
 82. "560001" | active: store_info → {"intent": "store_info", "confidence": 0.95}
 83. "50000" | bot just asked budget → {"intent": "product_search", "confidence": 0.85,
-    "entities": min_price 45000, max_price 55000}
+    "entities": min_price 50000, max_price 50000}
 84. "तमारा पासे रिंग छे" → {"intent": "product_search", "confidence": 0.9, "language": "gu",
     "entities": category ring}
 85. "Tamara kem haal che" → {"intent": "greeting", "confidence": 0.9, "language": "gu-Latn"}
@@ -437,7 +438,8 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
 2. If ANY price/budget phrase appears → extract min_price and/or max_price
    as integers (INR). "above 50k" → min_price=50000. "under 50k" → max_price=50000.
    Single target (of price / price / budget / around / bare 50k) with no
-   under/above/range → BOTH min and max as ±10% (50000 → 45000 and 55000).
+   under/above/range → set BOTH min and max to exactly the amount
+   (50000 → min=50000, max=50000). NEVER compute a range — code widens it.
 3. If material appears (gold, diamond, rose gold) → material_type MUST be set.
 4. NEVER set title to command words (show, send, me) or generic type words
    (chains, rings, gold). title is ONLY for named products/collections.
@@ -531,10 +533,11 @@ price (ALWAYS extract when budget words present — integers in INR):
   "above X" / "over X" / "more than X" / "X se zyada" → min_price=X only
   "X to Y" / "X-Y" / "between X and Y" / "X se Y tak" →
     min_price=X, max_price=Y (keep as given)
-  Single target with NO under/above/range → ±10% BAND (both fields):
+  Single target with NO under/above/range → BOTH fields = exactly X:
     "of price X" / "price X" / "budget X" / "around X" / bare "50k" /
-    "X ka" → min_price=round(X*0.9), max_price=round(X*1.1)
-    Example: 50000 → min_price=45000, max_price=55000
+    "X ka" → min_price=X, max_price=X
+    Example: 50000 → min_price=50000, max_price=50000
+    NEVER compute a range yourself — the system widens it deterministically.
   "50k" alone with under/below → max_price=50000
   "above 50k" / "over 50k" → min_price=50000
   Amounts: "50k" → 50000, "1 lakh" → 100000, "1.5 lakh" → 150000
@@ -616,12 +619,12 @@ Examples:
  "min_price":20000,"max_price":50000,"title":null,...nulls}
 
 "Show me gold rings of price 50000" →
-{"category":"ring","material_type":"gold","min_price":45000,"max_price":55000,
+{"category":"ring","material_type":"gold","min_price":50000,"max_price":50000,
  "title":null,"karat":null,"metal_colour":null,"size":null,"collection":null,
  "gender":null,"occasion":null,"style":null,"action":null}
 
 "budget 50000" →
-{"min_price":45000,"max_price":55000,...all others null}
+{"min_price":50000,"max_price":50000,...all others null}
 
 "gold rings above 50k" →
 {"category":"ring","material_type":"gold","min_price":50000,"max_price":null,

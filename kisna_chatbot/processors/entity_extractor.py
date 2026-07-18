@@ -862,6 +862,17 @@ def normalize_price_entities(
     if min_f is not None and max_f is not None:
         if min_f == max_f:
             target = min_f
+        elif (
+            text
+            and not _RANGE_INDICATOR_RE.search(text)
+            and max_f > 0
+            and 0.85 <= min_f / max_f < 1.0
+        ):
+            # LLM emitted a narrow asymmetric band for a single stated amount
+            # (e.g. 22500–25000 for "25 hazaar ka") — the user gave ONE number,
+            # so recompute the symmetric band around it. Genuine ranges always
+            # carry a range word (to/se/tak/से/तक/dash) and are left unchanged.
+            target = max_f
     elif max_f is not None and min_f is None:
         if text and (
             _SINGLE_TARGET_HINT_RE.search(text) or re.search(r"\d", text)
@@ -1046,12 +1057,27 @@ def _extract_around_price(text: str) -> tuple[float | None, float | None]:
     return None, None
 
 
+# Single source of truth for the single-price variance. The LLM never computes
+# bands (it emits min == max == stated amount); only this code widens them.
+_SINGLE_PRICE_BAND_FACTOR = 0.05  # ±5%
+
+# Explicit-range markers (English, Hinglish, Devanagari). A price pair WITHOUT
+# one of these came from a single stated amount, not a user-given range.
+_RANGE_INDICATOR_RE = re.compile(
+    r"\bto\b|\bbetween\b|\bse\b|\btak\b|[-–]|से|तक", re.I
+)
+
+
 def _snap_single_price_to_band(price: float) -> tuple[float, float]:
-    """±10% band around a single price, rounded to nearest 100."""
-    lo = float(int(round(price * 0.9 / 100) * 100))
-    hi = float(int(round(price * 1.1 / 100) * 100))
-    if hi < lo:
-        hi = lo
+    """Symmetric ±5% band around a single price.
+
+    One delta mirrored both sides (rounded half-up to nearest 50) so the band
+    is always exactly symmetric: 25000 → (23750, 26250), 50000 → (47500,
+    52500) — never lopsided like the old (23800, 26200).
+    """
+    delta = float(int(price * _SINGLE_PRICE_BAND_FACTOR / 50 + 0.5) * 50)
+    lo = max(price - delta, 0.0)
+    hi = price + delta
     return lo, hi
 
 

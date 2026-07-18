@@ -528,12 +528,13 @@ def _entities_from_preferences(user_profile: dict) -> dict:
 
 
 def _snap_single_price_to_band(price: float) -> tuple[int, int]:
-    """±10% band around a single price, rounded to nearest 100."""
-    lo = int(round(price * 0.9 / 100) * 100)
-    hi = int(round(price * 1.1 / 100) * 100)
-    if hi < lo:
-        hi = lo
-    return lo, hi
+    """Delegates to the single source of truth in entity_extractor (±5%)."""
+    from kisna_chatbot.processors.entity_extractor import (
+        _snap_single_price_to_band as _snap,
+    )
+
+    lo, hi = _snap(price)
+    return int(lo), int(hi)
 
 
 def _parse_custom_budget_text(text: str) -> tuple[int | None, int | None]:

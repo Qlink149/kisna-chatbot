@@ -168,9 +168,9 @@ class CustomBudgetContextIsolationTests(unittest.TestCase):
             ents = captured.get("entities", {})
             self.assertIsNone(ents.get("title"), "title must not bleed from prior session")
             self.assertEqual(ents.get("category"), "ring", "pref_category should be used")
-            # _parse_custom_budget_text("25000") → ±10% band (22500–27500)
-            self.assertEqual(ents.get("min_price"), 22500)
-            self.assertEqual(ents.get("max_price"), 27500)
+            # _parse_custom_budget_text("25000") → ±5% band (23750–26250)
+            self.assertEqual(ents.get("min_price"), 23750)
+            self.assertEqual(ents.get("max_price"), 26250)
         asyncio.run(_run())
 
     def test_three_failures_resets_flag_and_falls_back(self):

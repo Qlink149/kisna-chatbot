@@ -384,6 +384,13 @@ def persist_message_trace(data: dict) -> None:
             else:
                 user_message = messages.get("type") or ""
 
+        user_profile = data.get("user_profile") or {}
+        reply_preview = ""
+        for item in data.get("bot_response") or []:
+            if isinstance(item, dict) and item.get("type") == "text" and item.get("text"):
+                reply_preview = str(item["text"])[:160]
+                break
+
         doc = {
             "request_id": request_id,
             "client_id": data.get("client_id") or "kisna",
@@ -392,6 +399,11 @@ def persist_message_trace(data: dict) -> None:
             "user_message": user_message,
             "steps": steps,
             "outcome": outcome,
+            # Structured fields for the daily log review
+            "intent": data.get("classified_category"),
+            "confidence": data.get("classifier_confidence"),
+            "language": user_profile.get("language"),
+            "reply_preview": reply_preview,
         }
         message_traces.update_one(
             {"request_id": request_id, "client_id": doc["client_id"]},

@@ -1,4 +1,4 @@
-"""±10% single-price band tests."""
+"""±5% single-price band tests."""
 
 import os
 import unittest
@@ -22,14 +22,40 @@ from kisna_chatbot.processors.product_search_agent_v3 import (
 
 class TestPriceBand(unittest.TestCase):
     def test_snap_50000(self):
-        self.assertEqual(_snap_single_price_to_band(50000), (45000, 55000))
+        self.assertEqual(_snap_single_price_to_band(50000), (47500, 52500))
 
     def test_snap_25000(self):
-        self.assertEqual(_snap_single_price_to_band(25000), (22500, 27500))
+        self.assertEqual(_snap_single_price_to_band(25000), (23750, 26250))
+
+    def test_snap_is_symmetric(self):
+        # Regression: 25000 must NOT become (23800, 26200) — banker's rounding
+        # made the band lopsided. Distance from target must be equal both sides.
+        for target in (25000, 50000, 37500, 18000, 125000):
+            lo, hi = _snap_single_price_to_band(target)
+            self.assertEqual(target - lo, hi - target, msg=f"asymmetric for {target}")
+
+    def test_asymmetric_llm_band_recomputed_around_single_amount(self):
+        # Transcript bug: "25 hazaar ka mangalsutra" → LLM emitted 22500–25000
+        # (a lopsided band, no range word). Must be corrected to symmetric ±5%.
+        out = normalize_price_entities(
+            "25 hazaar ka mangalsutra",
+            {"min_price": 22500, "max_price": 25000},
+        )
+        self.assertEqual(out["min_price"], 23750)
+        self.assertEqual(out["max_price"], 26250)
+
+    def test_genuine_range_left_unchanged(self):
+        # A real range carries a range word — never recompute it.
+        out = normalize_price_entities(
+            "20000 se 25000 tak",
+            {"min_price": 20000, "max_price": 25000},
+        )
+        self.assertEqual(out["min_price"], 20000)
+        self.assertEqual(out["max_price"], 25000)
 
     def test_custom_budget_bare_digits(self):
-        self.assertEqual(_parse_custom_budget_text("25000"), (22500, 27500))
-        self.assertEqual(_parse_custom_budget_text("50000"), (45000, 55000))
+        self.assertEqual(_parse_custom_budget_text("25000"), (23750, 26250))
+        self.assertEqual(_parse_custom_budget_text("50000"), (47500, 52500))
 
     def test_under_unchanged(self):
         self.assertEqual(_parse_custom_budget_text("under 50000"), (0, 50000))
@@ -52,40 +78,40 @@ class TestPriceBand(unittest.TestCase):
 
     def test_budget_without_direction_is_band(self):
         ents = extract_entities("budget 50000 hai")
-        self.assertEqual(ents.get("min_price"), 45000)
-        self.assertEqual(ents.get("max_price"), 55000)
+        self.assertEqual(ents.get("min_price"), 47500)
+        self.assertEqual(ents.get("max_price"), 52500)
 
     def test_50k_ka_ring_is_band(self):
         ents = extract_entities("50k ka ring")
-        self.assertEqual(ents.get("min_price"), 45000)
-        self.assertEqual(ents.get("max_price"), 55000)
+        self.assertEqual(ents.get("min_price"), 47500)
+        self.assertEqual(ents.get("max_price"), 52500)
         self.assertEqual(ents.get("category"), "ring")
 
     def test_of_price_50000_is_band(self):
         ents = extract_entities("Show me gold rings of price 50000")
-        self.assertEqual(ents.get("min_price"), 45000)
-        self.assertEqual(ents.get("max_price"), 55000)
+        self.assertEqual(ents.get("min_price"), 47500)
+        self.assertEqual(ents.get("max_price"), 52500)
         self.assertEqual(ents.get("category"), "ring")
         self.assertEqual(ents.get("material_type"), "gold")
         self.assertIsNone(ents.get("metal_colour"))
 
     def test_price_50000_is_band(self):
         ents = extract_entities("price 50000")
-        self.assertEqual(ents.get("min_price"), 45000)
-        self.assertEqual(ents.get("max_price"), 55000)
+        self.assertEqual(ents.get("min_price"), 47500)
+        self.assertEqual(ents.get("max_price"), 52500)
 
-    def test_around_50000_is_pm10_band(self):
+    def test_around_50000_is_pm5_band(self):
         ents = extract_entities("around 50000")
-        self.assertEqual(ents.get("min_price"), 45000)
-        self.assertEqual(ents.get("max_price"), 55000)
+        self.assertEqual(ents.get("min_price"), 47500)
+        self.assertEqual(ents.get("max_price"), 52500)
 
     def test_normalize_snaps_llm_exact_min_eq_max(self):
         out = normalize_price_entities(
             "Show me gold rings of price 50000",
             {"min_price": 50000, "max_price": 50000},
         )
-        self.assertEqual(out["min_price"], 45000)
-        self.assertEqual(out["max_price"], 55000)
+        self.assertEqual(out["min_price"], 47500)
+        self.assertEqual(out["max_price"], 52500)
 
     def test_normalize_keeps_under(self):
         out = normalize_price_entities(
@@ -114,8 +140,8 @@ class TestPriceBand(unittest.TestCase):
             query="Show me gold rings of price 50000",
         )
         params = entities_to_api_params(ents)
-        self.assertEqual(params.get("min_price"), 45000)
-        self.assertEqual(params.get("max_price"), 55000)
+        self.assertEqual(params.get("min_price"), 47500)
+        self.assertEqual(params.get("max_price"), 52500)
 
 
 class TestEvidenceGate(unittest.TestCase):
@@ -126,8 +152,8 @@ class TestEvidenceGate(unittest.TestCase):
                 "category": "ring",
                 "material_type": "gold",
                 "metal_colour": "yellow",
-                "min_price": 45000,
-                "max_price": 55000,
+                "min_price": 47500,
+                "max_price": 52500,
             },
         )
         self.assertEqual(gated["material_type"], "gold")
@@ -267,12 +293,12 @@ class TestFallbackCopy(unittest.TestCase):
         note = _fallback_prefix_note(
             "budget",
             [],
-            {"min_price": 45000, "max_price": 55000},
+            {"min_price": 47500, "max_price": 52500},
             {},
         )
         self.assertIsNotNone(note)
         self.assertIn("around ₹50,000", note)
-        self.assertIn("₹45,000–₹55,000", note)
+        self.assertIn("₹47,500–₹52,500", note)
         self.assertNotIn("under ₹", note)
 
     def test_max_only_still_says_under(self):
