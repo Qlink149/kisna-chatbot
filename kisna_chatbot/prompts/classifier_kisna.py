@@ -354,6 +354,11 @@ Fallback for unclear or spam/gibberish:
     "confidence": 0.85, "entities": price_direction "higher"}
 89. "mane sastu joie che" | active: product_search → {"intent": "product_search",
     "confidence": 0.8, "language": "gu", "entities": price_direction "lower"}
+90. "return gift ke liye kuch dikhao" → {"intent": "product_search", "confidence": 0.9,
+    "entities": occasion "gift"} ("return gift" = a present, NOT returns_refund)
+91. "shaadi me exchange karne ke liye rings" → {"intent": "product_search",
+    "confidence": 0.85, "entities": category "ring", occasion "wedding"}
+    (ring exchange at a wedding = buying rings, NOT returns_refund)
 
 ---
 

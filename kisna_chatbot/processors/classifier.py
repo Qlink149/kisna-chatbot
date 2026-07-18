@@ -366,10 +366,28 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("video_call", 0.95)
     if _SCHEME_RE.search(normalized):
         return ("general", 0.9)
+    # Policy action/info regexes are HINTS only (see _programmatic_intent_hint):
+    # they misfire on phrases like "return gift ke liye kuch dikhao", so the
+    # LLM keeps the final word.
+    return None
+
+
+def _programmatic_intent_hint(text: str) -> str | None:
+    """Soft routing hint passed into the classifier prompt — never a verdict."""
+    normalized = (text or "").strip()
+    if not normalized:
+        return None
     if _is_policy_action_query(normalized):
-        return ("returns_refund", 0.9)
+        return (
+            "heuristic suggests a return/refund/exchange ACTION request "
+            "(intent returns_refund) — but e.g. 'return gift' means a present, "
+            "so trust the actual meaning"
+        )
     if _is_policy_information_query(normalized):
-        return ("general", 0.9)
+        return (
+            "heuristic suggests a policy/FAQ QUESTION (intent general) — "
+            "trust the actual meaning if it differs"
+        )
     return None
 
 
@@ -1128,11 +1146,18 @@ def _format_active_product_context(user_profile: dict) -> str:
     return ""
 
 
-def _build_classifier_system_content(user_profile: dict, chat_history_str: str) -> str:
+def _build_classifier_system_content(
+    user_profile: dict, chat_history_str: str, hint: str | None = None
+) -> str:
     system_content = f"Chat history: {chat_history_str}"
     active_ctx = _format_active_product_context(user_profile)
     if active_ctx:
         system_content = f"{active_ctx}\n{system_content}"
+    if hint:
+        system_content = (
+            f"{system_content}\nRouting hint (regex heuristic, can be wrong — "
+            f"ignore if the message means otherwise): {hint}"
+        )
     return system_content
 
 
@@ -1193,7 +1218,9 @@ async def classify_query_for_audit(
         return {"intent": "unknown", "confidence": 0.0, "entities": {}, "source": "none"}
 
     chat_history_str = format_recent_history_str(profile, 8)
-    system_content = _build_classifier_system_content(profile, chat_history_str)
+    system_content = _build_classifier_system_content(
+        profile, chat_history_str, hint=_programmatic_intent_hint(user_query)
+    )
 
     classifier_response = await complete_chat(
         agent=AgentName.CLASSIFIER,
@@ -1261,51 +1288,27 @@ class Classifier(Processor):
                 return True
             return False
 
+        # LLM-default policy: the classifier sees every message. A regex may only
+        # SKIP the LLM for provably unambiguous continuations — never because it
+        # "looks like" an in-session refinement (Latin-only patterns cannot cover
+        # multilingual / romanized phrasing and silently bulldoze stale context).
         service = user_profile.get("service_selected")
-        if service == ServiceList.AD_FLOW.value and _looks_like_store_query(user_query):
-            return False
-
-        if service == ServiceList.ORDER_TRACKING.value:
-            if _REROUTE_RE.search(user_query) or _flow_escape_should_classify(user_query):
-                return True
-            return False
-
-        if service == ServiceList.OFFERS.value:
-            if _REROUTE_RE.search(user_query) or _flow_escape_should_classify(user_query):
-                return True
+        if service == ServiceList.AD_FLOW.value and _PINCODE_ONLY_RE.match(
+            user_query.strip()
+        ):
+            # Bare pincode during a store lookup — structured input, nothing to classify.
             return False
 
         if service == ServiceList.PRODUCT_SEARCH.value:
-            if _looks_like_faq_query(user_query):
-                return True
-            if _is_policy_information_query(user_query):
-                return True
-            if is_unrecognizable_input(user_query):
-                return True
-            if _flow_escape_should_classify(user_query):
-                return True
-            if _EXPENSIVE_SEARCH_RE.search(user_query):
-                return True
-            if _REROUTE_RE.search(user_query):
-                return True
-
-        if service != ServiceList.PRODUCT_SEARCH.value:
-            return True
-
-        chat_history = user_profile.get("chat_history", [])
-        if not chat_history:
-            return True
-
-        if user_profile.get("last_viewed_product") and _is_product_price_signal(
-            user_query
-        ):
-            return False
-        if _COMPARATIVE_RE.search(user_query):
-            if _is_competitor_comparison(user_query):
-                return True
-            return False
-        if _BROWSE_ACTION_RE.search(user_query) or _CATEGORY_WORD_RE.search(user_query):
-            return False
+            stripped = user_query.strip()
+            if (
+                user_profile.get("chat_history")
+                and len(stripped.split()) <= 4
+                and _CONTINUATION_RE.search(stripped)
+            ):
+                # Pure "show more" continuation — the search agent pages the
+                # active results; no meaning left for the LLM to extract.
+                return False
 
         return True
 
@@ -1493,7 +1496,9 @@ class Classifier(Processor):
 
                 chat_history_str = format_recent_history_str(user_profile, 8)
                 system_content = _build_classifier_system_content(
-                    user_profile, chat_history_str
+                    user_profile,
+                    chat_history_str,
+                    hint=_programmatic_intent_hint(user_query),
                 )
 
                 classifier_response = await complete_chat(

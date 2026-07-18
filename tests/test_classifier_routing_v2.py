@@ -188,10 +188,27 @@ class IndicScriptGateTests(unittest.TestCase):
             self._should_run("તમારી પાસે રિંગ છે?", self._profile_in_product_session())
         )
 
-    def test_latin_refinement_still_skips_llm(self):
-        # Cost control: plain Latin in-session refinements keep skipping the LLM.
-        self.assertFalse(
+    def test_latin_refinement_now_classifies(self):
+        # LLM-default policy: in-session refinements go through the classifier.
+        self.assertTrue(
             self._should_run("show me gold rings", self._profile_in_product_session())
+        )
+
+    def test_pure_show_more_still_skips_llm(self):
+        # The only surviving product-session skip: unambiguous continuations.
+        self.assertFalse(
+            self._should_run("show more", self._profile_in_product_session())
+        )
+        self.assertFalse(
+            self._should_run("aur dikhao", self._profile_in_product_session())
+        )
+
+    def test_long_sentence_with_more_still_classifies(self):
+        self.assertTrue(
+            self._should_run(
+                "can you show me some more affordable gold rings please",
+                self._profile_in_product_session(),
+            )
         )
 
 

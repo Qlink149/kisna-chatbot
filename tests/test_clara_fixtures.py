@@ -296,7 +296,8 @@ class ClaraFixtureTests(unittest.TestCase):
         norm = normalize_entities_for_clara(entities)
         self.assertTrue(norm["unsupported_category"])
 
-    def test_classifier_skips_offers_followup(self):
+    def test_classifier_runs_for_offers_followup(self):
+        # LLM-default policy: sticky offers session no longer suppresses the classifier.
         clf = Classifier()
         data = {
             "messages": {"text": {"body": "go ahead"}},
@@ -305,7 +306,7 @@ class ClaraFixtureTests(unittest.TestCase):
                 "chat_history": [{"role": "user", "content": "offers"}],
             },
         }
-        self.assertFalse(clf.should_run(data))
+        self.assertTrue(clf.should_run(data))
 
     def test_promotions_fixture_loads(self):
         path = _FIXTURES / "promotions.json"

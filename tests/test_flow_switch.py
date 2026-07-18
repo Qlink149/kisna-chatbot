@@ -54,13 +54,14 @@ class FlowSwitchEscapeTests(unittest.TestCase):
         }
         self.assertTrue(clf.should_run(data))
 
-    def test_should_run_skips_comparative_in_product_search(self):
+    def test_should_run_classifies_comparative_in_product_search(self):
+        # LLM-default policy: comparative follow-ups reach the classifier.
         clf = Classifier()
         data = {
             "messages": {"text": {"body": "show me cheapest"}},
             "user_profile": _browse_profile(),
         }
-        self.assertFalse(clf.should_run(data))
+        self.assertTrue(clf.should_run(data))
 
 
 class FlowSwitchPromptTests(unittest.TestCase):

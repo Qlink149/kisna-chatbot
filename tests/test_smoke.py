@@ -904,7 +904,8 @@ class ProductSearchTests(unittest.TestCase):
 
 
 class ClassifierSkipTests(unittest.TestCase):
-    def test_classifier_skips_product_search_followup(self):
+    def test_classifier_runs_for_product_search_followup(self):
+        # LLM-default policy: in-session refinements reach the classifier.
         clf = Classifier()
         data = {
             "messages": {"text": {"body": "show earrings"}},
@@ -913,7 +914,7 @@ class ClassifierSkipTests(unittest.TestCase):
                 "chat_history": [{"role": "user", "content": "hi"}],
             },
         }
-        self.assertFalse(clf.should_run(data))
+        self.assertTrue(clf.should_run(data))
 
     def test_classifier_runs_for_offers_reroute(self):
         clf = Classifier()
@@ -1093,7 +1094,8 @@ class FilterMergeTests(unittest.TestCase):
 
 
 class OffersClassifierSkipTests(unittest.TestCase):
-    def test_classifier_skips_offers_go_ahead(self):
+    def test_classifier_runs_for_offers_go_ahead(self):
+        # LLM-default policy: offers session no longer suppresses the classifier.
         clf = Classifier()
         data = {
             "messages": {"text": {"body": "go ahead"}},
@@ -1102,7 +1104,7 @@ class OffersClassifierSkipTests(unittest.TestCase):
                 "chat_history": [{"role": "user", "content": "offers"}],
             },
         }
-        self.assertFalse(clf.should_run(data))
+        self.assertTrue(clf.should_run(data))
 
 
 class ClientConfigTests(unittest.TestCase):
@@ -1186,8 +1188,8 @@ class HardeningAuditTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_classifier_stays_in_offers_for_product_search(self):
-        """Product-search-shaped text in OFFERS no longer forces classifier escape."""
+    def test_classifier_runs_for_product_search_in_offers(self):
+        """LLM-default policy: product text during OFFERS reaches the classifier."""
         clf = Classifier()
         data = {
             "messages": {"text": {"body": "gold ring under 50k"}},
@@ -1196,7 +1198,7 @@ class HardeningAuditTests(unittest.TestCase):
                 "chat_history": [{"role": "user", "content": "offers"}],
             },
         }
-        self.assertFalse(clf.should_run(data))
+        self.assertTrue(clf.should_run(data))
 
     def test_classifier_json_fallback_menu(self):
         async def _run():

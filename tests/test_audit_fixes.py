@@ -97,7 +97,9 @@ class ExpensiveSearchRoutingTests(unittest.TestCase):
 
 
 class ProductInfoSkipCategoryTests(unittest.TestCase):
-    def test_classifier_skips_followup_price_query_in_search_session(self):
+    def test_followup_price_query_now_classifies(self):
+        # LLM-default policy: in-session follow-ups go through the classifier
+        # (Latin-only gates can't judge multilingual phrasing).
         clf = Classifier()
         data = {
             "phone_number": "919999999999",
@@ -108,13 +110,7 @@ class ProductInfoSkipCategoryTests(unittest.TestCase):
                 "chat_history": [{"role": "user", "content": "gold rings"}],
             },
         }
-        self.assertFalse(clf.should_run(data))
-
-        async def _run():
-            return await clf.process(data)
-
-        result = asyncio.run(_run())
-        self.assertNotIn("classified_category", result)
+        self.assertTrue(clf.should_run(data))
 
 
 if __name__ == "__main__":

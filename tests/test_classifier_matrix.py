@@ -82,21 +82,31 @@ class ClassifierMatrixTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_override_intent_matrix(self):
+    def test_policy_rows_are_hints_not_overrides(self):
+        # LLM-final policy: regex no longer decides returns/policy intents.
+        # It only injects a routing hint; the LLM (mocked here) has the last word.
+        from kisna_chatbot.processors.classifier import (
+            _programmatic_intent_hint,
+            _programmatic_intent_override,
+        )
+
         async def _run():
             for text, expected_intent in OVERRIDE_INTENT_MATRIX:
+                self.assertIsNone(_programmatic_intent_override(text), msg=text)
+                self.assertIsNotNone(_programmatic_intent_hint(text), msg=text)
                 with patch(
                     "kisna_chatbot.processors.classifier.complete_chat",
                     new_callable=AsyncMock,
+                    return_value=json.dumps(
+                        {"intent": expected_intent, "confidence": 0.9, "entities": {}}
+                    ),
                 ) as mock_llm:
                     result = await classify_query_for_audit(text, use_llm=True)
-                mock_llm.assert_not_called()
-                self.assertEqual(
-                    result["intent"],
-                    expected_intent,
-                    msg=f"{text!r}: expected {expected_intent}, got {result['intent']}",
-                )
-                self.assertEqual(result["source"], "override")
+                mock_llm.assert_called_once()
+                system_msg = mock_llm.call_args.kwargs["messages"][0]["content"]
+                self.assertIn("Routing hint", system_msg, msg=text)
+                self.assertEqual(result["intent"], expected_intent, msg=text)
+                self.assertEqual(result["source"], "llm")
 
         asyncio.run(_run())
 

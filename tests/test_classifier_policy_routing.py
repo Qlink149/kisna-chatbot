@@ -70,11 +70,19 @@ class PolicyRoutingUnitTests(unittest.TestCase):
                 msg=f"expected action query: {text!r}",
             )
 
-    def test_programmatic_override_matrix(self):
-        for text, expected in POLICY_INFO_MATRIX + POLICY_ACTION_MATRIX:
-            override = _programmatic_intent_override(text)
-            self.assertIsNotNone(override, msg=text)
-            self.assertEqual(override[0], expected, msg=text)
+    def test_policy_queries_no_longer_hard_override(self):
+        # LLM-final policy: these produce hints, not verdicts.
+        from kisna_chatbot.processors.classifier import _programmatic_intent_hint
+
+        for text, _expected in POLICY_INFO_MATRIX + POLICY_ACTION_MATRIX:
+            self.assertIsNone(_programmatic_intent_override(text), msg=text)
+            self.assertIsNotNone(_programmatic_intent_hint(text), msg=text)
+
+    def test_return_gift_is_not_hijacked(self):
+        # "return gift" = a present; regex must not force returns_refund.
+        self.assertIsNone(
+            _programmatic_intent_override("return gift ke liye kuch dikhao")
+        )
 
     def test_custom_jewellery_override(self):
         override = _programmatic_intent_override("custom ring banwana hai")
@@ -100,22 +108,28 @@ class PolicyRoutingUnitTests(unittest.TestCase):
 
 
 class PolicyRoutingIntegrationTests(unittest.TestCase):
-    def test_override_skips_llm_for_policy_info(self):
+    def test_policy_info_goes_to_llm_with_hint(self):
         async def _run():
             with patch(
                 "kisna_chatbot.processors.classifier.complete_chat",
                 new_callable=AsyncMock,
+                return_value=json.dumps(
+                    {"intent": "general", "confidence": 0.9, "entities": {}}
+                ),
             ) as mock_llm:
                 result = await classify_query_for_audit(
                     "return kaise karu?", use_llm=True
                 )
-            mock_llm.assert_not_called()
+            mock_llm.assert_called_once()
+            system_msg = mock_llm.call_args.kwargs["messages"][0]["content"]
+            self.assertIn("Routing hint", system_msg)
             self.assertEqual(result["intent"], "general")
-            self.assertEqual(result["source"], "override")
+            self.assertEqual(result["source"], "llm")
 
         asyncio.run(_run())
 
-    def test_post_llm_override_corrects_wrong_intent(self):
+    def test_llm_verdict_wins_over_policy_heuristic(self):
+        # The regex heuristic is only a hint — the LLM has the final word.
         async def _run():
             clf = Classifier()
             data = {
@@ -132,8 +146,7 @@ class PolicyRoutingIntegrationTests(unittest.TestCase):
                 ),
             ):
                 result = await clf.process(data)
-            self.assertEqual(result["classified_category"], "general")
-            self.assertEqual(result["user_profile"]["service_selected"], SL.GENERAL.value)
+            self.assertEqual(result["classified_category"], "product_info")
 
         asyncio.run(_run())
 
@@ -149,9 +162,12 @@ class PolicyRoutingIntegrationTests(unittest.TestCase):
             with patch(
                 "kisna_chatbot.processors.classifier.complete_chat",
                 new_callable=AsyncMock,
+                return_value=json.dumps(
+                    {"intent": "returns_refund", "confidence": 0.9, "entities": {}}
+                ),
             ) as mock_llm:
                 result = await clf.process(data)
-            mock_llm.assert_not_called()
+            mock_llm.assert_called_once()
             self.assertEqual(result["classified_category"], "returns_refund")
             self.assertEqual(
                 result["user_profile"]["service_selected"],
@@ -204,29 +220,20 @@ class PolicyRoutingIntegrationTests(unittest.TestCase):
 
         asyncio.run(_run())
 
-    def test_product_price_skips_classifier_in_session(self):
+    def test_in_session_queries_now_classify(self):
+        # LLM-default policy: both price follow-ups and policy questions in an
+        # active session go through the classifier.
         clf = Classifier()
-        data = {
-            "messages": {
-                "text": {"body": "is ring ka price kitna hai"},
-            },
-            "user_profile": {
-                "service_selected": SL.PRODUCT_SEARCH.value,
-                "chat_history": [{"role": "user", "content": "gold ring"}],
-                "last_viewed_product": {"_id": "1", "title": "Ring"},
-            },
-        }
-        self.assertFalse(clf.should_run(data))
-
-        policy_data = {
-            "messages": {"text": {"body": "buyback kitna milega?"}},
-            "user_profile": {
-                "service_selected": SL.PRODUCT_SEARCH.value,
-                "chat_history": [{"role": "user", "content": "gold ring"}],
-                "last_viewed_product": {"_id": "1", "title": "Ring"},
-            },
-        }
-        self.assertTrue(clf.should_run(policy_data))
+        for body in ("is ring ka price kitna hai", "buyback kitna milega?"):
+            data = {
+                "messages": {"text": {"body": body}},
+                "user_profile": {
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "chat_history": [{"role": "user", "content": "gold ring"}],
+                    "last_viewed_product": {"_id": "1", "title": "Ring"},
+                },
+            }
+            self.assertTrue(clf.should_run(data), msg=body)
 
 
 class ClassifierActiveContextTests(unittest.TestCase):
