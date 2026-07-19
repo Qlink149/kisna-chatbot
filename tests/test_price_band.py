@@ -44,6 +44,51 @@ class TestPriceBand(unittest.TestCase):
         self.assertEqual(out["min_price"], 23750)
         self.assertEqual(out["max_price"], 26250)
 
+    def test_price_followup_recaps_shown_products(self):
+        # Regression: "iska price kya hai?" after a list re-ran a search instead
+        # of answering about the shown pieces.
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _handle_product_info_followup,
+        )
+
+        data = {
+            "classified_category": "product_search",
+            "user_profile": {
+                "last_search_products": [
+                    {"title": "Clara Ring", "price": {"finalPrice": 42000}},
+                    {"title": "Nitara Ring", "price": {"finalPrice": 38000}},
+                ]
+            },
+        }
+        result = _handle_product_info_followup(data, "iska price kya hai?")
+        self.assertIsNotNone(result)
+        text = result["bot_response"][0]["text"]
+        self.assertIn("Clara Ring", text)
+        self.assertIn("42,000", text)
+        self.assertIn("Nitara Ring", text)
+
+    def test_price_followup_does_not_hijack_new_search(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _handle_product_info_followup,
+        )
+
+        data = {
+            "classified_category": "product_search",
+            "user_profile": {
+                "last_search_products": [
+                    {"title": "X", "price": {"finalPrice": 1000}}
+                ]
+            },
+        }
+        # Names a new category → must fall through to a real search.
+        self.assertIsNone(
+            _handle_product_info_followup(data, "necklaces ka price batao")
+        )
+        # Plain search with no price-reference → not hijacked.
+        self.assertIsNone(
+            _handle_product_info_followup(data, "gold rings dikhao")
+        )
+
     def test_category_switch_not_treated_as_pagination(self):
         # Regression: "gold rings dikhao" / "necklaces" during an active necklace
         # search must NOT page the old results (action='more' over-triggered by

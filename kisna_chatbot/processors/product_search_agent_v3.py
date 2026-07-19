@@ -222,6 +222,19 @@ _CHEAPEST_RE = re.compile(
     re.I,
 )
 
+# Price / details question about an already-shown product ("iska price kya hai",
+# "what's the price", "kitna hai", "cost").
+_PRICE_INFO_RE = re.compile(
+    r"\b(price|cost|kitna|kitne|kimat|keemat|daam|rate|mrp|how\s+much)\b",
+    re.I,
+)
+# Demonstrative reference to something already shown.
+_REF_PRONOUN_RE = re.compile(
+    r"\b(this|that|it|its|these|those|iska|iski|isme|is\s+ka|is\s+me|"
+    r"yeh|ye|woh|wo|uska|inka|inki)\b",
+    re.I,
+)
+
 _BROWSE_ALL_RE = re.compile(
     r"\b(sab\s+dikhao|show\s+me\s+everything|browse\s+all)\b",
     re.I,
@@ -371,7 +384,15 @@ def _entities_all_none(entities: dict) -> bool:
 def _handle_product_info_followup(data: dict, query: str) -> dict | None:
     """Answer product_info follow-ups from cached search/viewed products."""
     user_profile = data.get("user_profile", {})
-    if data.get("classified_category") != "product_info":
+    # Treat as a follow-up when classified product_info, OR when the message is
+    # clearly a reference-price question ("iska price kya hai") that names no new
+    # search subject — so it never re-runs a fresh search by mistake.
+    ref_price_followup = bool(
+        _PRICE_INFO_RE.search(query)
+        and _REF_PRONOUN_RE.search(query)
+        and not _names_new_search_subject(query)
+    )
+    if data.get("classified_category") != "product_info" and not ref_price_followup:
         return None
 
     last_search = user_profile.get("last_search_products") or []
@@ -437,6 +458,46 @@ def _handle_product_info_followup(data: dict, query: str) -> dict | None:
             }
         ]
         return data
+
+    # Generic "what's the price / kitna hai" about an already-shown item.
+    if _PRICE_INFO_RE.search(query):
+        # A specific product was viewed → answer about that one.
+        if last_viewed:
+            from kisna_chatbot.processors.product_details_agent import (
+                _product_from_last_viewed,
+            )
+
+            product = _product_from_last_viewed(user_profile) or last_viewed
+            image_msg = build_product_image_with_cta_message(product)
+            responses: list[dict] = []
+            if image_msg:
+                responses.append(image_msg)
+            else:
+                price = get_product_display_price(product)
+                name = product.get("title") or product.get("name") or "This piece"
+                price_txt = f"₹{int(price):,}" if price and price > 0 else "on the product page"
+                responses.append(
+                    {"type": "text", "text": f"*{name}* — {price_txt}"}
+                )
+            data["bot_response"] = responses
+            return data
+
+        # Only a list was shown → recap the shown pieces with prices, ask which.
+        if last_search:
+            priced_lines: list[str] = []
+            for p in last_search[:5]:
+                price = get_product_display_price(p)
+                name = p.get("title") or p.get("name")
+                if name and price and price > 0:
+                    priced_lines.append(f"• {name} — ₹{int(price):,}")
+            if priced_lines:
+                text = (
+                    "Here are the ones I showed you, with prices 👇\n\n"
+                    + "\n".join(priced_lines)
+                    + "\n\nWant a closer look at any of them? Just tell me the name 💍"
+                )
+                data["bot_response"] = [{"type": "text", "text": text}]
+                return data
 
     return None
 
