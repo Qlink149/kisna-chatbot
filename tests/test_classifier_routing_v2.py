@@ -474,11 +474,70 @@ class CategoryDrivenSearchGuardTests(unittest.TestCase):
         self.assertNotIn("bot_response", data)
 
     def test_genuine_faq_not_hijacked(self):
-        data = self._run(
-            "return policy kya hai",
-            {"intent": "general", "confidence": 0.9, "entities": {}},
-        )
+        # Classifier general + second extractor finds no category → stays general.
+        import asyncio
+        import json as _json
+        from unittest.mock import AsyncMock, patch
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "return policy kya hai"}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=_json.dumps(
+                    {"intent": "general", "confidence": 0.9, "entities": {}}
+                ),
+            ), patch(
+                "kisna_chatbot.processors.entity_extractor.extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={"category": None},
+            ):
+                return await Classifier().process(data)
+
+        data = asyncio.run(_go())
         self.assertEqual(data["classified_category"], "general")
+
+    def test_second_chance_rescues_native_product_query(self):
+        # Classifier returns general + NO category (the real native-script
+        # failure); the focused entity extractor finds the category → search.
+        import asyncio
+        import json as _json
+        from unittest.mock import AsyncMock, patch
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "मुझे 4 हज़ार से ज़्यादा कीमत वाली अंगूठी चाहिए"}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=_json.dumps(
+                    {"intent": "general", "confidence": 0.3, "language": "hi",
+                     "entities": {}}
+                ),
+            ), patch(
+                "kisna_chatbot.processors.entity_extractor.extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={"category": "ring", "min_price": 4000},
+            ):
+                return await Classifier().process(data)
+
+        data = asyncio.run(_go())
+        self.assertEqual(data["classified_category"], "product_search")
+        self.assertNotIn("bot_response", data)
+        self.assertEqual(data["llm_extracted_entities"]["category"], "ring")
 
 
 class FlowSwitchAckDoublingTests(unittest.TestCase):

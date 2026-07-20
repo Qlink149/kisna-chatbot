@@ -1613,15 +1613,53 @@ class Classifier(Processor):
                 sanitized_entities = _sanitize_llm_entities(
                     parsed.get("entities") or {}
                 )
+
+                # Second-chance extraction: on native script the classifier's
+                # combined task (intent + entities + language) often returns a
+                # soft 'general'/'product_info' with NO category at all — so it
+                # gets handed to the GeneralAgent and only acknowledged, never
+                # searched. The dedicated entity extractor (a focused prompt) is
+                # far more reliable on Devanagari/Gujarati. When the intent is
+                # soft and no category came through, give it one focused pass.
+                if not sanitized_entities.get("category") and intent in (
+                    "general",
+                    "product_info",
+                    "menu_help",
+                ):
+                    try:
+                        from kisna_chatbot.processors.entity_extractor import (
+                            extract_entities_with_llm,
+                        )
+
+                        second = await extract_entities_with_llm(
+                            user_query=user_query,
+                            client_id=client_id,
+                            phone_number=phone_number,
+                        )
+                        if second and second.get("category"):
+                            for key, val in second.items():
+                                if val is not None and not sanitized_entities.get(key):
+                                    sanitized_entities[key] = val
+                            logger.info(
+                                "Second-chance extraction rescued a product query",
+                                extra={
+                                    "phone_number": phone_number,
+                                    "category": second.get("category"),
+                                    "llm_intent": intent,
+                                },
+                            )
+                    except Exception:
+                        logger.warning(
+                            "second-chance entity extraction failed",
+                            exc_info=True,
+                        )
+
                 _store_llm_entities(data, user_profile, sanitized_entities)
 
-                # Entity-driven product-search guard (language-agnostic): if the
-                # LLM extracted a jewellery category, the user is shopping —
-                # regardless of a low confidence score or a general/product_info
-                # label. Native-script queries often come back low-confidence
-                # ("मुझे अंगूठी चाहिए"), which otherwise triggers a clarification
-                # or a general-agent handoff instead of an actual search. Trust
-                # the LLM's own extraction and route to product search.
+                # Entity-driven product-search guard (language-agnostic): if a
+                # jewellery category was extracted (by either pass), the user is
+                # shopping — regardless of a low confidence score or a
+                # general/product_info label. Trust the extraction and search.
                 if sanitized_entities.get("category") and intent in (
                     "general",
                     "product_info",
