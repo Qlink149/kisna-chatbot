@@ -212,6 +212,13 @@ _SEARCH_BUTTON_MSGIDS = frozenset({"search$more", "search$explore"})
 _UNSUPPORTED_CATEGORY_NOTE = (
     "I'll show you our full collection since we don't have a specific filter for that."
 )
+
+# KISNA carries only gold, diamond, and gemstone — silver / platinum / pearl are
+# not sold. Never imply we have them; be honest and pivot to what we do offer.
+_UNSUPPORTED_MATERIAL_NOTE = (
+    "We specialise in *gold, diamond, and gemstone* jewellery — we don't carry "
+    "silver, platinum, or pearl. Here are some beautiful options we do have 💎"
+)
 _SIZE_QUERY_RE = re.compile(
     r"\b(size|sizes|variant|variants|karat|kt\b|available|18kt|14kt|22kt|chain)\b",
     re.I,
@@ -338,13 +345,22 @@ _INTRO_GENERIC_TEMPLATES = (
 
 
 def _intro_descriptor(entities: dict) -> str:
-    """Compact natural noun phrase, e.g. 'rose gold 18KT rings'."""
+    """Compact natural noun phrase, e.g. 'rose gold 18KT rings'.
+
+    Never labels the results with an unsupported material (silver/platinum/
+    pearl) — those products aren't actually that material, so calling them
+    "silver rings" would be misleading.
+    """
     parts: list[str] = []
     if entities.get("metal_colour"):
         parts.append(str(entities["metal_colour"]).lower())
     if entities.get("karat"):
         parts.append(str(entities["karat"]))
-    material = _material_display_label(entities.get("material_type"))
+    material = (
+        None
+        if entities.get("unsupported_material")
+        else _material_display_label(entities.get("material_type"))
+    )
     if material:
         parts.append(material)
     category = _category_label_plural(entities.get("category"))
@@ -2394,6 +2410,10 @@ class ProductSearchAgentV3(Processor):
             prefix_parts.insert(0, "Here's a look at our latest collection 💎")
         if entities.get("unsupported_category"):
             prefix_parts.append(_UNSUPPORTED_CATEGORY_NOTE)
+        if entities.get("unsupported_material"):
+            # Honest pivot: we don't carry silver/platinum/pearl. Say so, then
+            # show gold/diamond/gemstone. Placed first so it reads before results.
+            prefix_parts.insert(0, _UNSUPPORTED_MATERIAL_NOTE)
         intro_relaxed = False
         _filter_ratio = 1.0
 

@@ -213,7 +213,12 @@ Fallback for unclear or spam/gibberish:
     pendant set/pendant sets → pendant_set  (NEVER just "pendant")
     necklace set/necklace sets → necklace_set  (NEVER just "necklace")
     mangalsutra bracelet → mangalsutra_bracelet  (NEVER just "mangalsutra")
-- material_type: sona/sone ka→gold, heera/heere ka→diamond, chandi→silver.
+- material_type: sona/sone ka→gold, heera/heere ka→diamond, chandi→silver,
+  moti/pearl→pearl, platinum/platinam→platinum, gemstone/ruby/emerald/panna→gemstone.
+  KISNA SELLS ONLY gold, diamond, and gemstone. Silver, platinum, and pearl are
+  NOT sold — but STILL extract them as material_type when the user names them
+  (e.g. "silver ring"→material_type=silver) so the system can respond honestly.
+  Extract the material in ANY language/spelling — do not miss it.
 - Price: extract integer INR values. 50k→50000, 1.5 lakh→150000,
   das hazaar→10000, ek lakh→100000. under X→max_price=X, above X→min_price=X,
   between X and Y→min_price=X max_price=Y.

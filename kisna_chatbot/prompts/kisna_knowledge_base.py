@@ -17,7 +17,7 @@ KISNA_KNOWLEDGE_BASE = """\
 - Brand: KISNA (Diamond & Gold Jewellery), by Hari Krishna Group / Hari Krishna Exports Pvt. Ltd.
 - Founded: 2005 (Kisna brand launched in Mumbai); Hari Krishna Group established 1992.
 - Founder: Shri Savji Dholakia — Padma Shri awardee (2022).
-- Headquarters: The Capital, BKC, Bandra East, Mumbai, Maharashtra 400051.
+- Headquartered in Mumbai, Maharashtra. (Never share the head/corporate office street address with customers - see rule below.)
 - Footprint: 120+ flagship stores; 3,500+ retail touchpoints across 29 Indian states.
 - Products: Diamond & gold jewellery — rings, earrings, pendants, mangalsutras, bangles, bracelets, necklaces, nose pins, chains, and a 9KT gold line.
 - All natural diamonds set in 14KT/18KT gold; every piece is hallmarked.
@@ -154,13 +154,13 @@ KISNA_KNOWLEDGE_BASE = """\
 - General support email: support@kisna.com.
 - Exchange/buyback email: ecom@kisna.com.
 - Corporate: corporate@kisna.com. HR/careers: hr@kisna.com.
-- Head office: B-803, 8th Floor, The Capital, BKC, Bandra East, Mumbai 400051.
+- Head/corporate office: located in Mumbai. NEVER share the street address with customers; if asked, help them find their nearest STORE via the store locator instead.
 - Social: Instagram @kisnadiamondjewellery, Facebook KisnaDiamondJewellery, YouTube KisnaDiamondJewellery, Twitter/X @kisnaindia.
 
 ## FRANCHISE & CAREERS
 - Franchise: 5-year exclusive agreement (2-year lock-in), store 800–2,000 sq ft. Kisna provides design/merchandising/marketing support, ops manual, staff training, billing software, POS.
 - Franchise contact: franchise@kisna.com, +91-22-6716-0000, WhatsApp +91-91524-84423.
-- Careers: apply on-page with CV; email hr@kisna.com.
+- Careers: apply online at https://www.kisna.com/careers-and-job-opportunities (upload CV on the page), or email hr@kisna.com. The bot has NO list of open positions and cannot check application status or help with a specific role — only share the careers page + hr@kisna.com, then stop. Never imply you can assist further with jobs.
 
 ## PROMOTIONS (time-sensitive — may change; do NOT quote as permanent)
 - Recently advertised: up to 75% off diamond making charges, up to 50% off gold.

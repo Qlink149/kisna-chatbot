@@ -204,6 +204,22 @@ class TestClaraNormalization:
         assert "material_type" not in params
         assert entities["unsupported_material"] is True
 
+    def test_intro_never_labels_unsupported_material_silver(self):
+        # Regression: "silver ring" search must NOT call the (gold/diamond)
+        # results "silver rings" — that was misleading.
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _intro_descriptor,
+            build_search_intro,
+        )
+
+        ents = {"category": "ring", "material_type": "silver", "unsupported_material": True}
+        assert "silver" not in _intro_descriptor(ents).lower()
+        assert "silver" not in build_search_intro(ents).lower()
+        # Supported materials still labelled.
+        assert "gold" in _intro_descriptor(
+            {"category": "ring", "material_type": "gold"}
+        ).lower()
+
     def test_unsupported_category_note(self):
         entities = extract_entities("payal")
         norm = normalize_entities_for_clara(entities)
