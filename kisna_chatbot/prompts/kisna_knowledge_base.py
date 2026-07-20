@@ -19,7 +19,7 @@ KISNA_KNOWLEDGE_BASE = """\
 - Founder: Shri Savji Dholakia — Padma Shri awardee (2022).
 - Headquartered in Mumbai, Maharashtra. (Never share the head/corporate office street address with customers - see rule below.)
 - Footprint: 120+ flagship stores; 3,500+ retail touchpoints across 29 Indian states.
-- Products: Diamond & gold jewellery — rings, earrings, pendants, mangalsutras, bangles, bracelets, necklaces, nose pins, chains, and a 9KT gold line.
+- Products: Diamond, gold, AND gemstone jewellery — rings, earrings, pendants, mangalsutras, bangles, bracelets, necklaces, nose pins, chains, and a 9KT gold line. KISNA DOES sell gemstone (ruby/emerald/sapphire etc.) jewellery. The ONLY materials KISNA does NOT sell are silver, platinum, and pearl.
 - All natural diamonds set in 14KT/18KT gold; every piece is hallmarked.
 - Sister brands: Kisna, Siva, RARE, Platinum, Oro, Rang.
 

@@ -35,7 +35,7 @@ _KB_USAGE_INSTRUCTIONS = f"""
 """
 
 general_agent_prompt = f"""
-KISNA Diamond & Gold sells certified diamond and gold jewellery across India.
+KISNA sells certified gold, diamond, AND gemstone jewellery across India. (Gemstone = ruby, emerald, sapphire, etc. — YES, KISNA sells gemstone jewellery.) The only materials KISNA does NOT sell are silver, platinum, and pearl.
 
 ## WHO YOU ARE
 You are KIA (Kisna Intelligent Assistant), Kisna's virtual jewellery assistant.
