@@ -380,6 +380,79 @@ class FlowSwitchAckDeadEndTests(unittest.TestCase):
         asyncio.run(_run())
 
 
+class NativeScriptExtractionTests(unittest.TestCase):
+    """Native script must not be second-class: the Latin regex gate must never
+    strip the LLM's correct extraction on Devanagari / Gujarati text."""
+
+    def test_evidence_gate_trusts_llm_on_devanagari(self):
+        from kisna_chatbot.processors.entity_extractor import apply_llm_evidence_gate
+
+        llm = {
+            "category": "ring",
+            "material_type": "gold",
+            "metal_colour": None,
+            "karat": None,
+            "size": None,
+            "occasion": None,
+            "style": None,
+            "gender": None,
+            "collection": None,
+        }
+        out = apply_llm_evidence_gate("सोने की अंगूठी", llm)
+        self.assertEqual(out["material_type"], "gold")  # not stripped
+
+    def test_evidence_gate_trusts_llm_on_gujarati(self):
+        from kisna_chatbot.processors.entity_extractor import apply_llm_evidence_gate
+
+        llm = {"category": "earring", "material_type": "diamond", "gender": "women"}
+        out = apply_llm_evidence_gate("મારે હીરાની બુટ્ટી જોઈએ", llm)
+        self.assertEqual(out["material_type"], "diamond")
+        self.assertEqual(out["gender"], "women")
+
+    def test_evidence_gate_still_strips_unevidenced_latin(self):
+        from kisna_chatbot.processors.entity_extractor import apply_llm_evidence_gate
+
+        llm = {"category": "ring", "material_type": "gold", "gender": "men"}
+        out = apply_llm_evidence_gate("gold ring", llm)
+        self.assertIsNone(out["gender"])  # Latin gate still guards hallucination
+
+    def test_prompts_carry_native_script_examples(self):
+        from kisna_chatbot.prompts.classifier_kisna import (
+            kisna_classifier,
+            kisna_entity_extractor,
+        )
+
+        # Devanagari + Gujarati present in both prompts now.
+        self.assertIn("अंगूठी", kisna_classifier)
+        self.assertIn("બુટ્ટી", kisna_classifier)
+        self.assertIn("हज़ार", kisna_entity_extractor)
+
+
+class FlowSwitchAckDoublingTests(unittest.TestCase):
+    def test_ack_suppressed_before_slot_fill(self):
+        from kisna_chatbot.processors.classifier import _prepend_flow_switch_ack
+
+        data = {
+            "_flow_switch_ack": "Sure — let's browse some jewellery.",
+            "bot_response": [
+                {"type": "text", "text": "What are you after?", "_compose": "slot_fill"}
+            ],
+        }
+        _prepend_flow_switch_ack(data)
+        self.assertEqual(len(data["bot_response"]), 1)  # no redundant ack
+
+    def test_ack_prepended_before_normal_response(self):
+        from kisna_chatbot.processors.classifier import _prepend_flow_switch_ack
+
+        data = {
+            "_flow_switch_ack": "Sure — let's look at your order.",
+            "bot_response": [{"type": "text", "text": "Order tracking link…"}],
+        }
+        _prepend_flow_switch_ack(data)
+        self.assertEqual(len(data["bot_response"]), 2)
+        self.assertEqual(data["bot_response"][0]["_compose"], "flow_switch_ack")
+
+
 class ScriptMirrorLanguageTests(unittest.TestCase):
     """Reply language: identity from the LLM, SCRIPT from the user's message."""
 

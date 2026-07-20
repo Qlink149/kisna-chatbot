@@ -126,6 +126,48 @@ The system message may include:
 
 ---
 
+## NATIVE SCRIPT — CRITICAL (Devanagari, Gujarati, and other Indic scripts)
+
+Treat a native-script message EXACTLY like its romanized twin — same intent, same
+entities. "मुझे सोने की अंगूठी चाहिए" == "mujhe sone ki anguthi chahiye" → product_search,
+category ring, material gold. NEVER give a weaker result just because it's in native
+script. Understand the WORDS, do not transliterate-and-give-up.
+
+Wanting a product AT a price is product_search, NOT a price-FAQ. "कीमत/किंमत/दाम वाला X
+चाहिए" ("an X costing …") → product_search with the price extracted — NEVER general,
+NEVER "I can't give prices".
+
+Native price words → numbers (extract into min_price/max_price):
+- हज़ार / हजार / હજાર = thousand; लाख / લાખ = lakh; करोड़ = crore.
+  "५० हज़ार" / "50 हज़ार" / "૪૦ હજાર" → 50000 / 40000.
+- Devanagari/Gujarati digits are digits: ० ੦ ૦=0 … ९=9, ૪૦=40, ५०=50.
+- Direction: "से ज़्यादा" / "से ऊपर" / "થી વધુ" = above (min_price).
+  "से कम" / "से नीचे" / "થી ઓછું" = under (max_price). "के आस-पास" / "લગભગ" = around.
+
+Native category words → category:
+- अंगूठी/अँगूठी=ring, बाली/झुमका/इयररिंग/બુટ્ટી/કાનની=earring, हार/नेकलेस/નેકલેસ=necklace,
+  चेन/ચેન=chain, कंगन/चूड़ी/બંગડી=bangle, ब्रेसलेट=bracelet, मंगलसूत्र/મંગળસૂત્ર=mangalsutra,
+  पेंडेंट/લોકેટ=pendant, पायल=anklet, नथ/नोज़ पिन=nose_ring.
+Native material words → material_type:
+- सोना/सोने/सोने की/સોનું=gold, हीरा/हीरे/डायमंड/હીરા=diamond, चांदी/ચાંદી=silver (unsupported),
+  रत्न/जेमस्टोन/રત્ન=gemstone.
+
+Native-script examples (classify + extract identically to romanized):
+N1. "मुझे सोने की अंगूठी दिखाओ" → {"intent":"product_search","confidence":0.93,"language":"hi",
+    "entities":{"category":"ring","material_type":"gold"}}
+N2. "५० हज़ार से ज़्यादा कीमत वाला नेकलेस चाहिए" → {"intent":"product_search","confidence":0.9,
+    "language":"hi","entities":{"category":"necklace","min_price":50000}}
+N3. "मुझे 4 हज़ार से ज़्यादा कीमत वाली अंगूठी चाहिए" → {"intent":"product_search",
+    "confidence":0.9,"language":"hi","entities":{"category":"ring","min_price":4000}}
+N4. "१० हज़ार से कम की इयररिंग" → {"intent":"product_search","confidence":0.9,"language":"hi",
+    "entities":{"category":"earring","max_price":10000}}
+N5. "મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે" → {"intent":"product_search","confidence":0.9,
+    "language":"gu","entities":{"category":"earring","min_price":40000}}
+N6. "તમારી પાસે રિંગ છે?" → {"intent":"product_search","confidence":0.88,"language":"gu",
+    "entities":{"category":"ring"}}
+N7. "आज सोने का भाव क्या है?" → {"intent":"gold_rate","confidence":0.95,"language":"hi"}
+N8. "मुझे रिटर्न करना है" → {"intent":"returns_refund","confidence":0.9,"language":"hi"}
+
 ## ANTI-HALLUCINATION RULE
 
 If the user mentions ANY product name or asks for ANY price, classify as product_search or
@@ -522,6 +564,11 @@ category (REQUIRED when type word in message):
     braclet/bracelete → bracelet, mangalsutr → mangalsutra, pendent → pendant
   bichhiya/toe ring/hathphool/kamarband/coin/sikka → category=null
   (not carried — do NOT force a wrong category)
+  NATIVE SCRIPT (map identically):
+    अंगूठी/अँगूठी/રિંગ → ring | बाली/झुमका/इयररिंग/बुँदे/બુટ્ટી/કાનની → earring
+    हार/नेकलेस/નેકલેસ → necklace | चेन/ચેન → chain | कंगन/चूड़ी/બંગડી → bangle
+    ब्रेसलेट/બ્રેસલેટ → bracelet | मंगलसूत्र/મંગળસૂત્ર → mangalsutra
+    पेंडेंट/लॉकेट/લોકેટ → pendant | पायल/પાયલ → anklet | नथ/नोज़ पिन → nose_ring
 
 material_type:
   gold/sona/sone ka → gold
@@ -563,6 +610,11 @@ price (ALWAYS extract when budget words present — integers in INR):
   "das hazaar se upar" → min_price=10000
   "ek lakh" → 100000, "do lakh" → 200000
   "X se upar" / "X se zyada" / "minimum X" / "at least X" → min_price=X
+  NATIVE SCRIPT (extract identically): हज़ार/हजार/હજાર=thousand, लाख/લાખ=lakh.
+  Devanagari/Gujarati digits are digits (५०=50, ૪૦=40, १०=10).
+  "से ज़्यादा"/"से ऊपर"/"થી વધુ"=above→min_price. "से कम"/"से नीचे"/"થી ઓછું"=under→max_price.
+  "५० हज़ार से ज़्यादा"→min_price=50000. "१० हज़ार से कम"→max_price=10000.
+  "૪૦ હજારથી વધુ"→min_price=40000. "४ हज़ार से ज़्यादा"→min_price=4000.
 
 title — ONLY real product/collection names:
   Elysia, Maggio, Rivaah, Rosette, Bloom, etc. → title
@@ -704,6 +756,19 @@ Current: same budget mein necklace →
 
 "show me some lightweight rings" →
 {"category":"ring","style":"minimal",...all others null}
+
+NATIVE SCRIPT full examples (extract exactly like the romanized twin):
+"मुझे सोने की अंगूठी चाहिए" →
+{"category":"ring","material_type":"gold",...all others null}
+
+"५० हज़ार से ज़्यादा कीमत वाला नेकलेस" →
+{"category":"necklace","min_price":50000,...all others null}
+
+"१० हज़ार से कम की हीरे की इयररिंग" →
+{"category":"earring","material_type":"diamond","max_price":10000,...all others null}
+
+"મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે" →
+{"category":"earring","min_price":40000,...all others null}
 
 "halki gold chain office ke liye" →
 {"category":"chain","material_type":"gold","style":"minimal",

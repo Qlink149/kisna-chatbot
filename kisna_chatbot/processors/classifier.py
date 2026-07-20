@@ -860,6 +860,20 @@ def _prepend_flow_switch_ack(data: dict) -> None:
     ack = data.pop("_flow_switch_ack", None)
     if not ack:
         return
+    # Don't double up: if the response already opens with a warm conversational
+    # line (slot-fill question, greeting, acknowledgement), a separate "Sure,
+    # let me help" ack in front is redundant ("Bilkul, let me help" + "Wah, what
+    # are you thinking?"). Skip the ack in that case.
+    _WARM_OPENERS = {
+        "slot_fill",
+        "vague_fallback",
+        "greeting_new",
+        "greeting_return",
+        "acknowledgement",
+    }
+    first = responses[0] if responses else {}
+    if isinstance(first, dict) and first.get("_compose") in _WARM_OPENERS:
+        return
     ack_msg = {"type": "text", "text": ack, "_compose": "flow_switch_ack"}
     data["bot_response"] = [ack_msg, *responses]
 

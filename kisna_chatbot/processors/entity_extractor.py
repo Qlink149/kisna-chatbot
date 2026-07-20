@@ -44,6 +44,10 @@ _OCCASION_TAG_TERMS: dict[str, tuple[str, ...]] = {
     "gift": ("gift", "uphaar"),
 }
 
+# Any Indic script (Devanagari … Malayalam). Latin-only regex is meaningless on
+# these; when present we trust the LLM instead of gating with regex.
+_INDIC_SCRIPT_RE = re.compile(r"[ऀ-ൿ]")
+
 _CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "ring": [
         "ring",
@@ -1469,9 +1473,18 @@ def apply_llm_evidence_gate(query: str, llm_entities: dict) -> dict:
     material_type requires regex material match.
     karat/size require KT/size evidence in the query.
     occasion/style/gender/collection require synonym evidence in the query.
+
+    IMPORTANT: the evidence checks are Latin-only regex. For native-script text
+    (Devanagari / Gujarati / other Indic) they find nothing, which is NOT
+    evidence of absence — running them would DELETE the LLM's correct
+    extraction (e.g. gold from "सोने की"). So for Indic-script text we trust the
+    LLM fully and skip the gate. This is deliberate: multilingual understanding
+    rides the prompt/LLM, not the Latin regex.
     """
     out = dict(llm_entities or {})
     text = query or ""
+    if _INDIC_SCRIPT_RE.search(text):
+        return out
     regex_quick = extract_entities(text) if text.strip() else {}
 
     if out.get("material_type") and not regex_quick.get("material_type"):
