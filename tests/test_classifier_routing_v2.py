@@ -428,6 +428,59 @@ class NativeScriptExtractionTests(unittest.TestCase):
         self.assertIn("हज़ार", kisna_entity_extractor)
 
 
+class CategoryDrivenSearchGuardTests(unittest.TestCase):
+    """A extracted jewellery category means the user is shopping — never
+    clarify or hand off, even on a low-confidence native-script classification."""
+
+    def _run(self, body, llm_json):
+        import asyncio
+        import json as _json
+        from unittest.mock import AsyncMock, patch
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": body}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=_json.dumps(llm_json),
+            ):
+                return await Classifier().process(data)
+
+        return asyncio.run(_go())
+
+    def test_low_conf_general_with_category_routes_to_search(self):
+        data = self._run(
+            "मुझे 4 हज़ार से ज़्यादा कीमत वाली अंगूठी चाहिए",
+            {"intent": "general", "confidence": 0.3, "language": "hi",
+             "entities": {"category": "ring", "min_price": 4000}},
+        )
+        self.assertEqual(data["classified_category"], "product_search")
+        self.assertNotIn("bot_response", data)  # search pipeline will run
+
+    def test_product_info_with_category_routes_to_search(self):
+        data = self._run(
+            "५० हज़ार से ज़्यादा कीमत वाला नेकलेस",
+            {"intent": "product_info", "confidence": 0.4,
+             "entities": {"category": "necklace", "min_price": 50000}},
+        )
+        self.assertEqual(data["classified_category"], "product_search")
+        self.assertNotIn("bot_response", data)
+
+    def test_genuine_faq_not_hijacked(self):
+        data = self._run(
+            "return policy kya hai",
+            {"intent": "general", "confidence": 0.9, "entities": {}},
+        )
+        self.assertEqual(data["classified_category"], "general")
+
+
 class FlowSwitchAckDoublingTests(unittest.TestCase):
     def test_ack_suppressed_before_slot_fill(self):
         from kisna_chatbot.processors.classifier import _prepend_flow_switch_ack

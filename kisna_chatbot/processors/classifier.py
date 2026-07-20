@@ -1140,6 +1140,16 @@ def _should_offer_clarification(data: dict, user_query: str, user_profile: dict)
         return False
     if is_pure_greeting(user_query) or is_greeting_message(user_query):
         return False
+    # The LLM extracted a concrete category/material/price → the query is a clear
+    # product search, never clarify (esp. low-confidence native-script queries).
+    entities = data.get("llm_extracted_entities") or {}
+    if (
+        entities.get("category")
+        or entities.get("material_type")
+        or entities.get("min_price") is not None
+        or entities.get("max_price") is not None
+    ):
+        return False
     service = user_profile.get("service_selected")
     if service == ServiceList.PRODUCT_SEARCH.value:
         chat_history = user_profile.get("chat_history", [])
@@ -1600,11 +1610,26 @@ class Classifier(Processor):
                             "llm_intent": parsed["intent"],
                         },
                     )
-                _store_llm_entities(
-                    data,
-                    user_profile,
-                    _sanitize_llm_entities(parsed.get("entities") or {}),
+                sanitized_entities = _sanitize_llm_entities(
+                    parsed.get("entities") or {}
                 )
+                _store_llm_entities(data, user_profile, sanitized_entities)
+
+                # Entity-driven product-search guard (language-agnostic): if the
+                # LLM extracted a jewellery category, the user is shopping —
+                # regardless of a low confidence score or a general/product_info
+                # label. Native-script queries often come back low-confidence
+                # ("मुझे अंगूठी चाहिए"), which otherwise triggers a clarification
+                # or a general-agent handoff instead of an actual search. Trust
+                # the LLM's own extraction and route to product search.
+                if sanitized_entities.get("category") and intent in (
+                    "general",
+                    "product_info",
+                    "menu_help",
+                    "greeting",
+                ):
+                    intent = "product_search"
+                    confidence = max(confidence, 0.8)
 
                 logger.info(
                     "Classifier intent",
