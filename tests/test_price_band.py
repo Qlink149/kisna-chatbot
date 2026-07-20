@@ -67,6 +67,29 @@ class TestPriceBand(unittest.TestCase):
         self.assertIn("42,000", text)
         self.assertIn("Nitara Ring", text)
 
+    def test_price_followup_recaps_all_not_one_card(self):
+        # After seeing a LIST (no single product opened), "iska price?" must
+        # recap ALL shown pieces with prices — never answer about one arbitrary
+        # item. (Root fix: a multi-result search no longer stamps last_viewed.)
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _handle_product_info_followup,
+        )
+
+        data = {
+            "classified_category": "product_search",
+            "user_profile": {
+                "last_search_products": [
+                    {"_id": "1", "title": "Estaa Necklace", "price": {"finalPrice": 29504}},
+                    {"_id": "2", "title": "Harini Necklace", "price": {"finalPrice": 32100}},
+                ]
+            },
+        }
+        result = _handle_product_info_followup(data, "iska price kya hai?")
+        self.assertIsNotNone(result)
+        text = result["bot_response"][0]["text"]
+        self.assertIn("Estaa Necklace", text)
+        self.assertIn("Harini Necklace", text)  # ALL shown, not one card
+
     def test_price_followup_does_not_hijack_new_search(self):
         from kisna_chatbot.processors.product_search_agent_v3 import (
             _handle_product_info_followup,

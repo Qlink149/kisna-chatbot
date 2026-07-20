@@ -2752,9 +2752,16 @@ class ProductSearchAgentV3(Processor):
         user_profile["last_search_at"] = int(time.time())
         _append_shown_product_ids(user_profile, products_to_show)
         
-        if products_to_show:
+        # Only mark a product as "viewed" when the search narrowed to a SINGLE
+        # piece — then "iska price"/"size" unambiguously refers to it. For a
+        # multi-result list the user hasn't picked one, so clear last_viewed and
+        # let a follow-up recap the shown pieces and ask which (never silently
+        # answer about an arbitrary first result).
+        if len(products_to_show) == 1:
             from kisna_chatbot.processors.product_details_agent import _save_last_viewed_product
             _save_last_viewed_product(user_profile, products_to_show[0])
+        else:
+            user_profile.pop("last_viewed_product", None)
 
         data["bot_response"] = _build_search_success_response(
             products_to_show,
