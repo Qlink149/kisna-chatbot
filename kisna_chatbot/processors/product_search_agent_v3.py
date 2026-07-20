@@ -711,11 +711,15 @@ def _is_show_more_request(query: str, data: dict) -> bool:
     filters = user_profile.get("last_search_filters")
     if not filters:
         return False
-    # A message naming a new subject ("gold rings", "necklaces") is a fresh
-    # search, never pagination — overrides a stray action='more' from the LLM.
+    # A message naming a new subject ("gold rings", "necklaces", "नेकलेस") is a
+    # fresh search, never pagination — overrides a stray action='more'. Check the
+    # LLM's extracted category/material FIRST (language-agnostic) and fall back to
+    # the Latin regex only for romanized text the LLM may have skipped.
+    llm_entities = data.get("llm_extracted_entities") or {}
+    if llm_entities.get("category") or llm_entities.get("material_type"):
+        return False
     if _names_new_search_subject(query):
         return False
-    llm_entities = data.get("llm_extracted_entities") or {}
     if llm_entities.get("action") == "more":
         # If the classifier also extracted new price bounds that differ from the
         # saved session, this is a budget refinement, not pagination — let it

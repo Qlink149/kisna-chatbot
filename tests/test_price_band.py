@@ -108,6 +108,22 @@ class TestPriceBand(unittest.TestCase):
             self.assertTrue(_names_new_search_subject(q), msg=q)
             self.assertFalse(_is_show_more_request(q, data), msg=q)
 
+    def test_native_category_switch_not_pagination_via_llm(self):
+        # Language-agnostic: the LLM's extracted category (not Latin regex) marks
+        # a new subject, so a native "नेकलेस दिखाओ" during a ring search is a
+        # fresh search, never pagination — even with a stray action='more'.
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _is_show_more_request,
+        )
+
+        data = {
+            "classified_category": "product_search",
+            "user_profile": {"last_search_filters": {"category": "ring"}},
+            "llm_extracted_entities": {"category": "necklace", "action": "more"},
+            "messages": {"text": {"body": "सोने का नेकलेस दिखाओ"}},
+        }
+        self.assertFalse(_is_show_more_request("सोने का नेकलेस दिखाओ", data))
+
     def test_pure_pagination_still_pages(self):
         from kisna_chatbot.processors.product_search_agent_v3 import (
             _is_show_more_request,
