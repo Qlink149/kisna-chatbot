@@ -860,19 +860,32 @@ def _prepend_flow_switch_ack(data: dict) -> None:
     ack = data.pop("_flow_switch_ack", None)
     if not ack:
         return
-    # Don't double up: if the response already opens with a warm conversational
-    # line (slot-fill question, greeting, acknowledgement), a separate "Sure,
-    # let me help" ack in front is redundant ("Bilkul, let me help" + "Wah, what
-    # are you thinking?"). Skip the ack in that case.
-    _WARM_OPENERS = {
+    # Suppress the ack when the response already carries its own content. A
+    # separate "Sure, let me help" line then just adds a redundant — and often
+    # mixed-language — bubble in front (e.g. a Hinglish ack glued before an
+    # English product intro or the pincode prompt). Cases:
+    #  - products present (the varied intro already greets warmly)
+    #  - the first item is a warm opener or a self-sufficient functional prompt
+    #    (slot-fill, greeting, ack, pincode ask, budget/rating prompt)
+    for item in responses:
+        if isinstance(item, dict) and item.get("type") in (
+            "media",
+            "image_with_cta",
+            "cta_url",
+        ):
+            return
+    _SELF_SUFFICIENT = {
         "slot_fill",
         "vague_fallback",
         "greeting_new",
         "greeting_return",
         "acknowledgement",
+        "store_pincode",
+        "budget_prompt",
+        "rating_prompt",
     }
     first = responses[0] if responses else {}
-    if isinstance(first, dict) and first.get("_compose") in _WARM_OPENERS:
+    if isinstance(first, dict) and first.get("_compose") in _SELF_SUFFICIENT:
         return
     ack_msg = {"type": "text", "text": ack, "_compose": "flow_switch_ack"}
     data["bot_response"] = [ack_msg, *responses]

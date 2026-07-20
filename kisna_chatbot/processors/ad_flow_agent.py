@@ -299,7 +299,13 @@ class AdFlowAgent(Processor):
                     )
 
             user_profile["awaiting_store_pincode"] = True
-            data["bot_response"] = [{"type": "text", "text": _LOCATION_PINCODE_FALLBACK}]
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": _LOCATION_PINCODE_FALLBACK,
+                    "_compose": "store_pincode",
+                }
+            ]
             data.pop("inbound_location", None)
             return data
 
@@ -390,7 +396,13 @@ class AdFlowAgent(Processor):
 
                 if not pincode and not city:
                     user_profile["awaiting_store_pincode"] = True
-                    data["bot_response"] = [{"type": "text", "text": _ASK_PINCODE_TEXT}]
+                    data["bot_response"] = [
+                        {
+                            "type": "text",
+                            "text": _ASK_PINCODE_TEXT,
+                            "_compose": "store_pincode",
+                        }
+                    ]
                     return data
 
             logger.info(

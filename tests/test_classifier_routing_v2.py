@@ -564,6 +564,46 @@ class FlowSwitchAckDoublingTests(unittest.TestCase):
         self.assertEqual(len(data["bot_response"]), 2)
         self.assertEqual(data["bot_response"][0]["_compose"], "flow_switch_ack")
 
+    def test_ack_suppressed_before_products(self):
+        # A Hinglish ack glued before an English product intro is jarring —
+        # suppress it when the response already shows products.
+        from kisna_chatbot.processors.classifier import _prepend_flow_switch_ack
+
+        data = {
+            "_flow_switch_ack": "Sure — let's browse jewellery.",
+            "bot_response": [
+                {"type": "text", "text": "Here are some lovely rings ✨"},
+                {"type": "image_with_cta", "url": "x", "caption": "Ring"},
+            ],
+        }
+        _prepend_flow_switch_ack(data)
+        self.assertEqual(len(data["bot_response"]), 2)  # no ack prepended
+
+    def test_ack_suppressed_before_pincode_prompt(self):
+        from kisna_chatbot.processors.classifier import _prepend_flow_switch_ack
+
+        data = {
+            "_flow_switch_ack": "Sure — let's find a store.",
+            "bot_response": [
+                {"type": "text", "text": "Share your pincode", "_compose": "store_pincode"}
+            ],
+        }
+        _prepend_flow_switch_ack(data)
+        self.assertEqual(len(data["bot_response"]), 1)
+
+
+class NarratorGuardrailTests(unittest.TestCase):
+    def test_narrator_prompt_forbids_inventing_products(self):
+        # The greeting narrator hallucinated "want to see silver rings?" — the
+        # instruction must forbid inventing products and mentioning silver.
+        import inspect
+
+        from kisna_chatbot.utils import reply_composer
+
+        src = inspect.getsource(reply_composer.narrate)
+        self.assertIn("Do NOT invent", src)
+        self.assertIn("silver", src)
+
 
 class ScriptMirrorLanguageTests(unittest.TestCase):
     """Reply language: identity from the LLM, SCRIPT from the user's message."""
