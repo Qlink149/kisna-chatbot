@@ -1757,7 +1757,11 @@ def is_unrecognizable_input(text: str) -> bool:
     if _PRICE_HINT_RE.search(normalized):
         return False
 
-    if re.search(r"[a-zA-Z]", normalized):
+    # Real letters — Latin OR Indic script (Devanagari/Gujarati/…) — mean this is
+    # genuine language, not gibberish. Without the Indic check, native-script
+    # product queries ("मुझे अंगूठी चाहिए") were flagged as spam and rerouted to
+    # the GeneralAgent, which then handed off to a live agent.
+    if re.search(r"[a-zA-Z]", normalized) or _INDIC_SCRIPT_RE.search(normalized):
         return False
 
     return len(normalized) >= 4

@@ -204,6 +204,21 @@ class TestClaraNormalization:
         assert "material_type" not in params
         assert entities["unsupported_material"] is True
 
+    def test_native_script_not_unrecognizable(self):
+        # Regression (THE native-script handoff bug): native-script product
+        # queries were flagged as spam → rerouted to GeneralAgent → live-agent
+        # handoff, even at 93% product_search confidence.
+        from kisna_chatbot.processors.entity_extractor import is_unrecognizable_input
+
+        for text in (
+            "मुझे 4 हज़ार से ज़्यादा कीमत वाली अंगूठी चाहिए",
+            "મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે",
+            "सोने की अंगूठी",
+        ):
+            assert is_unrecognizable_input(text) is False, text
+        # Real gibberish still flagged.
+        assert is_unrecognizable_input("!!!! ???? ....") is True
+
     def test_intro_never_labels_unsupported_material_silver(self):
         # Regression: "silver ring" search must NOT call the (gold/diamond)
         # results "silver rings" — that was misleading.
