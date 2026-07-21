@@ -504,6 +504,74 @@ class CategoryDrivenSearchGuardTests(unittest.TestCase):
         data = asyncio.run(_go())
         self.assertEqual(data["classified_category"], "general")
 
+    def test_empty_product_search_rescued_not_budget_question(self):
+        # Gujarati "વીંટી above 10 lakh" classified product_search but with EMPTY
+        # entities -> would ask for a budget already given. Second-chance rescues.
+        import asyncio
+        import json as _json
+        from unittest.mock import AsyncMock, patch
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "મારે ૧૦ લાખથી વધુ કિંમતની વીંટી જોઈએ છે"}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=_json.dumps(
+                    {"intent": "product_search", "confidence": 0.9, "language": "gu",
+                     "entities": {}}
+                ),
+            ), patch(
+                "kisna_chatbot.processors.entity_extractor.extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={"category": "ring", "min_price": 1000000},
+            ):
+                return await Classifier().process(data)
+
+        data = asyncio.run(_go())
+        self.assertEqual(data["classified_category"], "product_search")
+        self.assertEqual(data["llm_extracted_entities"]["category"], "ring")
+        self.assertNotIn("bot_response", data)  # will search, not ask budget
+
+    def test_price_only_refine_skips_second_chance(self):
+        # "under 50k" (has price, no category) is a refinement — must NOT trigger
+        # a second extraction pass that could disturb it.
+        import asyncio
+        import json as _json
+        from unittest.mock import AsyncMock, patch
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "under 50k"}},
+                "user_profile": {"chat_history": [], "service_selected": "product_search"},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=_json.dumps(
+                    {"intent": "product_search", "confidence": 0.9,
+                     "entities": {"max_price": 50000}}
+                ),
+            ), patch(
+                "kisna_chatbot.processors.entity_extractor.extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={"category": "SHOULD_NOT_APPEAR"},
+            ) as second:
+                await Classifier().process(data)
+                second.assert_not_called()
+
+        asyncio.run(_go())
+
     def test_second_chance_rescues_native_product_query(self):
         # Classifier returns general + NO category (the real native-script
         # failure); the focused entity extractor finds the category → search.

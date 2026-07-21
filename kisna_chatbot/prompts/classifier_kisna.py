@@ -87,7 +87,17 @@ The system message may include:
   product → product_info.
 - "Active context: user recently searched <filters>" — short refinements ("under 20k",
   "gold mein", "2nd wala") continue that search → product_search / product_info.
+- "Products currently shown" — a numbered list, ONLY for resolving references
+  ("the second one", "बीच वाला") into product_reference.
 - "Chat history: ..." — recent turns. Use it to resolve short or ambiguous messages.
+
+CRITICAL — the CURRENT message always wins over context. If the current message names
+a category or material, extract THAT — never keep the previous one just because it's in
+the context. "necklace above 10k" after a ring search → category=necklace (NOT ring),
+and do NOT carry the old material (diamond) unless the new message restates it. The
+context is a hint for SHORT/ambiguous messages only; it must never override an explicit
+new request. Handle typos and regional words: "necklac"/"neckles"→necklace,
+वींटी/વીંટી→ring, हार/હાર/"har"→necklace, "anguthi"/"vinti"→ring.
 
 ## Classification rules
 
@@ -586,9 +596,13 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
 
 RULES:
 category (REQUIRED when type word in message):
-  ring/anguthi/band/rings → ring
+  ring/anguthi/band/rings/vinti/veenti/वींटी/વીંટી → ring
   earring/bali/jhumka/jhumki/tops/studs/kaan/earrings → earring
-  necklace/haar/mala → necklace
+  necklace/necklaces/neckless/necklac/har/haar/haar/mala/हार/હાર → necklace
+  Handle misspellings and regional (Hindi/Gujarati/etc.) words for ALL
+  categories — extract the category even if the word is a typo or a regional
+  synonym. The CURRENT message's category wins; never keep a prior one from
+  context if the user named a new type.
   chain/chains/gold chain/sone ki chain → chain  (NOT necklace)
   pendant/locket/latkan → pendant
   pendant set/pendant sets → pendant_set  (NOT pendant — different catalog)

@@ -1688,17 +1688,26 @@ class Classifier(Processor):
                 )
 
                 # Second-chance extraction: on native script the classifier's
-                # combined task (intent + entities + language) often returns a
-                # soft 'general'/'product_info' with NO category at all — so it
-                # gets handed to the GeneralAgent and only acknowledged, never
-                # searched. The dedicated entity extractor (a focused prompt) is
-                # far more reliable on Devanagari/Gujarati. When the intent is
-                # soft and no category came through, give it one focused pass.
-                if not sanitized_entities.get("category") and intent in (
-                    "general",
-                    "product_info",
-                    "menu_help",
-                ):
+                # combined task (intent + entities + language) often drops the
+                # category/price even when it nails the intent. Two failure modes:
+                #  - soft 'general'/'product_info' with no category -> handed to
+                #    GeneralAgent, only acknowledged (never searched)
+                #  - 'product_search' with NO category AND NO price -> the search
+                #    agent asks for a budget the user ALREADY gave ("વીંટી ૧૦ લાખ").
+                # The dedicated entity extractor (a focused prompt) is far more
+                # reliable on Devanagari/Gujarati, so give it one focused pass.
+                _missing_cat = not sanitized_entities.get("category")
+                _missing_price = (
+                    sanitized_entities.get("min_price") is None
+                    and sanitized_entities.get("max_price") is None
+                )
+                _empty_product_search = (
+                    intent == "product_search" and _missing_cat and _missing_price
+                )
+                if (
+                    _missing_cat
+                    and intent in ("general", "product_info", "menu_help")
+                ) or _empty_product_search:
                     try:
                         from kisna_chatbot.processors.entity_extractor import (
                             extract_entities_with_llm,
