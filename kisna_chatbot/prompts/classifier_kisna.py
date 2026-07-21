@@ -165,6 +165,8 @@ Native price words → numbers (extract into min_price/max_price):
 - Devanagari/Gujarati digits are digits: ० ੦ ૦=0 … ९=9, ૪૦=40, ५०=50.
 - Direction: "से ज़्यादा" / "से ऊपर" / "થી વધુ" = above (min_price).
   "से कम" / "से नीचे" / "થી ઓછું" = under (max_price). "के आस-पास" / "લગભગ" = around.
+  RANGE: "X से Y के बीच" / "X થી Y ની વચ્ચે" = between → min_price=X AND max_price=Y.
+  "૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચે" → min 10000, max 30000 — extract BOTH, never all-null.
 
 Native category words → category:
 - अंगूठी/अँगूठी=ring, बाली/झुमका/इयररिंग/બુટ્ટી/કાનની=earring, हार/नेकलेस/નેકલેસ=necklace,
@@ -185,6 +187,9 @@ N4. "१० हज़ार से कम की इयररिंग" → {"in
     "entities":{"category":"earring","max_price":10000}}
 N5. "મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે" → {"intent":"product_search","confidence":0.9,
     "language":"gu","entities":{"category":"earring","min_price":40000}}
+N5a. "મારે ૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચેની કિંમતની કાનની બુટ્ટી જોઈએ છે" →
+    {"intent":"product_search","confidence":0.92,"language":"gu",
+     "entities":{"category":"earring","min_price":10000,"max_price":30000}}
 N6. "તમારી પાસે રિંગ છે?" → {"intent":"product_search","confidence":0.88,"language":"gu",
     "entities":{"category":"ring"}}
 N7. "आज सोने का भाव क्या है?" → {"intent":"gold_rate","confidence":0.95,"language":"hi"}
@@ -549,6 +554,11 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
 4. NEVER set title to command words (show, send, me) or generic type words
    (chains, rings, gold). title is ONLY for named products/collections.
    Also NEVER: brand name (kisna), city names, greetings, "jewellery".
+5. NATIVE SCRIPT = SAME RULES. A message in Devanagari/Gujarati/any Indic script
+   extracts EXACTLY like its romanized twin — never return all-null entities for
+   a message that names a jewellery type or an amount in ANY script or language.
+   Read native digits as digits: ૧૦,૦૦૦ = 10,000 · ५०,००० = 50,000 · ૩૦,૦૦૦ = 30,000.
+   કાનની બુટ્ટી/બુટ્ટી = earring · વીંટી = ring · હાર = necklace · અંગૂઠી = ring.
 
 ## DISAMBIGUATION (common traps — read carefully)
 1. "22k"/"18k" alone: KARAT when describing the metal ("22k gold ring" → karat=22KT).
@@ -667,7 +677,11 @@ price (ALWAYS extract when budget words present — integers in INR):
   "ek lakh" → 100000, "do lakh" → 200000
   "X se upar" / "X se zyada" / "minimum X" / "at least X" → min_price=X
   NATIVE SCRIPT (extract identically): हज़ार/हजार/હજાર=thousand, लाख/લાખ=lakh.
-  Devanagari/Gujarati digits are digits (५०=50, ૪૦=40, १०=10).
+  Devanagari/Gujarati digits are digits (५०=50, ૪૦=40, १०=10, ૧૦,૦૦૦=10000).
+  Direction words: "से ज़्यादा"/"થી વધુ"=above→min_price · "से कम"/"થી ઓછું"/"થી ઓછી"=under→max_price.
+  RANGE: "X से Y के बीच" / "X થી Y ની વચ્ચે" = between X and Y → min_price=X, max_price=Y.
+  "૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચે" → min_price=10000, max_price=30000.
+  "१०,००० से ३०,००० के बीच" → min_price=10000, max_price=30000.
   "से ज़्यादा"/"से ऊपर"/"થી વધુ"=above→min_price. "से कम"/"से नीचे"/"થી ઓછું"=under→max_price.
   "५० हज़ार से ज़्यादा"→min_price=50000. "१० हज़ार से कम"→max_price=10000.
   "૪૦ હજારથી વધુ"→min_price=40000. "४ हज़ार से ज़्यादा"→min_price=4000.
@@ -825,6 +839,13 @@ NATIVE SCRIPT full examples (extract exactly like the romanized twin):
 
 "મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે" →
 {"category":"earring","min_price":40000,...all others null}
+
+"મારે ૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચેની કિંમતની કાનની બુટ્ટી જોઈએ છે" →
+{"category":"earring","min_price":10000,"max_price":30000,...all others null}
+(native digits + "થી ... ની વચ્ચે" = between → BOTH bounds, never all-null)
+
+"१०,००० से ३०,००० के बीच का हार चाहिए" →
+{"category":"necklace","min_price":10000,"max_price":30000,...all others null}
 
 "halki gold chain office ke liye" →
 {"category":"chain","material_type":"gold","style":"minimal",

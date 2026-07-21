@@ -427,6 +427,22 @@ class NativeScriptExtractionTests(unittest.TestCase):
         self.assertIn("બુટ્ટી", kisna_classifier)
         self.assertIn("हज़ार", kisna_entity_extractor)
 
+    def test_prompts_teach_native_ranges(self):
+        # Regression: "૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચે" (between) returned all-null
+        # entities → budget re-ask. BOTH prompts must teach the native range
+        # pattern and native digits.
+        from kisna_chatbot.prompts.classifier_kisna import (
+            kisna_classifier,
+            kisna_entity_extractor,
+        )
+
+        for prompt in (kisna_classifier, kisna_entity_extractor):
+            self.assertIn("ની વચ્ચે", prompt)      # Gujarati "between"
+            self.assertIn("के बीच", prompt)        # Hindi "between"
+            self.assertIn("૧૦,૦૦૦", prompt)        # Gujarati digits example
+        # The exact failing query is a worked example in the extractor.
+        self.assertIn("કાનની બુટ્ટી", kisna_entity_extractor)
+
 
 class CategoryDrivenSearchGuardTests(unittest.TestCase):
     """A extracted jewellery category means the user is shopping — never
