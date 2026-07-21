@@ -1029,6 +1029,24 @@ def _route_resolved_intent(
         # User said the last reply was wrong / not what they meant, without a full
         # new request. Acknowledge warmly and ask what they actually want — never
         # silently re-search. Narrated into their language.
+        #
+        # CRITICAL: clear the product context. The wrong results the user just
+        # rejected would otherwise stay in last_search_* / shown products and be
+        # re-injected into the classifier context, anchoring the model to the
+        # SAME wrong entities on the retry — an infinite "still showing rings"
+        # loop. Repair means fresh start.
+        for key in (
+            "last_search_filters",
+            "last_search_products",
+            "last_search_buffer",
+            "last_viewed_product",
+            "shown_product_ids",
+            "last_search_at",
+            "llm_extracted_entities",
+            "last_search_page",
+            "last_search_total",
+        ):
+            user_profile.pop(key, None)
         user_profile["service_selected"] = ""
         data["bot_response"] = [
             {

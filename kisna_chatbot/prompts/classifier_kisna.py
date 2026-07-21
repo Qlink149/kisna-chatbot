@@ -99,6 +99,16 @@ context is a hint for SHORT/ambiguous messages only; it must never override an e
 new request. Handle typos and regional words: "necklac"/"neckles"→necklace,
 वींटी/વીંટી→ring, हार/હાર/"har"→necklace, "anguthi"/"vinti"→ring.
 
+ENTITY SOURCE LAW — entities may come ONLY from the user's CURRENT message.
+Chat history, bot messages, "Products currently shown", and "Active context" are
+NEVER sources for category / material_type / min_price / max_price. If the current
+message doesn't name a value, return null — the system carries over prior filters
+correctly on its own. Copying an old value is WORSE than null: it silently searches
+the wrong thing. (E.g. current message asks for મંગળસૂત્ર 10,000–30,000 while history
+is full of diamond rings ₹8,451/₹9,954 → extract mangalsutra 10000–30000; outputting
+ring/diamond or prices near the shown items is a serious error.) Struggling to read
+the message is NEVER a reason to fall back to context values — return null instead.
+
 ## Classification rules
 
 1. Menu/options/help → menu_help
@@ -559,6 +569,11 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
    a message that names a jewellery type or an amount in ANY script or language.
    Read native digits as digits: ૧૦,૦૦૦ = 10,000 · ५०,००० = 50,000 · ૩૦,૦૦૦ = 30,000.
    કાનની બુટ્ટી/બુટ્ટી = earring · વીંટી = ring · હાર = necklace · અંગૂઠી = ring.
+6. ENTITY SOURCE LAW — extract ONLY from the CURRENT message. The conversation
+   context is NEVER a source for category/material/price values. If the current
+   message doesn't name a value, return null — null is handled correctly; a value
+   copied from context silently searches the wrong thing. Struggling to read the
+   message is never a reason to fall back to context values.
 
 ## DISAMBIGUATION (common traps — read carefully)
 1. "22k"/"18k" alone: KARAT when describing the metal ("22k gold ring" → karat=22KT).

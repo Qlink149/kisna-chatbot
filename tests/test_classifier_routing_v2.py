@@ -736,6 +736,56 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         self.assertIn("27,800", text)
         self.assertIn("32,100", text)
 
+    def test_repair_clears_poisoned_product_context(self):
+        # Regression (the 'stuck on diamond rings' loop): after 'that's wrong',
+        # the rejected results stayed in last_search_* and were re-injected into
+        # the classifier context, anchoring the model to the SAME wrong entities
+        # on every retry. Repair must clear the product context.
+        import asyncio
+        import json as _json
+        from unittest.mock import AsyncMock, patch
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go():
+            profile = {
+                "chat_history": [],
+                "service_selected": "product_search",
+                "last_search_filters": {"category": "ring", "material_type": "diamond"},
+                "last_search_products": [{"title": "Selvi Ring", "price": {"finalPrice": 8451}}],
+                "shown_product_ids": ["1"],
+                "last_viewed_product": {"_id": "1", "title": "Selvi Ring"},
+            }
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "મેં મંગળસૂત્ર કહ્યું છે, રિંગ્સ નહીં"}},
+                "user_profile": profile,
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=_json.dumps({"intent": "repair", "confidence": 0.9, "entities": {}}),
+            ):
+                await Classifier().process(data)
+            return profile
+
+        profile = asyncio.run(_go())
+        for key in (
+            "last_search_filters",
+            "last_search_products",
+            "shown_product_ids",
+            "last_viewed_product",
+        ):
+            self.assertNotIn(key, profile, key)
+
+    def test_prompts_teach_entity_source_law(self):
+        # Both prompts forbid copying entities from context/history.
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn("ENTITY SOURCE LAW", kisna_classifier)
+        self.assertIn("ENTITY SOURCE LAW", kisna_entity_extractor)
+
     def test_repair_intent_acknowledges_and_clarifies(self):
         import asyncio
         import json as _json
