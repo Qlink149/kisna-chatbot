@@ -39,7 +39,6 @@ from kisna_chatbot.processors.entity_extractor import (
     resolve_api_page_size,
     title_redundant_with_category,
 )
-from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
     merge_jewellery_profile,
@@ -1841,18 +1840,26 @@ class ProductSearchAgentV3(Processor):
 
         is_text = "text" in messages
         if is_text and query.strip() and not _is_show_more_request(query, data):
+            # CONTEXT-FREE extraction: the pass that determines search filters
+            # sees ONLY the user's message — no history, no shown products. Any
+            # context we pass gets copied under pressure ("stuck on diamond
+            # rings" loop). Carry-over of prior filters is handled
+            # deterministically by merge_search_entities below.
             extracted_llm = await extract_entities_with_llm(
                 user_query=query,
                 client_id=data.get("client_id", "kisna"),
                 phone_number=phone_number,
-                history_str=format_recent_history_str(user_profile, 8),
             )
             if extracted_llm:
-                llm_entities = merge_entity_llm_supplement(llm_entities, extracted_llm)
+                # The context-free pass WINS on conflicts — it cannot be
+                # context-poisoned. Classifier entities (which saw history /
+                # shown products) only fill fields it left null (e.g.
+                # product_reference, which needs context by design).
+                llm_entities = merge_entity_llm_supplement(extracted_llm, llm_entities)
                 if llm_source is None and extracted_llm:
                     llm_source = "entity_llm"
                 elif llm_source == "classifier" and extracted_llm:
-                    llm_source = "classifier+entity_llm"
+                    llm_source = "entity_llm+classifier"
 
             # Per-field evidence gate: LLM may not invent colour/karat/size or
             # material that the user did not write. Applies to classifier + entity LLM.

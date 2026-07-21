@@ -779,6 +779,35 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         ):
             self.assertNotIn(key, profile, key)
 
+    def test_agent_extraction_is_context_free_and_wins_conflicts(self):
+        # The pass that determines search filters must see ONLY the message
+        # (no history kwarg), and its output must WIN over the context-exposed
+        # classifier entities on conflicts — the classifier only fills nulls.
+        import asyncio
+        import inspect
+        from unittest.mock import AsyncMock, patch
+
+        from kisna_chatbot.processors.entity_extractor import (
+            merge_entity_llm_supplement,
+        )
+        from kisna_chatbot.processors import product_search_agent_v3 as agent_mod
+
+        # 1. Merge priority: context-free (mangalsutra) beats classifier (ring);
+        #    classifier still fills what the extractor left null.
+        context_free = {"category": "mangalsutra", "min_price": 10000, "max_price": 30000}
+        classifier_side = {"category": "ring", "material_type": "diamond",
+                           "product_reference": 2}
+        merged = merge_entity_llm_supplement(context_free, classifier_side)
+        self.assertEqual(merged["category"], "mangalsutra")
+        self.assertEqual(merged["min_price"], 10000)
+        self.assertEqual(merged["product_reference"], 2)  # null-filled from classifier
+
+        # 2. The agent's call site passes no history_str (context-free).
+        src = inspect.getsource(agent_mod.ProductSearchAgentV3.process)
+        call_start = src.index("extracted_llm = await extract_entities_with_llm(")
+        call_src = src[call_start : src.index(")", call_start)]
+        self.assertNotIn("history_str", call_src)
+
     def test_history_urls_stripped_for_llm(self):
         # Regression (the REAL 'stuck on diamond rings' anchor): the stored
         # See-Collection URL slug (.../rings+0k-to-10k+diamond) in assistant

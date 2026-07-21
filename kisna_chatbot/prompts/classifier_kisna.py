@@ -85,8 +85,10 @@ The system message may include:
 - "Active context: user recently viewed <product>" — the user is looking at a specific
   product; short follow-ups ("price?", "isme kitna?", "available hai?") are about THAT
   product → product_info.
-- "Active context: user recently searched <filters>" — short refinements ("under 20k",
-  "gold mein", "2nd wala") continue that search → product_search / product_info.
+- "Active context: the user has an active jewellery search" — short refinements
+  ("under 20k", "gold mein", "2nd wala") continue that search → product_search /
+  product_info. The context intentionally does NOT tell you the old filters —
+  extract only what the CURRENT message says; the system carries filters over.
 - "Products currently shown" — a numbered list, ONLY for resolving references
   ("the second one", "बीच वाला") into product_reference.
 - "Chat history: ..." — recent turns. Use it to resolve short or ambiguous messages.

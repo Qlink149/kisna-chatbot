@@ -243,7 +243,11 @@ class ClassifierActiveContextTests(unittest.TestCase):
         self.assertIn("Gold Ring", ctx)
         self.assertTrue(ctx.startswith("Active context:"))
 
-    def test_last_search_filters_context(self):
+    def test_last_search_filters_context_never_echoes_values(self):
+        # Regression (context-poisoning loop): echoing the active filters
+        # ("user recently searched ring, diamond, max price 10000") was an
+        # answer-shaped anchor the model copied into every extraction. The
+        # signal must be generic — no category/material/price values.
         profile = {
             "last_search_filters": {
                 "category": "ring",
@@ -252,9 +256,11 @@ class ClassifierActiveContextTests(unittest.TestCase):
             }
         }
         ctx = _format_active_product_context(profile)
-        self.assertIn("ring", ctx)
-        self.assertIn("gold", ctx)
-        self.assertIn("50000", ctx)
+        self.assertIn("active jewellery search", ctx)
+        self.assertNotIn("ring", ctx)
+        self.assertNotIn("50000", ctx)
+        # "gold mein" appears only as a refinement example, never as the value.
+        self.assertNotIn("searched", ctx)
 
     def test_system_content_prepends_active_context(self):
         profile = {"last_viewed_product": {"title": "Gold Ring"}}

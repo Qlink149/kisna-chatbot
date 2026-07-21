@@ -1246,15 +1246,6 @@ _CATEGORY_TO_SERVICE = {
     "store_info": ServiceList.AD_FLOW,
 }
 
-_FILTER_SUMMARY_KEYS = (
-    "category",
-    "material_type",
-    "max_price",
-    "min_price",
-    "title",
-)
-
-
 def _format_shown_products(user_profile: dict) -> str:
     """Numbered list of products currently on the user's screen.
 
@@ -1280,21 +1271,27 @@ def _format_shown_products(user_profile: dict) -> str:
 
 
 def _format_active_product_context(user_profile: dict) -> str:
-    """One-line product/search context for classifier when screen state matters."""
+    """One-line search-state signal for the classifier.
+
+    NEVER echoes the active filter VALUES (category/material/price). That
+    echo was answer-shaped — after one wrong search, "user recently searched
+    ring, diamond, max price 10000" sat as the first context line and the
+    model copied it into every subsequent extraction, locking the wrong
+    filters in forever. The classifier only needs to know a search/product
+    context EXISTS (for intent on short follow-ups); the actual carry-over
+    of filters is done deterministically by the merge code.
+    """
     last_viewed = user_profile.get("last_viewed_product")
     if last_viewed:
         title = last_viewed.get("title") or last_viewed.get("name") or "a product"
         return f"Active context: user recently viewed {title}."
 
-    filters = user_profile.get("last_search_filters") or {}
-    parts: list[str] = []
-    for key in _FILTER_SUMMARY_KEYS:
-        val = filters.get(key)
-        if val is not None and val != "":
-            label = key.replace("_", " ")
-            parts.append(f"{label} {val}" if key in ("max_price", "min_price") else str(val))
-    if parts:
-        return f"Active context: user recently searched {', '.join(parts)}."
+    if user_profile.get("last_search_filters"):
+        return (
+            "Active context: the user has an active jewellery search — short "
+            "refinements (a bare budget, 'under 20k', 'gold mein', 'show more') "
+            "continue it."
+        )
     return ""
 
 
