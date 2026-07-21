@@ -592,6 +592,98 @@ class FlowSwitchAckDoublingTests(unittest.TestCase):
         self.assertEqual(len(data["bot_response"]), 1)
 
 
+class ReferenceCompareRepairTests(unittest.TestCase):
+    _SHOWN = [
+        {"_id": "1", "title": "Estaa Necklace", "price": {"finalPrice": 29504}},
+        {"_id": "2", "title": "Harini Necklace", "price": {"finalPrice": 32100}},
+        {"_id": "3", "title": "Sibhani Necklace", "price": {"finalPrice": 27800}},
+    ]
+
+    def test_shown_products_context_numbered(self):
+        from kisna_chatbot.processors.classifier import _format_shown_products
+
+        ctx = _format_shown_products({"last_search_products": self._SHOWN})
+        self.assertIn("1. Estaa Necklace", ctx)
+        self.assertIn("2. Harini Necklace", ctx)
+
+    def test_product_reference_sanitized(self):
+        from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+        self.assertEqual(_sanitize_llm_entities({"product_reference": "2"})["product_reference"], 2)
+        self.assertIsNone(_sanitize_llm_entities({"product_reference": 99})["product_reference"])
+        self.assertIsNone(_sanitize_llm_entities({})["product_reference"])
+
+    def test_reference_opens_that_product(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _handle_product_reference,
+        )
+
+        data = {
+            "user_profile": {"last_search_products": self._SHOWN},
+            "llm_extracted_entities": {"product_reference": 2},
+        }
+        result = _handle_product_reference(data)
+        self.assertIsNotNone(result)
+        self.assertIn("Harini", str(result["bot_response"]))
+        # opening it marks it as viewed
+        self.assertIsNotNone(data["user_profile"].get("last_viewed_product"))
+
+    def test_reference_out_of_range_falls_through(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _handle_product_reference,
+        )
+
+        data = {
+            "user_profile": {"last_search_products": self._SHOWN},
+            "llm_extracted_entities": {"product_reference": 9},
+        }
+        self.assertIsNone(_handle_product_reference(data))
+
+    def test_compare_is_grounded_and_factual(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import _handle_compare
+
+        data = {"user_profile": {"last_search_products": self._SHOWN}}
+        result = _handle_compare(data)
+        self.assertIsNotNone(result)
+        text = result["bot_response"][0]["text"]
+        # cheapest/priciest stated factually from real prices
+        self.assertIn("Sibhani Necklace", text)  # cheapest 27,800
+        self.assertIn("Harini Necklace", text)   # priciest 32,100
+        self.assertIn("27,800", text)
+        self.assertIn("32,100", text)
+
+    def test_repair_intent_acknowledges_and_clarifies(self):
+        import asyncio
+        import json as _json
+        from unittest.mock import AsyncMock, patch
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "no that's not what I meant"}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=_json.dumps({"intent": "repair", "confidence": 0.9, "entities": {}}),
+            ):
+                return await Classifier().process(data)
+
+        data = asyncio.run(_go())
+        self.assertEqual(data["classified_category"], "repair")
+        self.assertEqual(data["bot_response"][0]["_compose"], "repair")
+        self.assertNotIn("Sent flow", str(data["bot_response"]))
+
+    def test_prompts_teach_reference_compare_repair(self):
+        self.assertIn("product_reference", kisna_classifier)
+        self.assertIn("**compare**", kisna_classifier)
+        self.assertIn("**repair**", kisna_classifier)
+
+
 class NarratorGuardrailTests(unittest.TestCase):
     def test_narrator_prompt_forbids_inventing_products(self):
         # The greeting narrator hallucinated "want to see silver rings?" — the

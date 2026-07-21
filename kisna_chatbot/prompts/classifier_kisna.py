@@ -23,6 +23,18 @@ style exploration, filters (gold, diamond, under 50k), collection names, "aur di
 **product_info** — Price, availability, or details about a specific product or SKU
 (must be answered from API, not general chat): "isme kitna hai", "available hai kya",
 "price kya hai is ring ki", delivery days for a product, weight, chain included, 18KT variant.
+ALSO when the user picks a shown item by position or description ("the second one",
+"doosra wala", "the gold one", "बीच वाला दिखाओ") — set entities.product_reference to its
+NUMBER from the "Products currently shown" list.
+
+**compare** — Comparing or choosing among the SHOWN products: "which is cheaper",
+"compare these", "which one is better", "sabse sasta kaun sa", "in dono me se accha kya hai",
+"which should I buy". Only when products are currently shown.
+
+**repair** — The user says the last answer was wrong / not what they meant, WITHOUT giving a
+full new request: "no that's not what I meant", "nahi ye nahi", "galat hai", "not this one",
+"ye nahi chahiye", "કંઈક બીજું". NOTE: "aur dikhao"/"kuch aur dikhao" (show more) is
+product_search, NOT repair — repair is a correction/dissatisfaction, not a request for more.
 
 **offers** — Promotions, discounts, sales, making-charge offers: "koi offer hai", "discount on gold".
 NOT general EMI/policy questions.
@@ -168,6 +180,25 @@ N6. "તમારી પાસે રિંગ છે?" → {"intent":"product_s
 N7. "आज सोने का भाव क्या है?" → {"intent":"gold_rate","confidence":0.95,"language":"hi"}
 N8. "मुझे रिटर्न करना है" → {"intent":"returns_refund","confidence":0.9,"language":"hi"}
 
+## Reference / compare / repair examples (products are shown in context)
+R1. "the second one" | shown list present → {"intent":"product_info","confidence":0.9,
+    "entities":{"product_reference":2}}
+R2. "doosra dikhao" | shown → {"intent":"product_info","confidence":0.9,
+    "entities":{"product_reference":2}}
+R3. "बीच वाला कितने का है" | 3 shown → {"intent":"product_info","confidence":0.9,
+    "language":"hi","entities":{"product_reference":2}}
+R4. "the gold one ka price" | shown (item 3 is gold) → {"intent":"product_info",
+    "confidence":0.88,"entities":{"product_reference":3}}
+C1. "which is cheaper?" | shown → {"intent":"compare","confidence":0.9}
+C2. "in dono me se accha kaunsa hai" | shown → {"intent":"compare","confidence":0.88,
+    "language":"hi-Latn"}
+C3. "compare these two" | shown → {"intent":"compare","confidence":0.9}
+P1. "no that's not what I meant" → {"intent":"repair","confidence":0.9}
+P2. "nahi ye nahi, kuch aur" → {"intent":"repair","confidence":0.85,"language":"hi-Latn"}
+P3. "galat hai ye" → {"intent":"repair","confidence":0.88,"language":"hi-Latn"}
+P4. "aur dikhao" | shown → {"intent":"product_search","confidence":0.9,
+    "entities":{"action":"more"}} (show more is NOT repair)
+
 ## ANTI-HALLUCINATION RULE
 
 If the user mentions ANY product name or asks for ANY price, classify as product_search or
@@ -207,9 +238,20 @@ Examples of low-confidence inputs: bare "gold", "help", "kuch dikhao", "1 lakh" 
     "occasion": "<wedding|engagement|anniversary|birthday|daily_wear|gift|null>",
     "style": "<fashion|cocktail|couple_bands|minimal|infinity|hearts|floral|adjustable|traditional|modern|heavy|null>",
     "action": "<more|null>",
-    "price_direction": "<lower|higher|null>"
+    "price_direction": "<lower|higher|null>",
+    "product_reference": "<number of the shown product the user means, or null>"
   }
 }
+
+product_reference (pick a SHOWN product by position/description, ANY language):
+- Only when a "Products currently shown to the user" list is in the context AND the
+  user refers to one of them without naming a new category.
+- Return the NUMBER (1-based) from that list.
+  "the second one" / "doosra" / "बीच वाला" → 2. "pehla"/"first" → 1.
+  "the gold one" / "sone wali" → the number of the gold item in the list.
+  "the cheapest one" as a pick → the number of the lowest-priced shown item.
+- null if no product is shown, or the reference is ambiguous, or they named a new
+  search instead.
 
 price_direction (RELATIVE price follow-ups, ANY language):
 - "lower" when the user wants cheaper / says it's too expensive WITHOUT giving a

@@ -673,6 +673,18 @@ def _sanitize_llm_entities(entities: dict) -> dict:
         direction = None
     out["price_direction"] = direction
 
+    # 1-based index of a shown product the user is referring to ("the 2nd one",
+    # "the gold one", "बीच वाला"). Resolved by the LLM against the shown list;
+    # validated to a small positive int here.
+    ref = _coerce_null(raw.get("product_reference"))
+    if ref is not None:
+        try:
+            ref_int = int(float(ref))
+            ref = ref_int if 1 <= ref_int <= 10 else None
+        except (TypeError, ValueError):
+            ref = None
+    out["product_reference"] = ref
+
     return out
 
 
@@ -975,6 +987,8 @@ def _route_resolved_intent(
             "human_handoff": "Live agent handoff",
             "gold_rate": "Gold rate",
             "video_call": "Video call scheduling",
+            "compare": "Compare products",
+            "repair": "Clarify / repair",
             "general": "FAQ / general",
         }
         label = _INTENT_LABELS.get(intent, intent.replace("_", " ").title())
@@ -1009,6 +1023,24 @@ def _route_resolved_intent(
     if intent == "gold_rate":
         user_profile["service_selected"] = ""
         data["_fetch_gold_rate"] = True
+        return True
+
+    if intent == "repair":
+        # User said the last reply was wrong / not what they meant, without a full
+        # new request. Acknowledge warmly and ask what they actually want — never
+        # silently re-search. Narrated into their language.
+        user_profile["service_selected"] = ""
+        data["bot_response"] = [
+            {
+                "type": "text",
+                "text": (
+                    "Oops, my apologies! 🙏 Tell me a bit more about what you're "
+                    "looking for and I'll get it right — a type of jewellery, a "
+                    "budget, a style?"
+                ),
+                "_compose": "repair",
+            }
+        ]
         return True
 
     if intent == "video_call":
@@ -1187,6 +1219,7 @@ _CATEGORY_TO_SERVICE = {
     "greeting": ServiceList.GENERAL,
     "product_search": ServiceList.PRODUCT_SEARCH,
     "product_info": ServiceList.PRODUCT_SEARCH,
+    "compare": ServiceList.PRODUCT_SEARCH,
     "offers": ServiceList.OFFERS,
     "pre_order": ServiceList.PRE_ORDER,
     "order_tracking": ServiceList.ORDER_TRACKING,
@@ -1202,6 +1235,30 @@ _FILTER_SUMMARY_KEYS = (
     "min_price",
     "title",
 )
+
+
+def _format_shown_products(user_profile: dict) -> str:
+    """Numbered list of products currently on the user's screen.
+
+    Lets the LLM resolve references like "the second one", "the gold one",
+    "बीच वाला" against what's actually shown — no regex, any language.
+    """
+    products = user_profile.get("last_search_products") or []
+    if not products:
+        return ""
+    from kisna_chatbot.utils.product_formatter import get_product_display_price
+
+    lines: list[str] = []
+    for i, p in enumerate(products[:5], start=1):
+        name = p.get("title") or p.get("name")
+        if not name:
+            continue
+        price = get_product_display_price(p)
+        price_txt = f" ₹{int(price):,}" if price and price > 0 else ""
+        lines.append(f"{i}. {name}{price_txt}")
+    if not lines:
+        return ""
+    return "Products currently shown to the user:\n" + "\n".join(lines)
 
 
 def _format_active_product_context(user_profile: dict) -> str:
@@ -1227,6 +1284,9 @@ def _build_classifier_system_content(
     user_profile: dict, chat_history_str: str, hint: str | None = None
 ) -> str:
     system_content = f"Chat history: {chat_history_str}"
+    shown = _format_shown_products(user_profile)
+    if shown:
+        system_content = f"{shown}\n{system_content}"
     active_ctx = _format_active_product_context(user_profile)
     if active_ctx:
         system_content = f"{active_ctx}\n{system_content}"

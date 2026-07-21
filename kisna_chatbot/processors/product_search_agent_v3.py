@@ -391,6 +391,73 @@ def build_search_intro(entities: dict, *, relaxed: bool = False) -> str:
     return prefix + random.choice(_INTRO_TEMPLATES).format(desc=desc)
 
 
+def _handle_product_reference(data: dict) -> dict | None:
+    """Open the shown product the LLM resolved (1-based product_reference).
+
+    The LLM matches "the second one" / "बीच वाला" / "the gold one" against the
+    numbered shown list and returns its index — this just opens that product.
+    """
+    user_profile = data.get("user_profile", {})
+    entities = data.get("llm_extracted_entities") or {}
+    ref = entities.get("product_reference")
+    if not ref:
+        return None
+    shown = user_profile.get("last_search_products") or []
+    if not (1 <= ref <= len(shown)):
+        return None
+    product = shown[ref - 1]
+    from kisna_chatbot.processors.product_details_agent import _save_last_viewed_product
+
+    _save_last_viewed_product(user_profile, product)
+    image_msg = build_product_image_with_cta_message(product)
+    responses: list[dict] = []
+    if image_msg:
+        responses.append(image_msg)
+    else:
+        name = product.get("title") or product.get("name") or "This piece"
+        price = get_product_display_price(product)
+        price_txt = f"₹{int(price):,}" if price and price > 0 else "on the product page"
+        responses.append({"type": "text", "text": f"*{name}* — {price_txt}"})
+    data["bot_response"] = responses
+    return data
+
+
+def _handle_compare(data: dict) -> dict | None:
+    """Grounded comparison of the shown products — factual, never invented.
+
+    Uses only the shown products' real names/prices/material. Price facts are
+    deterministic; the closing note is honest and non-fabricated.
+    """
+    user_profile = data.get("user_profile", {})
+    shown = user_profile.get("last_search_products") or []
+    priced = [
+        (get_product_display_price(p), p)
+        for p in shown[:5]
+        if get_product_display_price(p) > 0 and (p.get("title") or p.get("name"))
+    ]
+    if len(priced) < 2:
+        return None
+    priced.sort(key=lambda x: x[0])
+    cheapest_price, cheapest = priced[0]
+    priciest_price, priciest = priced[-1]
+
+    def _nm(p: dict) -> str:
+        return p.get("title") or p.get("name") or "piece"
+
+    lines = ["Here's how they compare 👇", ""]
+    for price, p in priced:
+        lines.append(f"• {_nm(p)} — ₹{int(price):,}")
+    lines.append("")
+    lines.append(
+        f"The most affordable is *{_nm(cheapest)}* at ₹{int(cheapest_price):,}; "
+        f"the most premium is *{_nm(priciest)}* at ₹{int(priciest_price):,}. "
+        "They're all lovely — it really comes down to your style and budget 💍 "
+        "Want a closer look at any one?"
+    )
+    data["bot_response"] = [{"type": "text", "text": "\n".join(lines)}]
+    return data
+
+
 def _entities_all_none(entities: dict) -> bool:
     if entities.get("multi_category") or entities.get("categories"):
         return False
@@ -1669,6 +1736,18 @@ class ProductSearchAgentV3(Processor):
                 entities,
                 query_label=f"similar:{label}",
             )
+
+        # Reference pick ("the second one", "बीच वाला") — the LLM resolved it to
+        # a shown-product index; open that product.
+        ref_result = _handle_product_reference(data)
+        if ref_result is not None:
+            return ref_result
+
+        # Comparison of the shown products ("which is cheaper", "compare these").
+        if data.get("classified_category") == "compare":
+            compare_result = _handle_compare(data)
+            if compare_result is not None:
+                return compare_result
 
         followup = _handle_product_info_followup(data, query)
         if followup is not None:

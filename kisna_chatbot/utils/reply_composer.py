@@ -141,6 +141,7 @@ _PERSONALITY_TAGS = frozenset(
         "vague_fallback",
         "small_talk",
         "fallback_unclear",
+        "repair",
     }
 )
 
