@@ -1,9 +1,20 @@
 import json
+import re
 import time
 
 from kisna_chatbot.utils.logger_config import logger
 
 DEFAULT_HISTORY_WINDOW = 8
+
+# URLs in ASSISTANT history turns are anchor poison for the LLM: collection
+# slugs like .../jewellery/rings+0k-to-10k+diamond read as entities and get
+# copied into later extractions ("stuck on diamond rings" loop). Users got the
+# real links in their WhatsApp messages; the LLM never needs them.
+_URL_RE = re.compile(r"https?://\S+")
+
+
+def _strip_urls(content: str) -> str:
+    return _URL_RE.sub("", content or "").strip()
 
 
 def get_recent_history(
@@ -19,12 +30,20 @@ def format_recent_history_str(
     user_profile: dict,
     n: int = DEFAULT_HISTORY_WINDOW,
 ) -> str:
-    """Last n turns as a 'Role: content' string for system prompts."""
+    """Last n turns as a 'Role: content' string for LLM system prompts.
+
+    Assistant turns are URL-stripped at read time so legacy histories that
+    stored collection/product URLs stop anchoring the model.
+    """
     turns = get_recent_history(user_profile, n)
-    return "\n".join(
-        f"{(t.get('role') or '').capitalize()}: {t.get('content', '')}"
-        for t in turns
-    )
+    lines: list[str] = []
+    for t in turns:
+        role = (t.get("role") or "").capitalize()
+        content = t.get("content", "")
+        if role == "Assistant":
+            content = _strip_urls(content)
+        lines.append(f"{role}: {content}")
+    return "\n".join(lines)
 
 
 def trim_chat_history(history: list, max_len: int) -> list:
@@ -68,23 +87,21 @@ def format_assistant(assistant_message, phone_number):
 
             elif message_type == "image_with_cta":
                 caption = assistant.get("caption", "")
-                cta_url = assistant.get("cta_url", "")
-                cta_title = assistant.get("cta_title", "Buy on KISNA")
-                # Store only product title (first line), not material/karat/price lines.
-                # Full captions bleed material info into the LLM entity extractor context.
+                # Store only product title (first line) — no URLs, no
+                # material/karat/price lines. Collection/product URL slugs
+                # (e.g. .../rings+0k-to-10k+diamond) read like entities and
+                # anchor the LLM to stale filters on later turns.
                 first_line = caption.split("\n")[0].strip("* \n") if caption else ""
                 body += f"\n[Product: {first_line}]" if first_line else "\n[Product shown]"
-                if cta_url:
-                    body += f" [{cta_title} → {cta_url}]"
 
             elif message_type == "cta_url":
                 text = assistant.get("text", "")
                 display_text = assistant.get("display_text", "Link")
-                url = assistant.get("url", "")
                 if text:
                     body += f"\n{text}"
-                if url:
-                    body += f"\n[Button: {display_text} -> {url}]"
+                # Button label only — never the URL (slug bleeds filters into
+                # the LLM context; the user got the real link in the message).
+                body += f"\n[Button: {display_text}]"
 
             elif message_type == "text":
                 body += f"{assistant.get('text', '')}"

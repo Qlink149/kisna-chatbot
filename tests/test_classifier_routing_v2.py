@@ -779,6 +779,59 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         ):
             self.assertNotIn(key, profile, key)
 
+    def test_history_urls_stripped_for_llm(self):
+        # Regression (the REAL 'stuck on diamond rings' anchor): the stored
+        # See-Collection URL slug (.../rings+0k-to-10k+diamond) in assistant
+        # history read like entities and got copied into later extractions.
+        # Assistant turns must be URL-stripped at read time (fixes legacy
+        # histories); user turns stay untouched.
+        from kisna_chatbot.utils.format_chathistory import format_recent_history_str
+
+        profile = {
+            "chat_history": [
+                {"role": "user", "content": "rings under 10k https://example.com/x"},
+                {
+                    "role": "assistant",
+                    "content": (
+                        "[Product: Selvi Ring] [Buy on KISNA → "
+                        "https://www.kisna.com/products/selvi-ring?utm=x]\n"
+                        "[Button: See Collection -> "
+                        "https://www.kisna.com/jewellery/rings+0k-to-10k+diamond?utm=x]"
+                    ),
+                },
+            ]
+        }
+        out = format_recent_history_str(profile)
+        self.assertNotIn("rings+0k-to-10k+diamond", out)
+        self.assertNotIn("kisna.com", out)
+        self.assertIn("[Product: Selvi Ring]", out)   # product name kept
+        self.assertIn("https://example.com/x", out)   # user turn untouched
+
+    def test_new_history_entries_store_no_urls(self):
+        # Going forward, image_with_cta / cta_url turns are stored without URLs.
+        from kisna_chatbot.utils.format_chathistory import format_assistant
+
+        body = format_assistant(
+            [
+                {
+                    "type": "image_with_cta",
+                    "caption": "*Selvi Ring*\n18KT · ₹8,451",
+                    "cta_url": "https://www.kisna.com/products/selvi-ring",
+                    "cta_title": "Buy on KISNA",
+                },
+                {
+                    "type": "cta_url",
+                    "text": "See the full collection",
+                    "display_text": "See Collection",
+                    "url": "https://www.kisna.com/jewellery/rings+0k-to-10k+diamond",
+                },
+            ],
+            "919999999999",
+        )
+        self.assertNotIn("http", body)
+        self.assertIn("[Product: Selvi Ring]", body)
+        self.assertIn("[Button: See Collection]", body)
+
     def test_prompts_teach_entity_source_law(self):
         # Both prompts forbid copying entities from context/history.
         from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
