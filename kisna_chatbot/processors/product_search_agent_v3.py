@@ -1851,11 +1851,20 @@ class ProductSearchAgentV3(Processor):
                 phone_number=phone_number,
             )
             if extracted_llm:
-                # The context-free pass WINS on conflicts — it cannot be
-                # context-poisoned. Classifier entities (which saw history /
-                # shown products) only fill fields it left null (e.g.
-                # product_reference, which needs context by design).
-                llm_entities = merge_entity_llm_supplement(extracted_llm, llm_entities)
+                # SINGLE SOURCE OF TRUTH for search filters: when the
+                # context-free pass runs, ALL semantic entities (category,
+                # material, price, style, …) come from it alone. The classifier
+                # saw history + shown products, so its entities can be
+                # context-biased — we take ONLY product_reference from it (that
+                # field legitimately needs the shown-products context; it's an
+                # index, not a search filter). This makes context-bleed
+                # structurally impossible for every filter, in every language.
+                ref = (data.get("llm_extracted_entities") or {}).get(
+                    "product_reference"
+                )
+                llm_entities = dict(extracted_llm)
+                if ref is not None and llm_entities.get("product_reference") is None:
+                    llm_entities["product_reference"] = ref
                 if llm_source is None and extracted_llm:
                     llm_source = "entity_llm"
                 elif llm_source == "classifier" and extracted_llm:

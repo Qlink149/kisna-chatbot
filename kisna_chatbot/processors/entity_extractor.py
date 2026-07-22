@@ -1852,7 +1852,17 @@ async def _call_llm_for_entities(
 
 
 def extract_structured_fields(text: str) -> dict[str, Any]:
-    """Regex-only extraction: prices, pincode, city. No category/title/material."""
+    """Regex-only extraction feeding the search: prices, pincode, city ONLY.
+
+    ARCHITECTURE CONTRACT (do not violate — enforced by
+    test_regex_never_provides_semantic_entities): regex must NEVER return a
+    semantic entity — category, material, style, occasion, gender, collection,
+    title. Those are where language and homograph ambiguity live (e.g. Marathi
+    "mala"='to me' vs Hindi "mala"=necklace) and MUST come from the LLM alone.
+    Only structured, language-independent tokens (numeric prices, 6-digit
+    pincodes, city names) may be regex-extracted. Semantic filters have a single
+    source of truth: the context-free LLM entity extractor.
+    """
     normalized = _normalize_text(text)
     min_price, max_price = _extract_prices(normalized)
     return {

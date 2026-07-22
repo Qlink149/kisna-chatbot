@@ -779,6 +779,53 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         ):
             self.assertNotIn(key, profile, key)
 
+    def test_regex_never_provides_semantic_entities(self):
+        # ARCHITECTURE INVARIANT: regex (extract_structured_fields, the only
+        # regex feeding the search) must NEVER return a semantic entity —
+        # category, material, style, occasion, gender, collection, title. Those
+        # are where language/homograph ambiguity lives and must come from the
+        # LLM alone. This test locks the boundary against regressions.
+        from kisna_chatbot.processors.entity_extractor import extract_structured_fields
+
+        _SEMANTIC = (
+            "category", "categories", "material_type", "metal_colour", "karat",
+            "style", "occasion", "gender", "collection", "title",
+        )
+        queries = [
+            "Mala ek ring pahije",                 # Marathi homograph
+            "sone ki mala dikhao",                 # Hindi necklace
+            "diamond rings under 50k",             # English
+            "મારે હાર જોઈએ",                        # Gujarati necklace
+            "मुझे सोने की अंगूठी चाहिए",             # Hindi ring
+            "enakku modiram venum",                # romanized Tamil ring
+            "gold earrings between 10k and 30k",
+        ]
+        for q in queries:
+            fields = extract_structured_fields(q)
+            for key in _SEMANTIC:
+                self.assertNotIn(key, fields, f"{key} leaked from regex for {q!r}")
+            # only structured tokens allowed
+            self.assertEqual(
+                set(fields) - {"min_price", "max_price", "pincode", "city"},
+                set(),
+                f"unexpected regex field for {q!r}: {fields}",
+            )
+
+    def test_search_filters_come_only_from_context_free_pass(self):
+        # The classifier (context-exposed) must contribute ONLY product_reference
+        # to the search; every semantic filter comes from the context-free pass.
+        import inspect
+
+        from kisna_chatbot.processors import product_search_agent_v3 as agent_mod
+
+        src = inspect.getsource(agent_mod.ProductSearchAgentV3.process)
+        block = src[src.index("if extracted_llm:") : src.index("apply_occasion_style_hints")]
+        # It builds llm_entities from the context-free result, pulling only ref.
+        self.assertIn("llm_entities = dict(extracted_llm)", block)
+        self.assertIn('"product_reference"', block)
+        # It must NOT merge-supplement the classifier's semantics back in.
+        self.assertNotIn("merge_entity_llm_supplement(extracted_llm", block)
+
     def test_mala_homograph_llm_category_not_overridden_by_regex(self):
         # Regression: "Mala ek ring pahije" is Marathi "I want a ring". The Latin
         # regex reads "mala"→necklace (Hindi homograph). The removed category-
