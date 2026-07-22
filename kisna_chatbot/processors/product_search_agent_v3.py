@@ -1889,25 +1889,12 @@ class ProductSearchAgentV3(Processor):
 
         extracted = combine_search_entities(llm_entities, structured_fields)
 
-        # Category authority: the CURRENT message's own words win. If the user
-        # explicitly named a category/material now, force it over anything the
-        # LLM inherited or mis-carried from a prior turn ("Necklaces under 30k"
-        # after a ring search must search necklaces, not rings). Deterministic
-        # regex, independent of LLM reliability.
-        current = extract_entities(query or "")
-        cur_cat = current.get("category")
-        if cur_cat and extracted.get("category") != cur_cat:
-            extracted["category"] = cur_cat
-            extracted["categories"] = current.get("categories") or None
-            extracted["multi_category"] = current.get("multi_category", False)
-            extracted["secondary_category"] = current.get("secondary_category")
-            # A new category clears stale material/collection/title unless the
-            # current message restated them.
-            for key in ("material_type", "collection", "title"):
-                extracted[key] = current.get(key)
-        cur_mat = current.get("material_type")
-        if cur_mat and extracted.get("material_type") != cur_mat:
-            extracted["material_type"] = cur_mat
+        # NOTE: the LLM's category is authoritative. We do NOT override it with
+        # a regex re-extraction of the query — that Latin regex breaks on
+        # multilingual homographs (e.g. "Mala ek ring pahije" is Marathi for
+        # "I want a ring"; regex reads "mala"→necklace and would wrongly force
+        # necklace over the LLM's correct "ring"). Stale-category bleed is
+        # already impossible because entity extraction is context-free.
 
         extracted, occasion_prefix = apply_occasion_style_hints(
             extracted, query=query

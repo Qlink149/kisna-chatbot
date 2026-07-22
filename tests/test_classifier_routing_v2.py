@@ -779,6 +779,35 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         ):
             self.assertNotIn(key, profile, key)
 
+    def test_mala_homograph_llm_category_not_overridden_by_regex(self):
+        # Regression: "Mala ek ring pahije" is Marathi "I want a ring". The Latin
+        # regex reads "mala"→necklace (Hindi homograph). The removed category-
+        # authority net used to FORCE that regex necklace over the LLM's correct
+        # "ring". Now the LLM's category is authoritative — regex only supplies
+        # structured fields (price/pincode/city), never category.
+        from kisna_chatbot.processors.entity_extractor import (
+            combine_search_entities,
+            extract_entities,
+            extract_structured_fields,
+        )
+
+        # regex alone still (wrongly) reads necklace — proving the collision exists
+        self.assertEqual(extract_entities("Mala ek ring pahije").get("category"), "necklace")
+        # but the search pipeline uses the LLM's category; regex structured fields
+        # carry NO category, so the LLM's "ring" survives.
+        structured = extract_structured_fields("Mala ek ring pahije")
+        self.assertIsNone(structured.get("category"))
+        merged = combine_search_entities(
+            {"category": "ring", "material_type": None}, structured
+        )
+        self.assertEqual(merged["category"], "ring")
+
+    def test_prompts_teach_mala_homograph(self):
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn("PRONOUN", kisna_classifier)
+        self.assertIn("PRONOUN", kisna_entity_extractor)
+
     def test_agent_extraction_is_context_free_and_wins_conflicts(self):
         # The pass that determines search filters must see ONLY the message
         # (no history kwarg), and its output must WIN over the context-exposed

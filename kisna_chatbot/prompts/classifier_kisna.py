@@ -100,6 +100,11 @@ and do NOT carry the old material (diamond) unless the new message restates it. 
 context is a hint for SHORT/ambiguous messages only; it must never override an explicit
 new request. Handle typos and regional words: "necklac"/"neckles"→necklace,
 वींटी/વીંટી→ring, हार/હાર/"har"→necklace, "anguthi"/"vinti"→ring.
+  HOMOGRAPH — "mala"/"मला": in MARATHI this means "to me / I" (a PRONOUN, never a
+  category). "Mala ek ring pahije/havi/hava" = Marathi "I want a ring" so category=ring.
+  Treat mala/माला as necklace ONLY when it is clearly the Hindi jewellery word with NO
+  other category present ("sone ki mala"). When an explicit category word (ring/earring)
+  appears, THAT wins — a pronoun never overrides it. Marathi "X pahije/havi/hava/dya" = "want X".
 
 ENTITY SOURCE LAW — entities may come ONLY from the user's CURRENT message.
 Chat history, bot messages, "Products currently shown", and "Active context" are
@@ -625,7 +630,10 @@ RULES:
 category (REQUIRED when type word in message):
   ring/anguthi/band/rings/vinti/veenti/वींटी/વીંટી → ring
   earring/bali/jhumka/jhumki/tops/studs/kaan/earrings → earring
-  necklace/necklaces/neckless/necklac/har/haar/haar/mala/हार/હાર → necklace
+  necklace/necklaces/neckless/necklac/har/haar/haar/हार/હાર → necklace
+  (BUT "mala"/"मला" in Marathi = "to me/I", a PRONOUN — "mala ek ring pahije"
+   = 'I want a ring' → category=ring. Only mala=necklace as the Hindi word with
+   no other category present, e.g. 'sone ki mala'. Explicit ring/earring always wins.)
   Handle misspellings and regional (Hindi/Gujarati/etc.) words for ALL
   categories — extract the category even if the word is a typo or a regional
   synonym. The CURRENT message's category wins; never keep a prior one from
