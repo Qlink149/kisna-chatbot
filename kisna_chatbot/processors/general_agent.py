@@ -7,12 +7,21 @@ from kisna_chatbot.ai import run_general_agent
 from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.processors.shopping_wizard import DIGITAL_GOLD_URL
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
 
 _HANDOFF_MESSAGE = KIA_HANDOFF_MESSAGE
 _GENERIC_ERROR = (
     "Sorry, I couldn't process your question right now. Please try again in a moment."
+)
+
+_DIGITAL_GOLD_RE = re.compile(
+    r"\b("
+    r"digital\s+gold|safegold|safe\s+gold|buy\s+gold\s+online|"
+    r"gold\s+sip|digital\s+sona"
+    r")\b",
+    re.I,
 )
 
 _CATALOG_FOLLOWUP_RE = re.compile(
@@ -108,9 +117,25 @@ class GeneralAgent(Processor):
                 text = result.message_text or _HANDOFF_MESSAGE
                 data["bot_response"] = [{"type": "text", "text": text}]
             elif result.message_text:
-                data["bot_response"] = [
+                responses: list[dict] = [
                     {"type": "text", "text": result.message_text}
                 ]
+                if data.get("_digital_gold_cta") or _DIGITAL_GOLD_RE.search(
+                    user_query or ""
+                ):
+                    responses.append(
+                        {
+                            "type": "cta_url",
+                            "body": (
+                                "Buy 24K Digital Gold securely on Kisna — "
+                                "powered by SafeGold."
+                            ),
+                            "display_text": "Buy Digital Gold",
+                            "url": DIGITAL_GOLD_URL,
+                            "footer": "KISNA Diamond & Gold",
+                        }
+                    )
+                data["bot_response"] = responses
             else:
                 data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
 

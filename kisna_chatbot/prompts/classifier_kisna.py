@@ -53,6 +53,10 @@ NOT general EMI/policy questions.
 "human", "customer care", "custom ring banwana hai", "engraving chahiye". Also order
 cancellation/modification requests ("order cancel karna hai") — the bot cannot cancel orders.
 
+**callback** — Request for a phone callback (NOT live chat, NOT video):
+"call me back", "callback", "request a callback", "mujhe call karo", "phone karo",
+"callback form". Always send the callback form.
+
 **video_call** — Request for a video call / video consultation / video shopping:
 "schedule a video call", "video pe dikhao", "video consultation chahiye".
 
@@ -108,13 +112,21 @@ new request. Handle typos and regional words: "necklac"/"neckles"→necklace,
 
 ENTITY SOURCE LAW — entities may come ONLY from the user's CURRENT message.
 Chat history, bot messages, "Products currently shown", and "Active context" are
-NEVER sources for category / material_type / min_price / max_price. If the current
-message doesn't name a value, return null — the system carries over prior filters
-correctly on its own. Copying an old value is WORSE than null: it silently searches
-the wrong thing. (E.g. current message asks for મંગળસૂત્ર 10,000–30,000 while history
-is full of diamond rings ₹8,451/₹9,954 → extract mangalsutra 10000–30000; outputting
-ring/diamond or prices near the shown items is a serious error.) Struggling to read
-the message is NEVER a reason to fall back to context values — return null instead.
+NEVER sources for category / material_type / min_price / max_price / gender /
+fulfillment / karat / metal_colour / size / occasion / style / collection.
+If the current message doesn't name a value, return null — the system carries
+over prior filters correctly on its own. Copying an old value is WORSE than null:
+it silently searches the wrong thing. (E.g. current message asks for મંગળસૂત્ર
+10,000–30,000 while history is full of diamond rings ₹8,451/₹9,954 → extract
+mangalsutra 10000–30000; outputting ring/diamond or prices near the shown items
+is a serious error.) Struggling to read the message is NEVER a reason to fall
+back to context values — return null instead.
+
+NULL-FIRST + OVERRIDE — short refinements ("under 20k", "aur dikhao") leave
+filters null; the system sticks prior category/material/gender/fulfillment.
+BUT if the CURRENT message explicitly changes audience or shipping, emit that
+new value: after a women search, "I want it for men" / "for him" → gender=men
+(not women, not null). Same for fulfillment: "made to order" after ready → mto.
 
 ## Classification rules
 
@@ -267,6 +279,7 @@ Examples of low-confidence inputs: bare "gold", "help", "kuch dikhao", "1 lakh" 
     "size": <integer 7-22 or null>,
     "collection": "<string e.g. Evil Eye, Tanishta, Nishka or null>",
     "gender": "<women|men|kids|null>",
+    "fulfillment": "<ready|mto|null>",
     "occasion": "<wedding|engagement|anniversary|birthday|daily_wear|gift|null>",
     "style": "<fashion|cocktail|couple_bands|minimal|infinity|hearts|floral|adjustable|traditional|modern|heavy|null>",
     "action": "<more|null>",
@@ -311,7 +324,7 @@ language codes:
   Re-evaluate on EVERY message — users switch scripts mid-conversation.
 
 Fallback for unclear or spam/gibberish:
-{"intent": "general", "confidence": 0.3, "language": "en", "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
+{"intent": "general", "confidence": 0.3, "language": "en", "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
 
 ---
 
@@ -351,10 +364,21 @@ Fallback for unclear or spam/gibberish:
 - karat: 9KT, 14KT, 18KT, 22KT, 24KT from query text.
 - metal_colour: yellow, white, rose (rose gold → material_type=gold, metal_colour=rose).
 - size: ring/bracelet size integer 7-22 when mentioned.
-- gender: women, men, kids from query (men's, for her, etc.).
-- occasion: infer from context — wife ka birthday→birthday,
-  anniversary gift→anniversary, shaadi→wedding, engagement→engagement,
-  roz pehenna→daily_wear.
+- gender: ONLY emit women|men|kids|null (never female/male/her/him as values).
+  Map: for her/wife/ladies/girlfriend/gf/mummy/maa/behen/sister/beti/daughter/female
+  → women; for him/men's/husband/boyfriend/bf/papa/bhai/brother/beta/gents/male → men;
+  kids/children/baby/bacche → kids.
+  CURRENT message wins on audience switch (prior women + "for men" → gender=men).
+- fulfillment: ready|mto|null ONLY when CURRENT message states shipping preference.
+  ready: "ready to ship" / "ready stock" / "in stock" / "immediate dispatch" / "quick ship"
+  mto: "made to order" / "make to order" / "custom order" (catalog MTO filter)
+  NOT fulfillment: product stock Q ("available hai kya") → product_info, fulfillment=null.
+  NOT fulfillment: custom design/engraving/"banwana" → human_handoff, not mto.
+  Every Kisna product can be MTO — do NOT invent mto. Unstated → null.
+  Short refinements leave fulfillment null; system carries prior. Explicit switch wins.
+- occasion: soft UX hint only (NOT a Clara catalog filter). Infer only when CURRENT
+  message states it — wife ka birthday→birthday, anniversary gift→anniversary,
+  shaadi→wedding, engagement→engagement, roz pehenna→daily_wear. Else null.
 - style: fashion, cocktail, couple_bands, minimal, infinity, hearts, floral,
   adjustable; also traditional, modern, heavy.
   lightweight/light weight/halka/halki → minimal. sleek/contemporary → modern.
@@ -528,22 +552,31 @@ E10. "das hazaar se bees hazaar tak gold bali" →
 {"intent": "product_search", "confidence": 0.9, "entities": {"category": "earring", "material_type": "gold", "min_price": 10000, "max_price": 20000, "title": null, "occasion": null, "style": null}}
 
 E11. "rose gold 18KT ring" →
-{"intent": "product_search", "confidence": 0.92, "entities": {"category": "ring", "material_type": "gold", "karat": "18KT", "metal_colour": "rose", "min_price": null, "max_price": null, "title": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
+{"intent": "product_search", "confidence": 0.92, "entities": {"category": "ring", "material_type": "gold", "karat": "18KT", "metal_colour": "rose", "min_price": null, "max_price": null, "title": null, "collection": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
 
 E12. "Evil Eye bracelet" →
-{"intent": "product_search", "confidence": 0.9, "entities": {"category": "bracelet", "collection": "Evil Eye", "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "gender": null, "occasion": null, "style": null, "action": null}}
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": "bracelet", "collection": "Evil Eye", "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
 
 E13. "diamond ring size 12" →
-{"intent": "product_search", "confidence": 0.91, "entities": {"category": "ring", "material_type": "diamond", "size": 12, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
+{"intent": "product_search", "confidence": 0.91, "entities": {"category": "ring", "material_type": "diamond", "size": 12, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "collection": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
 
 E14. "men's gold chain" →
-{"intent": "product_search", "confidence": 0.9, "entities": {"category": "chain", "material_type": "gold", "gender": "men", "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "occasion": null, "style": null, "action": null}}
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": "chain", "material_type": "gold", "gender": "men", "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
 
 E14a. "Show me gold Chains above 50k" →
-{"intent": "product_search", "confidence": 0.93, "entities": {"category": "chain", "material_type": "gold", "min_price": 50000, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": null}}
+{"intent": "product_search", "confidence": 0.93, "entities": {"category": "chain", "material_type": "gold", "min_price": 50000, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
+
+E14b. "ready to ship diamond rings under 20k" →
+{"intent": "product_search", "confidence": 0.93, "entities": {"category": "ring", "material_type": "diamond", "min_price": null, "max_price": 20000, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": "ready", "occasion": null, "style": null, "action": null}}
+
+E14c. "under 20k" | active: product_search (women gold rings) →
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": 20000, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
+
+E14d. "I want it for men" | active: product_search (prior gender=women) →
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": "men", "fulfillment": null, "occasion": null, "style": null, "action": null}}
 
 E15. "aur dikhao" | active: product_search →
-{"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "occasion": null, "style": null, "action": "more"}}
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": "more"}}
 """
 
 kisna_entity_extractor = """
@@ -577,10 +610,14 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
    Read native digits as digits: ૧૦,૦૦૦ = 10,000 · ५०,००० = 50,000 · ૩૦,૦૦૦ = 30,000.
    કાનની બુટ્ટી/બુટ્ટી = earring · વીંટી = ring · હાર = necklace · અંગૂઠી = ring.
 6. ENTITY SOURCE LAW — extract ONLY from the CURRENT message. The conversation
-   context is NEVER a source for category/material/price values. If the current
-   message doesn't name a value, return null — null is handled correctly; a value
-   copied from context silently searches the wrong thing. Struggling to read the
-   message is never a reason to fall back to context values.
+   context is NEVER a source for category/material/price/gender/fulfillment/
+   karat/colour/size/occasion/style/collection. If the current message doesn't
+   name a value, return null — null is handled correctly; a value copied from
+   context silently searches the wrong thing. Struggling to read the message is
+   never a reason to fall back to context values.
+7. NULL-FIRST + OVERRIDE — short refinements leave filters null (system sticks
+   prior). Explicit audience/shipping in CURRENT message must be emitted:
+   prior women + "for men" → gender=men. prior ready + "made to order" → mto.
 
 ## DISAMBIGUATION (common traps — read carefully)
 1. "22k"/"18k" alone: KARAT when describing the metal ("22k gold ring" → karat=22KT).
@@ -618,6 +655,7 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
   "size": <integer 7-22 or null>,
   "collection": "<Evil Eye|Tanishta|Rivaah|etc. or null>",
   "gender": "women|men|kids|null",
+  "fulfillment": "ready|mto|null",
   "occasion": "wedding|engagement|anniversary|birthday|
                daily_wear|gift|null",
   "style": "fashion|cocktail|minimal|traditional|modern|couple_bands|
@@ -743,9 +781,20 @@ style:
   adjustable → adjustable
 
 gender:
-  for her/wife/ladies/girlfriend/gf/mummy/maa/behen/sister/beti/daughter → women
-  for him/men's/husband/boyfriend/bf/papa/bhai/brother/beta/son (adult) → men
+  ONLY emit women|men|kids|null — never female/male/her/him as the value.
+  for her/wife/ladies/girlfriend/gf/mummy/maa/behen/sister/beti/daughter/female → women
+  for him/men's/husband/boyfriend/bf/papa/bhai/brother/beta/son (adult)/gents/male → men
   for kids/children/baby/bacche → kids
+  CURRENT wins: after a women search, "I want it for men" → gender=men (not null).
+
+fulfillment (shipping / availability — CURRENT message only):
+  ready to ship / ready-to-ship / ready stock / in stock / immediate dispatch /
+  quick ship → ready
+  made to order / made-to-order / make to order / custom order → mto
+  NOT fulfillment: "available hai kya" on a shown product (stock Q) → null
+  NOT fulfillment: custom design / engraving / banwana (handoff) → null
+  If NOT mentioned in THIS message → null (do not invent; do not copy history).
+  Note: all products can be MTO; "mto" only when the user explicitly asks for it.
 
 If a field is not present → null.
 NEVER invent values not in the message.
@@ -754,6 +803,23 @@ Examples:
 "rose gold rings under 50000" →
 {"category":"ring","material_type":"rose_gold",
  "metal_colour":"rose","max_price":50000,...nulls}
+
+"ready to ship diamond rings under 20k" →
+{"category":"ring","material_type":"diamond","max_price":20000,
+ "fulfillment":"ready",...nulls}
+
+"made to order gold necklace for her" →
+{"category":"necklace","material_type":"gold","gender":"women",
+ "fulfillment":"mto",...nulls}
+
+"under 20k" (refinement; prior search exists) →
+{"max_price":20000, "category":null, "gender":null, "fulfillment":null, ...nulls}
+
+"I want it for men" (prior gender=women) →
+{"gender":"men", "category":null, "fulfillment":null, ...nulls}
+
+"for men" (prior women gold rings) →
+{"gender":"men", ...all other filters null}
 
 "18KT white gold diamond earrings" →
 {"category":"earring","material_type":"diamond",

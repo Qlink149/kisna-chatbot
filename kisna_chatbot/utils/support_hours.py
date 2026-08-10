@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
-from datetime import datetime, time
-from functools import lru_cache
+from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -14,7 +12,8 @@ WEEKDAY_CLOSE = time(18, 30)
 SAT_OPEN = time(10, 0)
 SAT_CLOSE = time(16, 0)
 
-# Empty until client supplies official holiday list — ad-hoc closures via env only.
+# Company holiday calendar (YYYY-MM-DD → display name).
+# Empty until client supplies the official list — fill entries here.
 SUPPORT_HOLIDAYS: dict[str, str] = {}
 
 
@@ -23,28 +22,47 @@ def format_support_hours_text() -> str:
     return "10:00am–6:30pm Mon–Fri, 10am–4pm Sat IST"
 
 
-@lru_cache(maxsize=1)
-def _env_holidays() -> dict[str, str]:
-    raw = (os.getenv("KISNA_SUPPORT_HOLIDAYS") or "").strip()
-    if not raw:
-        return {}
-    holidays: dict[str, str] = {}
-    for part in raw.split(","):
-        piece = part.strip()
-        if not piece:
-            continue
-        if ":" in piece:
-            date_str, name = piece.split(":", 1)
-            holidays[date_str.strip()] = name.strip()
-        else:
-            holidays[piece] = "Holiday"
-    return holidays
+def _to_ist(now: datetime | None = None) -> datetime:
+    if now is None:
+        return datetime.now(IST)
+    if now.tzinfo is None:
+        return now.replace(tzinfo=IST)
+    return now.astimezone(IST)
 
 
-def _merged_holidays() -> dict[str, str]:
-    merged = dict(SUPPORT_HOLIDAYS)
-    merged.update(_env_holidays())
-    return merged
+def _date_key(day: date | datetime | str) -> str:
+    if isinstance(day, str):
+        return day.strip()
+    if isinstance(day, datetime):
+        day = _to_ist(day).date()
+    return day.isoformat()
+
+
+def is_holiday(day: date | datetime | str) -> bool:
+    """True if the given calendar day is a company holiday."""
+    return _date_key(day) in SUPPORT_HOLIDAYS
+
+
+def holiday_name(day: date | datetime | str) -> str | None:
+    """Return holiday display name, or None if not a holiday."""
+    return SUPPORT_HOLIDAYS.get(_date_key(day))
+
+
+def is_working_day(day: date | datetime | str) -> bool:
+    """True for Mon–Sat that are not company holidays (Sunday always closed)."""
+    if isinstance(day, str):
+        try:
+            parsed = datetime.strptime(day.strip(), "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            return False
+    elif isinstance(day, datetime):
+        parsed = _to_ist(day).date()
+    else:
+        parsed = day
+
+    if parsed.weekday() == 6:  # Sunday
+        return False
+    return not is_holiday(parsed)
 
 
 def _is_within_hours(now: datetime) -> bool:
@@ -66,24 +84,12 @@ def get_support_status(now: datetime | None = None) -> dict:
       {"status": "closed_holiday", "holiday": "..."}
       {"status": "closed_hours"}
     """
-    if now is None:
-        now = datetime.now(IST)
-    elif now.tzinfo is None:
-        now = now.replace(tzinfo=IST)
-    else:
-        now = now.astimezone(IST)
-
+    now = _to_ist(now)
     date_key = now.strftime("%Y-%m-%d")
-    holidays = _merged_holidays()
-    if date_key in holidays:
-        return {"status": "closed_holiday", "holiday": holidays[date_key]}
+    if date_key in SUPPORT_HOLIDAYS:
+        return {"status": "closed_holiday", "holiday": SUPPORT_HOLIDAYS[date_key]}
 
     if not _is_within_hours(now):
         return {"status": "closed_hours"}
 
     return {"status": "open"}
-
-
-def clear_support_hours_cache() -> None:
-    """Clear cached env holidays (for tests)."""
-    _env_holidays.cache_clear()

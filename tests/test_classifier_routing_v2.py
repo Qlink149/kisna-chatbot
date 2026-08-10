@@ -153,6 +153,59 @@ class EntityExtractorPromptTests(unittest.TestCase):
         self.assertIn("lightweight", kisna_classifier)
         self.assertIn("NEGATION", kisna_classifier)
 
+    def test_fulfillment_schema_in_both_prompts(self):
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        for prompt in (kisna_classifier, kisna_entity_extractor):
+            self.assertIn('"fulfillment"', prompt)
+            self.assertIn("ready|mto", prompt)
+            self.assertIn("CURRENT message", prompt)
+
+    def test_fulfillment_sanitizer_allowlist(self):
+        from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+        self.assertEqual(
+            _sanitize_llm_entities({"fulfillment": "ready"})["fulfillment"], "ready"
+        )
+        self.assertEqual(
+            _sanitize_llm_entities({"fulfillment": "MTO"})["fulfillment"], "mto"
+        )
+        self.assertEqual(
+            _sanitize_llm_entities({"fulfillment": "ready_to_ship"})["fulfillment"],
+            "ready",
+        )
+        self.assertEqual(
+            _sanitize_llm_entities({"fulfillment": "made-to-order"})["fulfillment"],
+            "mto",
+        )
+        self.assertIsNone(
+            _sanitize_llm_entities({"fulfillment": "express"})["fulfillment"]
+        )
+        self.assertIsNone(_sanitize_llm_entities({})["fulfillment"])
+
+    def test_gender_sanitizer_aliases(self):
+        from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+        self.assertEqual(
+            _sanitize_llm_entities({"gender": "female"})["gender"], "women"
+        )
+        self.assertEqual(_sanitize_llm_entities({"gender": "male"})["gender"], "men")
+        self.assertEqual(_sanitize_llm_entities({"gender": "ladies"})["gender"], "women")
+        self.assertEqual(_sanitize_llm_entities({"gender": "gents"})["gender"], "men")
+        self.assertEqual(_sanitize_llm_entities({"gender": "kid"})["gender"], "kids")
+        self.assertEqual(
+            _sanitize_llm_entities({"gender": "women"})["gender"], "women"
+        )
+        self.assertIsNone(_sanitize_llm_entities({"gender": "unisex"})["gender"])
+
+    def test_null_first_and_gender_override_in_prompts(self):
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        for prompt in (kisna_classifier, kisna_entity_extractor):
+            self.assertIn("NULL-FIRST", prompt)
+            self.assertIn("I want it for men", prompt)
+            self.assertIn("never female", prompt.lower())
+
 
 class IndicScriptGateTests(unittest.TestCase):
     """Indic-script messages must always reach the LLM classifier."""

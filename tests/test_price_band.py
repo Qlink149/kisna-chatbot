@@ -378,6 +378,35 @@ class TestEvidenceGate(unittest.TestCase):
         )
         self.assertEqual(gated["collection"], "Evil Eye")
 
+    def test_strips_invented_fulfillment(self):
+        gated = apply_llm_evidence_gate(
+            "gold rings under 20000",
+            {"category": "ring", "material_type": "gold", "fulfillment": "ready"},
+        )
+        self.assertIsNone(gated["fulfillment"])
+
+    def test_keeps_ready_when_user_said_ready_to_ship(self):
+        gated = apply_llm_evidence_gate(
+            "ready to ship diamond rings",
+            {"category": "ring", "material_type": "diamond", "fulfillment": "ready"},
+        )
+        self.assertEqual(gated["fulfillment"], "ready")
+
+    def test_keeps_mto_when_user_said_made_to_order(self):
+        gated = apply_llm_evidence_gate(
+            "made to order gold necklace",
+            {"category": "necklace", "material_type": "gold", "fulfillment": "mto"},
+        )
+        self.assertEqual(gated["fulfillment"], "mto")
+
+    def test_strips_wrong_fulfillment_value(self):
+        # User said ready; LLM wrongly set mto → strip (regex fill can re-apply).
+        gated = apply_llm_evidence_gate(
+            "ready to ship rings",
+            {"category": "ring", "fulfillment": "mto"},
+        )
+        self.assertIsNone(gated["fulfillment"])
+
 
 class TestOccasionStyleHintsGated(unittest.TestCase):
     def test_invented_wedding_with_query_does_not_set_bridal(self):

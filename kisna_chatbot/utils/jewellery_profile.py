@@ -11,6 +11,7 @@ _OCCASION_SYNONYMS: dict[str, list[str]] = {
     "engagement": ["engagement", "sagai", "roka"],
     "daily wear": ["daily wear", "daily", "everyday", "office", "casual", "office wear"],
     "gift": ["gift", "present", "birthday gift"],
+    "birthday": ["birthday", "bday"],
     "festival": [
         "festival",
         "diwali",

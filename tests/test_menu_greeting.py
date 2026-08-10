@@ -61,12 +61,22 @@ class TestMenuGreeting(unittest.TestCase):
             user_profile={"username": "Priya"},
         )
         self.assertIn("Priya", text)
-        self.assertIn("Welcome to Kisna", text)
+        self.assertIn("I'm KIA, your trusted jewellery assistant", text)
+        self.assertIn("What would you like to do today?", text)
 
     def test_greeting_without_name(self):
         text = build_greeting_text(chat_history=[], user_profile={})
         self.assertNotIn("None", text)
-        self.assertIn("Welcome to Kisna", text)
+        self.assertIn("I'm KIA, your trusted jewellery assistant", text)
+
+    def test_greeting_returning_user(self):
+        text = build_greeting_text(
+            chat_history=[{"role": "user", "content": "hi"}],
+            user_profile={"username": "Priya"},
+        )
+        self.assertIn("Welcome back", text)
+        self.assertIn("Priya", text)
+        self.assertIn("What would you like to do today?", text)
 
     def test_greeting_garbage_name_omitted(self):
         for bad in ("12345", "a" * 40, "foo@bar.com", "None"):
@@ -103,7 +113,7 @@ class TestMenuGreeting(unittest.TestCase):
         )
         self.assertEqual(len(responses), 1)
         self.assertEqual(responses[0]["type"], "text")
-        self.assertIn("Welcome to Kisna", responses[0]["text"])
+        self.assertIn("I'm KIA, your trusted jewellery assistant", responses[0]["text"])
         self.assertNotIn("Welcome back", responses[0]["text"])
 
     def test_complaint_flow_shape(self):

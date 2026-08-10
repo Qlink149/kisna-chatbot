@@ -23,6 +23,9 @@ _TRANSIENT_KEYS = (
     "pending_vague_slot_fill",
     "pending_variant_select",
     "_price_direction_hint",
+    "shopping_wizard_active",
+    "shopping_wizard_step",
+    "shopping_wizard_data",
 )
 
 _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
@@ -35,6 +38,9 @@ _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
         "pref_type",
         "pref_title",
         "custom_budget_attempts",
+        "shopping_wizard_active",
+        "shopping_wizard_step",
+        "shopping_wizard_data",
     ),
     "ad_flow": ("awaiting_store_pincode",),
     "complaint": ("pending_clarification",),

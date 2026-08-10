@@ -13,7 +13,8 @@ from kisna_chatbot.utils.support_slots import (
     SLOT_LABELS,
     available_slots_for_date,
     format_slots_for_prompt,
-    is_preferred_datetime_valid,
+    normalize_slot_id,
+    resolve_booking_slot,
     today_ist_iso,
 )
 from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
@@ -33,20 +34,32 @@ _REASON_LABELS = {
 _TIME_LABELS = {
     **SLOT_LABELS,
     # Legacy values from older flows
-    "morning": "Morning (10 AM–1 PM)",
-    "afternoon": "Afternoon (1 PM–5 PM)",
+    "morning": "Morning — 10 AM–1 PM",
+    "afternoon": "Afternoon — 1 PM–3 PM",
+    "10-11": "Morning — 10 AM–1 PM",
+    "11-12": "Morning — 10 AM–1 PM",
+    "12-13": "Morning — 10 AM–1 PM",
+    "13-14": "Afternoon — 1 PM–3 PM",
+    "14-15": "Afternoon — 1 PM–3 PM",
+    "15-16": "Evening — 3 PM–6 PM",
+    "16-17": "Evening — 3 PM–6 PM",
 }
 
 _SLOT_ORDER = {
+    "10-13": 0,
+    "13-15": 1,
+    "15-18": 2,
+    "10-16": 0,
+    # Legacy
     "10-11": 0,
-    "11-12": 1,
-    "12-13": 2,
-    "13-14": 3,
-    "14-15": 4,
-    "15-16": 5,
-    "16-17": 6,
+    "11-12": 0,
+    "12-13": 0,
+    "13-14": 1,
+    "14-15": 1,
+    "15-16": 2,
+    "16-17": 2,
     "morning": 0,
-    "afternoon": 3,
+    "afternoon": 1,
 }
 
 _GENERIC_ERROR = (
@@ -54,14 +67,9 @@ _GENERIC_ERROR = (
     "Please try again or contact our support team."
 )
 
-_REJECT_PAST_DATE = (
-    "That date has already passed. Please request again and choose today "
-    "or a future date."
-)
-
-_REJECT_PAST_SLOT = (
-    "That time slot is no longer available. Please request again and pick "
-    "a later slot (or another date)."
+_REJECT_FULLY_BOOKED = (
+    "We're fully booked for the next several weeks. "
+    "Please try again later or contact our support team."
 )
 
 _REJECT_INVALID = (
@@ -172,34 +180,44 @@ def _notify_admins(
         )
 
 
-def _reject_message_for_reason(reason: str) -> str:
-    if reason == "past_date":
-        return _REJECT_PAST_DATE
-    if reason == "past_slot":
-        return _REJECT_PAST_SLOT
-    return _REJECT_INVALID
-
-
-def _validate_booking(preferred_date: str, preferred_time: str) -> str | None:
-    """Return reject message text, or None if valid."""
-    ok, reason = is_preferred_datetime_valid(preferred_date, preferred_time)
-    if ok:
-        return None
-    return _reject_message_for_reason(reason)
-
-
-def _build_confirmation(request_id: str, request_type: str) -> list[dict]:
+def _build_confirmation(
+    request_id: str,
+    request_type: str,
+    *,
+    preferred_date: str = "",
+    preferred_time: str = "",
+    was_rescheduled: bool = False,
+) -> list[dict]:
     label = "video call" if request_type == "video_call" else "callback"
-    return [
-        {
-            "type": "text",
-            "text": (
-                f"Thank you! Your {label} request has been registered.\n"
-                f"Request ID: {request_id}\n"
-                "Our team will contact you soon."
-            ),
-        }
+    slot_label = _display_time(preferred_time) if preferred_time else preferred_time
+    lines = [
+        f"Thank you! Your {label} request has been registered.",
+        f"Request ID: {request_id}",
     ]
+    if preferred_date and preferred_time:
+        lines.append(f"Scheduled for: {preferred_date} · {slot_label}")
+    if was_rescheduled:
+        lines.append(
+            "Your preferred slot was full, so we booked the next available "
+            "time for you."
+        )
+    lines.append("Our team will contact you soon.")
+    return [{"type": "text", "text": "\n".join(lines)}]
+
+
+def _resolve_or_reject(
+    preferred_date: str, preferred_time: str
+) -> tuple[str, str, bool] | str:
+    """
+    Return (date, slot, was_rescheduled) or an error message string.
+    """
+    resolved = resolve_booking_slot(preferred_date, preferred_time)
+    if resolved is None:
+        if preferred_date or preferred_time:
+            return _REJECT_FULLY_BOOKED
+        return _REJECT_INVALID
+    return resolved
+
 
 
 def _build_request_doc(
@@ -282,14 +300,14 @@ class CallbackAgent(Processor):
                 preferred_date,
             ) = _extract_request_fields(flow_data)
 
-            reject = _validate_booking(preferred_date, preferred_time)
-            if reject:
-                data["bot_response"] = [{"type": "text", "text": reject}]
+            resolved = _resolve_or_reject(preferred_date, preferred_time)
+            if isinstance(resolved, str):
+                data["bot_response"] = [{"type": "text", "text": resolved}]
                 user_profile["service_selected"] = ""
                 user_profile.pop("callback_capture_step", None)
                 user_profile.pop("callback_draft", None)
                 logger.info(
-                    "Support request rejected (past/invalid slot)",
+                    "Support request rejected (no available slot)",
                     extra={
                         "phone_number": phone_number,
                         "preferred_date": preferred_date,
@@ -297,6 +315,8 @@ class CallbackAgent(Processor):
                     },
                 )
                 return data
+
+            preferred_date, preferred_time, was_rescheduled = resolved
 
             request_id = generate_request_id(
                 "VC" if request_type == "video_call" else "CB"
@@ -324,7 +344,13 @@ class CallbackAgent(Processor):
                 mobile,
             )
 
-            data["bot_response"] = _build_confirmation(request_id, request_type)
+            data["bot_response"] = _build_confirmation(
+                request_id,
+                request_type,
+                preferred_date=preferred_date,
+                preferred_time=preferred_time,
+                was_rescheduled=was_rescheduled,
+            )
             user_profile["service_selected"] = ""
             user_profile.pop("callback_capture_step", None)
             user_profile.pop("callback_draft", None)
@@ -335,6 +361,9 @@ class CallbackAgent(Processor):
                     "phone_number": phone_number,
                     "request_id": request_id,
                     "request_type": request_type,
+                    "preferred_date": preferred_date,
+                    "preferred_time": preferred_time,
+                    "was_rescheduled": was_rescheduled,
                 },
             )
             return data
@@ -423,13 +452,15 @@ class CallbackAgent(Processor):
             request_type = draft.get("request_type", "callback")
             preferred_date = draft.get("preferred_date", "")
             preferred_time = draft.get("preferred_time", "")
-            reject = _validate_booking(preferred_date, preferred_time)
-            if reject:
-                data["bot_response"] = [{"type": "text", "text": reject}]
+            resolved = _resolve_or_reject(preferred_date, preferred_time)
+            if isinstance(resolved, str):
+                data["bot_response"] = [{"type": "text", "text": resolved}]
                 user_profile["service_selected"] = ""
                 user_profile.pop("callback_capture_step", None)
                 user_profile.pop("callback_draft", None)
                 return data
+
+            preferred_date, preferred_time, was_rescheduled = resolved
 
             request_id = generate_request_id(
                 "VC" if request_type == "video_call" else "CB"
@@ -454,7 +485,13 @@ class CallbackAgent(Processor):
                 request_type,
                 draft.get("mobile", ""),
             )
-            data["bot_response"] = _build_confirmation(request_id, request_type)
+            data["bot_response"] = _build_confirmation(
+                request_id,
+                request_type,
+                preferred_date=preferred_date,
+                preferred_time=preferred_time,
+                was_rescheduled=was_rescheduled,
+            )
             user_profile["service_selected"] = ""
             user_profile.pop("callback_capture_step", None)
             user_profile.pop("callback_draft", None)
@@ -536,27 +573,29 @@ def _normalize_date_text(text: str) -> str:
 
 def _normalize_time_text(text: str) -> str:
     normalized = (text or "").strip().lower().replace(" ", "")
-    if normalized in _TIME_LABELS:
-        return normalized
-    # Map free-text hour mentions to slots
+    if normalized in _TIME_LABELS or normalized in SLOT_LABELS:
+        return normalize_slot_id(normalized)
+    # Map free-text mentions to new blocks
     hour_map = {
-        "10": "10-11",
-        "11": "11-12",
-        "12": "12-13",
-        "1": "13-14",
-        "13": "13-14",
-        "2": "14-15",
-        "14": "14-15",
-        "3": "15-16",
-        "15": "15-16",
-        "4": "16-17",
-        "16": "16-17",
+        "10-13": "10-13",
+        "13-15": "13-15",
+        "15-18": "15-18",
+        "10-16": "10-16",
+        "10-11": "10-13",
+        "11-12": "10-13",
+        "12-13": "10-13",
+        "13-14": "13-15",
+        "14-15": "13-15",
+        "15-16": "15-18",
+        "16-17": "15-18",
     }
     for key, slot in hour_map.items():
-        if key in normalized and ("am" in normalized or "pm" in normalized or "-" in normalized):
+        if key in normalized:
             return slot
-    if "morning" in normalized:
-        return "10-11"
-    if "afternoon" in normalized:
-        return "13-14"
-    return normalized.replace(" ", "_")
+    if "morning" in normalized or "10am" in normalized or "10a" in normalized:
+        return "10-13"
+    if "evening" in normalized or "3pm" in normalized or "3p" in normalized:
+        return "15-18"
+    if "afternoon" in normalized or "1pm" in normalized or "1p" in normalized:
+        return "13-15"
+    return normalize_slot_id(normalized.replace(" ", "_"))

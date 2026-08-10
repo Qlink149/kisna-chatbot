@@ -35,6 +35,16 @@ _CAPABILITY_HINT = (
     "a store near you, or your order status."
 )
 
+_KIA_INTRO = (
+    "I'm KIA, your trusted jewellery assistant. Whether you're looking for "
+    "the perfect piece, exploring our latest collections, checking today's "
+    "offers, tracking an order, or need support, I'm here to make your "
+    "shopping experience simple and enjoyable.\n"
+    "What would you like to do today?"
+)
+
+_WHAT_TODAY = "What would you like to do today?"
+
 _SLOT_FILL_QUESTION = (
     "Lovely! Are you thinking rings, earrings, necklaces…? "
     "And any budget in mind? e.g. under 25k, 15–35k, around 1 lakh"
@@ -201,14 +211,8 @@ def build_greeting_text(
     name = _display_name_from_profile(user_profile)
     if is_new_session(history):
         if name:
-            return (
-                f"Hi {name}! 👋 Welcome to Kisna — I'm KIA, your jewellery assistant.\n"
-                f"{_CAPABILITY_HINT}"
-            )
-        return (
-            "Hi! 👋 Welcome to Kisna — I'm KIA, your jewellery assistant.\n"
-            f"{_CAPABILITY_HINT}"
-        )
+            return f"Hi {name}! 👋 {_KIA_INTRO}"
+        return f"Hi! 👋 {_KIA_INTRO}"
 
     continue_hint = _format_recent_search_hint(user_profile)
     if name:
@@ -216,9 +220,9 @@ def build_greeting_text(
     else:
         text = "Welcome back! 👋"
     if continue_hint:
-        text = f"{text}\n{continue_hint}"
+        text = f"{text}\n{continue_hint}\n{_WHAT_TODAY}"
     else:
-        text = f"{text} {_CAPABILITY_HINT}"
+        text = f"{text}\n{_WHAT_TODAY}"
     return text
 
 
@@ -687,7 +691,11 @@ def _build_rating_quickreply() -> dict:
 def _is_product_search_postback(postback: str) -> bool:
     """True if list postback should be handled by ProductSearchAgentV3."""
     postback = (postback or "").strip()
-    return postback.startswith("search$") or postback.startswith("pref$")
+    return (
+        postback.startswith("search$")
+        or postback.startswith("pref$")
+        or postback.startswith("wizard$")
+    )
 
 
 def _handle_menu_selection(
@@ -797,7 +805,7 @@ def _handle_rating_button(button_reply: dict, data: dict, phone_number: str) -> 
 
 def _is_delegated_button(msgid: str) -> bool:
     """True if another processor should handle this button."""
-    prefixes = ("buy$", "preorder$", "track$", "details$", "product$")
+    prefixes = ("buy$", "preorder$", "track$", "details$", "product$", "wizard$")
     return any(msgid.startswith(p) for p in prefixes)
 
 
@@ -877,6 +885,10 @@ class ServiceList(Processor):
                     )
                     return data
 
+                if btn_msgid.startswith("wizard$"):
+                    user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                    return data
+
                 if _is_delegated_button(btn_msgid):
                     return data
 
@@ -902,6 +914,12 @@ class ServiceList(Processor):
                     return data
 
                 if list_msgid == _EXPLORE_CAT_LIST_MSGID:
+                    user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                    return data
+
+                if list_msgid.startswith("wizard$") or (postback or "").startswith(
+                    "wizard$"
+                ):
                     user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
                     return data
 

@@ -136,6 +136,16 @@ async def lifespan(app: FastAPI):
         logger.exception("Failed to create processed_inbound_messages indexes")
 
     try:
+        from kisna_chatbot.database.collections import callback_requests
+
+        callback_requests.create_index(
+            [("preferred_date", ASCENDING), ("preferred_time", ASCENDING)],
+            name="callback_preferred_date_time",
+        )
+    except Exception:
+        logger.exception("Failed to create callback_requests indexes")
+
+    try:
         from kisna_chatbot.database.collections import chat_messages
         from kisna_chatbot.utils.message_trace import ensure_message_traces_ttl_index
 

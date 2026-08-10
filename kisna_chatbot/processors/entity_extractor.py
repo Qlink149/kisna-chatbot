@@ -642,6 +642,7 @@ _LLM_ONLY_FIELDS = (
     "occasion",
     "style",
     "gender",
+    "fulfillment",
     "karat",
     "size",
     "action",
@@ -1359,7 +1360,6 @@ _NEVER_INHERIT_FIELDS = frozenset({
     "metal_colour",
     "occasion",
     "style",
-    "gender",
 })
 
 _COLOUR_EVIDENCE_RE = re.compile(
@@ -1403,9 +1403,41 @@ _STYLE_EVIDENCE: dict[str, tuple[str, ...]] = {
 }
 
 _GENDER_EVIDENCE: dict[str, tuple[str, ...]] = {
-    "women": ("for her", "wife", "ladies", "women", "woman", "girlfriend"),
-    "men": ("for him", "men's", "mens", "husband", "men ", " men"),
-    "kids": ("kids", "children", "child", "baby", "for kids"),
+    "women": (
+        "for her",
+        "wife",
+        "ladies",
+        "women",
+        "woman",
+        "female",
+        "girlfriend",
+        "gf",
+        "mummy",
+        "maa",
+        "behen",
+        "sister",
+        "beti",
+        "daughter",
+        "girl",
+    ),
+    "men": (
+        "for him",
+        "men's",
+        "mens",
+        "husband",
+        "male",
+        "boyfriend",
+        "bf",
+        "papa",
+        "bhai",
+        "brother",
+        "beta",
+        "gents",
+        "boy",
+        "men ",
+        " men",
+    ),
+    "kids": ("kids", "children", "child", "baby", "for kids", "bacche"),
 }
 
 
@@ -1436,18 +1468,39 @@ def _gender_evidenced(query: str, gender: str | None) -> bool:
     if not gender:
         return False
     key = str(gender).strip().lower()
-    synonyms = _GENDER_EVIDENCE.get(key)
-    if not synonyms:
-        return False
     normalized = (query or "").lower()
+    if not normalized:
+        return False
     if key == "men":
-        # Avoid matching "women" / "recommendation" via bare "men"
-        if re.search(r"\b(for\s+him|men'?s|mens|husband)\b", normalized):
+        # Avoid matching "women" / "female" / "recommendation" via bare "men"/"male"
+        if re.search(
+            r"\b(for\s+him|men'?s|mens|husband|boyfriend|bf|gents|papa|"
+            r"bhai|brother|beta|boy)\b",
+            normalized,
+        ):
             return True
-        if re.search(r"\bmen\b", normalized) and not re.search(r"\bwomen\b", normalized):
+        if re.search(r"\bmale\b", normalized) and not re.search(
+            r"\bfemale\b", normalized
+        ):
+            return True
+        if re.search(r"\bmen\b", normalized) and not re.search(
+            r"\bwomen\b", normalized
+        ):
             return True
         return False
-    return _text_has_any_synonym(query, synonyms)
+    if key == "women":
+        if re.search(
+            r"\b(for\s+her|wife|ladies|women|woman|female|girlfriend|gf|"
+            r"mummy|maa|behen|sister|beti|daughter|girl)\b",
+            normalized,
+        ):
+            return True
+        return False
+    if key == "kids":
+        return _text_has_any_synonym(
+            query, _GENDER_EVIDENCE.get("kids", ())
+        )
+    return False
 
 
 def _collection_evidenced(query: str, collection: str | None) -> bool:
@@ -1465,6 +1518,14 @@ def _collection_evidenced(query: str, collection: str | None) -> bool:
     return False
 
 
+def _fulfillment_evidenced(query: str, fulfillment: str | None) -> bool:
+    """True when current message has an availability cue matching the value."""
+    if not fulfillment:
+        return False
+    inferred = extract_fulfillment(query)
+    return inferred == str(fulfillment).strip().lower()
+
+
 def apply_llm_evidence_gate(query: str, llm_entities: dict) -> dict:
     """
     Strip LLM-only attributes that lack evidence in the current user text.
@@ -1472,7 +1533,8 @@ def apply_llm_evidence_gate(query: str, llm_entities: dict) -> dict:
     metal_colour requires an explicit colour word (not bare 'gold').
     material_type requires regex material match.
     karat/size require KT/size evidence in the query.
-    occasion/style/gender/collection require synonym evidence in the query.
+    occasion/style/gender/collection/fulfillment require synonym evidence
+    in the query.
 
     IMPORTANT: the evidence checks are Latin-only regex. For native-script text
     (Devanagari / Gujarati / other Indic) they find nothing, which is NOT
@@ -1513,6 +1575,11 @@ def apply_llm_evidence_gate(query: str, llm_entities: dict) -> dict:
 
     if out.get("collection") and not _collection_evidenced(text, out.get("collection")):
         out["collection"] = None
+
+    if out.get("fulfillment") and not _fulfillment_evidenced(
+        text, out.get("fulfillment")
+    ):
+        out["fulfillment"] = None
 
     return out
 
@@ -1563,6 +1630,7 @@ def merge_search_entities(
         "occasion": new.get("occasion"),
         "style": new.get("style"),
         "action": new.get("action"),
+        "fulfillment": new.get("fulfillment"),
     }
 
     if not prior:
@@ -1579,6 +1647,8 @@ def merge_search_entities(
     new_has_price = (
         merged.get("min_price") is not None or merged.get("max_price") is not None
     )
+    new_has_gender = merged.get("gender") is not None
+    new_has_fulfillment = merged.get("fulfillment") is not None
     refinement_query = bool(_REFINEMENT_RE.search(normalized_query))
     price_only_new_search = (
         new_has_price
@@ -1595,6 +1665,14 @@ def merge_search_entities(
     ):
         return merged
 
+    # Audience / availability switch with no new product type — keep sticky slots.
+    audience_or_fulfillment_only = (
+        (new_has_gender or new_has_fulfillment)
+        and not new_has_category
+        and not new_has_material
+        and not new_has_title
+    )
+
     refinement_only = (
         not new_has_category
         and not new_has_material
@@ -1603,6 +1681,7 @@ def merge_search_entities(
         and (
             refinement_query
             or (new_has_price or _REFINEMENT_ONLY_RE.search(normalized_query))
+            or audience_or_fulfillment_only
         )
     )
 
@@ -1623,11 +1702,19 @@ def merge_search_entities(
             "gender",
             "occasion",
             "style",
+            "fulfillment",
         ):
             if key in _NEVER_INHERIT_FIELDS:
                 continue
             if merged.get(key) in (None, False) and prior.get(key) not in (None, False):
                 merged[key] = prior.get(key)
+        # Keep prior budget only when this turn did not name any price
+        # (e.g. gender switch "for men"). Never glue a stale min onto "under X".
+        if merged.get("min_price") is None and merged.get("max_price") is None:
+            if prior.get("min_price") is not None:
+                merged["min_price"] = prior.get("min_price")
+            if prior.get("max_price") is not None:
+                merged["max_price"] = prior.get("max_price")
 
     elif (
         not price_only_new_search
@@ -2025,6 +2112,8 @@ def apply_occasion_style_hints(
 
 def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
     """Convert entities dict to keyword args for clara_api.search_products."""
+    from kisna_chatbot.integrations.clara_api import GENDER_TAG_MANAGER_IDS
+
     normalized = normalize_entities_for_clara(entities)
     params: dict[str, Any] = {}
 
@@ -2055,7 +2144,50 @@ def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
             )
     elif title is not None:
         params["title"] = title
+
+    # Gender → Clara tagManagerId (from /clara/filters)
+    gender = entities.get("gender")
+    if isinstance(gender, str):
+        tag_id = GENDER_TAG_MANAGER_IDS.get(gender.strip().lower())
+        if tag_id:
+            params["tag_manager_id"] = tag_id
+
+    # Availability booleans — readyTOShip subsets; madeToOrder is full catalog
+    # (every product is MTO-eligible). Prefer ready when both somehow set.
+    fulfillment = entities.get("fulfillment")
+    if fulfillment == "ready":
+        params["ready_to_ship"] = True
+    elif fulfillment == "mto":
+        params["made_to_order"] = True
+
     return params
+
+
+_FULFILLMENT_READY_RE = re.compile(
+    r"\b("
+    r"ready\s*[- ]?\s*to\s*[- ]?\s*ship|ready\s*stock|in\s*stock|"
+    r"immediate\s*dispatch|quick\s*ship|ready\s*piece"
+    r")\b",
+    re.I,
+)
+_FULFILLMENT_MTO_RE = re.compile(
+    r"\b("
+    r"made\s*[- ]?\s*to\s*[- ]?\s*order|make\s*to\s*order|custom\s*order|"
+    r"customise|customize|custom\s*design"
+    r")\b",
+    re.I,
+)
+
+
+def extract_fulfillment(text: str | None) -> str | None:
+    """Return 'ready' | 'mto' | None from natural-language availability cues."""
+    if not text or not str(text).strip():
+        return None
+    if _FULFILLMENT_READY_RE.search(text):
+        return "ready"
+    if _FULFILLMENT_MTO_RE.search(text):
+        return "mto"
+    return None
 
 
 def build_search_context(entities: dict[str, Any]) -> str:

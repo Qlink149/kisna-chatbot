@@ -80,6 +80,16 @@ class TestFlowEndpointCrypto(unittest.TestCase):
 
 
 class TestFlowDataExchange(unittest.TestCase):
+    def setUp(self):
+        from kisna_chatbot.utils.support_slots import set_capacity_overrides
+
+        set_capacity_overrides(lambda _d: 0, lambda _d, _s: 0)
+
+    def tearDown(self):
+        from kisna_chatbot.utils.support_slots import clear_capacity_overrides
+
+        clear_capacity_overrides()
+
     def test_ping(self):
         self.assertEqual(
             build_flow_response({"action": "ping"}),
@@ -87,22 +97,36 @@ class TestFlowDataExchange(unittest.TestCase):
         )
 
     def test_date_selected_filters_slots(self):
-        # Freeze "now" by monkeypatching screen_data_for_date's now via preferred date
-        # and asserting structure; filter math is covered in test_support_slots.
+        # Fri 2099-01-16 — three weekday blocks (avoid weekend dates).
         resp = build_flow_response(
             {
                 "action": "data_exchange",
                 "screen": "CALLBACK_REQUEST",
                 "flow_token": "flow_callback_test",
                 "data": {
-                    "preferred_date": "2099-01-15",
+                    "preferred_date": "2099-01-16",
                     "trigger": "date_selected",
                 },
             }
         )
         self.assertEqual(resp["screen"], "CALLBACK_REQUEST")
-        self.assertEqual(len(resp["data"]["time_slots"]), 7)
-        self.assertEqual(resp["data"]["time_slots"][0]["id"], "10-11")
+        self.assertEqual(len(resp["data"]["time_slots"]), 3)
+        self.assertEqual(resp["data"]["time_slots"][0]["id"], "10-13")
+
+    def test_sunday_returns_empty_with_error(self):
+        resp = build_flow_response(
+            {
+                "action": "data_exchange",
+                "screen": "CALLBACK_REQUEST",
+                "flow_token": "flow_callback_test",
+                "data": {
+                    "preferred_date": "2099-01-18",  # Sunday
+                    "trigger": "date_selected",
+                },
+            }
+        )
+        self.assertEqual(resp["data"]["time_slots"], [])
+        self.assertIn("Sunday", resp["data"]["slot_error"])
 
     def test_init_returns_min_date_and_slots(self):
         resp = build_flow_response(

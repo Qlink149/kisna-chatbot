@@ -132,6 +132,15 @@ def _omit_empty_params(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Gender tagManagerId values from GET /api/v1/clara/filters (availability/gender).
+# Keys are bot-canonical gender labels (men → Mens slug in Clara).
+GENDER_TAG_MANAGER_IDS: dict[str, str] = {
+    "women": "6710b86de3421b6a92589b39",
+    "men": "66ec862c348e37f29673a282",
+    "kids": "66ec7af6cc1fc61e0532a14c",
+}
+
+
 def build_products_query_params(
     *,
     category: str | None = None,
@@ -139,20 +148,30 @@ def build_products_query_params(
     min_price: float | None = None,
     max_price: float | None = None,
     title: str | None = None,
+    tag_manager_id: str | None = None,
+    collection_id: str | None = None,
+    meta_sub_attribute_value: str | None = None,
+    ready_to_ship: bool | None = None,
+    made_to_order: bool | None = None,
     page_no: int = 1,
     page_size: int = 5,
 ) -> dict[str, Any]:
     """
-    Build Clara GET /api/v1/clara/products query params per Postman spec.
+    Build Clara GET /api/v1/clara/products query params.
 
-    Omits empty optional filters; always includes searchUrl=true for full product payloads.
+    Core filters: category, materialType, minPrice, maxPrice, title.
+    Extended filters from /clara/filters:
+      - tagManagerId (gender)
+      - collectionId
+      - metaSubAttributeValue (karat / color)
+      - readyTOShip / madeToOrder (availability) — note Clara's readyTOShip casing
     """
     params: dict[str, Any] = {
         "pageNo": page_no,
         "pageSize": page_size,
     }
     has_filters = False
-    
+
     if category is not None and str(category).strip():
         params["category"] = str(category).strip()
         has_filters = True
@@ -167,6 +186,27 @@ def build_products_query_params(
         has_filters = True
     if title is not None and str(title).strip():
         params["title"] = str(title).strip()
+        has_filters = True
+    if tag_manager_id is not None and str(tag_manager_id).strip():
+        params["tagManagerId"] = str(tag_manager_id).strip()
+        has_filters = True
+    if collection_id is not None and str(collection_id).strip():
+        params["collectionId"] = str(collection_id).strip()
+        has_filters = True
+    if meta_sub_attribute_value is not None and str(meta_sub_attribute_value).strip():
+        params["metaSubAttributeValue"] = str(meta_sub_attribute_value).strip()
+        has_filters = True
+    # Availability booleans from /clara/filters (queryParams: readyTOShip, madeToOrder).
+    # Semantics (confirmed with Kisna):
+    #   - Every product can be made-to-order (MTO is a capability, not a SKU subset).
+    #   - readyTOShip=true → in-stock / ready-to-ship subset only.
+    #   - madeToOrder=true → full matching catalog (expected; do not treat as a subset filter).
+    # Never send both flags together.
+    if ready_to_ship:
+        params["readyTOShip"] = "true"
+        has_filters = True
+    elif made_to_order:
+        params["madeToOrder"] = "true"
         has_filters = True
 
     if has_filters:
@@ -218,6 +258,11 @@ async def search_products(
     min_price: float | None = None,
     max_price: float | None = None,
     title: str | None = None,
+    tag_manager_id: str | None = None,
+    collection_id: str | None = None,
+    meta_sub_attribute_value: str | None = None,
+    ready_to_ship: bool | None = None,
+    made_to_order: bool | None = None,
     page_no: int = 1,
     page_size: int = 5,
 ) -> dict:
@@ -225,7 +270,8 @@ async def search_products(
     Search products via Clara API. Never cached — pricing changes daily.
 
     Query params: pageNo, pageSize, materialType, minPrice, maxPrice, category,
-    title, searchUrl=true.
+    title, tagManagerId, collectionId, metaSubAttributeValue, readyTOShip,
+    madeToOrder, searchUrl=true.
 
     List prices use price.variantPrice; WhatsApp display/MRP use API fields only
     via utils.price_calculator (no computed MRP).
@@ -239,6 +285,11 @@ async def search_products(
         min_price=min_price,
         max_price=max_price,
         title=title,
+        tag_manager_id=tag_manager_id,
+        collection_id=collection_id,
+        meta_sub_attribute_value=meta_sub_attribute_value,
+        ready_to_ship=ready_to_ship,
+        made_to_order=made_to_order,
         page_no=page_no,
         page_size=page_size,
     )

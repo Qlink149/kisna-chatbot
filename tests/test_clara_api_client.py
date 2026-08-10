@@ -60,6 +60,35 @@ class BuildProductsQueryParamsTests(unittest.TestCase):
         self.assertNotIn("title", params)
         self.assertIn("materialType", params)
 
+    def test_availability_and_gender_params(self):
+        params = build_products_query_params(
+            category="ring",
+            tag_manager_id="6710b86de3421b6a92589b39",
+            ready_to_ship=True,
+            page_no=1,
+            page_size=5,
+        )
+        self.assertEqual(params["category"], "ring")
+        self.assertEqual(params["tagManagerId"], "6710b86de3421b6a92589b39")
+        self.assertEqual(params["readyTOShip"], "true")
+        self.assertNotIn("madeToOrder", params)
+
+        mto = build_products_query_params(
+            category="ring",
+            made_to_order=True,
+        )
+        self.assertEqual(mto["madeToOrder"], "true")
+        self.assertNotIn("readyTOShip", mto)
+
+        # ready wins when both True (never send both)
+        both = build_products_query_params(
+            category="ring",
+            ready_to_ship=True,
+            made_to_order=True,
+        )
+        self.assertEqual(both["readyTOShip"], "true")
+        self.assertNotIn("madeToOrder", both)
+
 
 class ParseProductsResponseTests(unittest.TestCase):
     def test_parses_products_fixture(self):

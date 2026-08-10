@@ -91,6 +91,16 @@ def build_clara_query_params(
         out["maxPrice"] = raw["max_price"]
     if raw.get("title"):
         out["title"] = raw["title"]
+    if raw.get("tag_manager_id"):
+        out["tagManagerId"] = raw["tag_manager_id"]
+    if raw.get("collection_id"):
+        out["collectionId"] = raw["collection_id"]
+    if raw.get("meta_sub_attribute_value"):
+        out["metaSubAttributeValue"] = raw["meta_sub_attribute_value"]
+    if raw.get("ready_to_ship"):
+        out["readyTOShip"] = "true"
+    if raw.get("made_to_order"):
+        out["madeToOrder"] = "true"
     out["searchUrl"] = "true"
     return out
 

@@ -21,9 +21,9 @@
             }
           },
           "__example__": [
-            {"id": "14-15", "title": "Afternoon — 2 PM–3 PM"},
-            {"id": "15-16", "title": "Afternoon — 3 PM–4 PM"},
-            {"id": "16-17", "title": "Afternoon — 4 PM–5 PM"}
+            {"id": "10-13", "title": "Morning — 10 AM–1 PM"},
+            {"id": "13-15", "title": "Afternoon — 1 PM–3 PM"},
+            {"id": "15-18", "title": "Evening — 3 PM–6 PM"}
           ]
         },
         "slot_error": {

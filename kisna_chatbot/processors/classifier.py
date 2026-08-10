@@ -172,9 +172,18 @@ _CUSTOM_JEWELLERY_HANDOFF_MESSAGE = (
 _HUMAN_HANDOFF_RE = re.compile(
     r"\b("
     r"human|agent\s+se|customer\s+care|live\s+agent|support\s+chahiye|"
-    r"baat\s+karni\s+hai|kisi\s+se\s+baat|call\s+me\s+back|connect\s+me|"
+    r"baat\s+karni\s+hai|kisi\s+se\s+baat|connect\s+me|"
     r"need\s+urgent\s+support|talk\s+to\s+(?:an?\s+)?(?:agent|human|expert)|"
-    r"baat\s+karao|call\s+karwao"
+    r"baat\s+karao"
+    r")\b",
+    re.I,
+)
+
+_CALLBACK_RE = re.compile(
+    r"\b("
+    r"call\s*me\s*back|call\s*back|callback|request\s+(?:a\s+)?callback|"
+    r"phone\s+karo|mujhe\s+call|call\s+karwao|call\s+karo|"
+    r"callback\s+form|schedule\s+(?:a\s+)?callback"
     r")\b",
     re.I,
 )
@@ -209,6 +218,14 @@ _SCHEME_RE = re.compile(
     r"\b("
     r"schemes?|kmr|meri\s+roshni|savings?\s+plan|gold\s+plan|"
     r"monthly\s+plan|installment\s+plan|kisht?\s+plan|10\s*\+\s*1"
+    r")\b",
+    re.I,
+)
+
+_DIGITAL_GOLD_RE = re.compile(
+    r"\b("
+    r"digital\s+gold|safegold|safe\s+gold|buy\s+gold\s+online|"
+    r"gold\s+sip|digital\s+sona"
     r")\b",
     re.I,
 )
@@ -360,11 +377,13 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("general", 0.95)
     if _is_custom_jewellery_query(normalized):
         return ("human_handoff", 0.95)
+    if _CALLBACK_RE.search(normalized):
+        return ("callback", 0.95)
     if _GOLD_RATE_RE.search(normalized):
         return ("gold_rate", 0.95)
     if _VIDEO_CALL_RE.search(normalized):
         return ("video_call", 0.95)
-    if _SCHEME_RE.search(normalized):
+    if _DIGITAL_GOLD_RE.search(normalized) or _SCHEME_RE.search(normalized):
         return ("general", 0.9)
     # Policy action/info regexes are HINTS only (see _programmatic_intent_hint):
     # they misfire on phrases like "return gift ke liye kuch dikhao", so the
@@ -409,6 +428,8 @@ def _in_active_input_flow(user_profile: dict) -> bool:
     if user_profile.get("service_selected") == ServiceList.COMPLAINT.value:
         return True
     if user_profile.get("callback_capture_step"):
+        return True
+    if user_profile.get("shopping_wizard_active"):
         return True
     return False
 
@@ -538,6 +559,7 @@ _LLM_ENTITY_STYLES = frozenset(
 _LLM_ENTITY_KARATS = frozenset({"9KT", "14KT", "18KT", "22KT", "24KT"})
 _LLM_ENTITY_COLOURS = frozenset({"yellow", "white", "rose"})
 _LLM_ENTITY_GENDERS = frozenset({"women", "men", "kids"})
+_LLM_ENTITY_FULFILLMENTS = frozenset({"ready", "mto"})
 _LLM_CATEGORY_ALIASES = {
     "nose_ring":         "nosewear",
     # Space-separated forms the LLM may produce for composite categories
@@ -623,10 +645,45 @@ def _sanitize_llm_entities(entities: dict) -> dict:
     gender = _coerce_null(raw.get("gender"))
     if isinstance(gender, str):
         gender = gender.strip().lower()
+        _GENDER_ALIASES = {
+            "female": "women",
+            "woman": "women",
+            "ladies": "women",
+            "lady": "women",
+            "male": "men",
+            "man": "men",
+            "gents": "men",
+            "gent": "men",
+            "kid": "kids",
+            "child": "kids",
+            "children": "kids",
+            "baby": "kids",
+        }
+        gender = _GENDER_ALIASES.get(gender, gender)
         gender = gender if gender in _LLM_ENTITY_GENDERS else None
     else:
         gender = None
     out["gender"] = gender
+
+    fulfillment = _coerce_null(raw.get("fulfillment"))
+    if isinstance(fulfillment, str):
+        fulfillment = fulfillment.strip().lower()
+        # Accept common aliases the model may emit.
+        if fulfillment in ("ready_to_ship", "ready-to-ship", "rts"):
+            fulfillment = "ready"
+        elif fulfillment in (
+            "made_to_order",
+            "made-to-order",
+            "make_to_order",
+            "custom",
+        ):
+            fulfillment = "mto"
+        fulfillment = (
+            fulfillment if fulfillment in _LLM_ENTITY_FULFILLMENTS else None
+        )
+    else:
+        fulfillment = None
+    out["fulfillment"] = fulfillment
 
     for price_key in ("min_price", "max_price"):
         val = _coerce_null(raw.get(price_key))
@@ -812,7 +869,11 @@ def _flow_escape_should_classify(user_query: str) -> bool:
         return True
     if _HUMAN_HANDOFF_RE.search(user_query):
         return True
+    if _CALLBACK_RE.search(user_query):
+        return True
     if _VIDEO_CALL_RE.search(user_query) or _SCHEME_RE.search(user_query):
+        return True
+    if _DIGITAL_GOLD_RE.search(user_query):
         return True
     if _GOLD_RATE_RE.search(user_query):
         return True
@@ -985,6 +1046,7 @@ def _route_resolved_intent(
             "greeting": "Greeting",
             "menu_help": "Main menu",
             "human_handoff": "Live agent handoff",
+            "callback": "Callback request form",
             "gold_rate": "Gold rate",
             "video_call": "Video call scheduling",
             "compare": "Compare products",
@@ -1018,6 +1080,29 @@ def _route_resolved_intent(
             _handle_custom_jewellery_handoff(data, user_profile, phone_number)
         else:
             _handle_human_handoff(data, user_profile, phone_number)
+        return True
+
+    if intent == "callback":
+        from kisna_chatbot.config.gupshup import get_callback_flow_id
+        from kisna_chatbot.processors.service_list import (
+            _start_callback_text_capture,
+            build_callback_flow_bot_response,
+        )
+
+        user_profile["service_selected"] = ServiceList.CALLBACK.value
+        preamble = {
+            "type": "text",
+            "text": (
+                "Sure! Please fill in your details below and we'll call you back."
+            ),
+            "_compose": "callback_preamble",
+        }
+        if get_callback_flow_id():
+            data["bot_response"] = [preamble, build_callback_flow_bot_response()]
+        else:
+            data["bot_response"] = [preamble] + _start_callback_text_capture(
+                user_profile, request_type="callback"
+            )
         return True
 
     if intent == "gold_rate":
@@ -1129,6 +1214,11 @@ def _apply_intent_routing(
             }
         ]
         return True
+
+    if intent == "general" and (
+        _DIGITAL_GOLD_RE.search(user_query or "") or data.get("_digital_gold_cta")
+    ):
+        data["_digital_gold_cta"] = True
 
     if intent == "complaint":
         _maybe_prompt_flow_switch(
@@ -1438,6 +1528,14 @@ class Classifier(Processor):
         if user_profile.get("callback_capture_step"):
             if _flow_escape_should_classify(user_query):
                 return True
+            return False
+
+        if user_profile.get("shopping_wizard_active"):
+            if _flow_escape_should_classify(user_query):
+                return True
+            if is_greeting_message(user_query) or is_menu_request(user_query):
+                return True
+            # Let product search advance the wizard without re-classifying
             return False
 
         # LLM-default policy: the classifier sees every message. A regex may only

@@ -23,6 +23,7 @@ from kisna_chatbot.processors.entity_extractor import (
     enrich_entities_for_client_filter,
     entities_to_api_params,
     combine_search_entities,
+    extract_fulfillment,
     has_clara_search_scope,
     merge_search_entities,
     normalize_entities_for_clara,
@@ -42,6 +43,16 @@ from kisna_chatbot.processors.entity_extractor import (
 from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
     merge_jewellery_profile,
+)
+from kisna_chatbot.processors.shopping_wizard import (
+    advance_wizard,
+    build_wizard_summary,
+    clear_wizard_state,
+    entities_from_wizard,
+    is_wizard_active,
+    is_wizard_interactive,
+    should_start_wizard,
+    start_wizard,
 )
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.kisna_url_tracking import kisna_home_url
@@ -637,6 +648,7 @@ def _empty_entities() -> dict:
         "occasion": None,
         "style": None,
         "action": None,
+        "fulfillment": None,
     }
 
 
@@ -1465,6 +1477,10 @@ class ProductSearchAgentV3(Processor):
             return True
         if _parse_pref_cat_button_postback(messages):
             return True
+        if is_wizard_interactive(messages):
+            return True
+        if is_wizard_active(user_profile):
+            return True
         if _product_button_msgid(messages):
             return True
         if _search_button_msgid(messages):
@@ -1525,6 +1541,16 @@ class ProductSearchAgentV3(Processor):
 
         # --- FIX 3: Enforce 2-hour session expiry ---
         _clear_session_if_expired(user_profile)
+
+        # Guided shopping wizard (smart-skip funnel)
+        if is_wizard_interactive(messages) or (
+            is_wizard_active(user_profile)
+            and (
+                is_wizard_interactive(messages)
+                or _extract_search_query(messages)
+            )
+        ):
+            return await self._handle_shopping_wizard(data, phone_number)
 
         pref_postback = _parse_pref_cat_button_postback(messages)
         if pref_postback:
@@ -1880,6 +1906,7 @@ class ProductSearchAgentV3(Processor):
                 "occasion": llm_entities.get("occasion"),
                 "style": llm_entities.get("style"),
                 "gender": llm_entities.get("gender"),
+                "fulfillment": llm_entities.get("fulfillment"),
                 "collection": llm_entities.get("collection"),
             }
             llm_entities = apply_llm_evidence_gate(query, llm_entities)
@@ -1897,6 +1924,12 @@ class ProductSearchAgentV3(Processor):
             user_profile["llm_extracted_entities"] = llm_entities
 
         extracted = combine_search_entities(llm_entities, structured_fields)
+
+        # Availability cues from NL ("ready to ship", "made to order")
+        if not extracted.get("fulfillment"):
+            inferred_fulfillment = extract_fulfillment(query)
+            if inferred_fulfillment:
+                extracted["fulfillment"] = inferred_fulfillment
 
         # NOTE: the LLM's category is authoritative. We do NOT override it with
         # a regex re-extraction of the query — that Latin regex breaks on
@@ -1996,26 +2029,7 @@ class ProductSearchAgentV3(Processor):
             and data.get("classified_category") == "product_search"
         ):
             confidence = float(data.get("classifier_confidence") or 1.0)
-            # One clarifying slot-fill; if still vague after that, soft bestsellers.
-            if user_profile.get("pending_vague_slot_fill"):
-                user_profile.pop("pending_vague_slot_fill", None)
-                data["bot_response"] = [
-                    {
-                        "type": "text",
-                        "text": (
-                            "No worries — here are some popular picks to get you started 💎"
-                        ),
-                        "_compose": "vague_fallback",
-                    }
-                ]
-                return await self._execute_search(
-                    data,
-                    phone_number,
-                    _empty_entities(),
-                    query_label="vague_bestsellers",
-                    response_mode="browse_all",
-                )
-            if confidence < 0.45:
+            if confidence < 0.45 and not entities.get("category"):
                 user_profile["pending_vague_slot_fill"] = True
                 data["bot_response"] = [
                     {
@@ -2025,17 +2039,26 @@ class ProductSearchAgentV3(Processor):
                             "tell me a jewellery type and budget if you have one 🙂"
                         ),
                         "_compose": "clarification",
-                    },
-                    build_vague_slot_fill_response(),
+                    }
                 ]
-                return data
-            user_profile["pending_vague_slot_fill"] = True
-            data["bot_response"] = [build_vague_slot_fill_response()]
-            return data
+                # Still enter wizard so next reply continues the funnel
+            return await self._maybe_start_shopping_wizard(
+                data, phone_number, entities, query=query
+            )
 
         # Fresh search with usable entities — clear vague / last-viewed bleed
         user_profile.pop("pending_vague_slot_fill", None)
         user_profile.pop("last_viewed_product", None)
+
+        # Guided funnel: ask only missing slots (smart-skip)
+        if (
+            data.get("classified_category") == "product_search"
+            and should_start_wizard(entities)
+            and not _BROWSE_ALL_RE.search(query)
+        ):
+            return await self._maybe_start_shopping_wizard(
+                data, phone_number, entities, query=query
+            )
 
         api_params_preview = entities_to_api_params(entities)
         if not has_clara_search_scope(
@@ -2050,18 +2073,9 @@ class ProductSearchAgentV3(Processor):
                     "api_params": api_params_preview,
                 },
             )
-            if user_profile.get("pending_vague_slot_fill"):
-                user_profile.pop("pending_vague_slot_fill", None)
-                return await self._execute_search(
-                    data,
-                    phone_number,
-                    _empty_entities(),
-                    query_label="scope_fallback",
-                    response_mode="browse_all",
-                )
-            user_profile["pending_vague_slot_fill"] = True
-            data["bot_response"] = [build_vague_slot_fill_response()]
-            return data
+            return await self._maybe_start_shopping_wizard(
+                data, phone_number, entities, query=query
+            )
 
         return await self._execute_search(
             data,
@@ -2069,6 +2083,116 @@ class ProductSearchAgentV3(Processor):
             entities,
             query_label=query,
             occasion_prefix=occasion_prefix,
+        )
+
+    async def _maybe_start_shopping_wizard(
+        self,
+        data: dict,
+        phone_number: str,
+        entities: dict,
+        *,
+        query: str = "",
+    ) -> dict:
+        """Enter guided funnel; prepend welcome on brand-new sessions."""
+        user_profile = data.get("user_profile", {})
+        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        prepend: list[dict] = []
+        history = user_profile.get("chat_history") or []
+        # First inbound product ask — lead with KIA intro then wizard question
+        if len(history) == 0:
+            prepend = build_greeting_welcome_bot_responses(
+                phone_number=phone_number,
+                chat_history=history,
+                user_profile=user_profile,
+            )
+        responses = start_wizard(
+            user_profile,
+            entities=entities,
+            prepend_welcome=prepend,
+            query=query,
+        )
+        if user_profile.get("shopping_wizard_step") == "complete":
+            return await self._complete_shopping_wizard(data, phone_number)
+        data["bot_response"] = responses
+        return data
+
+    async def _handle_shopping_wizard(self, data: dict, phone_number: str) -> dict:
+        """Advance or complete an active shopping wizard turn."""
+        user_profile = data.get("user_profile", {})
+        messages = data.get("messages", {})
+        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+
+        # Late start: interactive without active flag (e.g. stale session)
+        if is_wizard_interactive(messages) and not is_wizard_active(user_profile):
+            user_profile["shopping_wizard_active"] = True
+            user_profile["shopping_wizard_data"] = user_profile.get(
+                "shopping_wizard_data"
+            ) or {}
+
+        text = _extract_search_query(messages)
+        status, responses = advance_wizard(
+            user_profile, messages, text=text
+        )
+
+        if status == "escape":
+            clear_wizard_state(user_profile)
+            # Fall through to normal NL search with this message
+            if text:
+                data["classified_category"] = "product_search"
+                # Re-enter process without wizard active — recursive call would
+                # re-hit wizard gate; clear and run entity path inline via search.
+                from kisna_chatbot.processors.entity_extractor import extract_entities
+
+                ents = finalize_search_entities(extract_entities(text), query=text)
+                if should_start_wizard(ents):
+                    return await self._maybe_start_shopping_wizard(
+                        data, phone_number, ents, query=text
+                    )
+                if not _clara_configured():
+                    data["bot_response"] = _build_catalog_not_configured_response()
+                    return data
+                return await self._execute_search(
+                    data, phone_number, ents, query_label=text
+                )
+            data["bot_response"] = [build_vague_slot_fill_response()]
+            return data
+
+        if status in ("prompt", "reask") and responses:
+            data["bot_response"] = responses
+            return data
+
+        if status == "complete":
+            return await self._complete_shopping_wizard(data, phone_number)
+
+        data["bot_response"] = responses or [build_vague_slot_fill_response()]
+        return data
+
+    async def _complete_shopping_wizard(
+        self, data: dict, phone_number: str
+    ) -> dict:
+        """Run Clara search from collected wizard slots."""
+        user_profile = data.get("user_profile", {})
+        collected = dict(user_profile.get("shopping_wizard_data") or {})
+        clear_wizard_state(user_profile)
+
+        if not _clara_configured():
+            data["bot_response"] = _build_catalog_not_configured_response()
+            return data
+
+        entities = {**_empty_entities(), **entities_from_wizard(collected)}
+        # Wizard no longer asks occasion — skip bridal/title injection from empty occasion
+        summary = build_wizard_summary(collected)
+
+        return await self._execute_search(
+            data,
+            phone_number,
+            entities,
+            query_label=(
+                f"wizard:{collected.get('category')}:"
+                f"{collected.get('material_type')}:"
+                f"{collected.get('fulfillment')}"
+            ),
+            occasion_prefix=summary,
         )
 
     async def _handle_preference_list(
@@ -2762,6 +2886,20 @@ class ProductSearchAgentV3(Processor):
                 products, extras_note = filter_products_by_extracted_extras(
                     products, strategy_entities
                 )
+                fulfillment = (
+                    strategy_entities.get("fulfillment")
+                    or entities.get("fulfillment")
+                )
+                # Availability is handled by Clara boolean params
+                # (readyTOShip / madeToOrder). Do not post-filter by EDD —
+                # MTO is the full catalog by design.
+                fulfill_note = None
+                if fulfillment == "mto":
+                    fulfill_note = (
+                        "Any of these can be made to order for you ✨"
+                    )
+                if fulfill_note:
+                    prefix_parts.append(fulfill_note)
                 if extras_note:
                     intro_relaxed = True
                     if trace_step:
