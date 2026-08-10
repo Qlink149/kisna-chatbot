@@ -452,6 +452,8 @@ def get_whatsapp_safe_image_url(raw_url: str) -> str | None:
     # or client requests self-hosted storage, replace this with
     # Cloudflare R2 (free 10GB, zero egress) or Vercel Blob.
     # The interface stays identical — only this function changes.
+    from urllib.parse import quote
+
     if not raw_url:
         return None
 
@@ -462,9 +464,11 @@ def get_whatsapp_safe_image_url(raw_url: str) -> str | None:
         )
         return raw_url
 
+    # Encode the remote URL so Cloudinary fetch accepts query/special chars.
+    encoded_remote = quote(str(raw_url).strip(), safe="")
     cloudinary_url = (
         f"https://res.cloudinary.com/{cloud_name}"
-        f"/image/fetch/f_jpg,q_85,fl_progressive/{raw_url}"
+        f"/image/fetch/f_jpg,q_auto,fl_progressive/{encoded_remote}"
     )
     logger.debug(
         "image: wrapping for WhatsApp delivery",

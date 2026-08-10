@@ -39,32 +39,59 @@ class ImageWithCtaTests(unittest.TestCase):
         )
         self.assertNotIn("interactive", payload)
 
-    def test_send_falls_back_to_plain_image_on_http_error(self):
+    def test_send_falls_back_to_image_and_cta_on_http_error(self):
         mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.text = "bad request"
+        mock_response.json.return_value = {"status": "error"}
         with patch(
             "kisna_chatbot.whatsapp_functions.media.send_image_with_cta.httpx.post",
             return_value=mock_response,
         ) as post_mock, patch(
             "kisna_chatbot.whatsapp_functions.media.send_image_with_cta.send_image_message",
             return_value={"status": "submitted"},
-        ) as image_mock:
+        ) as image_mock, patch(
+            "kisna_chatbot.whatsapp_functions.media.send_image_with_cta.send_cta_url",
+            return_value={"status": "submitted"},
+        ) as cta_mock:
+            result = send_image_with_buy_button(
+                "919999999999",
+                "https://img.example/ring.jpg",
+                "Gold Ring\n₹45,000",
+                "https://www.kisna.com/products/gold-ring",
+            )
+        post_mock.assert_called_once()
+        image_mock.assert_called_once()
+        cta_mock.assert_called_once()
+        self.assertEqual(result["status"], "submitted")
+
+    def test_send_falls_back_on_soft_gupshup_error(self):
+        """Gupshup often returns HTTP 200 with status=error — must not treat as success."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '{"status":"error"}'
+        mock_response.json.return_value = {
+            "status": "error",
+            "message": "Invalid header image",
+        }
+        with patch(
+            "kisna_chatbot.whatsapp_functions.media.send_image_with_cta.httpx.post",
+            return_value=mock_response,
+        ), patch(
+            "kisna_chatbot.whatsapp_functions.media.send_image_with_cta.send_image_message",
+            return_value={"status": "submitted"},
+        ) as image_mock, patch(
+            "kisna_chatbot.whatsapp_functions.media.send_image_with_cta.send_cta_url",
+            return_value={"status": "submitted", "messageId": "abc"},
+        ):
             result = send_image_with_buy_button(
                 "919999999999",
                 "https://img.example/ring.jpg",
                 "caption",
                 "https://www.kisna.com/products/gold-ring",
             )
-        post_mock.assert_called_once()
-        image_mock.assert_called_once_with(
-            phone_number="919999999999",
-            bot_response={
-                "url": "https://img.example/ring.jpg",
-                "caption": "caption",
-            },
-        )
-        self.assertEqual(result["status"], "submitted")
+        image_mock.assert_called_once()
+        self.assertEqual(result.get("status"), "submitted")
 
     def test_send_image_with_cta_wrapper(self):
         with patch(

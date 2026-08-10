@@ -239,7 +239,9 @@ class ProductSearchTests(unittest.TestCase):
                 "res.cloudinary.com/test-cloud/image/fetch/f_jpg",
                 media_msgs[0]["url"],
             )
-            self.assertIn(clara_image, media_msgs[0]["url"])
+            from urllib.parse import quote
+
+            self.assertIn(quote(clara_image, safe=""), media_msgs[0]["url"])
             self.assertTrue(media_msgs[0]["url"].startswith("https://"))
             self.assertEqual(media_msgs[0]["cta_title"], "Buy on KISNA")
             self.assertIn("gold-ring", media_msgs[0]["cta_url"])
