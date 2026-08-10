@@ -11,6 +11,7 @@ from kisna_chatbot.models.service_list import ServiceList
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.ad_flow_agent import _PINCODE_ONLY_RE
 from kisna_chatbot.processors.entity_extractor import (
+    extract_entities,
     extract_structured_fields,
     is_unrecognizable_input,
 )
@@ -67,6 +68,15 @@ _GREETING_RE = re.compile(
 def is_greeting_message(text: str) -> bool:
     """True for short standalone greetings (English, Hindi, Hinglish)."""
     return bool(_GREETING_RE.match((text or "").strip()))
+
+
+def _clear_state_on_greeting(user_profile: dict) -> None:
+    """Greeting starts a fresh turn — drop sticky input waits (esp. store pincode)."""
+    user_profile["service_selected"] = ""
+    user_profile.pop("awaiting_store_pincode", None)
+    user_profile.pop("store_pincode_attempts", None)
+    user_profile.pop("pending_flow_switch", None)
+    user_profile.pop("pending_clarification", None)
 
 
 _REROUTE_RE = re.compile(
@@ -474,6 +484,9 @@ def _looks_like_browse_escape(text: str) -> bool:
     ):
         return True
     if _CATEGORY_WORD_RE.search(normalized) and _MATERIAL_WORD_RE.search(normalized):
+        return True
+    # Bare jewellery type ("Ring", "earrings") — never a pincode/city.
+    if _CATEGORY_WORD_RE.search(normalized) and not _PINCODE_ONLY_RE.match(normalized):
         return True
     structured = extract_structured_fields(normalized)
     if (structured.get("min_price") or structured.get("max_price")) and (
@@ -1067,7 +1080,7 @@ def _route_resolved_intent(
         pass
 
     if intent == "greeting":
-        user_profile["service_selected"] = ""
+        _clear_state_on_greeting(user_profile)
         data["bot_response"] = build_greeting_welcome_bot_responses(
             phone_number=phone_number,
             chat_history=chat_history,
@@ -1196,7 +1209,7 @@ def _apply_intent_routing(
     chat_history = user_profile.get("chat_history", [])
 
     if intent == "greeting":
-        user_profile["service_selected"] = ""
+        _clear_state_on_greeting(user_profile)
         data["classified_category"] = "greeting"
         data["bot_response"] = build_greeting_welcome_bot_responses(
             phone_number=phone_number,
@@ -1616,7 +1629,7 @@ class Classifier(Processor):
 
                 chat_history = data["user_profile"].get("chat_history", [])
                 if is_greeting_message(user_query):
-                    user_profile["service_selected"] = ""
+                    _clear_state_on_greeting(user_profile)
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "greeting"
                     data["bot_response"] = build_greeting_welcome_bot_responses(
@@ -1674,6 +1687,17 @@ class Classifier(Processor):
                         extra_entities: dict[str, Any] = {}
                         if user_profile.pop("_price_direction_hint", None):
                             extra_entities["price_direction"] = "higher"
+                        if escape_intent == "product_search":
+                            extracted = extract_entities(user_query)
+                            for key in (
+                                "category",
+                                "material_type",
+                                "min_price",
+                                "max_price",
+                                "metal_colour",
+                            ):
+                                if extracted.get(key) is not None:
+                                    extra_entities[key] = extracted[key]
                         _store_llm_entities(data, user_profile, extra_entities)
                         data["classified_category"] = escape_intent
                         data["classifier_confidence"] = 1.0
