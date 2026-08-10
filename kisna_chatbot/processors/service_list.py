@@ -214,16 +214,15 @@ def build_greeting_text(
             return f"Hi {name}! 👋 {_KIA_INTRO}"
         return f"Hi! 👋 {_KIA_INTRO}"
 
+    # Returning users get the same full KIA intro (plus optional search hint).
     continue_hint = _format_recent_search_hint(user_profile)
     if name:
-        text = f"Welcome back, {name}! 👋"
+        opener = f"Welcome back, {name}! 👋"
     else:
-        text = "Welcome back! 👋"
+        opener = "Welcome back! 👋"
     if continue_hint:
-        text = f"{text}\n{continue_hint}\n{_WHAT_TODAY}"
-    else:
-        text = f"{text}\n{_WHAT_TODAY}"
-    return text
+        return f"{opener}\n{continue_hint}\n{_KIA_INTRO}"
+    return f"{opener} {_KIA_INTRO}"
 
 
 def build_greeting_welcome_bot_responses(

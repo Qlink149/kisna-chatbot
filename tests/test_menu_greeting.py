@@ -76,6 +76,7 @@ class TestMenuGreeting(unittest.TestCase):
         )
         self.assertIn("Welcome back", text)
         self.assertIn("Priya", text)
+        self.assertIn("I'm KIA, your trusted jewellery assistant", text)
         self.assertIn("What would you like to do today?", text)
 
     def test_greeting_garbage_name_omitted(self):
