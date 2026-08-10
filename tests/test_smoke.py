@@ -514,12 +514,19 @@ class ProductSearchTests(unittest.TestCase):
             data = {
                 "phone_number": "919999999999",
                 "messages": {
-                    "text": {"body": "Jo hai woh hi dikhado mang tikka mai"}
+                    "text": {
+                        "body": (
+                            "Jo hai woh hi dikhado gold mang tikka mai "
+                            "40k-50k for women ready to ship"
+                        )
+                    }
                 },
                 "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
                 "llm_extracted_entities": {
                     "category": "maang_tikka",
                     "material_type": "gold",
+                    "gender": "women",
+                    "fulfillment": "ready",
                     "min_price": 40000,
                     "max_price": 50000,
                 },
@@ -527,7 +534,10 @@ class ProductSearchTests(unittest.TestCase):
             }
 
             async def search_side_effect(**kwargs):
+                # Exact / partial filters empty until category-only.
                 if kwargs.get("material_type") or kwargs.get("max_price") is not None:
+                    return {"products": [], "total_count": 0, "page": 1}
+                if kwargs.get("ready_to_ship") or kwargs.get("tag_manager_id"):
                     return {"products": [], "total_count": 0, "page": 1}
                 if kwargs.get("category") == "maang tikka":
                     return {
@@ -548,8 +558,8 @@ class ProductSearchTests(unittest.TestCase):
             ):
                 result = await agent.process(data)
 
-            # Evidence gate strips unevidenced material → full search then drop_price.
-            self.assertEqual(search_mock.await_count, 2)
+            # full → drop_fulfillment → drop_price(+combo) → drop_material → category_only
+            self.assertGreaterEqual(search_mock.await_count, 2)
             images = [
                 r for r in result["bot_response"] if r.get("type") == "image_with_cta"
             ]

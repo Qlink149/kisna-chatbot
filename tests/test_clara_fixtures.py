@@ -148,6 +148,39 @@ class ClaraFixtureTests(unittest.TestCase):
         self.assertIsNone(drop_material[0]["material_type"])
         self.assertEqual(drop_material[0]["max_price"], 50000)
 
+    def test_drop_fulfillment_before_material_and_price(self):
+        """Ready-to-ship is softer than gold/budget — drop it first."""
+        entities = {
+            "category": "ring",
+            "material_type": "gold",
+            "gender": "men",
+            "min_price": 40000,
+            "max_price": 50000,
+            "fulfillment": "ready",
+        }
+        labels = [label for _ent, _note, label in _build_fallback_strategies(entities)]
+        self.assertEqual(labels[0], "full")
+        self.assertEqual(labels[1], "drop_fulfillment")
+        self.assertLess(labels.index("drop_fulfillment"), labels.index("drop_price"))
+        self.assertLess(labels.index("drop_price"), labels.index("drop_material"))
+        drop_f = next(
+            s for s in _build_fallback_strategies(entities) if s[2] == "drop_fulfillment"
+        )
+        self.assertIsNone(drop_f[0]["fulfillment"])
+        self.assertEqual(drop_f[0]["material_type"], "gold")
+        self.assertEqual(drop_f[0]["max_price"], 50000)
+        self.assertEqual(drop_f[0]["gender"], "men")
+
+    def test_fulfillment_fallback_note(self):
+        note = _fallback_prefix_note(
+            "fulfillment",
+            [],
+            {"fulfillment": "ready", "material_type": "gold", "category": "ring"},
+            {"material_type": "gold", "category": "ring"},
+        )
+        self.assertIn("ready-to-ship", note.lower())
+        self.assertIn("order", note.lower())
+
     def test_category_only_appended_when_material_and_price(self):
         entities = {
             "category": "maang_tikka",

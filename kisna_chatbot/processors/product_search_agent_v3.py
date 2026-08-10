@@ -212,7 +212,15 @@ def _no_more_in_budget_text() -> str:
     )
 
 
-_ENTITY_KEYS = ("category", "material_type", "min_price", "max_price", "title")
+_ENTITY_KEYS = (
+    "category",
+    "material_type",
+    "min_price",
+    "max_price",
+    "title",
+    "gender",
+    "fulfillment",
+)
 
 _MATERIAL_BUTTON_MSGIDS = frozenset({"search$material$gold", "search$material$diamond"})
 _PRODUCT_BUTTON_MSGIDS = frozenset(
@@ -1075,7 +1083,11 @@ def _extract_search_query(messages: dict) -> str | None:
 def _build_fallback_strategies(
     entities: dict,
 ) -> list[tuple[dict, str | None, str]]:
-    """Return (filter_entities, note_kind, log_label) for progressive relaxation."""
+    """Return (filter_entities, note_kind, log_label) for progressive relaxation.
+
+    Softest filters drop first so we keep jewellery essentials (category →
+    gender → material → budget) longer than availability (ready-to-ship).
+    """
     strategies: list[tuple[dict, str | None, str]] = []
     seen: set[tuple] = set()
 
@@ -1087,9 +1099,24 @@ def _build_fallback_strategies(
 
     add(entities, None, "full")
 
+    # Ready-to-ship is a catalog subset — expand before dropping gold/budget.
+    if entities.get("fulfillment"):
+        no_fulfillment = {**entities, "fulfillment": None}
+        add(no_fulfillment, "fulfillment", "drop_fulfillment")
+
     if entities.get("min_price") is not None or entities.get("max_price") is not None:
         no_price = {**entities, "min_price": None, "max_price": None}
         add(no_price, "budget", "drop_price")
+        # Price-out + still ready-to-ship often stays empty; try budget-free
+        # full catalog with material kept.
+        if entities.get("fulfillment"):
+            no_price_no_fulfillment = {
+                **entities,
+                "min_price": None,
+                "max_price": None,
+                "fulfillment": None,
+            }
+            add(no_price_no_fulfillment, "budget", "drop_price_fulfillment")
 
     if entities.get("title"):
         no_title = {**entities, "title": None}
@@ -1145,6 +1172,14 @@ def _fallback_prefix_note(
                 f"prices in this category start from ₹{lowest:,} ✨"
             )
         return "Showing results outside your budget:"
+    if note_kind == "fulfillment":
+        if original_entities.get("fulfillment") == "ready":
+            return (
+                "No ready-to-ship pieces matched those filters right now — "
+                "here are matching options you can order ✨"
+            )
+        return "Here are more options beyond that availability filter ✨"
+
     if note_kind == "material":
         material = original_entities.get("material_type") or "matching"
         cat_label = _category_label_plural(original_entities.get("category") or "jewellery")
@@ -2930,7 +2965,12 @@ class ProductSearchAgentV3(Processor):
                     note_kind, products, entities, strategy_entities
                 )
                 if fallback_note:
+                    # Drop optimistic wizard/search copy that still claims the
+                    # exact filters we had to relax (e.g. "ready-to-ship gold…").
+                    if occasion_prefix and occasion_prefix in prefix_parts:
+                        prefix_parts.remove(occasion_prefix)
                     prefix_parts.append(fallback_note)
+                    intro_relaxed = True
                 break
 
         prefix_note = "\n".join(prefix_parts) if prefix_parts else None
