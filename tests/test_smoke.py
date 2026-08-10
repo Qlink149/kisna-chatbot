@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -934,6 +935,7 @@ class ClassifierSkipTests(unittest.TestCase):
             "user_profile": {
                 "awaiting_store_pincode": True,
                 "chat_history": [{"role": "user", "content": "find store"}],
+                "last_message_at": int(time.time()),
             },
         }
         self.assertFalse(clf.should_run(data))
@@ -945,6 +947,7 @@ class ClassifierSkipTests(unittest.TestCase):
             "user_profile": {
                 "service_selected": SL.AD_FLOW.value,
                 "chat_history": [{"role": "user", "content": "find store"}],
+                "last_message_at": int(time.time()),
             },
         }
         self.assertFalse(clf.should_run(data))
@@ -960,6 +963,7 @@ class ClassifierSkipTests(unittest.TestCase):
                     "chat_history": [],
                     "service_selected": "",
                     "awaiting_store_pincode": True,
+                    "last_message_at": int(time.time()),
                 },
                 "client_id": "kisna",
             }

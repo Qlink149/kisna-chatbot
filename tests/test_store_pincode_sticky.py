@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import time
 import unittest
 
 for _k, _v in {
@@ -22,6 +23,10 @@ for _k, _v in {
     "KB_ENABLED": "false",
 }.items():
     os.environ.setdefault(_k, _v)
+
+
+def _fresh_ts() -> int:
+    return int(time.time())
 
 from kisna_chatbot.models.service_list import ServiceList as SL  # noqa: E402
 from kisna_chatbot.processors.classifier import (  # noqa: E402
@@ -46,6 +51,7 @@ class StorePincodeStickyTests(unittest.TestCase):
                 "awaiting_store_pincode": True,
                 "service_selected": SL.AD_FLOW.value,
                 "chat_history": [{"role": "user", "content": "store in udaipur"}],
+                "last_message_at": _fresh_ts(),
             },
         }
         self.assertTrue(clf.should_run(data))
@@ -73,6 +79,7 @@ class StorePincodeStickyTests(unittest.TestCase):
                     "service_selected": SL.AD_FLOW.value,
                     "chat_history": [{"role": "user", "content": "find store"}],
                     "username": "Rajendra",
+                    "last_message_at": _fresh_ts(),
                 },
             }
             result = await clf.process(data)
@@ -92,6 +99,7 @@ class StorePincodeStickyTests(unittest.TestCase):
                     "awaiting_store_pincode": True,
                     "service_selected": SL.AD_FLOW.value,
                     "chat_history": [{"role": "user", "content": "find store"}],
+                    "last_message_at": _fresh_ts(),
                 },
             }
             result = await clf.process(data)

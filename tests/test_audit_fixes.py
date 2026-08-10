@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import time
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -33,6 +34,7 @@ class StorePincodeEscapeTests(unittest.TestCase):
                 "awaiting_store_pincode": True,
                 "service_selected": SL.AD_FLOW.value,
                 "chat_history": [{"role": "user", "content": "find store"}],
+                "last_message_at": int(time.time()),
             },
         }
         self.assertTrue(clf.should_run(data))
@@ -46,6 +48,7 @@ class StorePincodeEscapeTests(unittest.TestCase):
                 "user_profile": {
                     "awaiting_store_pincode": True,
                     "service_selected": SL.AD_FLOW.value,
+                    "last_message_at": int(time.time()),
                 },
             }
             result = await agent.process(data)

@@ -35,6 +35,7 @@ from kisna_chatbot.utils.reply_composer import sanitize_classifier_language
 from kisna_chatbot.utils.session_state import (
     clear_transient_for_service_change,
     maybe_expire_session,
+    reset_session_on_fresh_start,
     reset_transient_state,
 )
 from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
@@ -70,13 +71,13 @@ def is_greeting_message(text: str) -> bool:
     return bool(_GREETING_RE.match((text or "").strip()))
 
 
-def _clear_state_on_greeting(user_profile: dict) -> None:
-    """Greeting starts a fresh turn — drop sticky input waits (esp. store pincode)."""
-    user_profile["service_selected"] = ""
-    user_profile.pop("awaiting_store_pincode", None)
-    user_profile.pop("store_pincode_attempts", None)
-    user_profile.pop("pending_flow_switch", None)
-    user_profile.pop("pending_clarification", None)
+def _reset_session_on_fresh_start(user_profile: dict) -> None:
+    """Greeting / menu starts a fresh turn — wipe sticky waits and search context."""
+    reset_session_on_fresh_start(user_profile)
+
+
+# Back-compat alias used by older call sites / tests.
+_clear_state_on_greeting = _reset_session_on_fresh_start
 
 
 _REROUTE_RE = re.compile(
@@ -311,6 +312,15 @@ _CONTINUATION_RE = re.compile(
     re.I,
 )
 
+# Unambiguous "page the same results" only — topic-change phrases must hit the LLM.
+_PAGINATION_ONLY_RE = re.compile(
+    r"^\s*("
+    r"show\s+more|more|next|aur\s+dikhao|next\s+3|show\s+next|and\s+more|"
+    r"aur\s+options?"
+    r")\s*[!.]*\s*$",
+    re.I,
+)
+
 # FIX 2: price signal regex for active-session clarification guard
 _PRICE_SIGNAL_RE = re.compile(
     r"\b("
@@ -496,8 +506,8 @@ def _looks_like_browse_escape(text: str) -> bool:
     return False
 
 
-def _store_pincode_escape_intent(user_query: str) -> str | None:
-    """Return intent when user should leave awaiting_store_pincode for another flow."""
+def _sticky_wait_escape_intent(user_query: str) -> str | None:
+    """Intent when user should leave store/wizard/callback wait for another flow."""
     normalized = (user_query or "").strip()
     if not normalized:
         return None
@@ -505,13 +515,32 @@ def _store_pincode_escape_intent(user_query: str) -> str | None:
         return "product_search"
     if _OFFERS_INTENT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
         return "offers"
+    if _STORE_LOOKUP_RE.search(normalized):
+        return "store_info"
     if _ORDER_TRACKING_RE.search(normalized) or _ORDER_DELIVERY_RE.search(normalized):
         return "order_tracking"
     if _is_policy_action_query(normalized):
         return "returns_refund"
     if _COMPLAINT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
         return "complaint"
+    if _HUMAN_HANDOFF_RE.search(normalized):
+        return "human_handoff"
+    if _CALLBACK_RE.search(normalized):
+        return "callback"
+    if _VIDEO_CALL_RE.search(normalized):
+        return "video_call"
+    if _GOLD_RATE_RE.search(normalized):
+        return "gold_rate"
+    if _DIGITAL_GOLD_RE.search(normalized) or _SCHEME_RE.search(normalized):
+        return "general"
+    if _looks_like_faq_query(normalized):
+        return "general"
     return None
+
+
+def _store_pincode_escape_intent(user_query: str) -> str | None:
+    """Back-compat alias — store wait uses the shared sticky-wait escape."""
+    return _sticky_wait_escape_intent(user_query)
 
 
 _LLM_ENTITY_CATEGORIES = frozenset(
@@ -878,21 +907,29 @@ def _store_language(
 
 
 def _flow_escape_should_classify(user_query: str) -> bool:
-    if _is_policy_action_query(user_query) or _is_policy_information_query(user_query):
-        return True
-    if _HUMAN_HANDOFF_RE.search(user_query):
-        return True
-    if _CALLBACK_RE.search(user_query):
-        return True
-    if _VIDEO_CALL_RE.search(user_query) or _SCHEME_RE.search(user_query):
-        return True
-    if _DIGITAL_GOLD_RE.search(user_query):
-        return True
-    if _GOLD_RATE_RE.search(user_query):
-        return True
-    if _COMPLAINT_RE.search(user_query) and not _CATEGORY_WORD_RE.search(user_query):
-        return True
-    return False
+    return _sticky_wait_escape_intent(user_query) is not None
+
+
+def _has_sticky_wait(user_profile: dict) -> bool:
+    return bool(
+        user_profile.get("awaiting_store_pincode")
+        or user_profile.get("shopping_wizard_active")
+        or user_profile.get("callback_capture_step")
+    )
+
+
+def _clear_sticky_waits(user_profile: dict) -> None:
+    """Drop store / wizard / callback input waits without wiping search filters."""
+    for key in (
+        "awaiting_store_pincode",
+        "store_pincode_attempts",
+        "shopping_wizard_active",
+        "shopping_wizard_step",
+        "shopping_wizard_data",
+        "callback_capture_step",
+        "callback_draft",
+    ):
+        user_profile.pop(key, None)
 
 
 def _maybe_prompt_flow_switch(
@@ -1219,6 +1256,7 @@ def _apply_intent_routing(
         return True
 
     if intent == "menu_help":
+        _reset_session_on_fresh_start(user_profile)
         data["bot_response"] = [
             {
                 "type": "text",
@@ -1534,17 +1572,17 @@ class Classifier(Processor):
             return True
 
         if user_profile.get("awaiting_store_pincode"):
-            if _store_pincode_escape_intent(user_query):
+            if _sticky_wait_escape_intent(user_query):
                 return True
             return False
 
         if user_profile.get("callback_capture_step"):
-            if _flow_escape_should_classify(user_query):
+            if _sticky_wait_escape_intent(user_query):
                 return True
             return False
 
         if user_profile.get("shopping_wizard_active"):
-            if _flow_escape_should_classify(user_query):
+            if _sticky_wait_escape_intent(user_query):
                 return True
             if is_greeting_message(user_query) or is_menu_request(user_query):
                 return True
@@ -1567,7 +1605,7 @@ class Classifier(Processor):
             if (
                 user_profile.get("chat_history")
                 and len(stripped.split()) <= 4
-                and _CONTINUATION_RE.search(stripped)
+                and _PAGINATION_ONLY_RE.match(stripped)
             ):
                 # Pure "show more" continuation — the search agent pages the
                 # active results; no meaning left for the LLM to extract.
@@ -1629,7 +1667,7 @@ class Classifier(Processor):
 
                 chat_history = data["user_profile"].get("chat_history", [])
                 if is_greeting_message(user_query):
-                    _clear_state_on_greeting(user_profile)
+                    _reset_session_on_fresh_start(user_profile)
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "greeting"
                     data["bot_response"] = build_greeting_welcome_bot_responses(
@@ -1665,6 +1703,7 @@ class Classifier(Processor):
                     # Non-rating message — fall through and treat normally
 
                 if is_menu_request(user_query):
+                    _reset_session_on_fresh_start(user_profile)
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "menu_help"
                     data["bot_response"] = [
@@ -1680,10 +1719,10 @@ class Classifier(Processor):
                     )
                     return data
 
-                if user_profile.get("awaiting_store_pincode"):
-                    escape_intent = _store_pincode_escape_intent(user_query)
+                if _has_sticky_wait(user_profile):
+                    escape_intent = _sticky_wait_escape_intent(user_query)
                     if escape_intent:
-                        user_profile["awaiting_store_pincode"] = False
+                        _clear_sticky_waits(user_profile)
                         extra_entities: dict[str, Any] = {}
                         if user_profile.pop("_price_direction_hint", None):
                             extra_entities["price_direction"] = "higher"
@@ -1722,15 +1761,16 @@ class Classifier(Processor):
                         ).value
                         _prepend_flow_switch_ack(data)
                         return data
-                    if user_query.strip().lower() not in ("cancel", "back"):
-                        _store_llm_entities(data, user_profile, {})
-                        user_profile["service_selected"] = ServiceList.AD_FLOW.value
-                        data["classified_category"] = "store_info"
-                        logger.info(
-                            "Store lookup shortcut — routing to ad_flow",
-                            extra={"phone_number": phone_number},
-                        )
-                        return data
+                    if user_profile.get("awaiting_store_pincode"):
+                        if user_query.strip().lower() not in ("cancel", "back"):
+                            _store_llm_entities(data, user_profile, {})
+                            user_profile["service_selected"] = ServiceList.AD_FLOW.value
+                            data["classified_category"] = "store_info"
+                            logger.info(
+                                "Store lookup shortcut — routing to ad_flow",
+                                extra={"phone_number": phone_number},
+                            )
+                            return data
 
                 if _is_acknowledgement_message(user_query, user_profile):
                     _store_llm_entities(data, user_profile, {})

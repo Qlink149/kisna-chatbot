@@ -10,6 +10,7 @@ _TRANSIENT_KEYS = (
     "pending_clarification",
     "pending_flow_switch",
     "awaiting_store_pincode",
+    "store_pincode_attempts",
     "awaiting_rating",
     "awaiting_custom_budget",
     "callback_capture_step",
@@ -28,6 +29,14 @@ _TRANSIENT_KEYS = (
     "shopping_wizard_data",
 )
 
+_SEARCH_CONTEXT_KEYS = (
+    "last_search_filters",
+    "last_search_products",
+    "last_viewed_product",
+    "shown_product_ids",
+    "last_search_at",
+)
+
 _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
     "product_search": (
         "pending_vague_slot_fill",
@@ -42,7 +51,7 @@ _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
         "shopping_wizard_step",
         "shopping_wizard_data",
     ),
-    "ad_flow": ("awaiting_store_pincode",),
+    "ad_flow": ("awaiting_store_pincode", "store_pincode_attempts"),
     "complaint": ("pending_clarification",),
     "callback": ("callback_capture_step", "callback_draft"),
     "general": ("pending_clarification",),
@@ -51,19 +60,19 @@ _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
 }
 
 
-def maybe_expire_session(user_profile: dict) -> None:
-    """Clear stale wizard/session state when the user returns after TTL."""
-    last_at = user_profile.get("last_message_at")
-    if not last_at:
-        return
-    if time.time() - last_at <= SESSION_TTL_SECONDS:
-        return
-    reset_transient_state(user_profile)
-    user_profile["service_selected"] = ""
-    user_profile.pop("last_search_filters", None)
-    user_profile.pop("last_search_products", None)
-    user_profile.pop("last_viewed_product", None)
-    user_profile.pop("shown_product_ids", None)
+def _has_any_transient(user_profile: dict) -> bool:
+    for key in _TRANSIENT_KEYS:
+        val = user_profile.get(key)
+        if val in (None, False, "", {}, [], 0):
+            continue
+        return True
+    return False
+
+
+def clear_search_context(user_profile: dict) -> None:
+    """Drop active search filters / shown products."""
+    for key in _SEARCH_CONTEXT_KEYS:
+        user_profile.pop(key, None)
 
 
 def reset_transient_state(user_profile: dict, *, keep: frozenset[str] | None = None) -> None:
@@ -72,6 +81,36 @@ def reset_transient_state(user_profile: dict, *, keep: frozenset[str] | None = N
     for key in _TRANSIENT_KEYS:
         if key not in keep_set:
             user_profile.pop(key, None)
+
+
+def _expire_session_now(user_profile: dict) -> None:
+    reset_transient_state(user_profile)
+    user_profile["service_selected"] = ""
+    clear_search_context(user_profile)
+
+
+def maybe_expire_session(user_profile: dict) -> None:
+    """Clear stale wizard/session state when the user returns after TTL.
+
+    If ``last_message_at`` is missing but sticky wait flags are set, treat the
+    session as expired — otherwise flags can live forever (e.g. store pincode
+    wait from weeks earlier).
+    """
+    last_at = user_profile.get("last_message_at")
+    if not last_at:
+        if _has_any_transient(user_profile):
+            _expire_session_now(user_profile)
+        return
+    if time.time() - last_at <= SESSION_TTL_SECONDS:
+        return
+    _expire_session_now(user_profile)
+
+
+def reset_session_on_fresh_start(user_profile: dict) -> None:
+    """Greeting / menu = fresh start: wipe waits and prior search context."""
+    reset_transient_state(user_profile)
+    user_profile["service_selected"] = ""
+    clear_search_context(user_profile)
 
 
 def clear_transient_for_service_change(
