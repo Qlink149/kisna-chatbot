@@ -1323,6 +1323,9 @@ def _apply_store_pincode_shortcut(data: dict) -> bool:
     user_profile = data.get("user_profile", {})
     if not user_profile.get("awaiting_store_pincode"):
         return False
+    # Active shopping wizard owns the turn (budget / fulfillment answers).
+    if user_profile.get("shopping_wizard_active"):
+        return False
     messages = data.get("messages", {})
     if "text" not in messages:
         return False
@@ -1571,6 +1574,16 @@ class Classifier(Processor):
         if _REROUTE_RE.search(user_query):
             return True
 
+        # Wizard beats store wait: a stale awaiting_store_pincode must not
+        # hijack budget answers ("50k") while the funnel is asking for price.
+        if user_profile.get("shopping_wizard_active"):
+            if _sticky_wait_escape_intent(user_query):
+                return True
+            if is_greeting_message(user_query) or is_menu_request(user_query):
+                return True
+            # Let product search advance the wizard without re-classifying
+            return False
+
         if user_profile.get("awaiting_store_pincode"):
             if _sticky_wait_escape_intent(user_query):
                 return True
@@ -1579,14 +1592,6 @@ class Classifier(Processor):
         if user_profile.get("callback_capture_step"):
             if _sticky_wait_escape_intent(user_query):
                 return True
-            return False
-
-        if user_profile.get("shopping_wizard_active"):
-            if _sticky_wait_escape_intent(user_query):
-                return True
-            if is_greeting_message(user_query) or is_menu_request(user_query):
-                return True
-            # Let product search advance the wizard without re-classifying
             return False
 
         # LLM-default policy: the classifier sees every message. A regex may only

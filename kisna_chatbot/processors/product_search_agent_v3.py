@@ -2121,6 +2121,9 @@ class ProductSearchAgentV3(Processor):
         user_profile = data.get("user_profile", {})
         messages = data.get("messages", {})
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        # Drop leftover store wait so budget text never routes to AdFlow.
+        user_profile.pop("awaiting_store_pincode", None)
+        user_profile.pop("store_pincode_attempts", None)
 
         # Late start: interactive without active flag (e.g. stale session)
         if is_wizard_interactive(messages) and not is_wizard_active(user_profile):

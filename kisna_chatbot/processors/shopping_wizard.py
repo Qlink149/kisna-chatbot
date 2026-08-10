@@ -156,6 +156,9 @@ def start_wizard(
 ) -> list[dict]:
     """Activate wizard, seed known slots, return next prompt messages."""
     collected = seed_wizard_from_entities(entities, query=query)
+    # Stale store-wait must not steal later budget answers like "50k".
+    user_profile.pop("awaiting_store_pincode", None)
+    user_profile.pop("store_pincode_attempts", None)
     user_profile["shopping_wizard_active"] = True
     user_profile["shopping_wizard_data"] = collected
     step = get_next_step(collected)

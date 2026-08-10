@@ -180,6 +180,35 @@ class StickyWaitEscapeTests(unittest.TestCase):
         }
         self.assertFalse(clf.should_run(data))
 
+    def test_wizard_budget_beats_stale_store_wait(self):
+        """Stale awaiting_store_pincode must not steal wizard budget ('50k')."""
+        from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
+        from kisna_chatbot.processors.classifier import _apply_store_pincode_shortcut
+
+        clf = Classifier()
+        profile = {
+            "shopping_wizard_active": True,
+            "shopping_wizard_step": "budget",
+            "shopping_wizard_data": {
+                "category": "ring",
+                "gender": "men",
+                "material_type": "gold",
+            },
+            "awaiting_store_pincode": True,
+            "service_selected": SL.PRODUCT_SEARCH.value,
+            "chat_history": [{"role": "user", "content": "Ring"}],
+            "last_message_at": _fresh_ts(),
+        }
+        data = {
+            "messages": {"text": {"body": "50k"}},
+            "user_profile": profile,
+        }
+        self.assertFalse(clf.should_run(data))
+        self.assertFalse(_apply_store_pincode_shortcut(data))
+        self.assertFalse(AdFlowAgent().should_run(data))
+        self.assertEqual(profile.get("service_selected"), SL.PRODUCT_SEARCH.value)
+        self.assertTrue(profile.get("shopping_wizard_active"))
+
 
 class ContinuationGateTests(unittest.TestCase):
     def test_something_else_does_not_skip_classifier(self):

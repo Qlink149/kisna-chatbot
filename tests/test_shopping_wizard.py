@@ -1,6 +1,8 @@
 """Tests for guided shopping wizard smart-skip funnel."""
 
+import asyncio
 import os
+import time
 import unittest
 
 for _k, _v in {
@@ -22,6 +24,10 @@ for _k, _v in {
 }.items():
     os.environ.setdefault(_k, _v)
 
+from kisna_chatbot.models.service_list import ServiceList as SL  # noqa: E402
+from kisna_chatbot.processors.product_search_agent_v3 import (  # noqa: E402
+    ProductSearchAgentV3,
+)
 from kisna_chatbot.processors.shopping_wizard import (  # noqa: E402
     advance_wizard,
     build_wizard_summary,
@@ -210,6 +216,46 @@ class ShoppingWizardTests(unittest.TestCase):
         ready, note = filter_by_fulfillment(products, "ready")
         self.assertEqual(len(ready), 1)
         self.assertIsNone(note)
+
+    def test_start_wizard_clears_stale_store_wait(self):
+        profile = {
+            "awaiting_store_pincode": True,
+            "store_pincode_attempts": 2,
+        }
+        start_wizard(profile, entities={"category": "ring"})
+        self.assertTrue(profile.get("shopping_wizard_active"))
+        self.assertNotIn("awaiting_store_pincode", profile)
+        self.assertNotIn("store_pincode_attempts", profile)
+
+    def test_budget_50k_not_stolen_by_stale_store_wait(self):
+        async def _run():
+            agent = ProductSearchAgentV3()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "50k"}},
+                "user_profile": {
+                    "shopping_wizard_active": True,
+                    "shopping_wizard_step": "budget",
+                    "shopping_wizard_data": {
+                        "category": "ring",
+                        "gender": "men",
+                        "material_type": "gold",
+                    },
+                    "awaiting_store_pincode": True,
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "chat_history": [{"role": "user", "content": "Ring"}],
+                    "last_message_at": int(time.time()),
+                },
+            }
+            result = await agent.process(data)
+            text = (result.get("bot_response") or [{}])[0].get("text", "")
+            self.assertNotIn("pincode", text.lower())
+            self.assertNotIn("awaiting_store_pincode", result["user_profile"])
+            self.assertEqual(
+                result["user_profile"].get("shopping_wizard_step"), "fulfillment"
+            )
+
+        asyncio.run(_run())
 
     def test_budget_text_advance(self):
         profile = {}

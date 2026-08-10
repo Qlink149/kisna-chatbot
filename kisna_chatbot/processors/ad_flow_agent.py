@@ -232,6 +232,9 @@ class AdFlowAgent(Processor):
             return False
 
         user_profile = data.get("user_profile", {})
+        # Shopping wizard owns budget/fulfillment turns — never steal as pincode.
+        if user_profile.get("shopping_wizard_active"):
+            return False
         if user_profile.get("awaiting_store_pincode"):
             return True
         if data.get("classified_category") == "store_info":
