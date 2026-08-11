@@ -194,7 +194,7 @@ _HUMAN_HANDOFF_RE = re.compile(
 _CALLBACK_RE = re.compile(
     r"\b("
     r"call\s*me\s*back|call\s*back|callback|request\s+(?:a\s+)?callback|"
-    r"phone\s+karo|mujhe\s+call|call\s+karwao|call\s+karo|"
+    r"please\s+call\s+me|phone\s+karo|mujhe\s+call|call\s+karwao|call\s+karo|"
     r"callback\s+form|schedule\s+(?:a\s+)?callback"
     r")\b",
     re.I,
@@ -390,7 +390,12 @@ def _is_policy_information_query(text: str) -> bool:
 
 
 def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
-    """Regex override for policy FAQ vs action, custom jewellery handoff."""
+    """Hard override only for cases the LLM must not decide alone.
+
+    Live-agent / callback / video / gold-rate are LLM-primary (prompt + soft
+    hints). Sticky waits may use regex only to *leave* the wait, then the LLM
+    classifies.
+    """
     normalized = (text or "").strip()
     if not normalized:
         return None
@@ -398,20 +403,9 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("general", 0.95)
     if _is_custom_jewellery_query(normalized):
         return ("human_handoff", 0.95)
-    # Live-agent phrasing ("connect me with agent") is LLM-primary via the
-    # classifier prompt — not a regex verdict. Sticky-wait escape still uses
-    # _HUMAN_HANDOFF_RE so mid-flow handoff requests can leave store/wizard waits.
-    if _CALLBACK_RE.search(normalized):
-        return ("callback", 0.95)
-    if _GOLD_RATE_RE.search(normalized):
-        return ("gold_rate", 0.95)
-    if _VIDEO_CALL_RE.search(normalized):
-        return ("video_call", 0.95)
     if _DIGITAL_GOLD_RE.search(normalized) or _SCHEME_RE.search(normalized):
         return ("general", 0.9)
-    # Policy action/info regexes are HINTS only (see _programmatic_intent_hint):
-    # they misfire on phrases like "return gift ke liye kuch dikhao", so the
-    # LLM keeps the final word.
+    # Policy action/info regexes are HINTS only (see _programmatic_intent_hint).
     return None
 
 
@@ -420,6 +414,26 @@ def _programmatic_intent_hint(text: str) -> str | None:
     normalized = (text or "").strip()
     if not normalized:
         return None
+    if _HUMAN_HANDOFF_RE.search(normalized):
+        return (
+            "heuristic suggests an explicit live-agent / human request "
+            "(intent human_handoff, confidence ≥0.9) — never general or unclear"
+        )
+    if _CALLBACK_RE.search(normalized):
+        return (
+            "heuristic suggests a phone callback request (intent callback) — "
+            "NOT live chat handoff, NOT video"
+        )
+    if _VIDEO_CALL_RE.search(normalized):
+        return (
+            "heuristic suggests video call / video consultation "
+            "(intent video_call)"
+        )
+    if _GOLD_RATE_RE.search(normalized):
+        return (
+            "heuristic suggests today's gold metal rate (intent gold_rate) — "
+            "NOT a jewellery product price"
+        )
     if _is_policy_action_query(normalized):
         return (
             "heuristic suggests a return/refund/exchange ACTION request "
@@ -1216,8 +1230,21 @@ def _route_resolved_intent(
             )
         return True
 
+    # LLM already returned a resolved support intent — never ask to clarify.
+    if intent in ("human_handoff", "callback", "video_call", "gold_rate"):
+        # Handled above; keep this guard if handlers are reordered later.
+        pass
+
     if (
         confidence < CLARIFICATION_CONFIDENCE_THRESHOLD
+        and intent
+        not in (
+            "human_handoff",
+            "callback",
+            "video_call",
+            "gold_rate",
+            "repair",
+        )
         and _should_offer_clarification(data, user_query, user_profile)
     ):
         user_profile["pending_clarification"] = True
@@ -1567,19 +1594,15 @@ class Classifier(Processor):
 
         _maybe_expire_product_search_session(user_profile)
 
-        # Indic-script text bypasses every Latin-only regex gate below — the LLM
-        # classifier is the only component that can understand it.
-        if _INDIC_SCRIPT_RE.search(user_query):
-            return True
-
         if is_greeting_message(user_query):
             return True
 
         if _REROUTE_RE.search(user_query):
             return True
 
-        # Wizard beats store wait: a stale awaiting_store_pincode must not
-        # hijack budget answers ("50k") while the funnel is asking for price.
+        # Sticky waits own the turn (including Indic slot answers like "डाइमंड")
+        # unless the user is clearly escaping to another flow. Indic must NOT
+        # force re-classification mid-wizard — that leaks to GeneralAgent.
         if user_profile.get("shopping_wizard_active"):
             if _sticky_wait_escape_intent(user_query):
                 return True
@@ -1597,6 +1620,12 @@ class Classifier(Processor):
             if _sticky_wait_escape_intent(user_query):
                 return True
             return False
+
+        # Indic-script text bypasses Latin-only regex gates below — the LLM
+        # classifier is the only component that can understand free-form Indic
+        # outside an active sticky wait.
+        if _INDIC_SCRIPT_RE.search(user_query):
+            return True
 
         # LLM-default policy: the classifier sees every message. A regex may only
         # SKIP the LLM for provably unambiguous continuations — never because it
@@ -1652,16 +1681,19 @@ class Classifier(Processor):
                 # shortcut paths that skip the LLM (greeting, ack, overrides).
                 _store_language(user_profile, None, user_query)
 
+                # Keep the raw user text for shortcuts / overrides / sticky escape.
+                # Context-prefixed rewrite is LLM-only (pending clarification).
+                raw_query = user_query
+                llm_user_query = user_query
                 if user_profile.get("pending_clarification"):
                     user_profile["pending_clarification"] = False
-                    clarified = user_query.strip()
-                    user_query = (
+                    clarified = raw_query.strip()
+                    llm_user_query = (
                         "Context: user was asked to clarify their previous message. "
                         f"Their clarification: {clarified}"
                     )
-                    data["messages"]["text"]["body"] = user_query
 
-                if user_query.strip().lower() == "stop":
+                if raw_query.strip().lower() == "stop":
                     data["bot_response"] = [
                         {
                             "type": "text",
@@ -1670,12 +1702,12 @@ class Classifier(Processor):
                     ]
                     return data
 
-                if user_query.lower() == "hi from ads":
+                if raw_query.lower() == "hi from ads":
                     user_profile["service_selected"] = ServiceList.AD_FLOW.value
                     return data
 
                 chat_history = data["user_profile"].get("chat_history", [])
-                if is_greeting_message(user_query):
+                if is_greeting_message(raw_query):
                     _reset_session_on_fresh_start(user_profile)
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "greeting"
@@ -1691,7 +1723,7 @@ class Classifier(Processor):
                     return data
 
                 if user_profile.get("awaiting_rating"):
-                    rating = _parse_rating_reply(user_query)
+                    rating = _parse_rating_reply(raw_query)
                     user_profile.pop("awaiting_rating", None)
                     if rating is not None:
                         logger.info(
@@ -1711,7 +1743,7 @@ class Classifier(Processor):
                         return data
                     # Non-rating message — fall through and treat normally
 
-                if is_menu_request(user_query):
+                if is_menu_request(raw_query):
                     _reset_session_on_fresh_start(user_profile)
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "menu_help"
@@ -1729,14 +1761,19 @@ class Classifier(Processor):
                     return data
 
                 if _has_sticky_wait(user_profile):
-                    escape_intent = _sticky_wait_escape_intent(user_query)
+                    escape_intent = _sticky_wait_escape_intent(raw_query)
                     if escape_intent:
+                        # Regex only clears the sticky wait so the funnel does not
+                        # swallow the message. Intent is LLM-primary below —
+                        # never treat escape_intent as a hard verdict (that used
+                        # to route callback/handoff through _apply_intent_routing
+                        # → fallback_unclear / "samajh nahi aaya").
                         _clear_sticky_waits(user_profile)
                         extra_entities: dict[str, Any] = {}
                         if user_profile.pop("_price_direction_hint", None):
                             extra_entities["price_direction"] = "higher"
                         if escape_intent == "product_search":
-                            extracted = extract_entities(user_query)
+                            extracted = extract_entities(raw_query)
                             for key in (
                                 "category",
                                 "material_type",
@@ -1746,32 +1783,18 @@ class Classifier(Processor):
                             ):
                                 if extracted.get(key) is not None:
                                     extra_entities[key] = extracted[key]
-                        _store_llm_entities(data, user_profile, extra_entities)
-                        data["classified_category"] = escape_intent
-                        data["classifier_confidence"] = 1.0
-                        _maybe_prompt_flow_switch(
-                            data,
-                            escape_intent,
-                            user_profile,
-                            user_query,
-                            confidence=1.0,
+                        if extra_entities:
+                            _store_llm_entities(data, user_profile, extra_entities)
+                        logger.info(
+                            "Sticky wait cleared — LLM will classify escape",
+                            extra={
+                                "phone_number": phone_number,
+                                "escape_hint": escape_intent,
+                            },
                         )
-                        if _apply_intent_routing(
-                            data,
-                            escape_intent,
-                            user_profile,
-                            user_query=user_query,
-                            confidence=1.0,
-                        ):
-                            _prepend_flow_switch_ack(data)
-                            return data
-                        user_profile["service_selected"] = (
-                            _CATEGORY_TO_SERVICE.get(escape_intent) or ServiceList.GENERAL
-                        ).value
-                        _prepend_flow_switch_ack(data)
-                        return data
-                    if user_profile.get("awaiting_store_pincode"):
-                        if user_query.strip().lower() not in ("cancel", "back"):
+                        # Fall through to ack / override / LLM
+                    elif user_profile.get("awaiting_store_pincode"):
+                        if raw_query.strip().lower() not in ("cancel", "back"):
                             _store_llm_entities(data, user_profile, {})
                             user_profile["service_selected"] = ServiceList.AD_FLOW.value
                             data["classified_category"] = "store_info"
@@ -1781,7 +1804,7 @@ class Classifier(Processor):
                             )
                             return data
 
-                if _is_acknowledgement_message(user_query, user_profile):
+                if _is_acknowledgement_message(raw_query, user_profile):
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "acknowledgement"
                     data["bot_response"] = build_acknowledgement_bot_response()
@@ -1791,7 +1814,7 @@ class Classifier(Processor):
                     )
                     return data
 
-                override = _programmatic_intent_override(user_query)
+                override = _programmatic_intent_override(raw_query)
                 if override:
                     intent, confidence = override
                     _store_llm_entities(data, user_profile, {})
@@ -1807,7 +1830,7 @@ class Classifier(Processor):
                         data,
                         user_profile,
                         phone_number,
-                        user_query,
+                        raw_query,
                         chat_history,
                         intent,
                         confidence,
@@ -1818,14 +1841,14 @@ class Classifier(Processor):
 
                 logger.info(
                     "Request received to classify query",
-                    extra={"phone_number": phone_number, "query": user_query},
+                    extra={"phone_number": phone_number, "query": raw_query},
                 )
 
                 chat_history_str = format_recent_history_str(user_profile, 8)
                 system_content = _build_classifier_system_content(
                     user_profile,
                     chat_history_str,
-                    hint=_programmatic_intent_hint(user_query),
+                    hint=_programmatic_intent_hint(raw_query),
                 )
 
                 classifier_response = await complete_chat(
@@ -1839,7 +1862,7 @@ class Classifier(Processor):
                         },
                         {
                             "role": "user",
-                            "content": f"User Query: {user_query}",
+                            "content": f"User Query: {llm_user_query}",
                         },
                     ],
                     phone_number=phone_number,
@@ -1857,8 +1880,8 @@ class Classifier(Processor):
                 parsed = _parse_classifier_json(classifier_response)
                 intent = parsed["intent"] or "general"
                 confidence = parsed["confidence"]
-                _store_language(user_profile, parsed.get("language"), user_query)
-                override = _programmatic_intent_override(user_query)
+                _store_language(user_profile, parsed.get("language"), raw_query)
+                override = _programmatic_intent_override(raw_query)
                 if override:
                     intent, confidence = override
                     logger.info(
@@ -1900,7 +1923,7 @@ class Classifier(Processor):
                         )
 
                         second = await extract_entities_with_llm(
-                            user_query=user_query,
+                            user_query=raw_query,
                             client_id=client_id,
                             phone_number=phone_number,
                         )
@@ -1952,7 +1975,7 @@ class Classifier(Processor):
                     data,
                     user_profile,
                     phone_number,
-                    user_query,
+                    raw_query,
                     chat_history,
                     intent,
                     confidence,

@@ -42,6 +42,24 @@ _MATERIAL_TITLE_MAP = {
     "gemstone": "gemstone",
     "gem stone": "gemstone",
     "stone": "gemstone",
+    # Devanagari / common Indic spellings (wizard sticky answers)
+    "सोना": "gold",
+    "सोने": "gold",
+    "सोने की": "gold",
+    "सोने का": "gold",
+    "हीरा": "diamond",
+    "हीरे": "diamond",
+    "डायमंड": "diamond",
+    "डाइमंड": "diamond",
+    "डायमण्ड": "diamond",
+    "रत्न": "gemstone",
+    "जेमस्टोन": "gemstone",
+    # Gujarati
+    "સોનું": "gold",
+    "સોના": "gold",
+    "હીરા": "diamond",
+    "ડાયમંડ": "diamond",
+    "રત્ન": "gemstone",
 }
 
 _FULFILLMENT_TITLE_MAP = {
@@ -445,6 +463,9 @@ def _parse_text_for_step(step: str, text: str) -> Any | None:
     if step == "material":
         if normalized in _MATERIAL_TITLE_MAP:
             return _MATERIAL_TITLE_MAP[normalized]
+        for key, val in _MATERIAL_TITLE_MAP.items():
+            if key in normalized:
+                return val
         ents = extract_entities(text)
         mat = ents.get("material_type")
         if mat in ("gold", "diamond", "gemstone"):

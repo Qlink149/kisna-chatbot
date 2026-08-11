@@ -90,16 +90,25 @@ class PolicyRoutingUnitTests(unittest.TestCase):
 
     def test_live_agent_phrases_are_llm_primary(self):
         # No regex verdict — classifier prompt / LLM owns these.
+        from kisna_chatbot.processors.classifier import _programmatic_intent_hint
+
         for text in (
             "Connect me with agent",
             "Connect me with a human",
             "talk to a human",
             "speak to an agent",
             "agent se baat karni hai",
+            "call me back",
+            "please call me",
+            "video call schedule karna hai",
         ):
             self.assertIsNone(
                 _programmatic_intent_override(text),
                 msg=f"expected no regex override for {text!r}",
+            )
+            self.assertIsNotNone(
+                _programmatic_intent_hint(text),
+                msg=f"expected soft LLM hint for {text!r}",
             )
 
     def test_product_price_signal_guard(self):

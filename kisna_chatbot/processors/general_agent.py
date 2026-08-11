@@ -42,6 +42,25 @@ _PRODUCT_REFERENCE_RE = re.compile(
     re.I,
 )
 
+_VARIANT_OR_BUDGET_RE = re.compile(
+    r"("
+    r"\d+\s*k|\d+\s*lakh|budget|under|above|gms?|gram|carat|\bct\b|"
+    r"हज़ार|हजार|लाख|હજાર"
+    r")",
+    re.I,
+)
+
+
+def _match_shown_title(query: str, shown: list) -> bool:
+    needle = (query or "").strip().strip("*").strip().casefold()
+    if len(needle) < 4:
+        return False
+    for product in shown:
+        title = (product.get("title") or product.get("name") or "").casefold()
+        if title and (needle == title or needle in title or title in needle):
+            return True
+    return False
+
 
 class GeneralAgent(Processor):
     """Handles brand questions, design advice, and policy/FAQ queries for Kisna."""
@@ -75,6 +94,32 @@ class GeneralAgent(Processor):
             last_viewed = user_profile.get("last_viewed_product")
             last_search = user_profile.get("last_search_products") or []
 
+            async def _handoff_to_product_search(
+                *, category: str = "product_search"
+            ) -> dict:
+                from kisna_chatbot.processors.product_search_agent_v3 import (
+                    ProductSearchAgentV3,
+                )
+
+                user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                data["classified_category"] = category
+                return await ProductSearchAgentV3().process(data)
+
+            # Never invent catalog while shopping — hand back to product search.
+            if user_profile.get("shopping_wizard_active"):
+                logger.info(
+                    "GeneralAgent deferring to product search (wizard active)",
+                    extra={"phone_number": phone_number, "query": user_query},
+                )
+                return await _handoff_to_product_search(category="product_search")
+
+            if last_search and _match_shown_title(user_query, last_search):
+                logger.info(
+                    "GeneralAgent deferring typed product title to product search",
+                    extra={"phone_number": phone_number, "query": user_query},
+                )
+                return await _handoff_to_product_search(category="product_info")
+
             if (last_viewed or last_search) and _CATALOG_FOLLOWUP_RE.search(
                 user_query or ""
             ):
@@ -88,9 +133,15 @@ class GeneralAgent(Processor):
                             "GeneralAgent rerouting catalog follow-up to product search",
                             extra={"phone_number": phone_number, "query": user_query},
                         )
-                        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-                        data["classified_category"] = "product_info"
-                        return data
+                        return await _handoff_to_product_search(category="product_info")
+
+            # Budget / variant-sounding asks while results are on screen → product path
+            if last_search and _VARIANT_OR_BUDGET_RE.search(user_query or ""):
+                logger.info(
+                    "GeneralAgent deferring budget/variant follow-up to product search",
+                    extra={"phone_number": phone_number, "query": user_query},
+                )
+                return await _handoff_to_product_search(category="product_search")
 
             chat_history_str = format_recent_history_str(user_profile, 8)
 

@@ -4,6 +4,7 @@ import asyncio
 import os
 import time
 import unittest
+from unittest.mock import AsyncMock, patch
 
 for _k, _v in {
     "MONGO_URI": "mongodb://localhost:27017",
@@ -139,7 +140,13 @@ class StickyWaitEscapeTests(unittest.TestCase):
                 },
             }
             self.assertTrue(clf.should_run(data))
-            result = await clf.process(data)
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value='{"intent":"product_search","confidence":0.95,'
+                '"entities":{"category":"ring"}}',
+            ):
+                result = await clf.process(data)
             self.assertFalse(result["user_profile"].get("shopping_wizard_active"))
             self.assertEqual(result["classified_category"], "product_search")
             ents = result["user_profile"].get("llm_extracted_entities") or {}
@@ -162,7 +169,13 @@ class StickyWaitEscapeTests(unittest.TestCase):
                 },
             }
             self.assertTrue(clf.should_run(data))
-            result = await clf.process(data)
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value='{"intent":"product_search","confidence":0.95,'
+                '"entities":{"category":"ring"}}',
+            ):
+                result = await clf.process(data)
             self.assertNotIn("callback_capture_step", result["user_profile"])
             self.assertEqual(result["classified_category"], "product_search")
 

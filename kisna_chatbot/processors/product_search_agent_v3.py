@@ -423,9 +423,40 @@ def _handle_product_reference(data: dict) -> dict | None:
     shown = user_profile.get("last_search_products") or []
     if not (1 <= ref <= len(shown)):
         return None
-    product = shown[ref - 1]
-    from kisna_chatbot.processors.product_details_agent import _save_last_viewed_product
+    return _open_shown_product(data, shown[ref - 1])
 
+
+def _normalize_product_title_query(text: str) -> str:
+    cleaned = (text or "").strip().strip("*").strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.casefold()
+
+
+def _match_shown_product_by_title(query: str, shown: list[dict]) -> dict | None:
+    """Exact / containment match against currently shown product titles."""
+    needle = _normalize_product_title_query(query)
+    if not needle or len(needle) < 4:
+        return None
+    best: dict | None = None
+    best_len = 0
+    for product in shown:
+        title = product.get("title") or product.get("name") or ""
+        norm = _normalize_product_title_query(title)
+        if not norm:
+            continue
+        if needle == norm or needle in norm or norm in needle:
+            if len(norm) > best_len:
+                best = product
+                best_len = len(norm)
+    return best
+
+
+def _open_shown_product(data: dict, product: dict) -> dict:
+    user_profile = data.get("user_profile", {})
+    from kisna_chatbot.processors.product_details_agent import _save_last_viewed_product
+    from kisna_chatbot.processors.shopping_wizard import clear_wizard_state
+
+    clear_wizard_state(user_profile)
     _save_last_viewed_product(user_profile, product)
     image_msg = build_product_image_with_cta_message(product)
     responses: list[dict] = []
@@ -435,9 +466,30 @@ def _handle_product_reference(data: dict) -> dict | None:
         name = product.get("title") or product.get("name") or "This piece"
         price = get_product_display_price(product)
         price_txt = f"₹{int(price):,}" if price and price > 0 else "on the product page"
-        responses.append({"type": "text", "text": f"*{name}* — {price_txt}"})
+        buy_url = build_product_url(product)
+        responses.append(
+            {
+                "type": "cta_url",
+                "text": f"*{name}* — {price_txt}",
+                "display_text": "Buy on KISNA",
+                "url": buy_url,
+            }
+        )
     data["bot_response"] = responses
+    data["classified_category"] = "product_info"
     return data
+
+
+def _handle_typed_product_title(data: dict, query: str) -> dict | None:
+    """User typed a shown product name — open that card, do not restart wizard."""
+    user_profile = data.get("user_profile", {})
+    shown = user_profile.get("last_search_products") or []
+    if not shown:
+        return None
+    product = _match_shown_product_by_title(query, shown)
+    if not product:
+        return None
+    return _open_shown_product(data, product)
 
 
 def _handle_compare(data: dict) -> dict | None:
@@ -1270,10 +1322,23 @@ def _build_search_success_response(
     images_sent = len(carousel_products)
 
     if images_sent == 0 and products:
+        # Grounded text fallback from API products — never invent names/weights.
+        lines = ["Here are your results:"]
+        for product in products[:page_size]:
+            name = product.get("title") or product.get("name") or "KISNA piece"
+            price = get_product_display_price(product)
+            if price and price > 0:
+                lines.append(f"• *{name}* — ₹{int(price):,}")
+            else:
+                lines.append(f"• *{name}*")
+        bot_response.append({"type": "text", "text": "\n".join(lines)})
+        first = products[0]
         bot_response.append(
             {
-                "type": "text",
-                "text": "Here are your results (images unavailable for some items):",
+                "type": "cta_url",
+                "text": "Open a piece on KISNA 👇",
+                "display_text": "Buy on KISNA",
+                "url": build_product_url(first),
             }
         )
     elif skipped_product_ids:
@@ -1286,7 +1351,7 @@ def _build_search_success_response(
             },
         )
 
-    if products[:page_size]:
+    if products[:page_size] and images_sent > 0:
         bot_response.append(
             {
                 "type": "cta_url",
@@ -1578,6 +1643,13 @@ class ProductSearchAgentV3(Processor):
         _clear_session_if_expired(user_profile)
 
         # Guided shopping wizard (smart-skip funnel)
+        # Typed title of a currently shown product wins over wizard restart.
+        title_query = _extract_search_query(messages)
+        if title_query:
+            titled = _handle_typed_product_title(data, title_query)
+            if titled is not None:
+                return titled
+
         if is_wizard_interactive(messages) or (
             is_wizard_active(user_profile)
             and (

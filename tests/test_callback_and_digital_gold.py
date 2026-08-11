@@ -25,6 +25,7 @@ os.environ["KISNA_CALLBACK_FLOW_ID"] = "flow_callback_test"
 from kisna_chatbot.processors.classifier import (  # noqa: E402
     _CALLBACK_RE,
     _DIGITAL_GOLD_RE,
+    _programmatic_intent_hint,
     _programmatic_intent_override,
     _route_resolved_intent,
 )
@@ -38,10 +39,11 @@ class CallbackIntentTests(unittest.TestCase):
         self.assertTrue(_CALLBACK_RE.search("mujhe call karo"))
         self.assertFalse(_CALLBACK_RE.search("talk to an agent"))
 
-    def test_callback_override(self):
-        intent, conf = _programmatic_intent_override("call me back please")
-        self.assertEqual(intent, "callback")
-        self.assertGreaterEqual(conf, 0.9)
+    def test_callback_is_llm_primary_with_soft_hint(self):
+        self.assertIsNone(_programmatic_intent_override("call me back please"))
+        hint = _programmatic_intent_hint("call me back please")
+        self.assertIsNotNone(hint)
+        self.assertIn("callback", hint.lower())
 
     @patch(
         "kisna_chatbot.config.gupshup.get_callback_flow_id",

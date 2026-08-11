@@ -57,11 +57,12 @@ English: "connect me with agent", "connect me with a human", "talk to a human",
 High confidence (≥0.9). Never classify these as general / low-confidence unclear.
 
 **callback** — Request for a phone callback (NOT live chat, NOT video):
-"call me back", "callback", "request a callback", "mujhe call karo", "phone karo",
-"callback form". Always send the callback form.
+"call me back", "please call me", "callback", "request a callback", "mujhe call karo",
+"phone karo", "callback form". High confidence (≥0.9). Always send the callback form.
 
 **video_call** — Request for a video call / video consultation / video shopping:
-"schedule a video call", "video pe dikhao", "video consultation chahiye".
+"schedule a video call", "video call schedule karna hai", "video pe dikhao",
+"video consultation chahiye". High confidence (≥0.9).
 
 **gold_rate** — Today's gold price / live rate: "gold rate today", "aaj ka rate",
 "sone ka bhav", "sona kitne ka chal raha hai", "22kt ka rate". NOT product prices.
@@ -451,7 +452,9 @@ Fallback for unclear or spam/gibberish:
 22g. "customer care" → {"intent": "human_handoff", "confidence": 0.92}
 22h. "call me back" → {"intent": "callback", "confidence": 0.95}
 22i. "please call me" → {"intent": "callback", "confidence": 0.93}
-(Live chat / person → human_handoff. Phone call-back → callback — never confuse the two.)
+22j. "mujhe call karo" → {"intent": "callback", "confidence": 0.95}
+22k. "video call schedule karna hai" → {"intent": "video_call", "confidence": 0.95}
+(Live chat / person → human_handoff. Phone call-back → callback. Video → video_call.)
 23. "return policy kya hai" → {"intent": "general", "confidence": 0.9}
 24. "gold kaise maintain kare" → {"intent": "general", "confidence": 0.85}
 25. "mujhe jhumka dikhao" → {"intent": "product_search", "confidence": 0.93}

@@ -17,6 +17,7 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
 
 from kisna_chatbot.main import app  # noqa: F401  (breaks logger/env init cycle)
 from kisna_chatbot.processors.classifier import (
+    _programmatic_intent_hint,
     _programmatic_intent_override,
     _route_resolved_intent,
 )
@@ -24,26 +25,18 @@ from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
 
 
 class ProgrammaticOverrideTests(unittest.TestCase):
-    def test_video_call_english(self):
-        self.assertEqual(
-            _programmatic_intent_override("Can you schedule a video call?"),
-            ("video_call", 0.95),
-        )
+    def test_video_call_is_llm_primary(self):
+        for text in (
+            "Can you schedule a video call?",
+            "video pe jewellery dikha sakte ho",
+            "video consultation book karni hai",
+        ):
+            self.assertIsNone(_programmatic_intent_override(text), msg=text)
+            self.assertIsNotNone(_programmatic_intent_hint(text), msg=text)
 
-    def test_video_call_hinglish(self):
-        self.assertEqual(
-            _programmatic_intent_override("video pe jewellery dikha sakte ho"),
-            ("video_call", 0.95),
-        )
-
-    def test_video_consultation(self):
-        self.assertEqual(
-            _programmatic_intent_override("video consultation book karni hai"),
-            ("video_call", 0.95),
-        )
-
-    def test_unboxing_video_not_video_call(self):
+    def test_unboxing_video_not_video_call_hint(self):
         self.assertIsNone(_programmatic_intent_override("unboxing video bhej du kya"))
+        self.assertIsNone(_programmatic_intent_hint("unboxing video bhej du kya"))
 
     def test_scheme_generic(self):
         self.assertEqual(
@@ -73,17 +66,10 @@ class ProgrammaticOverrideTests(unittest.TestCase):
         # Plain offer queries must NOT be swallowed by the scheme override.
         self.assertIsNone(_programmatic_intent_override("koi offer hai kya"))
 
-    def test_gold_rate_conversational(self):
-        self.assertEqual(
-            _programmatic_intent_override("sona kitne ka chal raha hai"),
-            ("gold_rate", 0.95),
-        )
-
-    def test_gold_rate_karat(self):
-        self.assertEqual(
-            _programmatic_intent_override("22kt ka bhav batao"),
-            ("gold_rate", 0.95),
-        )
+    def test_gold_rate_is_llm_primary(self):
+        for text in ("sona kitne ka chal raha hai", "22kt ka bhav batao"):
+            self.assertIsNone(_programmatic_intent_override(text), msg=text)
+            self.assertIsNotNone(_programmatic_intent_hint(text), msg=text)
 
 
 class VideoCallRoutingTests(unittest.TestCase):
