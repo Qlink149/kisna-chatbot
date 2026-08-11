@@ -1068,11 +1068,19 @@ class SearchImageCarouselTests(unittest.TestCase):
         image_items = [r for r in response if r.get("type") == "image_with_cta"]
         self.assertEqual(len(image_items), 3)
 
-    def test_carousel_no_images_shows_fallback_text(self):
+    def test_carousel_no_images_lists_products_with_links(self):
         products = [{"_id": "1", "title": "A"}]
         response = _build_search_success_response(products, 1, 1, {})
         texts = [r["text"] for r in response if r.get("type") == "text"]
-        self.assertTrue(any("images unavailable" in t for t in texts))
+        self.assertTrue(any("*A*" in t and "kisna.com" in t for t in texts))
+
+    def test_see_collection_cta_is_last(self):
+        products = [
+            {"_id": "1", "title": "A", "mediaUrl": [{"image": "https://ex.com/a.jpg"}]},
+        ]
+        response = _build_search_success_response(products, 1, 1, {})
+        self.assertEqual(response[-1].get("display_text"), "See Collection")
+        self.assertEqual(response[-2].get("type"), "image_with_cta")
 
 
 class DisplayPriceTests(unittest.TestCase):

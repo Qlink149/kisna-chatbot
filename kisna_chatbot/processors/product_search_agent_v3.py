@@ -1332,28 +1332,19 @@ def _build_search_success_response(
 
     if images_sent == 0 and products:
         # Grounded text fallback from API products — never invent names/weights.
-        lines = ["Here are your results:"]
+        entries = []
         for product in products[:page_size]:
             name = product.get("title") or product.get("name") or "KISNA piece"
             price = get_product_display_price(product)
+            heading = f"*{name}*"
             if price and price > 0:
-                lines.append(f"• *{name}* — ₹{int(price):,}")
-            else:
-                lines.append(f"• *{name}*")
+                heading = f"{heading} — ₹{int(price):,}"
+            entries.append(f"{heading}\n{build_product_url(product)}")
         bot_response.append(
             {
                 "type": "text",
-                "text": "\n".join(lines),
+                "text": "Here are your results:\n\n" + "\n\n".join(entries),
                 "_compose": "search_results_text",
-            }
-        )
-        first = products[0]
-        bot_response.append(
-            {
-                "type": "cta_url",
-                "text": "Open a piece on KISNA 👇",
-                "display_text": "Buy on KISNA",
-                "url": build_product_url(first),
             }
         )
     elif skipped_product_ids:
@@ -1366,7 +1357,7 @@ def _build_search_success_response(
             },
         )
 
-    if products[:page_size] and images_sent > 0:
+    if products[:page_size]:
         bot_response.append(
             {
                 "type": "cta_url",
