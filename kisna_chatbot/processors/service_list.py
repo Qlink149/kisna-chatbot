@@ -951,6 +951,20 @@ class ServiceList(Processor):
 
             if user_profile.get("service_selected", "") == "":
                 interactive = messages.get("interactive") or {}
+                # Budget WhatsApp Flow submit — same class of bug as callback:
+                # session/service may be cleared before the user hits Send.
+                # Route to product search without inventing a help-menu reply.
+                from kisna_chatbot.processors.product_search_agent_v3 import (
+                    _parse_budget_flow_reply,
+                )
+
+                if _parse_budget_flow_reply(messages) is not None:
+                    user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                    logger.info(
+                        "Budget Flow nfm_reply routed to product search",
+                        extra={"phone_number": phone_number},
+                    )
+                    return data
                 # A Flow submission that no agent claimed — do not paper over it
                 # with the help menu (that hides the real miss and confuses the
                 # user who just filled a form).

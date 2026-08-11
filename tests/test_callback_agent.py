@@ -276,6 +276,30 @@ class TestCallbackAgent(unittest.TestCase):
         self.assertLess(names.index("CallbackAgent"), names.index("ServiceList"))
         self.assertLess(names.index("ComplaintAgent"), names.index("ServiceList"))
 
+    def test_service_list_routes_budget_flow_when_service_cleared(self):
+        """Budget Flow submit must not become the help menu."""
+        from kisna_chatbot.processors.service_list import ServiceList
+
+        processor = ServiceList()
+        data = {
+            "phone_number": "919999999999",
+            "user_profile": {"service_selected": ""},
+            "messages": {
+                "interactive": {
+                    "type": "nfm_reply",
+                    "nfm_reply": {
+                        "name": "flow",
+                        "response_json": json.dumps({"budget_input": "under 30k"}),
+                    },
+                }
+            },
+        }
+        result = asyncio.run(processor.process(data))
+        self.assertEqual(
+            result["user_profile"]["service_selected"], "product_search"
+        )
+        self.assertNotIn("bot_response", result)
+
 
 if __name__ == "__main__":
     unittest.main()
