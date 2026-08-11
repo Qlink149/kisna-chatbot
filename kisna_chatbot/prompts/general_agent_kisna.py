@@ -245,9 +245,11 @@ output_schema = {
                 "message": {
                     "type": "string",
                     "description": (
-                        "A single WhatsApp-style message. Use WhatsApp markdown: *bold*, "
-                        "_italic_, ~strikethrough~, - for bullets, 1. for numbered lists, "
-                        "\\n for new lines. Keep it concise and scannable."
+                        "A single WhatsApp-style message. WhatsApp renders markdown "
+                        "literally, so use ONLY its own syntax: *bold*, _italic_, "
+                        "~strikethrough~, and \\n for new lines. Never use **double "
+                        "asterisks**, ## headings, or '- ' bullets — for a short list "
+                        "use the • character. Keep it concise and scannable."
                     ),
                 }
             },

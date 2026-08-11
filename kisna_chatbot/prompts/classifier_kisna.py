@@ -158,7 +158,8 @@ new value: after a women search, "I want it for men" / "for him" → gender=men
 18. Delivery days about an ORDER → order_tracking; about a PRODUCT → product_info
 19. Bare material alone ("gold", "diamond") with no action word → low confidence (do not guess)
 20. If user has been browsing products and asks comparative questions ("cheapest", "sabse sasta",
-    "best one", "compare these", "which is better") → product_info, NOT general
+    "best one", "compare these", "which is better") → compare, NOT general and NOT product_info.
+    (Exception: picking ONE shown item to open it — "2nd wala dikhao" — is product_info.)
 21. Gold rate / live price of gold as a metal → gold_rate. Price of a jewellery piece → product_info.
 22. Video call / video consultation / video shopping → video_call
 23. Scheme / savings plan / KMR / Meri Roshni / monthly installment plan → general (KB answer).
@@ -490,8 +491,8 @@ Fallback for unclear or spam/gibberish:
 55. "gold" → {"intent": "product_search", "confidence": 0.35}
 56. "kuch dikhao" → {"intent": "product_search", "confidence": 0.38}
 57. "help" → {"intent": "menu_help", "confidence": 0.4}
-58. "which is cheapest?" | active: product_search → {"intent": "product_info", "confidence": 0.88}
-59. "sabse sasta kaun sa hai" | active: product_search → {"intent": "product_info", "confidence": 0.87}
+58. "which is cheapest?" | active: product_search → {"intent": "compare", "confidence": 0.88}
+59. "sabse sasta kaun sa hai" | active: product_search → {"intent": "compare", "confidence": 0.87}
 60. "rings aur earrings chahiye" → {"intent": "product_search", "confidence": 0.85}
 61. "show me expensive rings" | active: product_search → {"intent": "product_search", "confidence": 0.88}
 62. "aur mehnga dikhao" | active: product_search → {"intent": "product_search", "confidence": 0.85}

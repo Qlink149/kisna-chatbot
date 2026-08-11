@@ -1,12 +1,10 @@
 import json
 import re
-import time
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from kisna_chatbot.ai import complete_chat
 from kisna_chatbot.ai.types import AgentName
-from kisna_chatbot.constants import ADMINS, KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.ad_flow_agent import _PINCODE_ONLY_RE
@@ -38,16 +36,12 @@ from kisna_chatbot.utils.session_state import (
     reset_session_on_fresh_start,
     reset_transient_state,
 )
-from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
-    send_customer_support_template,
-)
 
 india_tz = ZoneInfo("Asia/Kolkata")
 
 CONTEXT = kisna_classifier
 
 CLARIFICATION_CONFIDENCE_THRESHOLD = 0.45
-COMPLETELY_UNCLEAR_THRESHOLD = 0.3
 PRODUCT_SEARCH_SESSION_EXPIRY_SECONDS = 2 * 60 * 60
 
 _GREETING_RE = re.compile(
@@ -162,7 +156,7 @@ _ACTION_INTENT_RE = re.compile(
 
 _CUSTOM_JEWELLERY_RE = re.compile(
     r"\b(custom(ize|ise|ized|ised)?|customis|made to order|"
-    r"bespoke|personal\w*|engrav\w*|design my own|"
+    r"bespoke|personalis\w*|personaliz\w*|engrav\w*|design my own|"
     r"apni design|custom design|naam likhwana|"
     r"initials|special order)\b",
     re.I,
@@ -350,17 +344,32 @@ _SIZE_QUERY_RE = re.compile(
 )
 
 
-_COMPETITOR_RE = re.compile(
+# A NAMED rival (or an explicit "other brands" phrasing) is unambiguous — safe
+# to decide without the LLM.
+_COMPETITOR_BRAND_RE = re.compile(
     r"\b(tanishq|kalyan|malabar|caratlane|reliance\s+jewels|bluestone|"
     r"joyalukkas|pc\s+jeweller|pcj|bhima|grt|tbz|senco|png|"
-    r"other\s+brands?|local\s+jeweler|local\s+jeweller|why\s+buy\s+from|"
-    r"why\s+choose|better\s+than)\b",
+    r"other\s+brands?|local\s+jeweler|local\s+jeweller|why\s+buy\s+from)\b",
+    re.I,
+)
+
+# "better than" / "why choose" alone are NOT competitor signals — they are how
+# people compare the products we just showed them ("is this better than the
+# second one?"). Kept only as a soft hint so the LLM can pick compare instead.
+_COMPETITOR_WEAK_RE = re.compile(
+    r"\b(why\s+choose|better\s+than)\b",
+    re.I,
+)
+
+_COMPETITOR_RE = re.compile(
+    f"{_COMPETITOR_BRAND_RE.pattern}|{_COMPETITOR_WEAK_RE.pattern}",
     re.I,
 )
 
 
 def _is_competitor_comparison(text: str) -> bool:
-    return bool(_COMPETITOR_RE.search((text or "").strip()))
+    """Named-rival comparison only — see _COMPETITOR_WEAK_RE for why."""
+    return bool(_COMPETITOR_BRAND_RE.search((text or "").strip()))
 
 
 def _is_custom_jewellery_query(text: str) -> bool:
@@ -414,6 +423,14 @@ def _programmatic_intent_hint(text: str) -> str | None:
     normalized = (text or "").strip()
     if not normalized:
         return None
+    if _COMPETITOR_WEAK_RE.search(normalized) and not _COMPETITOR_BRAND_RE.search(
+        normalized
+    ):
+        return (
+            "message contains 'better than' / 'why choose' with NO rival brand "
+            "named — if products are shown this is almost certainly a comparison "
+            "of THOSE items (intent compare), not a competitor question"
+        )
     if _HUMAN_HANDOFF_RE.search(normalized):
         return (
             "heuristic suggests an explicit live-agent / human request "
@@ -529,6 +546,12 @@ def _sticky_wait_escape_intent(user_query: str) -> str | None:
     normalized = (user_query or "").strip()
     if not normalized:
         return None
+    # Bespoke asks are a handoff, never a catalog filter — check before the
+    # browse escape so "custom ring banwana hai" is not read as a ring search,
+    # and before everything else so "custom design chahiye" (no category word)
+    # is not swallowed by the wizard as a fulfillment answer.
+    if _is_custom_jewellery_query(normalized):
+        return "human_handoff"
     if _looks_like_browse_escape(normalized):
         return "product_search"
     if _OFFERS_INTENT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
@@ -928,6 +951,100 @@ def _flow_escape_should_classify(user_query: str) -> bool:
     return _sticky_wait_escape_intent(user_query) is not None
 
 
+# Intents that always mean "the user left the sticky flow". Anything else
+# (product_search/product_info/general) is treated as an answer to the flow's
+# own question when a wizard is collecting slots.
+_STICKY_ESCAPE_INTENTS = frozenset(
+    {
+        "human_handoff",
+        "callback",
+        "video_call",
+        "gold_rate",
+        "complaint",
+        "order_tracking",
+        "returns_refund",
+        "offers",
+        "store_info",
+        "menu_help",
+        "greeting",
+        "repair",
+    }
+)
+
+
+def _llm_intent_escapes_sticky(user_profile: dict, intent: str) -> bool:
+    """Decide from the LLM verdict whether a sticky wait should be dropped.
+
+    Used for native-script messages, where the Latin escape regexes see nothing
+    and would otherwise trap the user in the wizard / pincode / callback wait.
+    Each wait keeps the answers it is actually waiting for and lets the rest go.
+    """
+    if user_profile.get("shopping_wizard_active"):
+        # The wizard is collecting slots — a shopping reply is its answer.
+        return intent in _STICKY_ESCAPE_INTENTS
+
+    if user_profile.get("awaiting_store_pincode"):
+        # Waiting on a pincode / city; anything else is a new intent.
+        return intent != "store_info"
+
+    if user_profile.get("callback_capture_step"):
+        # Waiting on a name / mobile — free text (names classify as "general"
+        # with low confidence) must stay in the capture. Only an explicit jump
+        # to another flow escapes; callback/video_call mean "already here".
+        return intent in (_STICKY_ESCAPE_INTENTS - {"callback", "video_call"})
+
+    return True
+
+
+# Slots a user picks by BUTTON TAP. They appear in no message text, so an
+# escape that clears the wizard loses them unless they are handed forward.
+_WIZARD_CARRYOVER_KEYS = ("gender", "material_type", "fulfillment")
+
+
+def _stash_wizard_carryover(data: dict, user_profile: dict) -> None:
+    """Hand button-tapped wizard slots to the re-seeded funnel for THIS turn.
+
+    After tapping Female + Gold, typing "rings under 30k" cleared the wizard and
+    re-asked both questions: the message names a category, so
+    ``merge_search_entities`` treats it as a fresh search and inherits nothing.
+    Stashing on ``data`` (per-turn, never persisted) keeps the answers without
+    creating another sticky flag to garbage-collect.
+    """
+    collected = user_profile.get("shopping_wizard_data")
+    if not isinstance(collected, dict):
+        return
+    carryover = {
+        key: collected[key]
+        for key in _WIZARD_CARRYOVER_KEYS
+        if collected.get(key) is not None
+    }
+    if carryover:
+        data["_wizard_carryover"] = carryover
+
+
+def _wizard_parses_offline(user_profile: dict, text: str) -> bool:
+    """True when the wizard can read this answer without an LLM call.
+
+    Keeps native-script slot answers ("डाइमंड", "સોનું") off the LLM path: they
+    are handled by the wizard's own Indic title maps, and routing them through
+    the classifier would make them fail closed on any LLM outage.
+    """
+    from kisna_chatbot.processors.shopping_wizard import (
+        _parse_text_for_step,
+        get_next_step,
+    )
+
+    step = user_profile.get("shopping_wizard_step") or get_next_step(
+        user_profile.get("shopping_wizard_data") or {}
+    )
+    if not step or step == "complete":
+        return False
+    try:
+        return _parse_text_for_step(step, text) is not None
+    except Exception:  # never let a parser slip block the escape path
+        return False
+
+
 def _has_sticky_wait(user_profile: dict) -> bool:
     return bool(
         user_profile.get("awaiting_store_pincode")
@@ -1035,16 +1152,20 @@ def _prepend_flow_switch_ack(data: dict) -> None:
 def _handle_custom_jewellery_handoff(
     data: dict, user_profile: dict, phone_number: str
 ) -> None:
-    user_profile["live_agent_requested_at"] = int(time.time())
-    user_profile["live_agent_required"] = True
-    for admin in ADMINS:
-        send_customer_support_template(
-            phone_number=admin,
-            customer_name=user_profile.get("username", "Customer"),
-            customer_phone=phone_number,
-        )
+    """Design-expert handoff, respecting support hours.
+
+    Delegates to the shared support handler so an out-of-hours request gets a
+    callback slot instead of a promise nobody is awake to keep. The bespoke
+    opener is prepended and tagged so it reaches the user in their language.
+    """
+    responses = build_expert_support_bot_response(phone_number, user_profile)
     data["bot_response"] = [
-        {"type": "text", "text": _CUSTOM_JEWELLERY_HANDOFF_MESSAGE}
+        {
+            "type": "text",
+            "text": _CUSTOM_JEWELLERY_HANDOFF_MESSAGE,
+            "_compose": "custom_jewellery_handoff",
+        },
+        *responses,
     ]
 
 
@@ -1229,11 +1350,6 @@ def _route_resolved_intent(
                 user_profile, request_type="video_call"
             )
         return True
-
-    # LLM already returned a resolved support intent — never ask to clarify.
-    if intent in ("human_handoff", "callback", "video_call", "gold_rate"):
-        # Handled above; keep this guard if handlers are reordered later.
-        pass
 
     if (
         confidence < CLARIFICATION_CONFIDENCE_THRESHOLD
@@ -1601,12 +1717,22 @@ class Classifier(Processor):
             return True
 
         # Sticky waits own the turn (including Indic slot answers like "डाइमंड")
-        # unless the user is clearly escaping to another flow. Indic must NOT
-        # force re-classification mid-wizard — that leaks to GeneralAgent.
+        # unless the user is clearly escaping to another flow.
+        #
+        # Native script must reach the LLM: every escape regex below is
+        # Latin-only, so "मुझे एजेंट से बात करनी है" mid-wizard matched nothing
+        # and the funnel re-asked the same question forever. The LLM decides
+        # escape-vs-slot-answer in process() (_llm_intent_escapes_sticky).
+        has_indic = bool(_INDIC_SCRIPT_RE.search(user_query))
+
         if user_profile.get("shopping_wizard_active"):
             if _sticky_wait_escape_intent(user_query):
                 return True
             if is_greeting_message(user_query) or is_menu_request(user_query):
+                return True
+            if has_indic and not _wizard_parses_offline(user_profile, user_query):
+                # Native script the wizard cannot read — only the LLM can tell a
+                # slot answer from "मुझे एजेंट से बात करनी है".
                 return True
             # Let product search advance the wizard without re-classifying
             return False
@@ -1614,17 +1740,16 @@ class Classifier(Processor):
         if user_profile.get("awaiting_store_pincode"):
             if _sticky_wait_escape_intent(user_query):
                 return True
-            return False
+            return bool(has_indic)
 
         if user_profile.get("callback_capture_step"):
             if _sticky_wait_escape_intent(user_query):
                 return True
-            return False
+            return bool(has_indic)
 
         # Indic-script text bypasses Latin-only regex gates below — the LLM
-        # classifier is the only component that can understand free-form Indic
-        # outside an active sticky wait.
-        if _INDIC_SCRIPT_RE.search(user_query):
+        # classifier is the only component that can understand free-form Indic.
+        if has_indic:
             return True
 
         # LLM-default policy: the classifier sees every message. A regex may only
@@ -1760,9 +1885,19 @@ class Classifier(Processor):
                     )
                     return data
 
+                # Set when the Latin escape regexes saw nothing but the message
+                # is native script — the LLM verdict below decides whether the
+                # sticky wait is dropped or keeps the turn.
+                sticky_escape_deferred = False
+
                 if _has_sticky_wait(user_profile):
                     escape_intent = _sticky_wait_escape_intent(raw_query)
                     if escape_intent:
+                        if escape_intent == "product_search":
+                            # Still shopping: carry the button-tapped slots so
+                            # the funnel does not re-ask them. (Not for handoff /
+                            # order escapes — they are done browsing.)
+                            _stash_wizard_carryover(data, user_profile)
                         # Regex only clears the sticky wait so the funnel does not
                         # swallow the message. Intent is LLM-primary below —
                         # never treat escape_intent as a hard verdict (that used
@@ -1793,6 +1928,16 @@ class Classifier(Processor):
                             },
                         )
                         # Fall through to ack / override / LLM
+                    elif _INDIC_SCRIPT_RE.search(raw_query):
+                        # Native script — every escape regex above is Latin-only,
+                        # so "silence" here is not evidence the user stayed in
+                        # the flow. Let the LLM classify, then decide (below).
+                        sticky_escape_deferred = True
+                        logger.info(
+                            "Native-script message in sticky wait — deferring "
+                            "escape decision to the LLM",
+                            extra={"phone_number": phone_number},
+                        )
                     elif user_profile.get("awaiting_store_pincode"):
                         if raw_query.strip().lower() not in ("cancel", "back"):
                             _store_llm_entities(data, user_profile, {})
@@ -1970,6 +2115,24 @@ class Classifier(Processor):
                         "phone_number": phone_number,
                     },
                 )
+
+                if sticky_escape_deferred:
+                    # Native-script message inside a sticky wait — the LLM has
+                    # now read it, so the escape decision is finally informed.
+                    if _llm_intent_escapes_sticky(user_profile, intent):
+                        _clear_sticky_waits(user_profile)
+                        logger.info(
+                            "Sticky wait cleared by LLM verdict",
+                            extra={"phone_number": phone_number, "intent": intent},
+                        )
+                    else:
+                        # It answered the flow's own question — hand the turn
+                        # back with the LLM entities the flow could not parse.
+                        logger.info(
+                            "Native-script message kept by sticky flow",
+                            extra={"phone_number": phone_number, "intent": intent},
+                        )
+                        return data
 
                 if _route_resolved_intent(
                     data,

@@ -524,7 +524,9 @@ def _handle_compare(data: dict) -> dict | None:
         "They're all lovely — it really comes down to your style and budget 💍 "
         "Want a closer look at any one?"
     )
-    data["bot_response"] = [{"type": "text", "text": "\n".join(lines)}]
+    data["bot_response"] = [
+        {"type": "text", "text": "\n".join(lines), "_compose": "compare"}
+    ]
     return data
 
 
@@ -567,6 +569,7 @@ def _handle_product_info_followup(data: dict, query: str) -> dict | None:
             {
                 "type": "text",
                 "text": "The most affordable from your recent search:",
+                "_compose": "product_info",
             }
         ]
         raw_url = get_product_image_url_for_whatsapp(cheapest)
@@ -594,6 +597,7 @@ def _handle_product_info_followup(data: dict, query: str) -> dict | None:
                     "Sizes and variants are available on the product page. "
                     "Tap 'Buy on KISNA' above to select your size and place your order."
                 ),
+                "_compose": "product_info",
             }
         ]
         return data
@@ -608,6 +612,7 @@ def _handle_product_info_followup(data: dict, query: str) -> dict | None:
                     f"{chain_note}: chain and variant details are shown on the "
                     "product page. Tap 'Buy on KISNA' to see all options."
                 ),
+                "_compose": "product_info",
             }
         ]
         return data
@@ -649,7 +654,9 @@ def _handle_product_info_followup(data: dict, query: str) -> dict | None:
                     + "\n".join(priced_lines)
                     + "\n\nWant a closer look at any of them? Just tell me the name 💍"
                 )
-                data["bot_response"] = [{"type": "text", "text": text}]
+                data["bot_response"] = [
+                    {"type": "text", "text": text, "_compose": "product_info"}
+                ]
                 return data
 
     return None
@@ -1307,7 +1314,9 @@ def _build_search_success_response(
             f"{prefix_note}\n\n{intro_text}" if intro_text else prefix_note
         )
     if intro_text:
-        bot_response.append({"type": "text", "text": intro_text})
+        bot_response.append(
+            {"type": "text", "text": intro_text, "_compose": "search_intro"}
+        )
 
     scan_pool = carousel_pool if carousel_pool is not None else products
     carousel_products, skipped_product_ids, scanned_count = _collect_carousel_products(
@@ -1331,7 +1340,13 @@ def _build_search_success_response(
                 lines.append(f"• *{name}* — ₹{int(price):,}")
             else:
                 lines.append(f"• *{name}*")
-        bot_response.append({"type": "text", "text": "\n".join(lines)})
+        bot_response.append(
+            {
+                "type": "text",
+                "text": "\n".join(lines),
+                "_compose": "search_results_text",
+            }
+        )
         first = products[0]
         bot_response.append(
             {
@@ -1880,6 +1895,24 @@ class ProductSearchAgentV3(Processor):
             compare_result = _handle_compare(data)
             if compare_result is not None:
                 return compare_result
+            # Nothing comparable on screen. Falling through used to reach the
+            # "no entities" branch and restart the funnel, so "which is cheaper?"
+            # was answered with "Hi! What are you looking for today?".
+            shown = user_profile.get("last_search_products") or []
+            if len(shown) == 1:
+                return _open_shown_product(data, shown[0])
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": (
+                        "I don't have a couple of pieces on screen to compare "
+                        "right now — tell me what you're after (e.g. gold rings "
+                        "under 30k) and I'll line up some options 💍"
+                    ),
+                    "_compose": "compare_no_context",
+                }
+            ]
+            return data
 
         followup = _handle_product_info_followup(data, query)
         if followup is not None:
@@ -2137,18 +2170,10 @@ class ProductSearchAgentV3(Processor):
         ):
             confidence = float(data.get("classifier_confidence") or 1.0)
             if confidence < 0.45 and not entities.get("category"):
+                # Flag only. The wizard prompt below IS the clarification the
+                # user sees — setting bot_response here was dead code, since
+                # _maybe_start_shopping_wizard overwrites it unconditionally.
                 user_profile["pending_vague_slot_fill"] = True
-                data["bot_response"] = [
-                    {
-                        "type": "text",
-                        "text": (
-                            "I'm not quite sure what you're after — "
-                            "tell me a jewellery type and budget if you have one 🙂"
-                        ),
-                        "_compose": "clarification",
-                    }
-                ]
-                # Still enter wizard so next reply continues the funnel
             return await self._maybe_start_shopping_wizard(
                 data, phone_number, entities, query=query
             )
@@ -2212,6 +2237,19 @@ class ProductSearchAgentV3(Processor):
                 chat_history=history,
                 user_profile=user_profile,
             )
+        # Slots the user already answered by tapping a button before escaping the
+        # funnel this turn — apply underneath the new entities so the wizard does
+        # not ask "Who is it for?" again (classifier._stash_wizard_carryover).
+        carryover = data.get("_wizard_carryover") or {}
+        if carryover:
+            entities = {
+                **entities,
+                **{
+                    k: v
+                    for k, v in carryover.items()
+                    if entities.get(k) is None
+                },
+            }
         responses = start_wizard(
             user_profile,
             entities=entities,
@@ -2240,8 +2278,13 @@ class ProductSearchAgentV3(Processor):
             ) or {}
 
         text = _extract_search_query(messages)
+        # Classifier entities are the only slot source that reads native script
+        # (extract_entities is Latin-only), so hand them to the wizard.
         status, responses = advance_wizard(
-            user_profile, messages, text=text
+            user_profile,
+            messages,
+            text=text,
+            llm_entities=data.get("llm_extracted_entities"),
         )
 
         if status == "escape":
@@ -2545,7 +2588,13 @@ class ProductSearchAgentV3(Processor):
         shown_ids = user_profile.get("shown_product_ids") or []
 
         if filters is None or filters == {}:
-            data["bot_response"] = [{"type": "text", "text": _SESSION_EXPIRED_TEXT}]
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": _SESSION_EXPIRED_TEXT,
+                    "_compose": "session_expired",
+                }
+            ]
             return data
         filters = filters or _empty_entities()
 
@@ -2656,10 +2705,20 @@ class ProductSearchAgentV3(Processor):
         if not products:
             if has_budget_filter:
                 data["bot_response"] = [
-                    {"type": "text", "text": _no_more_in_budget_text()}
+                    {
+                        "type": "text",
+                        "text": _no_more_in_budget_text(),
+                        "_compose": "no_more_results",
+                    }
                 ]
             else:
-                data["bot_response"] = [{"type": "text", "text": _no_more_new_text()}]
+                data["bot_response"] = [
+                    {
+                        "type": "text",
+                        "text": _no_more_new_text(),
+                        "_compose": "no_more_results",
+                    }
+                ]
             return data
 
         user_profile["last_search_page"] = next_page
@@ -3049,7 +3108,11 @@ class ProductSearchAgentV3(Processor):
 
         if not products:
             data["bot_response"] = [
-                {"type": "text", "text": format_zero_results_message(entities)}
+                {
+                    "type": "text",
+                    "text": format_zero_results_message(entities),
+                    "_compose": "zero_results",
+                }
             ]
             data.setdefault("_trace_outcome", "no_products")
             return data

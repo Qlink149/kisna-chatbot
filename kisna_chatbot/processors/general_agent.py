@@ -135,8 +135,17 @@ class GeneralAgent(Processor):
                         )
                         return await _handoff_to_product_search(category="product_info")
 
-            # Budget / variant-sounding asks while results are on screen → product path
-            if last_search and _VARIANT_OR_BUDGET_RE.search(user_query or ""):
+            # Budget / variant-sounding asks while results are on screen → product path.
+            # A policy question that merely contains a number or "per gram"
+            # ("making charges kitna per gram?", "EMI 10k per month?") belongs to
+            # the knowledge base, not a fresh catalog search.
+            from kisna_chatbot.processors.classifier import _POLICY_TOPIC_RE
+
+            if (
+                last_search
+                and _VARIANT_OR_BUDGET_RE.search(user_query or "")
+                and not _POLICY_TOPIC_RE.search(user_query or "")
+            ):
                 logger.info(
                     "GeneralAgent deferring budget/variant follow-up to product search",
                     extra={"phone_number": phone_number, "query": user_query},
@@ -165,8 +174,28 @@ class GeneralAgent(Processor):
             )
 
             if result.live_agent_requested:
-                text = result.message_text or _HANDOFF_MESSAGE
-                data["bot_response"] = [{"type": "text", "text": text}]
+                # Route through the shared support handler: it flags the profile,
+                # pages the admins, and — outside support hours — offers a
+                # callback slot instead. Sending the bare line here told the user
+                # "I'll connect you" while notifying nobody.
+                from kisna_chatbot.processors.support_handler import (
+                    build_expert_support_bot_response,
+                )
+
+                logger.info(
+                    "GeneralAgent live-agent handoff",
+                    extra={"phone_number": phone_number},
+                )
+                data["_trace_outcome"] = "handoff"
+                responses = build_expert_support_bot_response(
+                    phone_number, user_profile
+                )
+                # Offline hours leave the callback flow selected; otherwise drop
+                # back to no service, as every other GeneralAgent reply does.
+                if user_profile.get("service_selected") != SL.CALLBACK.value:
+                    user_profile["service_selected"] = ""
+                data["bot_response"] = responses
+                return data
             elif result.message_text:
                 responses: list[dict] = [
                     {"type": "text", "text": result.message_text}

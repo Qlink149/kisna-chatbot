@@ -209,7 +209,10 @@ class PolicyRoutingIntegrationTests(unittest.TestCase):
                 "client_id": "kisna",
             }
             with patch(
-                "kisna_chatbot.processors.classifier.send_customer_support_template"
+                "kisna_chatbot.processors.support_handler.send_customer_support_template"
+            ), patch(
+                "kisna_chatbot.processors.support_handler.get_support_status",
+                return_value={"status": "open"},
             ):
                 result = await clf.process(data)
             self.assertEqual(result["classified_category"], "human_handoff")

@@ -166,9 +166,6 @@ class FlowSwitchPromptTests(unittest.TestCase):
                     return_value={"status": "open"},
                 ),
                 patch(
-                    "kisna_chatbot.processors.classifier.send_customer_support_template"
-                ),
-                patch(
                     "kisna_chatbot.processors.support_handler.send_customer_support_template"
                 ),
             ):

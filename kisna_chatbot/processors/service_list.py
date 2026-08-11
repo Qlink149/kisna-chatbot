@@ -564,7 +564,7 @@ def build_clarification_bot_response(intent: str, confidence: float) -> list[dic
             "Are you looking for a specific jewellery piece, or a question about KISNA?"
         )
 
-    return [{"type": "text", "text": text}]
+    return [{"type": "text", "text": text, "_compose": "clarification"}]
 
 
 def handle_clarification_quick_reply(

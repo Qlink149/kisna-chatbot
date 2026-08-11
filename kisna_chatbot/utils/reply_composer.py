@@ -196,6 +196,28 @@ async def narrate(
         return intent_text
 
 
+async def _localize_quick_reply(item: dict, language: str, data: dict) -> None:
+    """Translate a quick reply's PROMPT. Button titles stay in English.
+
+    Gupshup sends one ``msgid`` for the whole message (e.g. "wizard$gender"), so
+    the button *title* is the only per-option discriminator on the way back —
+    ``shopping_wizard.parse_wizard_button`` resolves the tap by looking the title
+    up in _GENDER_TITLE_MAP / _MATERIAL_TITLE_MAP. Translating titles would make
+    every tap unparseable. Localizing the question is the safe half, and it is
+    what actually read as broken: a Gujarati funnel that switched to English
+    mid-way. Per-button msgids would be needed to translate the labels too.
+    """
+    if language == "en" or not item.get("text"):
+        return
+    item["text"] = await compose(
+        "quickreply_text",
+        item["text"],
+        language=language,
+        phone_number=data.get("phone_number"),
+        client_id=data.get("client_id"),
+    )
+
+
 async def localize_bot_responses(data: dict) -> None:
     """
     Rewrite tagged text responses in-place before sending.
@@ -220,6 +242,13 @@ async def localize_bot_responses(data: dict) -> None:
             continue
         template_key = item.pop("_compose", None)
         if not template_key:
+            continue
+        # Quick replies carry their prompt in "text" plus button titles. They
+        # used to fall through the type check below with the tag already popped,
+        # so a Gujarati wizard asked "Great! Who is it for?" in English between
+        # two translated steps.
+        if item.get("type") == "quickreply":
+            await _localize_quick_reply(item, language, data)
             continue
         if item.get("type") != "text" or not item.get("text"):
             continue

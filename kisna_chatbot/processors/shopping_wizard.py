@@ -82,6 +82,75 @@ _ESCAPE_RE = re.compile(
 _WIZARD_MSGID_PREFIX = "wizard$"
 
 
+def _gender_from_text(text: str | None) -> str | None:
+    """Word-boundary gender lookup for wizard free text.
+
+    A plain substring scan silently matched "men" inside ornaments / recommend /
+    gentlemen and flipped the audience filter. The search path already guards
+    this with entity_extractor._gender_evidenced — reuse it so both paths agree.
+    """
+    normalized = " ".join((text or "").strip().lower().split())
+    if not normalized:
+        return None
+    if normalized in _GENDER_TITLE_MAP:
+        return _GENDER_TITLE_MAP[normalized]
+
+    from kisna_chatbot.processors.entity_extractor import _gender_evidenced
+
+    for candidate in ("kids", "women", "men"):
+        if _gender_evidenced(normalized, candidate):
+            return candidate
+    return None
+
+
+def _slot_restated_in_text(
+    slot: str, value: str, text: str | None, llm_entities: dict | None
+) -> bool:
+    """True when THIS message explicitly restates a gender / fulfillment choice.
+
+    The LLM is instructed to emit these only from the current message, so its
+    verdict counts as evidence in any language; the Latin check is the fallback.
+    """
+    if (llm_entities or {}).get(slot) == value:
+        return True
+    if slot == "gender":
+        return _gender_from_text(text) == value
+    if slot == "fulfillment":
+        from kisna_chatbot.processors.entity_extractor import extract_fulfillment
+
+        normalized = " ".join((text or "").strip().lower().split())
+        if normalized in _FULFILLMENT_TITLE_MAP:
+            return _FULFILLMENT_TITLE_MAP[normalized] == value
+        return extract_fulfillment(text) == value
+    return False
+
+
+def _llm_slot_values(llm_entities: dict | None) -> dict:
+    """Non-null wizard slots the LLM understood (the only Indic-capable source).
+
+    ``extract_entities`` is Latin-only, so a Devanagari/Gujarati slot answer
+    ("अंगूठी", "५० हज़ार") parses to nothing there.
+    """
+    ents = llm_entities or {}
+    out: dict[str, Any] = {}
+    category = ents.get("category")
+    if category:
+        out["category"] = str(category).strip().lower()
+    material = ents.get("material_type")
+    if material in ("gold", "diamond", "gemstone"):
+        out["material_type"] = material
+    gender = ents.get("gender")
+    if gender in ("women", "men", "kids"):
+        out["gender"] = gender
+    fulfillment = ents.get("fulfillment")
+    if fulfillment in ("ready", "mto"):
+        out["fulfillment"] = fulfillment
+    if ents.get("min_price") is not None or ents.get("max_price") is not None:
+        out["min_price"] = ents.get("min_price")
+        out["max_price"] = ents.get("max_price")
+    return out
+
+
 def is_wizard_active(user_profile: dict) -> bool:
     return bool(user_profile.get("shopping_wizard_active"))
 
@@ -119,15 +188,10 @@ def seed_wizard_from_entities(
     gender = ents.get("gender")
     if gender in ("women", "men", "kids"):
         seeded["gender"] = gender
-    elif query and not seeded.get("gender"):
-        normalized = " ".join(str(query).strip().lower().split())
-        if normalized in _GENDER_TITLE_MAP:
-            seeded["gender"] = _GENDER_TITLE_MAP[normalized]
-        else:
-            for key, val in _GENDER_TITLE_MAP.items():
-                if key in normalized:
-                    seeded["gender"] = val
-                    break
+    elif query:
+        inferred_gender = _gender_from_text(query)
+        if inferred_gender:
+            seeded["gender"] = inferred_gender
 
     material = ents.get("material_type")
     if material in ("gold", "diamond", "gemstone"):
@@ -427,7 +491,9 @@ def _apply_slot(collected: dict, step: str, value: Any) -> None:
         collected["fulfillment"] = value
 
 
-def _parse_text_for_step(step: str, text: str) -> Any | None:
+def _parse_text_for_step(
+    step: str, text: str, llm_entities: dict | None = None
+) -> Any | None:
     from kisna_chatbot.processors.entity_extractor import (
         extract_entities,
         normalize_internal_category,
@@ -436,6 +502,22 @@ def _parse_text_for_step(step: str, text: str) -> Any | None:
     normalized = " ".join((text or "").strip().lower().split())
     if not normalized:
         return None
+
+    # The LLM is the only slot parser that reads native script — prefer it.
+    llm_slots = _llm_slot_values(llm_entities)
+    if step == "category" and llm_slots.get("category"):
+        return llm_slots["category"]
+    if step == "material" and llm_slots.get("material_type"):
+        return llm_slots["material_type"]
+    if step == "gender" and llm_slots.get("gender"):
+        return llm_slots["gender"]
+    if step == "fulfillment" and llm_slots.get("fulfillment"):
+        return llm_slots["fulfillment"]
+    if step == "budget" and (
+        llm_slots.get("min_price") is not None
+        or llm_slots.get("max_price") is not None
+    ):
+        return (llm_slots.get("min_price"), llm_slots.get("max_price"))
 
     if step == "category":
         ents = extract_entities(text)
@@ -453,12 +535,7 @@ def _parse_text_for_step(step: str, text: str) -> Any | None:
         return None
 
     if step == "gender":
-        if normalized in _GENDER_TITLE_MAP:
-            return _GENDER_TITLE_MAP[normalized]
-        for key, val in _GENDER_TITLE_MAP.items():
-            if key in normalized:
-                return val
-        return None
+        return _gender_from_text(text)
 
     if step == "material":
         if normalized in _MATERIAL_TITLE_MAP:
@@ -502,9 +579,14 @@ def advance_wizard(
     messages: dict,
     *,
     text: str | None = None,
+    llm_entities: dict | None = None,
 ) -> tuple[str, list[dict] | None]:
     """
     Process one wizard turn.
+
+    ``llm_entities`` are the classifier's extraction for this message. They are
+    the only slot source that reads native script, so they take precedence over
+    the Latin-only regex extractor.
 
     Returns:
         ("prompt", [bot_responses]) — ask next step
@@ -556,18 +638,26 @@ def advance_wizard(
         _apply_slot(collected, ans_step, value)
     elif text:
         # Free-text for current step; also allow multi-slot extraction
-        value = _parse_text_for_step(step, text) if step else None
+        value = _parse_text_for_step(step, text, llm_entities) if step else None
         if value is not None and step:
             _apply_slot(collected, step, value)
-        # Opportunistic fill; gender/fulfillment may overwrite when re-stated
-        ents = extract_entities(text or "")
+        # Opportunistic fill. The LLM pass wins over the Latin-only regex so
+        # native-script answers land in the right slot.
+        ents = {**extract_entities(text or ""), **_llm_slot_values(llm_entities)}
         before = dict(collected)
         seeded = seed_wizard_from_entities(ents, query=text)
         for k, v in seeded.items():
             if v is None:
                 continue
-            if k in ("gender", "fulfillment"):
-                collected[k] = v
+            if k in ("gender", "fulfillment") and k != step:
+                # Only let a later turn overwrite an audience / shipping choice
+                # when THIS message actually restates it. Without the evidence
+                # check a stray word ("recommend", "ornaments") silently flipped
+                # a slot the user had already chosen by tapping a button.
+                if _slot_restated_in_text(k, v, text, llm_entities):
+                    collected[k] = v
+                elif not collected.get(k):
+                    collected[k] = v
             elif not collected.get(k):
                 collected[k] = v
         if value is None and collected == before and step:

@@ -176,6 +176,15 @@ def save_to_mongo(data: dict) -> dict | None:
         if data.get("whatsapp_username"):
             user_profile_data["username"] = data["whatsapp_username"]
 
+        # Live-agent flags are owned by request_live_agent / set_takeover /
+        # resolve_live_agent, which write straight to Mongo — sometimes DURING
+        # this turn (the GeneralAgent tool call). The profile in memory was read
+        # before that, so $set-ing it back would silently revert the handoff.
+        # Only persist them when this turn actually raised the flag.
+        for owned_key in ("live_agent_required", "live_agent_requested_at"):
+            if not user_profile_data.get(owned_key):
+                user_profile_data.pop(owned_key, None)
+
         response = users.find_one_and_update(
             _user_filter(phone_number, client_id),
             {"$set": user_profile_data},
