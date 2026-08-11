@@ -25,6 +25,10 @@ from kisna_chatbot.processors.service_list import (
     is_pure_greeting,
 )
 from kisna_chatbot.processors.gold_rate_handler import build_gold_rate_bot_response
+from kisna_chatbot.processors.shopping_wizard import (
+    ANY_SLOT,
+    WIZARD_CARRYOVER_KEYS as _WIZARD_CARRYOVER_KEYS,
+)
 from kisna_chatbot.processors.support_handler import build_expert_support_bot_response
 from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
@@ -996,11 +1000,6 @@ def _llm_intent_escapes_sticky(user_profile: dict, intent: str) -> bool:
     return True
 
 
-# Slots a user picks by BUTTON TAP. They appear in no message text, so an
-# escape that clears the wizard loses them unless they are handed forward.
-_WIZARD_CARRYOVER_KEYS = ("gender", "material_type", "fulfillment")
-
-
 def _stash_wizard_carryover(data: dict, user_profile: dict) -> None:
     """Hand button-tapped wizard slots to the re-seeded funnel for THIS turn.
 
@@ -1016,7 +1015,7 @@ def _stash_wizard_carryover(data: dict, user_profile: dict) -> None:
     carryover = {
         key: collected[key]
         for key in _WIZARD_CARRYOVER_KEYS
-        if collected.get(key) is not None
+        if collected.get(key) is not None and collected[key] != ANY_SLOT
     }
     if carryover:
         data["_wizard_carryover"] = carryover

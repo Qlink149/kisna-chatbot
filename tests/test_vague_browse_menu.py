@@ -24,13 +24,16 @@ from kisna_chatbot.processors.product_search_agent_v3 import ProductSearchAgentV
 
 
 class VagueBrowseMenuTests(unittest.TestCase):
-    def test_kuch_dikhao_asks_slot_fill(self):
+    def test_kuch_dikhao_starts_the_wizard(self):
         async def _run():
             agent = ProductSearchAgentV3()
             data = {
                 "phone_number": "919999999999",
                 "messages": {"text": {"body": "kuch dikhao"}},
-                "user_profile": {"service_selected": SL.PRODUCT_SEARCH.value},
+                "user_profile": {
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "chat_history": [{"role": "user", "content": "hi"}],
+                },
                 "classified_category": "product_search",
                 "client_config": MagicMock(client_id="kisna"),
             }
@@ -40,9 +43,9 @@ class VagueBrowseMenuTests(unittest.TestCase):
             ) as mock_search:
                 result = await agent.process(data)
             mock_search.assert_not_called()
-            self.assertEqual(result["bot_response"][0]["type"], "text")
+            # A vague browse ask opens the guided funnel at its first question.
             self.assertIn("rings", result["bot_response"][0]["text"].lower())
-            self.assertTrue(result["user_profile"].get("pending_vague_slot_fill"))
+            self.assertTrue(result["user_profile"].get("shopping_wizard_active"))
 
         asyncio.run(_run())
 

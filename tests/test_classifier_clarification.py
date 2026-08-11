@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import time
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -51,7 +52,14 @@ class ClarificationFlowTests(unittest.TestCase):
                 "phone_number": "919999999999",
                 "messages": {"text": {"body": "rings"}},
                 "user_profile": {
-                    "chat_history": [],
+                    # A live session: an empty history + no last_message_at is a
+                    # fresh start, which resets transient state (including the
+                    # pending clarification) before the LLM ever sees it.
+                    "chat_history": [
+                        {"role": "user", "content": "hmm"},
+                        {"role": "assistant", "content": "Could you clarify?"},
+                    ],
+                    "last_message_at": int(time.time()),
                     "service_selected": "",
                     "pending_clarification": True,
                 },

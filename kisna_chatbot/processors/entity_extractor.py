@@ -390,6 +390,14 @@ _RANGE_PATTERNS = [
         r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?\s*tak",
         re.I,
     ),
+    # "50k se 1 lakh" — the Hinglish range is just as common without "tak".
+    # Direction phrases ("50k se upar/kam/zyada") never match: the word after
+    # "se" is not a number.
+    re.compile(
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar)?\s*se\s*"
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar)?",
+        re.I,
+    ),
 ]
 
 _AROUND_PATTERNS = [

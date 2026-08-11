@@ -45,6 +45,8 @@ from kisna_chatbot.utils.jewellery_profile import (
     merge_jewellery_profile,
 )
 from kisna_chatbot.processors.shopping_wizard import (
+    ANY_SLOT,
+    WIZARD_CARRYOVER_KEYS as _WIZARD_CARRYOVER_KEYS,
     advance_wizard,
     build_wizard_summary,
     clear_wizard_state,
@@ -2269,6 +2271,16 @@ class ProductSearchAgentV3(Processor):
             ) or {}
 
         text = _extract_search_query(messages)
+        # advance_wizard() wipes the collected slots on escape, so snapshot the
+        # button-tapped answers first — "skip" / "koi bhi" used to throw away a
+        # half-filled funnel and restart from "What are you looking for today?".
+        pre_escape_slots = {
+            key: value
+            for key, value in (user_profile.get("shopping_wizard_data") or {}).items()
+            if key in _WIZARD_CARRYOVER_KEYS
+            and value is not None
+            and value != ANY_SLOT
+        }
         # Classifier entities are the only slot source that reads native script
         # (extract_entities is Latin-only), so hand them to the wizard.
         status, responses = advance_wizard(
@@ -2280,6 +2292,11 @@ class ProductSearchAgentV3(Processor):
 
         if status == "escape":
             clear_wizard_state(user_profile)
+            if pre_escape_slots:
+                data["_wizard_carryover"] = {
+                    **pre_escape_slots,
+                    **(data.get("_wizard_carryover") or {}),
+                }
             # Fall through to normal NL search with this message
             if text:
                 data["classified_category"] = "product_search"
@@ -2288,6 +2305,9 @@ class ProductSearchAgentV3(Processor):
                 from kisna_chatbot.processors.entity_extractor import extract_entities
 
                 ents = finalize_search_entities(extract_entities(text), query=text)
+                for key, value in (data.get("_wizard_carryover") or {}).items():
+                    if ents.get(key) is None:
+                        ents[key] = value
                 if should_start_wizard(ents):
                     return await self._maybe_start_shopping_wizard(
                         data, phone_number, ents, query=text

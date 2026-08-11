@@ -368,6 +368,16 @@ async def _persist_session(
     )
 
 
+async def _send_responses(payload: dict) -> None:
+    """Deliver a turn's messages without blocking the event loop.
+
+    ResponseManager sends synchronously (httpx + per-message sleeps), so a
+    product-search turn holds the loop for seconds and every other user waits
+    behind it.
+    """
+    await asyncio.to_thread(ResponseManager().handle_responses, data=payload)
+
+
 async def process_message(
     request_data: dict,
     app_state=None,
@@ -553,7 +563,7 @@ async def process_message(
                     await _persist_session(data, phone_number, pipeline_start)
                     responses_to_send = data
                 if responses_to_send:
-                    ResponseManager().handle_responses(data=responses_to_send)
+                    await _send_responses(responses_to_send)
                 return
 
             pipeline_start = time.time()
@@ -624,7 +634,7 @@ async def process_message(
                 responses_to_send = data
 
         if responses_to_send:
-            ResponseManager().handle_responses(data=responses_to_send)
+            await _send_responses(responses_to_send)
 
     except Exception as e:
         logger.exception(
@@ -652,7 +662,7 @@ async def process_message(
                 )
             else:
                 try:
-                    ResponseManager().handle_responses(data=data)
+                    await _send_responses(data)
                 except Exception as send_err:
                     logger.exception(
                         "Failed to send error response",

@@ -20,6 +20,10 @@ READY_TO_SHIP_EDD_DAYS = 7
 
 DIGITAL_GOLD_URL = "https://www.kisna.com/digital-gold"
 
+# "Doesn't matter" answer: fills the slot so the funnel advances, then drops
+# out in entities_from_wizard so no filter is sent.
+ANY_SLOT = "any"
+
 _GENDER_TITLE_MAP = {
     "female": "women",
     "male": "men",
@@ -68,10 +72,29 @@ _FULFILLMENT_TITLE_MAP = {
     "ready": "ready",
     "made to order": "mto",
     "made-to-order": "mto",
+    "either is fine": ANY_SLOT,
+    "either": ANY_SLOT,
     "custom": "mto",
     "customise": "mto",
     "customize": "mto",
 }
+
+# Slots a user picks by BUTTON TAP. They appear in no message text, so an
+# escape that clears the wizard loses them unless they are handed forward.
+WIZARD_CARRYOVER_KEYS = ("gender", "material_type", "fulfillment")
+
+# Steps a user may decline to answer. Category is excluded — Clara needs a
+# scope, so "anything" there is a browse-everything escape, not a slot value.
+_ANY_ANSWER_STEPS = ("gender", "material", "budget", "fulfillment")
+
+_ANY_ANSWER_RE = re.compile(
+    r"\b(skip|anyone|anybody|any\s*one|any|either|whatever|flexible|"
+    r"doesn'?t\s+matter|dont\s+matter|no\s+preference|no\s+specific|"
+    r"no\s+budget|no\s+limit|not\s+decided|not\s+sure|"
+    r"koi\s+bhi|kuch\s+bhi|jo\s+bhi|kisi\s+ke\s+liye\s+bhi|"
+    r"budget\s+nahi|decide\s+nahi)\b",
+    re.I,
+)
 
 _ESCAPE_RE = re.compile(
     r"\b(skip|just\s+show|show\s+me|browse\s+all|any\s+will\s+do|"
@@ -101,6 +124,22 @@ def _gender_from_text(text: str | None) -> str | None:
         if _gender_evidenced(normalized, candidate):
             return candidate
     return None
+
+
+def _looks_like_pincode(digits: str, text: str | None) -> bool:
+    """True for a bare 6-digit pincode typed at the budget step.
+
+    Budgets that size are round ("100000", "250000"); an Indian pincode almost
+    never is. Without this, a user answering the wrong question with "400001"
+    silently got a ₹4 lakh search.
+    """
+    if len(digits) != 6 or digits.endswith("000"):
+        return False
+    normalized = (text or "").strip()
+    if re.search(r"[₹]|\b(k|lakh|lac|hazaar|budget|under|below|upto|tak)\b",
+                 normalized, re.I):
+        return False
+    return digits == re.sub(r"[^\d]", "", normalized)
 
 
 def _slot_restated_in_text(
@@ -214,6 +253,18 @@ def seed_wizard_from_entities(
     return seeded
 
 
+def _apply_any_slot(collected: dict, step: str) -> None:
+    """Mark a step as answered with "no preference"."""
+    if step == "gender":
+        collected["gender"] = ANY_SLOT
+    elif step == "material":
+        collected["material_type"] = ANY_SLOT
+    elif step == "budget":
+        collected["budget"] = ANY_SLOT
+    elif step == "fulfillment":
+        collected["fulfillment"] = ANY_SLOT
+
+
 def get_next_step(collected: dict) -> str | None:
     """Return the next missing step, or None when ready to search."""
     if not collected.get("category"):
@@ -222,7 +273,11 @@ def get_next_step(collected: dict) -> str | None:
         return "gender"
     if not collected.get("material_type"):
         return "material"
-    if collected.get("min_price") is None and collected.get("max_price") is None:
+    if (
+        collected.get("budget") != ANY_SLOT
+        and collected.get("min_price") is None
+        and collected.get("max_price") is None
+    ):
         return "budget"
     if not collected.get("fulfillment"):
         return "fulfillment"
@@ -270,7 +325,7 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
     if step == "gender":
         return {
             "type": "quickreply",
-            "text": "Great! Who is it for?",
+            "text": "Great! Who is it for? (or type *anyone*)",
             "caption": "",
             "options": [
                 {"title": "Female"},
@@ -296,7 +351,10 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
     if step == "budget":
         return {
             "type": "text",
-            "text": "What's your budget? e.g. under 25k, 15–35k, around 1 lakh",
+            "text": (
+                "What's your budget? e.g. under 25k, 15–35k, around 1 lakh "
+                "(or say *no specific budget*)"
+            ),
             "_compose": "wizard_budget",
         }
     if step == "fulfillment":
@@ -310,6 +368,7 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
             "options": [
                 {"title": "Ready to ship"},
                 {"title": "Made to order"},
+                {"title": "Either is fine"},
             ],
             "msgid": "wizard$fulfillment",
             "_compose": "wizard_fulfillment",
@@ -324,7 +383,7 @@ def build_wizard_summary(collected: dict) -> str:
     """Final intro before product cards."""
     parts: list[str] = []
     material = collected.get("material_type")
-    if material:
+    if material and material != ANY_SLOT:
         parts.append(str(material))
     category = collected.get("category")
     if category:
@@ -354,13 +413,19 @@ def build_wizard_summary(collected: dict) -> str:
 
 def entities_from_wizard(collected: dict) -> dict:
     """Map wizard data into product-search entities."""
+    # ANY_SLOT fills a slot so the funnel moves on, but it must never reach the
+    # API as a filter.
+    def _filter(key: str):
+        value = collected.get(key)
+        return None if value == ANY_SLOT else value
+
     return {
         "category": collected.get("category"),
-        "material_type": collected.get("material_type"),
+        "material_type": _filter("material_type"),
         "min_price": collected.get("min_price"),
         "max_price": collected.get("max_price"),
-        "gender": collected.get("gender"),
-        "fulfillment": collected.get("fulfillment"),
+        "gender": _filter("gender"),
+        "fulfillment": _filter("fulfillment"),
         "title": None,
         "city": None,
         "pincode": None,
@@ -550,15 +615,22 @@ def _parse_text_for_step(
         return None
 
     if step == "budget":
+        from kisna_chatbot.processors.entity_extractor import (
+            _snap_single_price_to_band,
+        )
+
         ents = extract_entities(text)
         min_p = ents.get("min_price")
         max_p = ents.get("max_price")
         if min_p is None and max_p is None:
             digits = re.sub(r"[^\d]", "", text or "")
-            if digits.isdigit() and len(digits) >= 3:
-                amount = int(digits)
-                return (int(amount * 0.9), int(amount * 1.1))
-            return None
+            if not digits.isdigit() or len(digits) < 3:
+                return None
+            if _looks_like_pincode(digits, text):
+                return None
+            # Same band as the typed-query path so "20000" means one thing
+            # whether it arrives through the wizard or a normal search.
+            return _snap_single_price_to_band(int(digits))
         return (min_p, max_p)
 
     if step == "fulfillment":
@@ -603,6 +675,20 @@ def advance_wizard(
     if step == "occasion":
         step = get_next_step(collected)
         user_profile["shopping_wizard_step"] = step
+
+    # "koi bhi" / "no specific budget" / "skip" read as a browse-everything
+    # escape at the category step, but on a filter question they are a real
+    # answer — check first so the user is not thrown out of a half-filled
+    # funnel for declining to pick.
+    if text and step in _ANY_ANSWER_STEPS and _ANY_ANSWER_RE.search(text):
+        _apply_any_slot(collected, step)
+        user_profile["shopping_wizard_data"] = collected
+        next_step = get_next_step(collected)
+        if next_step is None:
+            user_profile["shopping_wizard_step"] = "complete"
+            return "complete", None
+        user_profile["shopping_wizard_step"] = next_step
+        return "prompt", [build_step_prompt(next_step, collected)]
 
     if text and _ESCAPE_RE.search(text):
         clear_wizard_state(user_profile)

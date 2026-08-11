@@ -106,7 +106,22 @@ class ResponseManager:
             handler = self._handlers.get(response_type)
 
             if handler:
-                result = handler(phone_number=phone_number, bot_response=response)
+                try:
+                    result = handler(phone_number=phone_number, bot_response=response)
+                except Exception as exc:
+                    # One flaky send must not swallow the rest of the turn: the
+                    # senders re-raise on network errors, and an escaping
+                    # exception used to drop every remaining card / CTA while
+                    # the dashboard still showed the full saved response.
+                    logger.exception(
+                        "Failed to send bot_response — continuing with the rest",
+                        extra={
+                            "phone_number": phone_number,
+                            "response_type": response_type,
+                            "error": str(exc),
+                        },
+                    )
+                    continue
                 if result:
                     if result.get("status") != "submitted":
                         logger.warning(f"Message not confirmed: {result}")

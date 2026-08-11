@@ -21,7 +21,7 @@ from kisna_chatbot.processors.general_agent import GeneralAgent
 
 
 class GeneralAgentRerouteTests(unittest.TestCase):
-    def test_cheapest_question_reroutes_without_llm(self):
+    def test_cheapest_question_is_answered_from_shown_products(self):
         async def _run():
             agent = GeneralAgent()
             data = {
@@ -45,7 +45,13 @@ class GeneralAgentRerouteTests(unittest.TestCase):
             self.assertEqual(
                 result["user_profile"]["service_selected"], SL.PRODUCT_SEARCH.value
             )
-            self.assertNotIn("bot_response", result)
+            # Product search answers it from the real shown products — the
+            # GeneralAgent LLM must never invent a price here.
+            texts = " ".join(
+                item.get("text", "") for item in result.get("bot_response", [])
+            )
+            self.assertIn("Ring A", texts)
+            self.assertIn("50,000", texts)
 
         asyncio.run(_run())
 
