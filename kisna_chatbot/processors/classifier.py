@@ -184,8 +184,9 @@ _HUMAN_HANDOFF_RE = re.compile(
     r"\b("
     r"human|agent\s+se|customer\s+care|live\s+agent|support\s+chahiye|"
     r"baat\s+karni\s+hai|kisi\s+se\s+baat|connect\s+me|"
-    r"need\s+urgent\s+support|talk\s+to\s+(?:an?\s+)?(?:agent|human|expert)|"
-    r"baat\s+karao"
+    r"need\s+urgent\s+support|"
+    r"(?:talk|speak|connect)\s+to\s+(?:an?\s+)?(?:agent|human|expert|support)|"
+    r"baat\s+karao|agent\s+chahiye|human\s+chahiye"
     r")\b",
     re.I,
 )
@@ -397,6 +398,9 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("general", 0.95)
     if _is_custom_jewellery_query(normalized):
         return ("human_handoff", 0.95)
+    # Live-agent phrasing ("connect me with agent") is LLM-primary via the
+    # classifier prompt — not a regex verdict. Sticky-wait escape still uses
+    # _HUMAN_HANDOFF_RE so mid-flow handoff requests can leave store/wizard waits.
     if _CALLBACK_RE.search(normalized):
         return ("callback", 0.95)
     if _GOLD_RATE_RE.search(normalized):

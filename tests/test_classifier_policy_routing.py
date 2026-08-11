@@ -88,6 +88,20 @@ class PolicyRoutingUnitTests(unittest.TestCase):
         override = _programmatic_intent_override("custom ring banwana hai")
         self.assertEqual(override, ("human_handoff", 0.95))
 
+    def test_live_agent_phrases_are_llm_primary(self):
+        # No regex verdict — classifier prompt / LLM owns these.
+        for text in (
+            "Connect me with agent",
+            "Connect me with a human",
+            "talk to a human",
+            "speak to an agent",
+            "agent se baat karni hai",
+        ):
+            self.assertIsNone(
+                _programmatic_intent_override(text),
+                msg=f"expected no regex override for {text!r}",
+            )
+
     def test_product_price_signal_guard(self):
         self.assertTrue(_is_product_price_signal("is ring ka price kitna hai"))
         self.assertFalse(_is_product_price_signal("buyback kitna milega"))
@@ -196,6 +210,34 @@ class PolicyRoutingIntegrationTests(unittest.TestCase):
                 _CUSTOM_JEWELLERY_HANDOFF_MESSAGE.lower(),
             )
             self.assertTrue(result["user_profile"]["live_agent_required"])
+
+        asyncio.run(_run())
+
+    def test_connect_me_with_agent_handoff_via_llm(self):
+        async def _run():
+            clf = Classifier()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "Connect me with agent"}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                return_value=json.dumps(
+                    {"intent": "human_handoff", "confidence": 0.95, "entities": {}}
+                ),
+            ) as mock_llm, patch(
+                "kisna_chatbot.processors.support_handler.send_customer_support_template"
+            ), patch(
+                "kisna_chatbot.processors.support_handler.get_support_status",
+                return_value={"status": "open"},
+            ):
+                result = await clf.process(data)
+            mock_llm.assert_called_once()
+            self.assertEqual(result["classified_category"], "human_handoff")
+            self.assertTrue(result["user_profile"].get("live_agent_required"))
 
         asyncio.run(_run())
 

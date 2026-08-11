@@ -49,9 +49,12 @@ NOT general EMI/policy questions.
 
 **complaint** — Damaged/wrong/defective received goods: "damage ho gaya", "galat product aaya".
 
-**human_handoff** — Explicit request for live agent OR custom/personalized jewellery requests:
-"human", "customer care", "custom ring banwana hai", "engraving chahiye". Also order
-cancellation/modification requests ("order cancel karna hai") — the bot cannot cancel orders.
+**human_handoff** — Explicit request for a live person / agent OR custom/personalized jewellery:
+English: "connect me with agent", "connect me with a human", "talk to a human",
+"speak to an agent", "customer care", "live agent". Hinglish: "human se baat karo",
+"agent se baat karni hai", "kisi se baat". Custom: "custom ring banwana hai",
+"engraving chahiye". Also order cancel/modify ("order cancel karna hai") — bot cannot cancel.
+High confidence (≥0.9). Never classify these as general / low-confidence unclear.
 
 **callback** — Request for a phone callback (NOT live chat, NOT video):
 "call me back", "callback", "request a callback", "mujhe call karo", "phone karo",
@@ -138,7 +141,8 @@ new value: after a women search, "I want it for men" / "for him" → gender=men
 6. Order tracking or order delivery timing → order_tracking
 7. Return/refund/exchange → returns_refund
 8. Damage/wrong delivery → complaint
-9. Live agent → human_handoff
+9. Live agent / human / "connect me with agent" / "talk to a human" → human_handoff
+   (high confidence; never general, never low-confidence unclear)
 10. Pure greeting → greeting
 11. Brand/policy FAQ (return policy, how to return, buyback rate, hallmark, BIS, EMI policy) → general
 11a. Questions ASKING ABOUT a policy (how/what/kitna/process/possible) → general.
@@ -438,6 +442,16 @@ Fallback for unclear or spam/gibberish:
 20. "product damage ho gaya" → {"intent": "complaint", "confidence": 0.95}
 21. "galat item deliver hua" → {"intent": "complaint", "confidence": 0.92}
 22. "human se baat karo" → {"intent": "human_handoff", "confidence": 0.95}
+22a. "Connect me with agent" → {"intent": "human_handoff", "confidence": 0.95}
+22b. "Connect me with a human" → {"intent": "human_handoff", "confidence": 0.95}
+22c. "talk to a human" → {"intent": "human_handoff", "confidence": 0.95}
+22d. "speak to an agent" → {"intent": "human_handoff", "confidence": 0.95}
+22e. "transfer me to support" → {"intent": "human_handoff", "confidence": 0.93}
+22f. "I need a real person" → {"intent": "human_handoff", "confidence": 0.92}
+22g. "customer care" → {"intent": "human_handoff", "confidence": 0.92}
+22h. "call me back" → {"intent": "callback", "confidence": 0.95}
+22i. "please call me" → {"intent": "callback", "confidence": 0.93}
+(Live chat / person → human_handoff. Phone call-back → callback — never confuse the two.)
 23. "return policy kya hai" → {"intent": "general", "confidence": 0.9}
 24. "gold kaise maintain kare" → {"intent": "general", "confidence": 0.85}
 25. "mujhe jhumka dikhao" → {"intent": "product_search", "confidence": 0.93}
