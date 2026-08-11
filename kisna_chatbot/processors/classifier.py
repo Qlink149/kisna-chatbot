@@ -422,6 +422,26 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
     return None
 
 
+def _programmatic_intent_fallback(text: str) -> tuple[str, float] | None:
+    """Unambiguous support intents when the LLM is down (rate-limit / outage).
+
+    Normal path stays LLM-primary. This only runs after a classifier failure so
+    "Callback" / "call me back" do not trap the user in "didn't catch that".
+    """
+    normalized = (text or "").strip()
+    if not normalized:
+        return None
+    if _HUMAN_HANDOFF_RE.search(normalized):
+        return ("human_handoff", 0.9)
+    if _CALLBACK_RE.search(normalized):
+        return ("callback", 0.9)
+    if _VIDEO_CALL_RE.search(normalized):
+        return ("video_call", 0.9)
+    if _GOLD_RATE_RE.search(normalized):
+        return ("gold_rate", 0.9)
+    return None
+
+
 def _programmatic_intent_hint(text: str) -> str | None:
     """Soft routing hint passed into the classifier prompt — never a verdict."""
     normalized = (text or "").strip()
@@ -1798,6 +1818,8 @@ class Classifier(Processor):
             return data
 
         try:
+            raw_query = ""
+            chat_history: list = user_profile.get("chat_history") or []
             if "text" in data["messages"]:
                 user_query = data["messages"]["text"]["body"]
 
@@ -2151,6 +2173,10 @@ class Classifier(Processor):
                 "Classifier returned invalid JSON",
                 extra={"exception": e, "phone_number": phone_number},
             )
+            if await _route_on_llm_failure(
+                data, user_profile, phone_number, raw_query, chat_history
+            ):
+                return data
             _store_llm_entities(data, user_profile, {})
             user_profile["service_selected"] = ""
             data["bot_response"] = [
@@ -2168,6 +2194,10 @@ class Classifier(Processor):
                 "Exception occured while running classifier.",
                 extra={"exception": e, "phone_number": phone_number},
             )
+            if await _route_on_llm_failure(
+                data, user_profile, phone_number, raw_query, chat_history
+            ):
+                return data
             _store_llm_entities(data, user_profile, {})
             user_profile["service_selected"] = ""
             data["bot_response"] = [
@@ -2180,3 +2210,39 @@ class Classifier(Processor):
                 }
             ]
             return data
+
+
+async def _route_on_llm_failure(
+    data: dict,
+    user_profile: dict,
+    phone_number: str,
+    raw_query: str,
+    chat_history: list,
+) -> bool:
+    """Honour crystal-clear support asks when the classifier LLM is down."""
+    fallback = _programmatic_intent_fallback(raw_query)
+    if not fallback:
+        return False
+    intent, confidence = fallback
+    _store_llm_entities(data, user_profile, {})
+    logger.warning(
+        "Classifier LLM failed — applying unambiguous intent fallback",
+        extra={
+            "phone_number": phone_number,
+            "intent": intent,
+            "confidence": confidence,
+            "query": raw_query,
+        },
+    )
+    if _route_resolved_intent(
+        data,
+        user_profile,
+        phone_number,
+        raw_query,
+        chat_history,
+        intent,
+        confidence,
+    ):
+        await _finalize_classifier_response(data)
+        return True
+    return False
