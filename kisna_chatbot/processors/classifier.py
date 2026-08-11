@@ -82,7 +82,8 @@ _REROUTE_RE = re.compile(
     r"\b("
     r"menu|back|cancel|hi|hello|namaste|"
     r"view\s+offers|show\s+offers|any\s+offers|koi\s+offer|offers?\s*\?|"
-    r"find\s+(a\s+)?store|store\s+locator|nearest\s+store|showroom|"
+    r"find\s+(a\s+)?store|store\s+locator|nearest\s+store|nearest\s+shop|showroom|"
+    r"store\s+in|have\s+(a\s+)?store|stores?\s+in|outlet|"
     r"track\s+(my\s+)?order|order\s+status|where\s+is\s+my\s+order|"
     r"complaint|file\s+complaint|"
     r"return\s+policy|refund\s+policy|"
@@ -260,9 +261,31 @@ _COMPLAINT_RE = re.compile(
     re.I,
 )
 
+# Physical retail location — NOT product catalog / "do you have this ring".
+# Keep distinct from product availability ("available in store", "in-store pickup").
 _STORE_LOOKUP_RE = re.compile(
-    r"\b(nearest\s+store|showroom|store\s+near|kisna\s+showroom|outlet|"
-    r"store\s+locator|find\s+store)\b",
+    r"\b("
+    r"nearest\s+(?:store|shop|showroom|outlet)|"
+    r"(?:store|shop|showroom|outlet)\s+(?:near|locator)|"
+    r"store\s+locator|"
+    r"find\s+(?:a\s+)?(?:store|shop|showroom|outlet)|"
+    r"kisna\s+(?:store|showroom|outlet|shop)|"
+    r"showroom|outlet|"
+    # "store/shop/showroom in|at Mumbai", "stores in Delhi"
+    r"(?:stores?|shops?|showrooms?|outlets?)\s+(?:in|at|near)\b|"
+    # "have a store", "any Kisna store", "do you have a store"
+    r"(?:have|has|got|any)\s+(?:a\s+|an\s+|any\s+)?(?:kisna\s+)?"
+    r"(?:store|shop|showroom|outlet)s?\b|"
+    r"(?:store|shop|showroom)\s+(?:location|address|directions?)\b|"
+    r"(?:location|address|directions?)\s+(?:of\s+)?(?:the\s+|your\s+|kisna\s+)?"
+    r"(?:store|shop|showroom|outlet)s?\b|"
+    r"where\s+(?:is|are)\s+(?:your\s+|the\s+|a\s+|kisna\s+)?"
+    r"(?:store|shop|showroom|outlet)s?\b|"
+    # Hinglish / Hindi-Latin
+    r"(?:store|showroom|outlet|shop)\s+(?:kahan|kahaan|hai|batao|bataye)\b|"
+    r"(?:mein|me)\s+(?:store|showroom|outlet|shop)\b|"
+    r"(?:store|showroom|outlet|shop)\s+(?:mein|me)\b"
+    r")",
     re.I,
 )
 
@@ -439,6 +462,10 @@ def _programmatic_intent_fallback(text: str) -> tuple[str, float] | None:
         return ("video_call", 0.9)
     if _GOLD_RATE_RE.search(normalized):
         return ("gold_rate", 0.9)
+    if _STORE_LOOKUP_RE.search(normalized) and not (
+        _CATEGORY_WORD_RE.search(normalized) and _BROWSE_ACTION_RE.search(normalized)
+    ):
+        return ("store_info", 0.9)
     return None
 
 
@@ -474,6 +501,14 @@ def _programmatic_intent_hint(text: str) -> str | None:
         return (
             "heuristic suggests today's gold metal rate (intent gold_rate) — "
             "NOT a jewellery product price"
+        )
+    if _STORE_LOOKUP_RE.search(normalized) and not (
+        _CATEGORY_WORD_RE.search(normalized) and _BROWSE_ACTION_RE.search(normalized)
+    ):
+        return (
+            "heuristic suggests a PHYSICAL store/showroom/outlet location lookup "
+            "(intent store_info, confidence ≥0.9) — NOT product_search. "
+            "'do you have a store in <city>' is about a PLACE, not jewellery inventory"
         )
     if _is_policy_action_query(normalized):
         return (
@@ -1704,10 +1739,31 @@ async def classify_query_for_audit(
         source = "override"
     else:
         source = "llm"
+    entities = _sanitize_llm_entities(parsed.get("entities") or {})
+    if (
+        source == "llm"
+        and _STORE_LOOKUP_RE.search(user_query)
+        and not entities.get("category")
+        and not (
+            _CATEGORY_WORD_RE.search(user_query)
+            and _BROWSE_ACTION_RE.search(user_query)
+        )
+        and intent
+        in (
+            "product_search",
+            "product_info",
+            "general",
+            "menu_help",
+            "greeting",
+        )
+    ):
+        intent = "store_info"
+        confidence = max(confidence, 0.9)
+        source = "store_guard"
     return {
         "intent": intent,
         "confidence": confidence,
-        "entities": _sanitize_llm_entities(parsed.get("entities") or {}),
+        "entities": entities,
         "source": source,
     }
 
@@ -2125,6 +2181,37 @@ class Classifier(Processor):
                 ):
                     intent = "product_search"
                     confidence = max(confidence, 0.8)
+
+                # Store-location guard: "do you have a store in Mumbai" is often
+                # hallucinated as product_search because "do you have X" looks like
+                # inventory. Clear physical-store phrasing (no jewellery category)
+                # always wins → store_info.
+                if (
+                    _STORE_LOOKUP_RE.search(raw_query)
+                    and not sanitized_entities.get("category")
+                    and not (
+                        _CATEGORY_WORD_RE.search(raw_query)
+                        and _BROWSE_ACTION_RE.search(raw_query)
+                    )
+                    and intent
+                    in (
+                        "product_search",
+                        "product_info",
+                        "general",
+                        "menu_help",
+                        "greeting",
+                    )
+                ):
+                    logger.info(
+                        "Store-location guard corrected intent",
+                        extra={
+                            "phone_number": phone_number,
+                            "llm_intent": intent,
+                            "query": raw_query,
+                        },
+                    )
+                    intent = "store_info"
+                    confidence = max(confidence, 0.9)
 
                 logger.info(
                     "Classifier intent",

@@ -39,7 +39,11 @@ product_search, NOT repair — repair is a correction/dissatisfaction, not a req
 **offers** — Promotions, discounts, sales, making-charge offers: "koi offer hai", "discount on gold".
 NOT general EMI/policy questions.
 
-**store_info** — Store locations, pincode, city store search: "store near me", "400001 mein store".
+**store_info** — PHYSICAL retail locations only (brick-and-mortar Kisna stores / showrooms /
+outlets / shops). City, pincode, address, directions, nearest branch, "do you have a store
+in Mumbai", "is there a Kisna showroom in Delhi", "store location", "Mumbai me store kahan
+hai", bare pincode during store lookup. NEVER product_search — a store/shop/showroom is a
+PLACE, not a jewellery item. Entities must be all null.
 
 **order_tracking** — Existing order status or order delivery: "mera order kahan hai", "track order",
 "delivery kab hogi" when referring to a placed order, dispatch status.
@@ -138,7 +142,9 @@ new value: after a women search, "I want it for men" / "for him" → gender=men
 2. Product discovery/browse/search → product_search
 3. Specific product price, stock, weight, delivery days for a product → product_info (never general)
 4. Offers/discounts/sale/cashback on purchases → offers
-5. Store/pincode/city location → store_info
+5. PHYSICAL store / showroom / outlet / shop location (city, pincode, address, directions,
+   nearest branch, "do you have a store in …") → store_info. High confidence (≥0.9).
+   NEVER product_search. See STORE vs PRODUCT below.
 6. Order tracking or order delivery timing → order_tracking
 7. Return/refund/exchange → returns_refund
 8. Damage/wrong delivery → complaint
@@ -180,6 +186,25 @@ new value: after a women search, "I want it for men" / "for him" → gender=men
     coding help) → general with confidence 0.5-0.6; the general agent politely redirects.
 31. Emoji-only message (😍/❤️/🙏) after results → treat as acknowledgement/continuation of
     the active flow with low-mid confidence; NEVER start a new flow from an emoji.
+
+### STORE vs PRODUCT — CRITICAL (common hallucination)
+
+"Do you have …" / "is there …" / "any …" / "tamara pase … che" is AMBIGUOUS until you
+read WHAT they are asking about:
+
+- Asking about a PLACE (store / shop / showroom / outlet / branch) + optional city /
+  pincode / near me / address / location / directions → **store_info**.
+  Examples: "do you have a store in Mumbai", "is there a Kisna store in Pune",
+  "any showroom near me", "store location in Delhi", "Mumbai me store hai kya".
+  Confidence ≥0.9. entities ALL null. NEVER invent a jewellery category.
+- Asking about a JEWELLERY ITEM (ring / earring / necklace / gold / diamond / collection)
+  → **product_search** (or product_info if about a shown/named piece).
+  Examples: "do you have diamond rings?", "tamara pase ring che?", "rings available?".
+
+TRAP: never treat the word "store" as a product, collection, or catalog browse.
+A city name next to store/shop/showroom/outlet is a LOCATION signal, not a product filter.
+"in store" / "available in store" about a SHOWN product is product_info (stock), not store_info —
+but "store in Mumbai" / "have a store in Mumbai" is always store_info.
 
 ---
 
@@ -256,6 +281,10 @@ product_info ONLY. NEVER classify these as general.
 
 For price or availability questions about specific products → classify as product_info.
 The price MUST come from the API. Never classify these as "general".
+
+If the user asks about a physical store / showroom / outlet / shop location (city, pincode,
+address, nearest branch, "do you have a store in …") → store_info ONLY. NEVER product_search,
+NEVER invent jewellery entities. Place ≠ product.
 
 ---
 
@@ -426,10 +455,21 @@ Fallback for unclear or spam/gibberish:
 10b. "What is kisna Jewellery?" → {"intent": "general", "confidence": 0.92, "entities": all null}
 10c. "Tell me about KISNA" → {"intent": "general", "confidence": 0.9, "entities": all null}
 11. "making charges pe discount" → {"intent": "offers", "confidence": 0.85}
-12. "400001" → {"intent": "store_info", "confidence": 0.92}
-13. "400001 mein store" → {"intent": "store_info", "confidence": 0.92}
-14. "400001" | active: store_info → {"intent": "store_info", "confidence": 0.95}
-15. "Mumbai me store kahan hai" → {"intent": "store_info", "confidence": 0.9}
+12. "400001" → {"intent": "store_info", "confidence": 0.92, "entities": all null}
+13. "400001 mein store" → {"intent": "store_info", "confidence": 0.92, "entities": all null}
+14. "400001" | active: store_info → {"intent": "store_info", "confidence": 0.95, "entities": all null}
+15. "Mumbai me store kahan hai" → {"intent": "store_info", "confidence": 0.9, "entities": all null}
+15a. "do you have a store in Mumbai" → {"intent": "store_info", "confidence": 0.95, "entities": all null}
+15b. "Do you have a Kisna store in Delhi?" → {"intent": "store_info", "confidence": 0.95, "entities": all null}
+15c. "is there a showroom in Pune" → {"intent": "store_info", "confidence": 0.93, "entities": all null}
+15d. "any store near me" → {"intent": "store_info", "confidence": 0.93, "entities": all null}
+15e. "store location in Bangalore" → {"intent": "store_info", "confidence": 0.92, "entities": all null}
+15f. "nearest shop" → {"intent": "store_info", "confidence": 0.9, "entities": all null}
+15g. "showroom address" → {"intent": "store_info", "confidence": 0.9, "entities": all null}
+15h. "do you have diamond rings?" → {"intent": "product_search", "confidence": 0.93,
+    "entities": {"category": "ring", "material_type": "diamond"}}
+    (jewellery item — NOT a store; contrast with 15a)
+15i. "Mumbai me store hai kya" → {"intent": "store_info", "confidence": 0.93, "entities": all null}
 16. "mera order kahan hai?" → {"intent": "order_tracking", "confidence": 0.95}
 17. "track order KIS123" → {"intent": "order_tracking", "confidence": 0.93}
 18. "return karna hai" → {"intent": "returns_refund", "confidence": 0.9}
@@ -477,8 +517,10 @@ Fallback for unclear or spam/gibberish:
 41. "aaj kya discount hai?" → {"intent": "offers", "confidence": 0.93}
 42. "making charge offer batao" → {"intent": "offers", "confidence": 0.9}
 43. "koi cashback milega?" → {"intent": "offers", "confidence": 0.88}
-44. "nearest store" → {"intent": "store_info", "confidence": 0.92}
-45. "KISNA showroom kahan hai?" → {"intent": "store_info", "confidence": 0.9}
+44. "nearest store" → {"intent": "store_info", "confidence": 0.92, "entities": all null}
+45. "KISNA showroom kahan hai?" → {"intent": "store_info", "confidence": 0.9, "entities": all null}
+45a. "where is your store in Hyderabad" → {"intent": "store_info", "confidence": 0.93, "entities": all null}
+45b. "Jaipur outlet" → {"intent": "store_info", "confidence": 0.9, "entities": all null}
 46. "delivery kab hogi?" | no product context → {"intent": "order_tracking", "confidence": 0.85}
 47. "order status" → {"intent": "order_tracking", "confidence": 0.93}
 48. "exchange possible hai?" → {"intent": "general", "confidence": 0.88}
