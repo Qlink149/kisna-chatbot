@@ -237,5 +237,45 @@ class TestCallbackAgent(unittest.TestCase):
         mock_notify.assert_called()
 
 
+    def test_should_run_without_callback_service(self):
+        """Flow submit after session cleared must still be claimed."""
+        with (
+            patch(_FLOW_ID_PATCHES[0], return_value="flow_callback_test"),
+            patch(_FLOW_ID_PATCHES[1], return_value="flow_video_test"),
+        ):
+            agent = CallbackAgent()
+            data = {
+                "phone_number": "919999999999",
+                "user_profile": {"service_selected": ""},
+                "messages": {
+                    "interactive": {
+                        "type": "nfm_reply",
+                        "nfm_reply": {
+                            "response_json": json.dumps(
+                                {
+                                    "flow_token": "flow_callback_test",
+                                    "mobile": "9116914178",
+                                    "reason": "exchange_return",
+                                    "preferred_date": "2026-08-12",
+                                    "preferred_time": "13-15",
+                                    "request_type": "callback",
+                                }
+                            )
+                        },
+                    }
+                },
+            }
+            self.assertTrue(agent.should_run(data))
+
+    def test_initial_pipeline_includes_callback_agent(self):
+        from kisna_chatbot.pipelines.inference_pipeline import InitialPipeline
+
+        names = [type(p).__name__ for p in InitialPipeline().processors]
+        self.assertIn("CallbackAgent", names)
+        self.assertIn("ComplaintAgent", names)
+        self.assertLess(names.index("CallbackAgent"), names.index("ServiceList"))
+        self.assertLess(names.index("ComplaintAgent"), names.index("ServiceList"))
+
+
 if __name__ == "__main__":
     unittest.main()

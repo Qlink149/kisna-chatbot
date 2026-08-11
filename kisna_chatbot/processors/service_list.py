@@ -950,6 +950,37 @@ class ServiceList(Processor):
                     return data
 
             if user_profile.get("service_selected", "") == "":
+                interactive = messages.get("interactive") or {}
+                # A Flow submission that no agent claimed — do not paper over it
+                # with the help menu (that hides the real miss and confuses the
+                # user who just filled a form).
+                if interactive.get("type") == "nfm_reply" or "nfm_reply" in interactive:
+                    logger.warning(
+                        "Unhandled WhatsApp Flow nfm_reply — no agent claimed it",
+                        extra={
+                            "phone_number": phone_number,
+                            "nfm_name": (interactive.get("nfm_reply") or {}).get(
+                                "name"
+                            ),
+                            "response_json_preview": str(
+                                (interactive.get("nfm_reply") or {}).get(
+                                    "response_json", ""
+                                )
+                            )[:200],
+                        },
+                    )
+                    data["bot_response"] = [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Sorry, we couldn't process that form just now. "
+                                "Please try again in a moment, or type *callback* "
+                                "to request a call."
+                            ),
+                            "_compose": "fallback_error",
+                        }
+                    ]
+                    return data
                 logger.info(
                     "Sending text help (no service selected)",
                     extra={"phone_number": phone_number},

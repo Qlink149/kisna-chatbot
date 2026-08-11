@@ -19,7 +19,18 @@ class InitialPipeline(Pipeline):
     """Pipeline for user registration, intent classification, and main menu."""
 
     def __init__(self) -> None:
-        processors = [UserRegistration(), Classifier(), ServiceList()]
+        # Callback/Complaint agents must run here (before ServiceList): a Flow
+        # nfm_reply can arrive after service_selected was cleared (session TTL,
+        # menu, greeting). CallbackPipeline only runs when service is already
+        # CALLBACK — without these, the form submission becomes a help menu and
+        # never lands in Mongo / the dashboard.
+        processors = [
+            UserRegistration(),
+            CallbackAgent(),
+            ComplaintAgent(),
+            Classifier(),
+            ServiceList(),
+        ]
         super().__init__(processors)
 
 
