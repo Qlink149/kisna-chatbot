@@ -18,7 +18,7 @@ def _post_image(phone_number: str, url: str, caption: str = "") -> httpx.Respons
             "Skipping image send — empty URL",
             extra={"phone_number": phone_number},
         )
-        return {"status": "submitted"}
+        return {"status": "error", "message": "empty_image_url"}
 
     destination = f"{phone_number}"
     api_url = "https://api.gupshup.io/wa/api/v1/msg"
@@ -42,7 +42,7 @@ def _post_image(phone_number: str, url: str, caption: str = "") -> httpx.Respons
         "src.name": gupshup_app_name,
     }
 
-    response = httpx.post(api_url, headers=headers, data=data)
+    response = httpx.post(api_url, headers=headers, data=data, timeout=30.0)
     if response.status_code >= 400:
         logger.error(
             "Gupshup image send failed",
@@ -54,10 +54,25 @@ def _post_image(phone_number: str, url: str, caption: str = "") -> httpx.Respons
             },
         )
     else:
-        logger.info(
-            "Response",
-            extra={"phone_number": phone_number, "response": response.json()},
-        )
+        try:
+            body = response.json()
+        except Exception:
+            body = {"status": "error", "raw": response.text[:300]}
+        status = str(body.get("status") or "").lower()
+        if status in ("error", "failed", "failure"):
+            logger.error(
+                "Gupshup image soft-error (HTTP 200)",
+                extra={
+                    "phone_number": phone_number,
+                    "response": body,
+                    "url": url,
+                },
+            )
+        else:
+            logger.info(
+                "Response",
+                extra={"phone_number": phone_number, "response": body},
+            )
     return response
 
 
@@ -70,7 +85,13 @@ def _send_with_jpg_retry(
     result = _post_image(phone_number, url, caption)
     if isinstance(result, dict):
         return result
-    return _response_json(result)
+    parsed = _response_json(result)
+    # Surface soft failures so callers can fall back (e.g. Buy CTA only).
+    status = str(parsed.get("status") or "").lower()
+    if result.status_code >= 400 or status in ("error", "failed", "failure"):
+        parsed.setdefault("status", "error")
+        parsed["status_code"] = result.status_code
+    return parsed
 
 
 def send_image_message(phone_number: str, bot_response: dict):
