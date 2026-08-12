@@ -126,25 +126,71 @@ def filter_wizard_carryover(
     carryover: dict | None,
     entities: dict | None,
     prior_filters: dict | None,
+    *,
+    query: str | None = None,
 ) -> dict:
-    """Drop material carryover when the user switches product category.
+    """Drop sticky slots that must not survive a new product / audience ask.
 
-    Same-funnel (Female + Gold, then "rings under 30k") has no prior search
-    category — keep material. After a completed gold-rings search, a new
-    necklace ask must not re-inject gold and skip the material question.
+    - Category change vs last search → drop material and gender.
+    - Ambiguous audience ("for parents") → drop gender so wizard asks again.
+    - Prior completed search + bare category ask ("show me rings") → drop
+      unevidenced gender/material so those steps are not skipped.
+    Same-funnel (Female + Gold, then "rings under 30k") keeps both when there
+    is no prior category and the message is not ambiguous.
     """
     out = dict(carryover or {})
     if not out:
         return out
     new_cat = (entities or {}).get("category")
     prior_cat = (prior_filters or {}).get("category")
-    if (
+    category_changed = bool(
         new_cat
         and prior_cat
         and str(new_cat).strip().lower() != str(prior_cat).strip().lower()
-    ):
+    )
+    if category_changed:
         out.pop("material_type", None)
+        out.pop("gender", None)
+
+    from kisna_chatbot.processors.entity_extractor import (
+        _gender_evidenced,
+        is_ambiguous_audience,
+    )
+
+    if is_ambiguous_audience(query):
+        out.pop("gender", None)
+
+    # After a completed search, only keep carryover slots the NEW message
+    # actually restates — otherwise "show me rings" skips Who/material.
+    if prior_cat and query:
+        carried_gender = out.get("gender")
+        if carried_gender and not _gender_evidenced(query, carried_gender):
+            out.pop("gender", None)
+        carried_material = out.get("material_type")
+        if carried_material and not _material_evidenced_in_text(
+            query, carried_material
+        ):
+            out.pop("material_type", None)
     return out
+
+
+def _material_evidenced_in_text(query: str | None, material: str | None) -> bool:
+    """True when the message clearly names gold/diamond/gemstone (Latin)."""
+    if not query or not material:
+        return False
+    key = str(material).strip().lower()
+    if key not in ("gold", "diamond", "gemstone"):
+        return False
+    normalized = query.lower()
+    if key == "gold":
+        return bool(re.search(r"\b(gold|sona|sone)\b", normalized))
+    if key == "diamond":
+        return bool(re.search(r"\b(diamond|heera|heere|solitaire)\b", normalized))
+    if key == "gemstone":
+        return bool(
+            re.search(r"\b(gemstone|gem\s*stone|ruby|emerald|sapphire)\b", normalized)
+        )
+    return False
 
 # Steps a user may decline to answer. Category is excluded — Clara needs a
 # scope, so "anything" there is a browse-everything escape, not a slot value.
@@ -289,7 +335,12 @@ def seed_wizard_from_entities(
 
     gender = ents.get("gender")
     if gender in ("women", "men", "kids"):
-        seeded["gender"] = gender
+        # Never smart-skip gender for ambiguous recipients (parents/friend).
+        # Carryover / sticky prior Female must not hide "Who is it for?".
+        from kisna_chatbot.processors.entity_extractor import is_ambiguous_audience
+
+        if not (query and is_ambiguous_audience(query)):
+            seeded["gender"] = gender
     elif query:
         inferred_gender = _gender_from_text(query)
         if inferred_gender:
@@ -679,6 +730,8 @@ def _parse_text_for_step(
 
     if step == "budget":
         from kisna_chatbot.processors.entity_extractor import (
+            _RANGE_INDICATOR_RE,
+            _extract_prices,
             _snap_single_price_to_band,
         )
 
@@ -686,15 +739,20 @@ def _parse_text_for_step(
         min_p = ents.get("min_price")
         max_p = ents.get("max_price")
         if min_p is None and max_p is None:
-            digits = re.sub(r"[^\d]", "", text or "")
-            if not digits.isdigit() or len(digits) < 3:
-                return None
-            if _looks_like_pincode(digits, text):
-                return None
-            # Same band as the typed-query path so "20000" means one thing
-            # whether it arrives through the wizard or a normal search.
-            return _snap_single_price_to_band(int(digits))
-        return (min_p, max_p)
+            # Prefer the shared price parser (handles "15 to 35 thousand").
+            min_p, max_p = _extract_prices(text or "")
+        if min_p is not None or max_p is not None:
+            return (min_p, max_p)
+        # Bare digit fallback ("20000") — never concatenate range halves
+        # ("15 to 35 thousand" → "1535").
+        if _RANGE_INDICATOR_RE.search(text or ""):
+            return None
+        digits = re.sub(r"[^\d]", "", text or "")
+        if not digits.isdigit() or len(digits) < 3:
+            return None
+        if _looks_like_pincode(digits, text):
+            return None
+        return _snap_single_price_to_band(int(digits))
 
     if step == "fulfillment":
         if normalized in _FULFILLMENT_TITLE_MAP:

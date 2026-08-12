@@ -376,26 +376,26 @@ _SHORT_AFFIRMATION_RE = re.compile(
 _RANGE_PATTERNS = [
     re.compile(
         r"(?:between|from)\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?\s*(?:and|to|-)\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*(?:and|to|-)\s*"
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?",
         re.I,
     ),
     re.compile(
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?\s*(?:to|-)\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?",
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*(?:to|-)\s*"
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?",
         re.I,
     ),
     re.compile(
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?\s*se\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac)?\s*tak",
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*se\s*"
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*tak",
         re.I,
     ),
     # "50k se 1 lakh" — the Hinglish range is just as common without "tak".
     # Direction phrases ("50k se upar/kam/zyada") never match: the word after
     # "se" is not a number.
     re.compile(
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar)?\s*se\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar)?",
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*se\s*"
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?",
         re.I,
     ),
 ]
@@ -1003,9 +1003,7 @@ def _parse_amount(num_str: str, suffix: str | None) -> float | None:
         return None
     if suffix:
         s = suffix.lower()
-        if s == "k":
-            value *= 1000
-        elif s == "hazaar":
+        if s in ("k", "hazaar", "thousand"):
             value *= 1000
         elif s in ("lakh", "lac"):
             value *= 100000
@@ -1544,6 +1542,29 @@ def _gender_evidenced(query: str, gender: str | None) -> bool:
     return False
 
 
+# Audience words that mean "ask Who is it for?" — never invent women/men.
+_AMBIGUOUS_AUDIENCE_RE = re.compile(
+    r"\b("
+    r"parents|parent|friends?|family|couple|someone|"
+    r"gift\s+for\s+them|for\s+them"
+    r")\b",
+    re.I,
+)
+
+
+def is_ambiguous_audience(query: str | None) -> bool:
+    """True when the message names an unclear recipient (parents/friend/…)."""
+    text = (query or "").strip()
+    if not text:
+        return False
+    if not _AMBIGUOUS_AUDIENCE_RE.search(text):
+        return False
+    # Clear him/her cue wins over ambiguous words ("couple rings for her").
+    if _gender_evidenced(text, "women") or _gender_evidenced(text, "men"):
+        return False
+    return True
+
+
 def _collection_evidenced(query: str, collection: str | None) -> bool:
     if not collection:
         return False
@@ -1586,6 +1607,10 @@ def apply_llm_evidence_gate(query: str, llm_entities: dict) -> dict:
     """
     out = dict(llm_entities or {})
     text = query or ""
+    # Ambiguous audience applies in every script — do not keep a guessed gender
+    # even when the Latin evidence gate is skipped for Indic text.
+    if out.get("gender") and is_ambiguous_audience(text):
+        out["gender"] = None
     if _INDIC_SCRIPT_RE.search(text):
         return out
     regex_quick = extract_entities(text) if text.strip() else {}

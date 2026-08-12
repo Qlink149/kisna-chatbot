@@ -212,6 +212,22 @@ class HinglishRangeTests(unittest.TestCase):
         self.assertEqual(min_p, 50000)
         self.assertIsNone(max_p)
 
+    def test_english_thousand_range(self):
+        self.assertEqual(_extract_prices("15 to 35 thousand"), (15000, 35000))
+        self.assertEqual(_extract_prices("15-35 thousand"), (15000, 35000))
+        self.assertEqual(
+            _extract_prices("between 15 and 35 thousand"), (15000, 35000)
+        )
+
+    def test_wizard_budget_thousand_range_not_digit_concat(self):
+        # Regression: digit-strip turned "15 to 35 thousand" into ₹1535.
+        self.assertEqual(
+            _parse_text_for_step("budget", "15 to 35 thousand"),
+            (15000.0, 35000.0),
+        )
+        band = _parse_text_for_step("budget", "15 to 35 thousand")
+        self.assertNotEqual(band, _snap_single_price_to_band(1535))
+
 
 if __name__ == "__main__":
     unittest.main()

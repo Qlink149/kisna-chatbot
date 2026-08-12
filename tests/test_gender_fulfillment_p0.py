@@ -27,11 +27,15 @@ from kisna_chatbot.processors.entity_extractor import (  # noqa: E402
     _NEVER_INHERIT_FIELDS,
     _gender_evidenced,
     apply_llm_evidence_gate,
+    is_ambiguous_audience,
     merge_search_entities,
 )
 from kisna_chatbot.processors.shopping_wizard import (  # noqa: E402
     _gender_from_text,
     advance_wizard,
+    filter_wizard_carryover,
+    get_next_step,
+    seed_wizard_from_entities,
     start_wizard,
 )
 from kisna_chatbot.prompts.classifier_kisna import (  # noqa: E402
@@ -188,6 +192,31 @@ class GenderFulfillmentEvidenceTests(unittest.TestCase):
             {"occasion": "gift", "gender": "men"},
         )
         self.assertIsNone(gated["gender"])
+
+    def test_ambiguous_audience_helper(self):
+        self.assertTrue(is_ambiguous_audience("I need a ring for my parents"))
+        self.assertTrue(is_ambiguous_audience("gift for a friend"))
+        self.assertFalse(is_ambiguous_audience("ring for mom"))
+        self.assertFalse(is_ambiguous_audience("couple rings for her"))
+
+    def test_parents_ask_skips_sticky_gender_in_wizard(self):
+        """Prior Female carryover must not skip 'Who is it for?' for parents."""
+        query = "I need a ring for my parents"
+        carryover = {"gender": "women", "material_type": "gold"}
+        gated = filter_wizard_carryover(
+            carryover,
+            {"category": "ring"},
+            {"category": "ring", "gender": "women"},
+            query=query,
+        )
+        self.assertNotIn("gender", gated)
+        seeded = seed_wizard_from_entities(
+            {"category": "ring", "gender": "women"},
+            query=query,
+        )
+        self.assertEqual(seeded.get("category"), "ring")
+        self.assertIsNone(seeded.get("gender"))
+        self.assertEqual(get_next_step(seeded), "gender")
 
     def test_wizard_gender_from_relationship_text(self):
         self.assertEqual(_gender_from_text("mom"), "women")

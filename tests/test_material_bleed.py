@@ -116,7 +116,7 @@ class CarryoverMaterialGateTests(unittest.TestCase):
         prior = {"category": "ring", "material_type": "gold"}
         gated = filter_wizard_carryover(carryover, entities, prior)
         self.assertNotIn("material_type", gated)
-        self.assertEqual(gated["gender"], "women")
+        self.assertNotIn("gender", gated)
         self.assertEqual(gated["fulfillment"], "ready")
 
     def test_keeps_material_same_funnel_no_prior_category(self):
@@ -124,15 +124,49 @@ class CarryoverMaterialGateTests(unittest.TestCase):
         entities = {"category": "ring"}
         gated = filter_wizard_carryover(carryover, entities, {})
         self.assertEqual(gated["material_type"], "gold")
+        self.assertEqual(gated["gender"], "women")
         gated_none = filter_wizard_carryover(carryover, entities, None)
         self.assertEqual(gated_none["material_type"], "gold")
 
     def test_keeps_material_same_category(self):
-        carryover = {"material_type": "diamond"}
+        carryover = {"material_type": "diamond", "gender": "women"}
         entities = {"category": "ring"}
         prior = {"category": "ring", "material_type": "gold"}
         gated = filter_wizard_carryover(carryover, entities, prior)
         self.assertEqual(gated["material_type"], "diamond")
+        self.assertEqual(gated["gender"], "women")
+
+    def test_drops_gender_carryover_for_parents_same_category(self):
+        carryover = {"gender": "women", "material_type": "gold"}
+        entities = {"category": "ring"}
+        prior = {"category": "ring", "gender": "women"}
+        gated = filter_wizard_carryover(
+            carryover,
+            entities,
+            prior,
+            query="I need a ring for my parents",
+        )
+        self.assertNotIn("gender", gated)
+        # Prior search + unevidenced material also cleared on bare ask.
+        self.assertNotIn("material_type", gated)
+
+    def test_bare_rings_ask_drops_prior_gender_and_material(self):
+        query = "can you show me rings"
+        carryover = {"gender": "men", "material_type": "gold", "fulfillment": "ready"}
+        gated = filter_wizard_carryover(
+            carryover,
+            {"category": "ring"},
+            {"category": "ring", "gender": "men", "material_type": "gold"},
+            query=query,
+        )
+        self.assertNotIn("gender", gated)
+        self.assertNotIn("material_type", gated)
+        self.assertEqual(gated.get("fulfillment"), "ready")
+        seeded = seed_wizard_from_entities(
+            {"category": "ring", **gated},
+            query=query,
+        )
+        self.assertEqual(get_next_step(seeded), "gender")
 
     def test_merge_still_drops_material_on_new_category(self):
         prior = {"category": "ring", "material_type": "gold", "max_price": 50000}

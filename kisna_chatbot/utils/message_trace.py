@@ -321,6 +321,9 @@ def summarize_filters(entities: dict | None) -> str:
         cat = ", ".join(str(c) for c in cat if c)
     if cat:
         parts.append(str(cat).replace("_", " ").title())
+    gender = entities.get("gender")
+    if gender:
+        parts.append(str(gender).replace("_", " ").title())
     mat = entities.get("material_type")
     if mat:
         parts.append(str(mat).replace("_", " ").title())

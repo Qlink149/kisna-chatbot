@@ -2252,6 +2252,7 @@ class ProductSearchAgentV3(Processor):
             data.get("_wizard_carryover") or {},
             entities,
             user_profile.get("last_search_filters"),
+            query=query,
         )
         if carryover:
             entities = {
@@ -2328,6 +2329,7 @@ class ProductSearchAgentV3(Processor):
                     data.get("_wizard_carryover") or {},
                     ents,
                     user_profile.get("last_search_filters"),
+                    query=text,
                 )
                 for key, value in carryover.items():
                     if ents.get(key) is None:
