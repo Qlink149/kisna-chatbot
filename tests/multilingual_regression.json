@@ -1,0 +1,330 @@
+{
+  "_meta": {
+    "purpose": "Multilingual classifier regression set for the prompt-remediation stages.",
+    "buckets": {
+      "gu-native": "Gujarati native script",
+      "hi-native": "Devanagari Hindi",
+      "romanized": "Romanized regional (Gujarati / Marathi / Hinglish)",
+      "store": "store_info true positives",
+      "contrast": "store-vs-product contrast pairs (same phrasing, different object)",
+      "context": "context-dependent follow-ups"
+    },
+    "context_keys": {
+      "active_search": "user has an active jewellery search (last_search_filters set)",
+      "shown_products": "numbered list of products currently on screen",
+      "store_wait": "awaiting_store_pincode is set"
+    },
+    "expect_entities": "only the fields asserted; a field set to null must be null/absent in the output"
+  },
+
+  "cases": [
+    {
+      "id": "gu-01",
+      "bucket": "gu-native",
+      "message": "તમારી પાસે રિંગ છે?",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"}
+    },
+    {
+      "id": "gu-02",
+      "bucket": "gu-native",
+      "message": "મારે ૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચેની કાનની બુટ્ટી જોઈએ છે",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "earring", "min_price": 10000, "max_price": 30000}
+    },
+    {
+      "id": "gu-03",
+      "bucket": "gu-native",
+      "message": "મને સોનાની વીંટી બતાવો",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "gold"}
+    },
+    {
+      "id": "gu-04",
+      "bucket": "gu-native",
+      "message": "મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "earring", "min_price": 40000}
+    },
+    {
+      "id": "gu-05",
+      "bucket": "gu-native",
+      "message": "હીરાનું મંગળસૂત્ર બતાવો",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "mangalsutra", "material_type": "diamond"}
+    },
+    {
+      "id": "gu-06",
+      "bucket": "gu-native",
+      "message": "૫૦ હજારથી ઓછી કિંમતનો નેકલેસ",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "necklace", "max_price": 50000}
+    },
+    {
+      "id": "gu-07",
+      "bucket": "gu-native",
+      "message": "આજે સોનાનો ભાવ શું છે?",
+      "expect_intent": "gold_rate",
+      "expect_entities": {}
+    },
+    {
+      "id": "gu-08",
+      "bucket": "gu-native",
+      "message": "મારે રિટર્ન કરવું છે",
+      "expect_intent": "returns_refund",
+      "expect_entities": {}
+    },
+
+    {
+      "id": "hi-01",
+      "bucket": "hi-native",
+      "message": "मुझे सोने की अंगूठी दिखाओ",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "gold"}
+    },
+    {
+      "id": "hi-02",
+      "bucket": "hi-native",
+      "message": "५० हज़ार से ज़्यादा कीमत वाला नेकलेस चाहिए",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "necklace", "min_price": 50000}
+    },
+    {
+      "id": "hi-03",
+      "bucket": "hi-native",
+      "message": "१० हज़ार से कम की हीरे की इयररिंग",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "earring", "material_type": "diamond", "max_price": 10000}
+    },
+    {
+      "id": "hi-04",
+      "bucket": "hi-native",
+      "message": "१०,००० से ३०,००० के बीच का हार चाहिए",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "necklace", "min_price": 10000, "max_price": 30000}
+    },
+    {
+      "id": "hi-05",
+      "bucket": "hi-native",
+      "message": "मुझे एजेंट से बात करनी है",
+      "expect_intent": "human_handoff",
+      "expect_entities": {}
+    },
+    {
+      "id": "hi-06",
+      "bucket": "hi-native",
+      "message": "मेरा ऑर्डर कहाँ है?",
+      "expect_intent": "order_tracking",
+      "expect_entities": {}
+    },
+    {
+      "id": "hi-07",
+      "bucket": "hi-native",
+      "message": "शादी के लिए मंगलसूत्र दिखाइए",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "mangalsutra", "occasion": "wedding"}
+    },
+    {
+      "id": "hi-08",
+      "bucket": "hi-native",
+      "message": "मुझे वीडियो कॉल शेड्यूल करनी है",
+      "expect_intent": "video_call",
+      "expect_entities": {}
+    },
+
+    {
+      "id": "rom-01",
+      "bucket": "romanized",
+      "message": "tamara pase ring che?",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"}
+    },
+    {
+      "id": "rom-02",
+      "bucket": "romanized",
+      "message": "mala ek ring pahije",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"}
+    },
+    {
+      "id": "rom-03",
+      "bucket": "romanized",
+      "message": "mane sona nu mangalsutra joie che",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "mangalsutra", "material_type": "gold"}
+    },
+    {
+      "id": "rom-04",
+      "bucket": "romanized",
+      "message": "sone ki anguthi dikhao 50k tak",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "gold", "max_price": 50000}
+    },
+    {
+      "id": "rom-05",
+      "bucket": "romanized",
+      "message": "heere ki bali 30 hazaar se upar",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "earring", "material_type": "diamond", "min_price": 30000}
+    },
+    {
+      "id": "rom-06",
+      "bucket": "romanized",
+      "message": "mala sonyacha haar dakhva",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "necklace", "material_type": "gold"}
+    },
+
+    {
+      "id": "st-01",
+      "bucket": "store",
+      "message": "do you have a store in Mumbai",
+      "expect_intent": "store_info",
+      "expect_entities": {}
+    },
+    {
+      "id": "st-02",
+      "bucket": "store",
+      "message": "400001",
+      "expect_intent": "store_info",
+      "expect_entities": {}
+    },
+    {
+      "id": "st-03",
+      "bucket": "store",
+      "message": "nearest showroom",
+      "expect_intent": "store_info",
+      "expect_entities": {}
+    },
+    {
+      "id": "st-04",
+      "bucket": "store",
+      "message": "Mumbai me store kahan hai",
+      "expect_intent": "store_info",
+      "expect_entities": {}
+    },
+    {
+      "id": "st-05",
+      "bucket": "store",
+      "message": "is there a Kisna showroom in Pune",
+      "expect_intent": "store_info",
+      "expect_entities": {}
+    },
+    {
+      "id": "st-06",
+      "bucket": "store",
+      "message": "Jaipur outlet ka address",
+      "expect_intent": "store_info",
+      "expect_entities": {}
+    },
+
+    {
+      "id": "ct-01a",
+      "bucket": "contrast",
+      "pair": "en-do-you-have",
+      "message": "do you have a store in Mumbai",
+      "expect_intent": "store_info",
+      "expect_entities": {"category": null}
+    },
+    {
+      "id": "ct-01b",
+      "bucket": "contrast",
+      "pair": "en-do-you-have",
+      "message": "do you have diamond rings",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "diamond"}
+    },
+    {
+      "id": "ct-02a",
+      "bucket": "contrast",
+      "pair": "gu-tamara-pase",
+      "message": "tamara pase store che",
+      "expect_intent": "store_info",
+      "expect_entities": {"category": null}
+    },
+    {
+      "id": "ct-02b",
+      "bucket": "contrast",
+      "pair": "gu-tamara-pase",
+      "message": "tamara pase ring che",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"}
+    },
+    {
+      "id": "ct-03a",
+      "bucket": "contrast",
+      "pair": "hi-hai-kya",
+      "message": "Delhi me store hai kya",
+      "expect_intent": "store_info",
+      "expect_entities": {"category": null}
+    },
+    {
+      "id": "ct-03b",
+      "bucket": "contrast",
+      "pair": "hi-hai-kya",
+      "message": "gold chain hai kya",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "chain", "material_type": "gold"}
+    },
+
+    {
+      "id": "cx-01",
+      "bucket": "context",
+      "message": "under 20k",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"max_price": 20000, "category": null, "material_type": null}
+    },
+    {
+      "id": "cx-02",
+      "bucket": "context",
+      "message": "aur dikhao",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"action": "more", "category": null}
+    },
+    {
+      "id": "cx-03",
+      "bucket": "context",
+      "message": "for men",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"gender": "men", "category": null}
+    },
+    {
+      "id": "cx-04",
+      "bucket": "context",
+      "message": "Ring",
+      "context": {"store_wait": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"}
+    },
+    {
+      "id": "cx-05",
+      "bucket": "context",
+      "message": "the second one",
+      "context": {
+        "shown_products": [
+          "Solitaire Diamond Ring ₹42,500",
+          "Yellow Gold Band ₹18,900",
+          "Rose Gold Halo Ring ₹55,200"
+        ]
+      },
+      "expect_intent": "product_info",
+      "expect_entities": {"product_reference": 2}
+    },
+    {
+      "id": "cx-06",
+      "bucket": "context",
+      "message": "which one is cheaper",
+      "context": {
+        "shown_products": [
+          "Solitaire Diamond Ring ₹42,500",
+          "Yellow Gold Band ₹18,900"
+        ]
+      },
+      "expect_intent": "compare",
+      "expect_entities": {}
+    }
+  ]
+}
