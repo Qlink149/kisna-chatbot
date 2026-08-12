@@ -25,10 +25,12 @@ for _k, _v in {
 
 from kisna_chatbot.processors.entity_extractor import (  # noqa: E402
     _NEVER_INHERIT_FIELDS,
+    _gender_evidenced,
     apply_llm_evidence_gate,
     merge_search_entities,
 )
 from kisna_chatbot.processors.shopping_wizard import (  # noqa: E402
+    _gender_from_text,
     advance_wizard,
     start_wizard,
 )
@@ -140,6 +142,62 @@ class GenderFulfillmentEvidenceTests(unittest.TestCase):
         )
         self.assertEqual(gated["gender"], "women")
 
+    def test_gender_evidenced_mom_dad(self):
+        self.assertTrue(_gender_evidenced("for mom", "women"))
+        self.assertTrue(_gender_evidenced("gold ring for mother", "women"))
+        self.assertTrue(_gender_evidenced("for dad", "men"))
+        self.assertTrue(_gender_evidenced("bracelet for father", "men"))
+        self.assertTrue(_gender_evidenced("gift for sister", "women"))
+        self.assertTrue(_gender_evidenced("for brother", "men"))
+
+    def test_gender_not_evidenced_for_ambiguous_audience(self):
+        for query in (
+            "for parents",
+            "necklace for parents",
+            "gift for a friend",
+            "for family",
+            "for a couple",
+        ):
+            self.assertFalse(_gender_evidenced(query, "women"), query)
+            self.assertFalse(_gender_evidenced(query, "men"), query)
+
+    def test_keeps_gender_for_mom(self):
+        gated = apply_llm_evidence_gate(
+            "ring for mom",
+            {"category": "ring", "gender": "women"},
+        )
+        self.assertEqual(gated["gender"], "women")
+
+    def test_keeps_gender_for_dad(self):
+        gated = apply_llm_evidence_gate(
+            "bracelet for dad",
+            {"category": "bracelet", "gender": "men"},
+        )
+        self.assertEqual(gated["gender"], "men")
+
+    def test_strips_guessed_gender_for_parents(self):
+        gated = apply_llm_evidence_gate(
+            "gift for parents",
+            {"category": "necklace", "gender": "women"},
+        )
+        self.assertIsNone(gated["gender"])
+
+    def test_strips_guessed_gender_for_friend(self):
+        gated = apply_llm_evidence_gate(
+            "gift for a friend",
+            {"occasion": "gift", "gender": "men"},
+        )
+        self.assertIsNone(gated["gender"])
+
+    def test_wizard_gender_from_relationship_text(self):
+        self.assertEqual(_gender_from_text("mom"), "women")
+        self.assertEqual(_gender_from_text("for mom"), "women")
+        self.assertEqual(_gender_from_text("dad"), "men")
+        self.assertEqual(_gender_from_text("for dad"), "men")
+        self.assertEqual(_gender_from_text("sister"), "women")
+        self.assertIsNone(_gender_from_text("parents"))
+        self.assertIsNone(_gender_from_text("friend"))
+
 
 class GenderSanitizeAndPromptTests(unittest.TestCase):
     def test_gender_sanitizer_aliases(self):
@@ -162,6 +220,10 @@ class GenderSanitizeAndPromptTests(unittest.TestCase):
             self.assertIn("I want it for men", prompt)
             self.assertIn("never female", prompt.lower())
             self.assertIn("fulfillment", prompt)
+            self.assertIn("gold ring for mom", prompt)
+            self.assertIn("bracelet for dad", prompt)
+            self.assertIn("necklace for parents", prompt)
+            self.assertIn("AMBIGUOUS", prompt)
 
 
 class WizardFulfillmentGenderNLTests(unittest.TestCase):

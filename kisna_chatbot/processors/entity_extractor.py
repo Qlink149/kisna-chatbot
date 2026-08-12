@@ -1431,18 +1431,26 @@ _GENDER_EVIDENCE: dict[str, tuple[str, ...]] = {
         "for her",
         "wife",
         "ladies",
+        "lady",
         "women",
         "woman",
         "female",
         "girlfriend",
         "gf",
         "mummy",
+        "mom",
+        "mother",
         "maa",
         "behen",
         "sister",
         "beti",
         "daughter",
         "girl",
+        "aunty",
+        "aunt",
+        "didi",
+        "naniji",
+        "dadi",
     ),
     "men": (
         "for him",
@@ -1453,11 +1461,17 @@ _GENDER_EVIDENCE: dict[str, tuple[str, ...]] = {
         "boyfriend",
         "bf",
         "papa",
+        "dad",
+        "daddy",
+        "father",
         "bhai",
         "brother",
         "beta",
         "gents",
         "boy",
+        "uncle",
+        "fufa",
+        "mama",
         "men ",
         " men",
     ),
@@ -1497,9 +1511,10 @@ def _gender_evidenced(query: str, gender: str | None) -> bool:
         return False
     if key == "men":
         # Avoid matching "women" / "female" / "recommendation" via bare "men"/"male"
+        # Do not treat parents/friend/family/couple as men evidence.
         if re.search(
             r"\b(for\s+him|men'?s|mens|husband|boyfriend|bf|gents|papa|"
-            r"bhai|brother|beta|boy)\b",
+            r"dad|daddy|father|bhai|brother|beta|boy|uncle|fufa|mama)\b",
             normalized,
         ):
             return True
@@ -1513,9 +1528,11 @@ def _gender_evidenced(query: str, gender: str | None) -> bool:
             return True
         return False
     if key == "women":
+        # Do not treat parents/friend/family/couple as women evidence.
         if re.search(
-            r"\b(for\s+her|wife|ladies|women|woman|female|girlfriend|gf|"
-            r"mummy|maa|behen|sister|beti|daughter|girl)\b",
+            r"\b(for\s+her|wife|ladies|lady|women|woman|female|girlfriend|gf|"
+            r"mummy|mom|mother|maa|behen|sister|beti|daughter|girl|"
+            r"aunty|aunt|didi|naniji|dadi)\b",
             normalized,
         ):
             return True

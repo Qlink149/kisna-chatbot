@@ -400,9 +400,13 @@ Fallback for unclear or spam/gibberish:
 - metal_colour: yellow, white, rose (rose gold → material_type=gold, metal_colour=rose).
 - size: ring/bracelet size integer 7-22 when mentioned.
 - gender: ONLY emit women|men|kids|null (never female/male/her/him as values).
-  Map: for her/wife/ladies/girlfriend/gf/mummy/maa/behen/sister/beti/daughter/female
-  → women; for him/men's/husband/boyfriend/bf/papa/bhai/brother/beta/gents/male → men;
+  Map women: for her/wife/ladies/lady/girlfriend/gf/mummy/mom/mother/maa/behen/
+  sister/beti/daughter/female/aunty/aunt/didi/naniji/dadi.
+  Map men: for him/men's/husband/boyfriend/bf/papa/dad/daddy/father/bhai/brother/
+  beta/gents/male/uncle/fufa/mama.
   kids/children/baby/bacche → kids.
+  AMBIGUOUS → null (do NOT guess): parents/parent/friend/friends/family/couple/
+  someone/"gift for them" with no clear him/her.
   CURRENT message wins on audience switch (prior women + "for men" → gender=men).
 - fulfillment: ready|mto|null ONLY when CURRENT message states shipping preference.
   ready: "ready to ship" / "ready stock" / "in stock" / "immediate dispatch" / "quick ship"
@@ -635,6 +639,18 @@ E14c. "under 20k" | active: product_search (women gold rings) →
 E14d. "I want it for men" | active: product_search (prior gender=women) →
 {"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": "men", "fulfillment": null, "occasion": null, "style": null, "action": null}}
 
+E14e. "gold ring for mom" →
+{"intent": "product_search", "confidence": 0.92, "entities": {"category": "ring", "material_type": "gold", "gender": "women", "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
+
+E14f. "bracelet for dad" →
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": "bracelet", "material_type": null, "gender": "men", "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
+
+E14g. "necklace for parents" →
+{"intent": "product_search", "confidence": 0.88, "entities": {"category": "necklace", "material_type": null, "gender": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
+
+E14h. "gift for a friend" →
+{"intent": "product_search", "confidence": 0.85, "entities": {"category": null, "material_type": null, "gender": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "fulfillment": null, "occasion": "gift", "style": null, "action": null}}
+
 E15. "aur dikhao" | active: product_search →
 {"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": "more"}}
 """
@@ -842,9 +858,13 @@ style:
 
 gender:
   ONLY emit women|men|kids|null — never female/male/her/him as the value.
-  for her/wife/ladies/girlfriend/gf/mummy/maa/behen/sister/beti/daughter/female → women
-  for him/men's/husband/boyfriend/bf/papa/bhai/brother/beta/son (adult)/gents/male → men
+  for her/wife/ladies/lady/girlfriend/gf/mummy/mom/mother/maa/behen/sister/
+  beti/daughter/female/aunty/aunt/didi/naniji/dadi → women
+  for him/men's/husband/boyfriend/bf/papa/dad/daddy/father/bhai/brother/beta/
+  son (adult)/gents/male/uncle/fufa/mama → men
   for kids/children/baby/bacche → kids
+  AMBIGUOUS → null (do NOT guess): parents/parent/friend/friends/family/couple/
+  someone/"gift for them" with no clear him/her cue.
   CURRENT wins: after a women search, "I want it for men" → gender=men (not null).
 
 fulfillment (shipping / availability — CURRENT message only):
@@ -871,6 +891,18 @@ Examples:
 "made to order gold necklace for her" →
 {"category":"necklace","material_type":"gold","gender":"women",
  "fulfillment":"mto",...nulls}
+
+"gold ring for mom" →
+{"category":"ring","material_type":"gold","gender":"women",...nulls}
+
+"bracelet for dad" →
+{"category":"bracelet","gender":"men",...nulls}
+
+"necklace for parents" →
+{"category":"necklace","gender":null,...nulls}
+
+"gift for a friend" →
+{"occasion":"gift","gender":null,...nulls}
 
 "under 20k" (refinement; prior search exists) →
 {"max_price":20000, "category":null, "gender":null, "fulfillment":null, ...nulls}
