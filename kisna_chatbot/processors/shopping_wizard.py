@@ -254,15 +254,25 @@ def _looks_like_pincode(digits: str, text: str | None) -> bool:
 def _slot_restated_in_text(
     slot: str, value: str, text: str | None, llm_entities: dict | None
 ) -> bool:
-    """True when THIS message explicitly restates a gender / fulfillment choice.
+    """True when THIS message explicitly restates a gender / material / fulfillment choice.
 
     The LLM is instructed to emit these only from the current message, so its
     verdict counts as evidence in any language; the Latin check is the fallback.
     """
-    if (llm_entities or {}).get(slot) == value:
+    llm_key = "material_type" if slot == "material" else slot
+    if (llm_entities or {}).get(llm_key) == value:
         return True
-    if slot == "gender":
+    if slot in ("gender",):
         return _gender_from_text(text) == value
+    if slot in ("material", "material_type"):
+        if value not in ("gold", "diamond", "gemstone"):
+            return False
+        if _material_evidenced_in_text(text, value):
+            return True
+        normalized = " ".join((text or "").strip().lower().split())
+        if normalized in _MATERIAL_TITLE_MAP:
+            return _MATERIAL_TITLE_MAP[normalized] == value
+        return False
     if slot == "fulfillment":
         from kisna_chatbot.processors.entity_extractor import extract_fulfillment
 
@@ -856,11 +866,13 @@ def advance_wizard(
         for k, v in seeded.items():
             if v is None:
                 continue
-            if k in ("gender", "fulfillment") and k != step:
-                # Only let a later turn overwrite an audience / shipping choice
-                # when THIS message actually restates it. Without the evidence
-                # check a stray word ("recommend", "ornaments") silently flipped
-                # a slot the user had already chosen by tapping a button.
+            if k in ("gender", "material_type", "fulfillment") and k != step:
+                # Only let a later turn overwrite an audience / material /
+                # shipping choice when THIS message actually restates it.
+                # Without the evidence check a stray word ("recommend",
+                # "ornaments") silently flipped a slot the user had already
+                # chosen by tapping a button. Material must be overwriteable
+                # so "I want in gold" replaces a prior diamond pick.
                 if _slot_restated_in_text(k, v, text, llm_entities):
                     collected[k] = v
                 elif not collected.get(k):

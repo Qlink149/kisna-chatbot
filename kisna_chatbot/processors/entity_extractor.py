@@ -1731,23 +1731,34 @@ def merge_search_entities(
     ):
         return merged
 
-    # Audience / availability switch with no new product type — keep sticky slots.
+    # Audience / availability / material switch with no new product type —
+    # keep sticky slots (category, budget, the other filters).
     audience_or_fulfillment_only = (
         (new_has_gender or new_has_fulfillment)
         and not new_has_category
         and not new_has_material
         and not new_has_title
     )
+    material_only = (
+        new_has_material
+        and not new_has_category
+        and not new_has_title
+    )
 
     refinement_only = (
         not new_has_category
-        and not new_has_material
         and not new_has_title
         and not price_only_new_search
         and (
-            refinement_query
-            or (new_has_price or _REFINEMENT_ONLY_RE.search(normalized_query))
-            or audience_or_fulfillment_only
+            material_only
+            or (
+                not new_has_material
+                and (
+                    refinement_query
+                    or (new_has_price or _REFINEMENT_ONLY_RE.search(normalized_query))
+                    or audience_or_fulfillment_only
+                )
+            )
         )
     )
 
