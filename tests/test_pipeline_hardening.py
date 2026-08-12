@@ -18,6 +18,8 @@ for _k, _v in {
 from kisna_chatbot.processors.entity_extractor import (  # noqa: E402
     _extract_prices,
     _snap_single_price_to_band,
+    extract_fulfillment,
+    extract_fulfillment_change,
 )
 from kisna_chatbot.processors.product_search_agent_v3 import (  # noqa: E402
     ProductSearchAgentV3,
@@ -180,6 +182,22 @@ class GenderAnySlotTests(unittest.TestCase):
         }
         status, _ = advance_wizard(profile, {}, text="koi bhi")
         self.assertEqual(status, "escape")
+
+
+class FulfillmentNegationFallbackTests(unittest.TestCase):
+    """Regex fallback for when the LLM returns no availability at all."""
+
+    def test_a_refusal_is_not_a_request(self):
+        self.assertIsNone(extract_fulfillment("mujhe ready to ship nahi chahiye"))
+        self.assertIsNone(extract_fulfillment("I don't want ready to ship"))
+        self.assertEqual(
+            extract_fulfillment_change("mujhe ready to ship nahi chahiye"), "clear"
+        )
+
+    def test_a_plain_phrase_still_reads_normally(self):
+        self.assertEqual(extract_fulfillment("ready to ship chahiye"), "ready")
+        self.assertEqual(extract_fulfillment("Mujhe make to order chahiye"), "mto")
+        self.assertEqual(extract_fulfillment_change("ready to ship"), "ready")
 
 
 class WizardBudgetParsingTests(unittest.TestCase):

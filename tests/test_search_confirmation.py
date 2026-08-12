@@ -277,6 +277,74 @@ class ConfirmFlowTests(ConfirmEnabledMixin, unittest.TestCase):
         self.assertIn("for men", reply["text"])
         self.assertIn("₹15,000", reply["text"])
 
+    def _mangalsutra_profile(self) -> dict:
+        return {
+            "service_selected": SL.PRODUCT_SEARCH.value,
+            "awaiting_search_correction": True,
+            "pending_search": {
+                "entities": {
+                    "category": "mangalsutra",
+                    "gender": "women",
+                    "material_type": "diamond",
+                    "min_price": 20000,
+                    "max_price": 30000,
+                    "fulfillment": "ready",
+                },
+                "query_label": "wizard:mangalsutra",
+                "occasion_prefix": None,
+                "response_mode": None,
+                "exclude_product_id": None,
+            },
+        }
+
+    def test_refusing_ready_to_ship_keeps_every_other_slot(self):
+        profile = self._mangalsutra_profile()
+        data = self._agent_data(
+            _text_message("mujhe ready to ship nahi chahiye"), profile
+        )
+        # The classifier answers "any" for a refusal, and echoes the category
+        # it read from history — the echo must not restart the funnel.
+        data["llm_extracted_entities"] = {
+            "category": "mangalsutra",
+            "fulfillment": "any",
+        }
+        result, search_mock = self._run_search_query(data, {})
+
+        search_mock.assert_not_called()
+        reply = result["bot_response"][0]
+        self.assertEqual(reply["type"], "quickreply", reply)
+        self.assertNotIn("ready to ship", reply["text"])
+        self.assertNotIn("made to order", reply["text"])
+        self.assertIn("diamond mangalsutra", reply["text"])
+        self.assertIn("for women", reply["text"])
+        self.assertIn("₹20,000", reply["text"])
+        self.assertNotIn("budget", reply["text"].lower())
+
+    def test_refusal_survives_without_the_llm(self):
+        """Regex fallback: same correction when the classifier says nothing."""
+        profile = self._mangalsutra_profile()
+        data = self._agent_data(
+            _text_message("mujhe ready to ship nahi chahiye"), profile
+        )
+        result, _ = self._run_search_query(data, {})
+        self.assertNotIn("ready to ship", result["bot_response"][0]["text"])
+        self.assertIn("₹20,000", result["bot_response"][0]["text"])
+
+    def test_made_to_order_correction_switches_availability(self):
+        profile = self._mangalsutra_profile()
+        data = self._agent_data(_text_message("Mujhe make to order chahiye"), profile)
+        data["llm_extracted_entities"] = {
+            "category": "mangalsutra",
+            "fulfillment": "mto",
+        }
+        result, search_mock = self._run_search_query(data, {})
+
+        search_mock.assert_not_called()
+        reply = result["bot_response"][0]
+        self.assertIn("made to order", reply["text"])
+        self.assertIn("diamond mangalsutra", reply["text"])
+        self.assertIn("₹20,000", reply["text"])
+
     def test_unrelated_message_drops_the_pending_recap(self):
         profile = {
             "service_selected": SL.PRODUCT_SEARCH.value,

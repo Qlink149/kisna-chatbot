@@ -24,6 +24,7 @@ from kisna_chatbot.processors.entity_extractor import (
     entities_to_api_params,
     combine_search_entities,
     extract_fulfillment,
+    extract_fulfillment_change,
     has_clara_search_scope,
     merge_search_entities,
     normalize_entities_for_clara,
@@ -2096,6 +2097,11 @@ class ProductSearchAgentV3(Processor):
 
         extracted = combine_search_entities(llm_entities, structured_fields)
 
+        # "any" is the LLM saying the user refused an availability or has no
+        # preference — that is the absence of a filter, not one to send.
+        if extracted.get("fulfillment") == "any":
+            extracted["fulfillment"] = None
+
         # Availability cues from NL ("ready to ship", "made to order")
         if not extracted.get("fulfillment"):
             inferred_fulfillment = extract_fulfillment(query)
@@ -2438,7 +2444,50 @@ class ProductSearchAgentV3(Processor):
 
         # The correction is merged against what we just read back, so untouched
         # slots survive and the normal pipeline re-asks for confirmation.
-        user_profile["last_search_filters"] = dict(pending.get("entities") or {})
+        entities = dict(pending.get("entities") or {})
+        llm_entities = data.get("llm_extracted_entities") or {}
+
+        # The LLM reads the whole sentence in any script, so it is the primary
+        # source: it answers "any" when the user refuses an availability
+        # ("ready to ship nahi chahiye"). The regex is only the fallback for
+        # when the classifier returned nothing.
+        change = llm_entities.get("fulfillment")
+        if change not in ("ready", "mto", "any"):
+            change = extract_fulfillment_change(text)
+        # A value equal to what we just read back is an echo of the context,
+        # not a second correction, so it does not send this turn to the search
+        # pipeline. That matters because the classifier repeats the category
+        # from history even when the message never named one.
+        regex_entities = extract_entities(text)
+        names_other_slot = any(
+            (llm_entities.get(key) is not None and llm_entities.get(key) != entities.get(key))
+            or (
+                regex_entities.get(key) is not None
+                and regex_entities.get(key) != entities.get(key)
+            )
+            for key in ("category", "material_type", "gender", "min_price", "max_price")
+        )
+        if change is not None and not names_other_slot:
+            # An availability-only correction carries nothing for the search
+            # pipeline to extract, so it used to restart the funnel: the
+            # classifier echoes the category from history, which reads as a new
+            # search and drops the budget. Apply it here and re-recap instead.
+            entities["fulfillment"] = (
+                None if change in ("any", "clear") else change
+            )
+            clear_confirm_state(user_profile)
+            user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+            return await self._execute_search(
+                data,
+                phone_number,
+                {**_empty_entities(), **entities},
+                query_label=pending.get("query_label") or "correction",
+                occasion_prefix=pending.get("occasion_prefix"),
+                response_mode=pending.get("response_mode"),
+                exclude_product_id=pending.get("exclude_product_id"),
+            )
+
+        user_profile["last_search_filters"] = entities
         clear_confirm_state(user_profile)
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
         return None

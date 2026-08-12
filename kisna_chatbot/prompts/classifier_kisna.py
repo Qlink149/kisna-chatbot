@@ -314,7 +314,7 @@ Examples of low-confidence inputs: bare "gold", "help", "kuch dikhao", "1 lakh" 
     "size": <integer 7-22 or null>,
     "collection": "<string e.g. Evil Eye, Tanishta, Nishka or null>",
     "gender": "<women|men|kids|null>",
-    "fulfillment": "<ready|mto|null>",
+    "fulfillment": "<ready|mto|any|null>",
     "occasion": "<wedding|engagement|anniversary|birthday|daily_wear|gift|null>",
     "style": "<fashion|cocktail|couple_bands|minimal|infinity|hearts|floral|adjustable|traditional|modern|heavy|null>",
     "action": "<more|null>",
@@ -408,9 +408,15 @@ Fallback for unclear or spam/gibberish:
   AMBIGUOUS → null (do NOT guess): parents/parent/friend/friends/family/couple/
   someone/"gift for them" with no clear him/her.
   CURRENT message wins on audience switch (prior women + "for men" → gender=men).
-- fulfillment: ready|mto|null ONLY when CURRENT message states shipping preference.
+- fulfillment: ready|mto|any|null ONLY when CURRENT message states shipping preference.
   ready: "ready to ship" / "ready stock" / "in stock" / "immediate dispatch" / "quick ship"
   mto: "made to order" / "make to order" / "custom order" (catalog MTO filter)
+  any: the user REFUSES a shipping option or states no preference — "ready to ship
+  nahi chahiye" / "mujhe ready to ship nahi chahiye" / "I don't want ready to ship" /
+  "made to order nahi chahiye" / "koi bhi chalega" / "either is fine". A refusal is
+  NEVER the value refused: "ready to ship nahi chahiye" → any, NOT ready. Read the
+  whole sentence, not the phrase — the negation may come after it, as it does in
+  Hindi/Hinglish ("... nahi chahiye", "... mat dikhao").
   NOT fulfillment: product stock Q ("available hai kya") → product_info, fulfillment=null.
   NOT fulfillment: custom design/engraving/"banwana" → human_handoff, not mto.
   Every Kisna product can be MTO — do NOT invent mto. Unstated → null.
@@ -633,6 +639,12 @@ E14a. "Show me gold Chains above 50k" →
 E14b. "ready to ship diamond rings under 20k" →
 {"intent": "product_search", "confidence": 0.93, "entities": {"category": "ring", "material_type": "diamond", "min_price": null, "max_price": 20000, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": "ready", "occasion": null, "style": null, "action": null}}
 
+E14b1. "mujhe ready to ship nahi chahiye" | active: product_search (diamond mangalsutra) →
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": "any", "occasion": null, "style": null, "action": null}}
+
+E14b2. "Mujhe make to order chahiye" | active: product_search (diamond mangalsutra) →
+{"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": null, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": "mto", "occasion": null, "style": null, "action": null}}
+
 E14c. "under 20k" | active: product_search (women gold rings) →
 {"intent": "product_search", "confidence": 0.9, "entities": {"category": null, "material_type": null, "min_price": null, "max_price": 20000, "title": null, "karat": null, "metal_colour": null, "size": null, "collection": null, "gender": null, "fulfillment": null, "occasion": null, "style": null, "action": null}}
 
@@ -731,7 +743,7 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
   "size": <integer 7-22 or null>,
   "collection": "<Evil Eye|Tanishta|Rivaah|etc. or null>",
   "gender": "women|men|kids|null",
-  "fulfillment": "ready|mto|null",
+  "fulfillment": "ready|mto|any|null",
   "occasion": "wedding|engagement|anniversary|birthday|
                daily_wear|gift|null",
   "style": "fashion|cocktail|minimal|traditional|modern|couple_bands|
@@ -871,6 +883,10 @@ fulfillment (shipping / availability — CURRENT message only):
   ready to ship / ready-to-ship / ready stock / in stock / immediate dispatch /
   quick ship → ready
   made to order / made-to-order / make to order / custom order → mto
+  REFUSED or no preference → any. "ready to ship nahi chahiye" / "mujhe ready to
+  ship nahi chahiye" / "I don't want ready to ship" / "made to order nahi chahiye" /
+  "koi bhi chalega" → any. A refusal is NEVER the value refused; in Hindi/Hinglish
+  the negation comes AFTER the phrase, so read the whole sentence.
   NOT fulfillment: "available hai kya" on a shown product (stock Q) → null
   NOT fulfillment: custom design / engraving / banwana (handoff) → null
   If NOT mentioned in THIS message → null (do not invent; do not copy history).
@@ -891,6 +907,9 @@ Examples:
 "made to order gold necklace for her" →
 {"category":"necklace","material_type":"gold","gender":"women",
  "fulfillment":"mto",...nulls}
+
+"mujhe ready to ship nahi chahiye" (refusal, not a request) →
+{"fulfillment":"any", "category":null, "material_type":null, ...nulls}
 
 "gold ring for mom" →
 {"category":"ring","material_type":"gold","gender":"women",...nulls}

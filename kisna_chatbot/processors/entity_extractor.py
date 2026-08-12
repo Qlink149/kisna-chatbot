@@ -2280,15 +2280,42 @@ _FULFILLMENT_MTO_RE = re.compile(
 )
 
 
-def extract_fulfillment(text: str | None) -> str | None:
-    """Return 'ready' | 'mto' | None from natural-language availability cues."""
+# "ready to ship nahi chahiye" contains "ready to ship", so a bare phrase match
+# reads a refusal as a request and re-applies the filter the user is removing.
+_FULFILLMENT_NEGATION_RE = re.compile(
+    r"\b(nahi|nahin|nai|mat|do\s*n[o']?t|dont|don't|not|no\s+need|without)\b",
+    re.I,
+)
+
+
+def extract_fulfillment_change(text: str | None) -> str | None:
+    """Return 'ready' | 'mto' | 'clear' | None.
+
+    'clear' means the user refused an availability ("ready to ship nahi
+    chahiye") — the filter is dropped rather than flipped, so both
+    ready-to-ship and made-to-order pieces stay in the results.
+    """
     if not text or not str(text).strip():
         return None
-    if _FULFILLMENT_READY_RE.search(text):
-        return "ready"
-    if _FULFILLMENT_MTO_RE.search(text):
-        return "mto"
-    return None
+    match = _FULFILLMENT_READY_RE.search(text)
+    value = "ready"
+    if not match:
+        match = _FULFILLMENT_MTO_RE.search(text)
+        value = "mto"
+    if not match:
+        return None
+    clause = f"{text[max(0, match.start() - 40):match.start()]} {text[match.end():match.end() + 40]}"
+    return "clear" if _FULFILLMENT_NEGATION_RE.search(clause) else value
+
+
+def extract_fulfillment(text: str | None) -> str | None:
+    """Return 'ready' | 'mto' | None from natural-language availability cues.
+
+    A refused phrase yields None — it is not evidence that the user wants that
+    availability.
+    """
+    change = extract_fulfillment_change(text)
+    return change if change in ("ready", "mto") else None
 
 
 def build_search_context(entities: dict[str, Any]) -> str:
