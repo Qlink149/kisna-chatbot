@@ -51,6 +51,7 @@ from kisna_chatbot.processors.shopping_wizard import (
     build_wizard_summary,
     clear_wizard_state,
     entities_from_wizard,
+    filter_wizard_carryover,
     is_wizard_active,
     is_wizard_interactive,
     should_start_wizard,
@@ -1683,10 +1684,16 @@ class ProductSearchAgentV3(Processor):
                 return data
             secondary = search_btn.rsplit("$", 1)[-1]
             last_filters = user_profile.get("last_search_filters") or _empty_entities()
+            # Category change: do not reuse prior material/budget (parity with
+            # merge_search_entities). Gender/fulfillment may stay; wizard asks
+            # for material again so we don't silently show gold-only results.
+            _also_drop = frozenset({"material_type", "min_price", "max_price"})
             inherited = {
                 k: v
                 for k, v in last_filters.items()
-                if k not in _NEVER_INHERIT_FIELDS and v is not None
+                if k not in _NEVER_INHERIT_FIELDS
+                and k not in _also_drop
+                and v is not None
             }
             entities = {
                 **_empty_entities(),
@@ -1697,6 +1704,13 @@ class ProductSearchAgentV3(Processor):
                 "secondary_category": None,
             }
             user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+            if should_start_wizard(entities):
+                return await self._maybe_start_shopping_wizard(
+                    data,
+                    phone_number,
+                    entities,
+                    query=f"also:{secondary}",
+                )
             return await self._execute_search(
                 data,
                 phone_number,
@@ -2233,7 +2247,12 @@ class ProductSearchAgentV3(Processor):
         # Slots the user already answered by tapping a button before escaping the
         # funnel this turn — apply underneath the new entities so the wizard does
         # not ask "Who is it for?" again (classifier._stash_wizard_carryover).
-        carryover = data.get("_wizard_carryover") or {}
+        # Drop material when switching category vs last completed search.
+        carryover = filter_wizard_carryover(
+            data.get("_wizard_carryover") or {},
+            entities,
+            user_profile.get("last_search_filters"),
+        )
         if carryover:
             entities = {
                 **entities,
@@ -2305,7 +2324,12 @@ class ProductSearchAgentV3(Processor):
                 from kisna_chatbot.processors.entity_extractor import extract_entities
 
                 ents = finalize_search_entities(extract_entities(text), query=text)
-                for key, value in (data.get("_wizard_carryover") or {}).items():
+                carryover = filter_wizard_carryover(
+                    data.get("_wizard_carryover") or {},
+                    ents,
+                    user_profile.get("last_search_filters"),
+                )
+                for key, value in carryover.items():
                     if ents.get(key) is None:
                         ents[key] = value
                 if should_start_wizard(ents):

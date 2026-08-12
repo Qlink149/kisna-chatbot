@@ -121,6 +121,31 @@ _FULFILLMENT_TITLE_MAP = {
 # escape that clears the wizard loses them unless they are handed forward.
 WIZARD_CARRYOVER_KEYS = ("gender", "material_type", "fulfillment")
 
+
+def filter_wizard_carryover(
+    carryover: dict | None,
+    entities: dict | None,
+    prior_filters: dict | None,
+) -> dict:
+    """Drop material carryover when the user switches product category.
+
+    Same-funnel (Female + Gold, then "rings under 30k") has no prior search
+    category — keep material. After a completed gold-rings search, a new
+    necklace ask must not re-inject gold and skip the material question.
+    """
+    out = dict(carryover or {})
+    if not out:
+        return out
+    new_cat = (entities or {}).get("category")
+    prior_cat = (prior_filters or {}).get("category")
+    if (
+        new_cat
+        and prior_cat
+        and str(new_cat).strip().lower() != str(prior_cat).strip().lower()
+    ):
+        out.pop("material_type", None)
+    return out
+
 # Steps a user may decline to answer. Category is excluded — Clara needs a
 # scope, so "anything" there is a browse-everything escape, not a slot value.
 _ANY_ANSWER_STEPS = ("gender", "material", "budget", "fulfillment")
