@@ -806,9 +806,10 @@ def advance_wizard(
     """
     Process one wizard turn.
 
-    ``llm_entities`` are the classifier's extraction for this message. They are
-    the only slot source that reads native script, so they take precedence over
-    the Latin-only regex extractor.
+    ``llm_entities`` are the context-free entity extractor's reading of THIS
+    message (see ``_current_message_entities``). They are the only slot source
+    that parses native script, so they take precedence over the Latin-only
+    regex extractor.
 
     Returns:
         ("prompt", [bot_responses]) — ask next step

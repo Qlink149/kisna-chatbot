@@ -428,6 +428,34 @@ def build_search_intro(entities: dict, *, relaxed: bool = False) -> str:
     return prefix + random.choice(_INTRO_TEMPLATES).format(desc=desc)
 
 
+async def _current_message_entities(data: dict, text: str | None) -> dict:
+    """Entities stated by the CURRENT message, for paths off the search route.
+
+    The shopping wizard and the search-confirmation correction handler used to
+    read the classifier's extraction because it was the only entity source that
+    reads native script — ``extract_entities`` is Latin-only. That made them
+    inherit the classifier's context bleed: it sees chat history and shown
+    products, so "under 20k" after a women's gold-ring search comes back
+    carrying category=ring, material=gold, gender=women.
+
+    The context-free entity extractor is the single source of truth for what
+    THIS message states, in any script (the same call the main search path
+    makes at _execute_search). It returns {} on any failure, in which case we
+    fall back to whatever the classifier left on ``data`` so these paths never
+    lose their Indic capability if the extractor call is down.
+    """
+    if not (text or "").strip():
+        return dict(data.get("llm_extracted_entities") or {})
+    extracted = await extract_entities_with_llm(
+        user_query=text,
+        client_id=data.get("client_id", "kisna"),
+        phone_number=data.get("phone_number"),
+    )
+    if extracted:
+        return dict(extracted)
+    return dict(data.get("llm_extracted_entities") or {})
+
+
 def _handle_product_reference(data: dict) -> dict | None:
     """Open the shown product the LLM resolved (1-based product_reference).
 
@@ -2331,13 +2359,15 @@ class ProductSearchAgentV3(Processor):
             and value is not None
             and value != ANY_SLOT
         }
-        # Classifier entities are the only slot source that reads native script
-        # (extract_entities is Latin-only), so hand them to the wizard.
+        # Slot answers are read by the context-free entity extractor: it is the
+        # only source that parses native script ("अंगूठी", "५० हज़ार") and,
+        # unlike the classifier, it cannot bleed a slot in from the history the
+        # funnel has already collected.
         status, responses = advance_wizard(
             user_profile,
             messages,
             text=text,
-            llm_entities=data.get("llm_extracted_entities"),
+            llm_entities=await _current_message_entities(data, text),
         )
 
         if status == "escape":
@@ -2445,19 +2475,19 @@ class ProductSearchAgentV3(Processor):
         # The correction is merged against what we just read back, so untouched
         # slots survive and the normal pipeline re-asks for confirmation.
         entities = dict(pending.get("entities") or {})
-        llm_entities = data.get("llm_extracted_entities") or {}
+        llm_entities = await _current_message_entities(data, text)
 
         # The LLM reads the whole sentence in any script, so it is the primary
         # source: it answers "any" when the user refuses an availability
         # ("ready to ship nahi chahiye"). The regex is only the fallback for
-        # when the classifier returned nothing.
+        # when the extractor returned nothing.
         change = llm_entities.get("fulfillment")
         if change not in ("ready", "mto", "any"):
             change = extract_fulfillment_change(text)
-        # A value equal to what we just read back is an echo of the context,
-        # not a second correction, so it does not send this turn to the search
-        # pipeline. That matters because the classifier repeats the category
-        # from history even when the message never named one.
+        # A value equal to what we just read back is not a second correction,
+        # so it does not send this turn to the search pipeline. The check is
+        # cheap insurance: the extractor is context-free and should not echo
+        # the recap, but the regex side still can.
         regex_entities = extract_entities(text)
         names_other_slot = any(
             (llm_entities.get(key) is not None and llm_entities.get(key) != entities.get(key))

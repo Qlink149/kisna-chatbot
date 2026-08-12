@@ -701,7 +701,13 @@ _LLM_ENTITY_STYLES = frozenset(
 _LLM_ENTITY_KARATS = frozenset({"9KT", "14KT", "18KT", "22KT", "24KT"})
 _LLM_ENTITY_COLOURS = frozenset({"yellow", "white", "rose"})
 _LLM_ENTITY_GENDERS = frozenset({"women", "men", "kids"})
-_LLM_ENTITY_FULFILLMENTS = frozenset({"ready", "mto"})
+# "any" is the user REFUSING an availability ("ready to ship nahi chahiye") or
+# stating no preference. It must survive sanitization: both prompts are told to
+# emit it and both consumers test for it (the search path converts it to None
+# before querying Clara, the recap-correction path reads it as a real change).
+# Dropping it here silently turned every refusal into "no signal", which left
+# the correction handler with only the Latin-only regex.
+_LLM_ENTITY_FULFILLMENTS = frozenset({"ready", "mto", "any"})
 _LLM_CATEGORY_ALIASES = {
     "nose_ring":         "nosewear",
     # Space-separated forms the LLM may produce for composite categories

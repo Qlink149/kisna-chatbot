@@ -794,6 +794,14 @@ material_type:
   white gold → white_gold  (ALSO set metal_colour=white)
   yellow gold → gold  (ALSO set metal_colour=yellow)
   gemstone/ruby/emerald/sapphire/panna → gemstone
+  NATIVE SCRIPT (map identically — a material word ALONE is still a material,
+  in any script, and must never come back null):
+    सोना/सोने/सोने की/सोने का/सोनं/સોનું/સોના/સોનાની/સોનાનું → gold
+    हीरा/हीरे/हीरे की/हीरे का/डायमंड/હીરા/હીરાની/હીરાનું/ડાયમંડ → diamond
+    चांदी/ચાંદી → silver | प्लैटिनम/પ્લેટિનમ → platinum
+    रत्न/जेमस्टोन/माणिक/पन्ना/नीलम/રત્ન/માણેક/પન્ના → gemstone
+    गुलाबी सोना/रोज़ गोल्ड/રોઝ ગોલ્ડ → rose_gold (ALSO metal_colour=rose)
+    सफेद सोना/व्हाइट गोल्ड/વ્હાઇટ ગોલ્ડ → white_gold (ALSO metal_colour=white)
 
 metal_colour (set separately when colour is mentioned):
   rose/pink → rose
