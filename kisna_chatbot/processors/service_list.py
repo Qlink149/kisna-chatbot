@@ -12,6 +12,7 @@ from kisna_chatbot.processors.support_handler import (
     build_expert_support_bot_response,
 )
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.session_state import start_store_lookup
 from kisna_chatbot.utils.support_hours import format_support_hours_text
 
 _FLOW_SWITCH_PENDING_TTL = 300  # 5 minutes — FIX 13b
@@ -592,7 +593,7 @@ def handle_clarification_quick_reply(
             return True
         if title in ("find store",):
             user_profile["service_selected"] = SL.AD_FLOW.value
-            user_profile["awaiting_store_pincode"] = True
+            start_store_lookup(user_profile)
             data["classified_category"] = "store_info"
             data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
             return True
@@ -611,7 +612,7 @@ def handle_clarification_quick_reply(
             data["bot_response"] = [build_main_menu_bot_response()]
             return True
         user_profile["service_selected"] = SL.AD_FLOW.value
-        user_profile["awaiting_store_pincode"] = True
+        start_store_lookup(user_profile)
         data["classified_category"] = "store_info"
         data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
         return True
@@ -654,7 +655,7 @@ def handle_clarification_quick_reply(
 
     if btn_msgid == QuickReplyId.CLARIFY_FIND_STORE.value:
         user_profile["service_selected"] = SL.AD_FLOW.value
-        user_profile["awaiting_store_pincode"] = True
+        start_store_lookup(user_profile)
         data["classified_category"] = "store_info"
         data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
         return True
@@ -728,7 +729,7 @@ def _handle_menu_selection(
 
     if key in ("find_store", "store_info"):
         user_profile["service_selected"] = SL.AD_FLOW.value
-        user_profile["awaiting_store_pincode"] = True
+        start_store_lookup(user_profile)
         data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
         try_trace(data, "Understood as", "Store locator (menu)")
         try_trace(data, "Action", "Asked for pincode / city")

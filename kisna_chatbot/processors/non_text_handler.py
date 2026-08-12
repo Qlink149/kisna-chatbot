@@ -3,6 +3,7 @@
 from typing import Literal
 
 from kisna_chatbot.models.service_list import ServiceList as SL
+from kisna_chatbot.utils.session_state import start_store_lookup
 
 NonTextResult = Literal["silent", "route_store"] | None
 
@@ -54,7 +55,7 @@ def handle_non_text_message(data: dict) -> NonTextResult:
             return "route_store"
         data["bot_response"] = [{"type": "text", "text": _LOCATION_PINCODE_TEXT}]
         user_profile["service_selected"] = SL.AD_FLOW.value
-        user_profile["awaiting_store_pincode"] = True
+        start_store_lookup(user_profile)
         return None
 
     if msg_type == "sticker":

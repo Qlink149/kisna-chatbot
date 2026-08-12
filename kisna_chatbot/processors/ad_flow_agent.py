@@ -14,6 +14,7 @@ from kisna_chatbot.processors.service_list import (
 from kisna_chatbot.utils.clara_cache import get_cached_stores
 from kisna_chatbot.utils.kisna_url_tracking import append_kisna_utm
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.session_state import start_store_lookup
 
 _MAX_NEAREST_BY_LOCATION = 5
 _PINCODE_ONLY_RE = re.compile(r"^\s*([1-9]\d{5})\s*$")
@@ -301,7 +302,7 @@ class AdFlowAgent(Processor):
                         extra={"phone_number": phone_number, "error": str(e)},
                     )
 
-            user_profile["awaiting_store_pincode"] = True
+            start_store_lookup(user_profile)
             data["bot_response"] = [
                 {
                     "type": "text",
@@ -390,6 +391,7 @@ class AdFlowAgent(Processor):
                     data["bot_response"] = [
                         {"type": "text", "text": reprompt_text}
                     ]
+                    # Re-arm the wait; attempts counter is preserved above.
                     user_profile["awaiting_store_pincode"] = True
                     return data
             else:
@@ -398,7 +400,7 @@ class AdFlowAgent(Processor):
                 city = entities.get("city")
 
                 if not pincode and not city:
-                    user_profile["awaiting_store_pincode"] = True
+                    start_store_lookup(user_profile)
                     data["bot_response"] = [
                         {
                             "type": "text",

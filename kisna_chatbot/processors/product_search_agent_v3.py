@@ -45,6 +45,7 @@ from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
     merge_jewellery_profile,
 )
+from kisna_chatbot.utils.session_state import start_store_lookup
 from kisna_chatbot.processors.search_confirmation import (
     build_confirm_prompt,
     build_correction_prompt,
@@ -1815,7 +1816,7 @@ class ProductSearchAgentV3(Processor):
         if product_msgid:
             if product_msgid == "product$store":
                 user_profile["service_selected"] = SL.AD_FLOW.value
-                user_profile["awaiting_store_pincode"] = True
+                start_store_lookup(user_profile)
                 data["bot_response"] = [{"type": "text", "text": _ASK_PINCODE_TEXT}]
                 return data
 

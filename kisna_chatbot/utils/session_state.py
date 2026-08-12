@@ -27,6 +27,9 @@ _TRANSIENT_KEYS = (
     "shopping_wizard_active",
     "shopping_wizard_step",
     "shopping_wizard_data",
+    # An explicit "reply in English only" lasts until the user greets again or
+    # the session expires — not forever.
+    "language_override",
 )
 
 _SEARCH_CONTEXT_KEYS = (
@@ -111,6 +114,38 @@ def reset_session_on_fresh_start(user_profile: dict) -> None:
     reset_transient_state(user_profile)
     user_profile["service_selected"] = ""
     clear_search_context(user_profile)
+
+
+_STICKY_WAIT_KEYS = (
+    "shopping_wizard_active",
+    "shopping_wizard_step",
+    "shopping_wizard_data",
+    "awaiting_store_pincode",
+    "store_pincode_attempts",
+    "awaiting_custom_budget",
+    "custom_budget_attempts",
+)
+
+
+def clear_all_sticky_states(user_profile: dict) -> None:
+    """Reset every sticky wait. Call before any flow switch.
+
+    Two sticky waits held at once is always a bug: whichever one the routing
+    happens to check first silently eats the turn. Production users hit this
+    with the wizard and the store wait both set — the wizard won, so their
+    pincode was read as a budget and the store lookup never completed.
+    """
+    for key in _STICKY_WAIT_KEYS:
+        user_profile.pop(key, None)
+
+
+def start_store_lookup(user_profile: dict) -> None:
+    """Begin the store pincode wait, clearing any conflicting flow.
+
+    A store lookup and a shopping funnel cannot both own the next message.
+    """
+    clear_all_sticky_states(user_profile)
+    user_profile["awaiting_store_pincode"] = True
 
 
 def clear_transient_for_service_change(

@@ -28,6 +28,7 @@ from kisna_chatbot.processors.gold_rate_handler import build_gold_rate_bot_respo
 from kisna_chatbot.processors.shopping_wizard import (
     ANY_SLOT,
     WIZARD_CARRYOVER_KEYS as _WIZARD_CARRYOVER_KEYS,
+    is_fulfillment_slot_answer,
 )
 from kisna_chatbot.processors.support_handler import build_expert_support_bot_response
 from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
@@ -35,6 +36,7 @@ from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.reply_composer import sanitize_classifier_language
 from kisna_chatbot.utils.session_state import (
+    clear_all_sticky_states,
     clear_transient_for_service_change,
     maybe_expire_session,
     reset_session_on_fresh_start,
@@ -159,11 +161,28 @@ _ACTION_INTENT_RE = re.compile(
     re.I,
 )
 
+# BESPOKE WORK ONLY — a piece Kisna cannot serve from the catalogue: made to
+# the user's own design, or personalised (engraving / initials / a name).
+#
+# MADE-TO-ORDER IS NOT BESPOKE. MTO is a first-class catalogue filter sent to
+# the Clara search API: the shopping wizard offers "Made to order" as a button,
+# _FULFILLMENT_TITLE_MAP maps the phrase to "mto", and the entity extractor
+# does the same. This regex used to contain "made to order" AND a bare
+# "custom|customize|customise" — the exact strings the wizard accepts as an
+# availability answer. Because it feeds _programmatic_intent_override (a hard
+# 0.95 verdict that beats the LLM), typing the wizard's own button label handed
+# the user to a design expert instead of filtering the catalogue.
+#
+# So: bare "custom" is not enough. A bespoke verdict needs the word attached to
+# a jewellery noun or a design/personalisation request.
 _CUSTOM_JEWELLERY_RE = re.compile(
-    r"\b(custom(ize|ise|ized|ised)?|customis|made to order|"
-    r"bespoke|personalis\w*|personaliz\w*|engrav\w*|design my own|"
-    r"apni design|custom design|naam likhwana|"
-    r"initials|special order)\b",
+    r"\b(bespoke|personalis\w*|personaliz\w*|engrav\w*|"
+    r"design my own|apni design|custom design|"
+    r"naam likhwana|initials|special order|"
+    r"custom(?:i[sz]ed?)?\s+"
+    r"(?:ring|jewell?ery|jewelry|necklace|earring\w*|bracelet|bangle|"
+    r"pendant|chain|mangalsutra|piece|design|order)"
+    r")\b",
     re.I,
 )
 
@@ -400,7 +419,18 @@ def _is_competitor_comparison(text: str) -> bool:
 
 
 def _is_custom_jewellery_query(text: str) -> bool:
-    return bool(_CUSTOM_JEWELLERY_RE.search((text or "").strip()))
+    """True only for bespoke work — never for an availability answer.
+
+    Second layer of the same rule as _CUSTOM_JEWELLERY_RE: a message that IS
+    one of the wizard's availability button labels ("made to order", "custom")
+    is a catalogue filter, whatever else the regex might read into it.
+    """
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
+    if is_fulfillment_slot_answer(normalized):
+        return False
+    return bool(_CUSTOM_JEWELLERY_RE.search(normalized))
 
 
 def _is_policy_action_query(text: str) -> bool:
@@ -996,6 +1026,55 @@ def resolve_reply_language(language: str | None, user_text: str) -> str:
     return lang
 
 
+_LANGUAGE_NAME_TO_CODE = {
+    "english": "en",
+    "angrezi": "en",
+    "hindi": "hi",
+    "gujarati": "gu",
+    "gujrati": "gu",
+    "marathi": "mr",
+    "tamil": "ta",
+    "telugu": "te",
+    "bengali": "bn",
+    "kannada": "kn",
+    "malayalam": "ml",
+    "punjabi": "pa",
+}
+
+# "talk to me in English only please", "sirf English mein baat karo",
+# "please reply in Hindi", "English me hi baat karo".
+_LANG_NAMES = (
+    r"english|angrezi|hindi|gujarati|gujrati|marathi|tamil|telugu"
+    r"|bengali|kannada|malayalam|punjabi"
+)
+_LANGUAGE_OVERRIDE_RE = re.compile(
+    # "…in English please", "reply in Hindi"
+    rf"\b(?:in|mein|me|ma)\s+({_LANG_NAMES})\b"
+    # "sirf English…", "only Hindi…"
+    rf"|\b(?:only|sirf|just)\b[^.!?]{{0,20}}?\b({_LANG_NAMES})\b"
+    # "English me hi baat karo", "Hindi only"
+    rf"|\b({_LANG_NAMES})\b\s*(?:mein|me|men|ma)?\s*\b(?:hi|only)\b"
+    # "reply/talk/speak in English", "English mein baat karo"
+    rf"|\b(?:reply|talk|speak|baat|bol|likh|write)\b[^.!?]{{0,30}}?"
+    rf"\b({_LANG_NAMES})\b",
+    re.I,
+)
+
+
+def detect_language_override(text: str) -> str | None:
+    """Language code when the user explicitly asks to be replied to in one."""
+    normalized = (text or "").strip()
+    if not normalized:
+        return None
+    match = _LANGUAGE_OVERRIDE_RE.search(normalized)
+    if not match:
+        return None
+    for group in match.groups():
+        if group and group.lower() in _LANGUAGE_NAME_TO_CODE:
+            return _LANGUAGE_NAME_TO_CODE[group.lower()]
+    return None
+
+
 def _store_language(
     user_profile: dict, language: str | None, user_text: str = ""
 ) -> None:
@@ -1003,7 +1082,18 @@ def _store_language(
 
     Without a fresh LLM label (shortcut paths), still correct the stored
     language's script to match the current message.
+
+    An explicit request ("talk to me in English only please") outranks both:
+    the user told us what they want and detection must stop second-guessing
+    them. Cleared on greeting / session expiry with the other transient state.
     """
+    requested = detect_language_override(user_text)
+    if requested:
+        user_profile["language_override"] = requested
+    override = user_profile.get("language_override")
+    if override:
+        user_profile["language"] = override
+        return
     if language:
         user_profile["language"] = resolve_reply_language(language, user_text)
         return
@@ -1115,16 +1205,261 @@ def _has_sticky_wait(user_profile: dict) -> bool:
 
 def _clear_sticky_waits(user_profile: dict) -> None:
     """Drop store / wizard / callback input waits without wiping search filters."""
-    for key in (
-        "awaiting_store_pincode",
-        "store_pincode_attempts",
-        "shopping_wizard_active",
-        "shopping_wizard_step",
-        "shopping_wizard_data",
-        "callback_capture_step",
-        "callback_draft",
-    ):
+    clear_all_sticky_states(user_profile)
+    for key in ("callback_capture_step", "callback_draft"):
         user_profile.pop(key, None)
+
+
+# Intents that always mean the user left the flow, whatever question was
+# pending. Used by the regex fast path; the gate below covers everything else.
+_UNIVERSAL_ESCAPE_INTENTS = frozenset(
+    {
+        "human_handoff",
+        "callback",
+        "video_call",
+        "complaint",
+        "greeting",
+        "menu_help",
+    }
+)
+
+# The question each sticky wait is holding the turn for. Given to the gate so
+# it judges "does this answer THAT?" rather than guessing an intent.
+_PENDING_QUESTION_BY_STEP = {
+    "category": "What type of jewellery are you looking for? (rings, earrings, …)",
+    "gender": "Who is it for? (women, men, kids)",
+    "material": "What material? (gold, diamond, gemstone)",
+    "budget": "What is your budget, in rupees?",
+    "fulfillment": "Ready to ship, or made to order?",
+}
+_STORE_PINCODE_QUESTION = "What is your 6-digit pincode, to find the nearest store?"
+_CALLBACK_QUESTION = "Your name and phone number, for the callback."
+
+
+def _answers_store_pincode_question(text: str) -> bool:
+    """A store wait accepts a pincode or a city — nothing else.
+
+    Decided in code, not by an LLM: the answer format is machine-checkable and
+    language-independent (digits are digits), so asking a model whether "Ring"
+    is a pincode is both slower and less reliable. It said "yes".
+    """
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
+    if _PINCODE_ONLY_RE.match(normalized):
+        return True
+    structured = extract_structured_fields(normalized)
+    return bool(structured.get("pincode") or structured.get("city"))
+
+
+def _pending_question(user_profile: dict) -> str | None:
+    """The question the active sticky wait is holding the turn for."""
+    if user_profile.get("shopping_wizard_active"):
+        step = user_profile.get("shopping_wizard_step")
+        if not step or step == "complete":
+            from kisna_chatbot.processors.shopping_wizard import get_next_step
+
+            step = get_next_step(user_profile.get("shopping_wizard_data") or {})
+        return _PENDING_QUESTION_BY_STEP.get(step or "")
+    if user_profile.get("awaiting_store_pincode"):
+        return _STORE_PINCODE_QUESTION
+    if user_profile.get("callback_capture_step"):
+        return _CALLBACK_QUESTION
+    return None
+
+
+# Deliberately tiny and separate from the main classifier prompt: this is a
+# gate, not a classification. It answers ONE question — did the user answer us,
+# or start something else — so it covers every intent, not a fixed list. An
+# intent list is what made the regex fragile: anything unlisted got swallowed.
+_QUICK_ESCAPE_PROMPT = """A jewellery shop's WhatsApp bot asked the user a question and is
+waiting for the answer.
+
+THE PENDING QUESTION:
+{question}
+
+Decide what the user's next message is doing. Reply with exactly one word:
+
+answer       - it responds to the pending question (including "any", "you
+               decide", "doesn't matter", "skip", a bare number, a bare
+               material or category word, or an answer in any language/script)
+new_request  - it is about something else: a shop/store location, an order,
+               a return or refund, a complaint, an offer or discount, the gold
+               rate, a policy or brand question, asking for a person, a
+               callback or a video call, a greeting, the menu, or a different
+               product to the one being narrowed down
+
+If it could be either, prefer "answer" — the user is mid-conversation.
+Reply with the single word only. No punctuation, no explanation."""
+
+
+async def _quick_escape_classify(
+    user_message: str,
+    pending_question: str,
+    *,
+    client_id: str = "kisna",
+    phone_number: str | None = None,
+) -> bool | None:
+    """Did the user answer our question, or start something else?
+
+    True  — a new request (leave the flow)
+    False — an answer (flow keeps the turn)
+    None  — could not decide; the caller falls back to the regex verdict, i.e.
+            exactly the behaviour that shipped before this gate existed. The
+            gate must never make an outage WORSE than no gate at all.
+    """
+    try:
+        raw = await complete_chat(
+            agent=AgentName.CLASSIFIER,
+            agent_display_name="Escape Gate",
+            instruction=_QUICK_ESCAPE_PROMPT.format(question=pending_question),
+            messages=[{"role": "user", "content": user_message}],
+            max_output_tokens=8,
+            phone_number=phone_number,
+            client_id=client_id,
+        )
+    except Exception:
+        logger.warning(
+            "Escape gate unavailable — falling back to regex escape",
+            extra={"phone_number": phone_number},
+            exc_info=True,
+        )
+        return None
+    verdict = (raw or "").strip().strip(".\"'").lower()
+    if verdict.startswith("new_request"):
+        return True
+    if verdict.startswith("answer"):
+        return False
+    logger.warning(
+        "Escape gate returned an unusable verdict — falling back to regex",
+        extra={"phone_number": phone_number, "verdict": verdict[:40]},
+    )
+    return None
+
+
+def _release_sticky_wait(
+    data: dict, user_profile: dict, escape_intent: str, user_message: str
+) -> None:
+    """Leave the flow, preserving everything the turn still needs.
+
+    Mirrors the long-standing regex escape path: button-tapped wizard slots are
+    stashed before the funnel is torn down (otherwise the re-seeded search
+    re-asks questions the user already answered), and a product-search escape
+    keeps the regex entities so the search has something to run with even if
+    the classifier LLM then fails.
+    """
+    if user_profile.get("shopping_wizard_active"):
+        _stash_wizard_carryover(data, user_profile)
+
+    extra_entities: dict[str, Any] = {}
+    if user_profile.pop("_price_direction_hint", None):
+        extra_entities["price_direction"] = "higher"
+
+    _clear_sticky_waits(user_profile)
+
+    if escape_intent == "product_search":
+        extracted = extract_entities(user_message)
+        for key in (
+            "category",
+            "material_type",
+            "min_price",
+            "max_price",
+            "metal_colour",
+        ):
+            if extracted.get(key) is not None:
+                extra_entities[key] = extracted[key]
+    if extra_entities:
+        _store_llm_entities(data, user_profile, extra_entities)
+
+
+async def _check_universal_escape(
+    data: dict,
+    user_profile: dict,
+    user_message: str,
+    *,
+    client_id: str = "kisna",
+    phone_number: str | None = None,
+) -> str | None:
+    """Release a sticky wait when the message is not an answer to it.
+
+    Runs BEFORE any wizard / store-wait check. Its ONLY job is to release the
+    wait so the message reaches the classifier — it never decides the intent.
+    Intent stays LLM-primary: routing a regex verdict directly is what used to
+    send callback / handoff turns through _apply_intent_routing into
+    "samajh nahi aaya".
+
+    Returns a provisional intent (for logging and the LLM-failure fallback),
+    or None when the flow keeps the turn.
+    """
+    normalized = (user_message or "").strip()
+    if not normalized or not _has_sticky_wait(user_profile):
+        return None
+
+    override = _programmatic_intent_override(normalized)
+    regex_hint = override[0] if override else _sticky_wait_escape_intent(normalized)
+
+    # 1. Free path, and ONLY for intents that can never be a slot answer.
+    #    "connect me to an agent" is never the answer to "what's your budget?",
+    #    so a regex hit is safe to act on without a call.
+    if regex_hint in _UNIVERSAL_ESCAPE_INTENTS:
+        _release_sticky_wait(data, user_profile, regex_hint, normalized)
+        return regex_hint
+
+    # 2. A store wait has a machine-checkable answer (pincode or city), so it
+    #    is decided in code — no LLM, no language dependence, no ambiguity.
+    if user_profile.get("awaiting_store_pincode") and not user_profile.get(
+        "shopping_wizard_active"
+    ):
+        if _answers_store_pincode_question(normalized):
+            return None
+        _release_sticky_wait(
+            data, user_profile, regex_hint or "unknown", normalized
+        )
+        return regex_hint or "unknown"
+
+    # 3. Free-text flows go to the gate — including messages the regex DID
+    #    match. The regex cannot be trusted to tell an escape from an answer:
+    #    at the category step "ring" is the answer, yet _looks_like_browse_escape
+    #    reads it as a new product search and tears the funnel down. And it is
+    #    Latin-only, so it is silent for every native-script and romanized
+    #    regional message — the languages this bot exists to serve. The gate is
+    #    script-agnostic and judges against the question we actually asked.
+    question = _pending_question(user_profile)
+    if not question:
+        # No question to judge against (e.g. wizard already complete) — fall
+        # back to the regex verdict rather than guessing.
+        if regex_hint:
+            _release_sticky_wait(data, user_profile, regex_hint, normalized)
+        return regex_hint
+
+    decision = await _quick_escape_classify(
+        normalized,
+        question,
+        client_id=client_id,
+        phone_number=phone_number,
+    )
+    if decision is None:
+        # Gate unavailable — behave exactly as we did before it existed.
+        if regex_hint:
+            _release_sticky_wait(data, user_profile, regex_hint, normalized)
+        return regex_hint
+    if decision:
+        _release_sticky_wait(
+            data, user_profile, regex_hint or "unknown", normalized
+        )
+        logger.info(
+            "Escape gate — message is a new request, sticky waits cleared",
+            extra={
+                "phone_number": phone_number,
+                "pending_question": question,
+                "regex_hint": regex_hint,
+            },
+        )
+        # The full classifier decides where the user actually went;
+        # _maybe_prompt_flow_switch adds the one-line switch acknowledgement.
+        # regex_hint (if any) is only a fallback for an LLM outage.
+        return regex_hint or "unknown"
+    return None
 
 
 def _maybe_prompt_flow_switch(
@@ -1863,7 +2198,42 @@ class Classifier(Processor):
         user_profile = data["user_profile"]
         client_id = data.get("client_id", "kisna")
 
-        if not self.should_run(data):
+        # ── Universal escape ────────────────────────────────────────────────
+        # Runs before should_run() and before every sticky-wait check, because
+        # should_run() is exactly what skipped the classifier while the wizard
+        # was active. A user asking for a human, a callback, a video call or
+        # reporting damage is never answering "what's your budget?".
+        #
+        # This only RELEASES the wait. The intent is still decided by the full
+        # classifier below, so a regex or gate misfire cannot route the turn.
+        escape_text = ""
+        if "text" in data.get("messages", {}):
+            escape_text = (data["messages"]["text"].get("body") or "").strip()
+        flow_keeps_turn = False
+        if escape_text and _has_sticky_wait(user_profile):
+            escape_intent = await _check_universal_escape(
+                data,
+                user_profile,
+                escape_text,
+                client_id=client_id,
+                phone_number=phone_number,
+            )
+            if escape_intent and escape_intent != "unknown":
+                # Only used if the classifier LLM then fails — never routed
+                # directly while the LLM is healthy. "unknown" means the gate
+                # only knows the user left the flow, not where they went, so
+                # there is nothing to fall back to.
+                data["_escape_verdict"] = escape_intent
+            elif escape_intent is None and not (
+                is_greeting_message(escape_text) or is_menu_request(escape_text)
+            ):
+                # The message ANSWERS the pending question. The flow owns the
+                # turn — and this verdict must outrank the Latin escape regex
+                # further down, which would otherwise tear the funnel apart for
+                # a legitimate answer ("ring" at the category step).
+                flow_keeps_turn = True
+
+        if flow_keeps_turn or not self.should_run(data):
             if _apply_store_pincode_shortcut(data):
                 logger.info(
                     "Store lookup shortcut — routing to ad_flow",
@@ -2003,6 +2373,15 @@ class Classifier(Processor):
                                     extra_entities[key] = extracted[key]
                         if extra_entities:
                             _store_llm_entities(data, user_profile, extra_entities)
+                        # Provisional routing verdict. The LLM below is still
+                        # primary and overwrites this via _route_resolved_intent
+                        # — but if the LLM call fails, the escape must not lose
+                        # the turn: without this, an exception left
+                        # classified_category unset and the user got
+                        # "Sorry, I didn't catch that" after a clear "Ring".
+                        data["classified_category"] = escape_intent
+                        data["classifier_confidence"] = 0.9
+                        data["_escape_verdict"] = escape_intent
                         logger.info(
                             "Sticky wait cleared — LLM will classify escape",
                             extra={
@@ -2313,11 +2692,19 @@ async def _route_on_llm_failure(
     chat_history: list,
 ) -> bool:
     """Honour crystal-clear support asks when the classifier LLM is down."""
+    # A sticky-wait escape already resolved this turn by regex before the LLM
+    # was called. Losing that verdict to an LLM outage is how a clear "Ring"
+    # during a store wait ended up as "Sorry, I didn't catch that".
+    escape_verdict = data.pop("_escape_verdict", None)
     fallback = _programmatic_intent_fallback(raw_query)
+    if escape_verdict and not fallback:
+        fallback = (escape_verdict, 0.9)
     if not fallback:
         return False
     intent, confidence = fallback
-    _store_llm_entities(data, user_profile, {})
+    # Keep anything the escape path already extracted (regex category/price for
+    # a product_search escape); only guarantee the key exists.
+    _store_llm_entities(data, user_profile, data.get("llm_extracted_entities") or {})
     logger.warning(
         "Classifier LLM failed — applying unambiguous intent fallback",
         extra={
@@ -2337,5 +2724,11 @@ async def _route_on_llm_failure(
         confidence,
     ):
         await _finalize_classifier_response(data)
+        return True
+    # No bot_response was produced, but the intent WAS routed (service_selected
+    # is set and the service pipeline owns the turn from here). For an escape
+    # verdict that is a complete outcome — falling through to the generic
+    # "didn't catch that" would throw away a verdict we are confident in.
+    if escape_verdict:
         return True
     return False

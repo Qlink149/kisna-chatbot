@@ -117,6 +117,19 @@ _FULFILLMENT_TITLE_MAP = {
     "customize": "mto",
 }
 
+
+def is_fulfillment_slot_answer(text: str | None) -> bool:
+    """True when the whole message is an availability answer, not a request.
+
+    "made to order" / "custom" / "ready to ship" are the wizard's own button
+    labels and map to a catalogue filter. Callers use this to keep such a
+    message out of intent overrides that would route it somewhere else.
+    """
+    normalized = " ".join((text or "").strip().lower().split())
+    normalized = normalized.strip("*.!? ")
+    return normalized in _FULFILLMENT_TITLE_MAP
+
+
 # Slots a user picks by BUTTON TAP. They appear in no message text, so an
 # escape that clears the wizard loses them unless they are handed forward.
 WIZARD_CARRYOVER_KEYS = ("gender", "material_type", "fulfillment")
@@ -249,6 +262,34 @@ def _looks_like_pincode(digits: str, text: str | None) -> bool:
                  normalized, re.I):
         return False
     return digits == re.sub(r"[^\d]", "", normalized)
+
+
+# No jewellery budget is above ₹1 crore. Anything larger is a phone number, an
+# order id, or a typo — never a budget. A user answering the wrong question with
+# "987654321" was silently given a ₹98.7 crore search.
+MAX_REALISTIC_BUDGET = 10_000_000
+
+
+def budget_rejection_reason(text: str | None) -> str | None:
+    """Why a budget answer was refused: 'pincode', 'too_large', or None."""
+    normalized = (text or "").strip()
+    if not normalized:
+        return None
+    digits = re.sub(r"[^\d]", "", normalized)
+    if not digits.isdigit() or not digits:
+        return None
+    # A bare number with no budget word attached.
+    bare = digits == re.sub(r"[^\d]", "", normalized) and not re.search(
+        r"[₹]|\b(k|lakh|lac|lakhs|crore|hazaar|hazar|hajar|thousand|budget"
+        r"|under|below|upto|tak|se)\b",
+        normalized,
+        re.I,
+    )
+    if bare and len(digits) == 6 and not digits.endswith("000"):
+        return "pincode"
+    if bare and len(digits) >= 7:
+        return "too_large"
+    return None
 
 
 def _budget_restated_in_text(
@@ -436,9 +477,12 @@ def start_wizard(
 ) -> list[dict]:
     """Activate wizard, seed known slots, return next prompt messages."""
     collected = seed_wizard_from_entities(entities, query=query)
-    # Stale store-wait must not steal later budget answers like "50k".
-    user_profile.pop("awaiting_store_pincode", None)
-    user_profile.pop("store_pincode_attempts", None)
+    # A stale store-wait must not steal later budget answers like "50k", and a
+    # stale custom-budget wait must not steal the wizard's own budget step.
+    # Sticky waits are mutually exclusive — see clear_all_sticky_states.
+    from kisna_chatbot.utils.session_state import clear_all_sticky_states
+
+    clear_all_sticky_states(user_profile)
     user_profile["shopping_wizard_active"] = True
     user_profile["shopping_wizard_data"] = collected
     step = get_next_step(collected)
@@ -452,6 +496,18 @@ def start_wizard(
     responses = list(prepend_welcome or [])
     responses.append(build_step_prompt(step, collected))
     return responses
+
+
+def build_budget_rejection_prompt() -> dict:
+    """Re-ask after a pincode / phone number was typed at the budget step."""
+    return {
+        "type": "text",
+        "text": (
+            "That doesn't look like a budget amount — could you type your "
+            "budget in rupees? e.g. *25000* or *1 lakh*"
+        ),
+        "_compose": "wizard_budget",
+    }
 
 
 def build_step_prompt(step: str, collected: dict | None = None) -> dict:
@@ -764,6 +820,10 @@ def _parse_text_for_step(
             _snap_single_price_to_band,
         )
 
+        # A pincode / phone number is never a budget, whichever parser reads it.
+        if budget_rejection_reason(text):
+            return None
+
         ents = extract_entities(text)
         min_p = ents.get("min_price")
         max_p = ents.get("max_price")
@@ -771,6 +831,8 @@ def _parse_text_for_step(
             # Prefer the shared price parser (handles "15 to 35 thousand").
             min_p, max_p = _extract_prices(text or "")
         if min_p is not None or max_p is not None:
+            if max(p for p in (min_p, max_p) if p is not None) > MAX_REALISTIC_BUDGET:
+                return None
             return (min_p, max_p)
         # Bare digit fallback ("20000") — never concatenate range halves
         # ("15 to 35 thousand" → "1535").
@@ -780,6 +842,8 @@ def _parse_text_for_step(
         if not digits.isdigit() or len(digits) < 3:
             return None
         if _looks_like_pincode(digits, text):
+            return None
+        if int(digits) > MAX_REALISTIC_BUDGET:
             return None
         return _snap_single_price_to_band(int(digits))
 
@@ -911,6 +975,8 @@ def advance_wizard(
         if value is None and collected == before and step:
             # Nothing parsed — re-ask
             user_profile["shopping_wizard_step"] = step
+            if step == "budget" and budget_rejection_reason(text):
+                return "reask", [build_budget_rejection_prompt()]
             return "reask", [build_step_prompt(step, collected)]
     else:
         if step:
