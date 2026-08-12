@@ -816,7 +816,17 @@ def advance_wizard(
         ("escape", None) — user bailed; clear and fall through
         ("reask", [bot_responses]) — invalid answer; re-prompt
     """
-    from kisna_chatbot.processors.entity_extractor import extract_entities
+    from kisna_chatbot.processors.entity_extractor import (
+        apply_llm_evidence_gate,
+        extract_entities,
+    )
+
+    # Ungated, an invented slot ("fulfillment: ready" returned while reading a
+    # budget answer) filled the slot and the funnel skipped that question
+    # entirely. The gate trusts the LLM for native script, so Indic answers
+    # still land.
+    if text:
+        llm_entities = apply_llm_evidence_gate(text, dict(llm_entities or {}))
 
     collected = _wizard_data(user_profile)
     # Drop stale occasion from older sessions
@@ -886,15 +896,15 @@ def advance_wizard(
             if v is None:
                 continue
             if k in ("gender", "material_type", "fulfillment") and k != step:
-                # Only let a later turn overwrite an audience / material /
-                # shipping choice when THIS message actually restates it.
-                # Without the evidence check a stray word ("recommend",
-                # "ornaments") silently flipped a slot the user had already
-                # chosen by tapping a button. Material must be overwriteable
-                # so "I want in gold" replaces a prior diamond pick.
+                # Only let a later turn set an audience / material / shipping
+                # choice when THIS message actually says so. Without the
+                # evidence check a stray word ("recommend", "ornaments")
+                # silently flipped a slot the user had chosen by tapping a
+                # button, and an empty slot could be filled from a value the
+                # user never said — that is how the funnel used to skip
+                # "ready to ship or made to order?" entirely. Material must
+                # stay overwriteable so "I want in gold" replaces diamond.
                 if _slot_restated_in_text(k, v, text, llm_entities):
-                    collected[k] = v
-                elif not collected.get(k):
                     collected[k] = v
             elif k in ("min_price", "max_price"):
                 # Budget is a pair — handled below when restated.

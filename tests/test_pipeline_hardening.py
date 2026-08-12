@@ -18,6 +18,8 @@ for _k, _v in {
 from kisna_chatbot.processors.entity_extractor import (  # noqa: E402
     _extract_prices,
     _snap_single_price_to_band,
+    extract_fulfillment,
+    extract_fulfillment_change,
 )
 from kisna_chatbot.processors.product_search_agent_v3 import (  # noqa: E402
     ProductSearchAgentV3,
@@ -180,6 +182,48 @@ class GenderAnySlotTests(unittest.TestCase):
         }
         status, _ = advance_wizard(profile, {}, text="koi bhi")
         self.assertEqual(status, "escape")
+
+
+class FulfillmentNegationTests(unittest.TestCase):
+    def test_negated_phrase_is_not_a_request(self):
+        self.assertIsNone(extract_fulfillment("mujhe ready to ship nahi chahiye"))
+        self.assertIsNone(extract_fulfillment("I don't want ready to ship"))
+
+    def test_plain_phrase_still_reads_ready(self):
+        self.assertEqual(extract_fulfillment("ready to ship chahiye"), "ready")
+        self.assertEqual(extract_fulfillment("Mujhe make to order chahiye"), "mto")
+
+    def test_change_reports_clear_for_a_refusal(self):
+        self.assertEqual(
+            extract_fulfillment_change("mujhe ready to ship nahi chahiye"), "clear"
+        )
+        self.assertEqual(
+            extract_fulfillment_change("made to order nahi chahiye"), "clear"
+        )
+        self.assertEqual(extract_fulfillment_change("ready to ship"), "ready")
+
+
+class WizardUnaskedSlotTests(unittest.TestCase):
+    def test_unevidenced_llm_fulfillment_does_not_skip_the_question(self):
+        profile = {
+            "shopping_wizard_active": True,
+            "shopping_wizard_step": "budget",
+            "shopping_wizard_data": {
+                "category": "mangalsutra",
+                "gender": "women",
+                "material_type": "diamond",
+            },
+        }
+        # Classifier invented an availability while reading a budget answer.
+        status, _ = advance_wizard(
+            profile,
+            {},
+            text="20 hazaar k aas pass",
+            llm_entities={"fulfillment": "ready"},
+        )
+        self.assertEqual(status, "prompt")
+        self.assertEqual(profile["shopping_wizard_step"], "fulfillment")
+        self.assertIsNone(profile["shopping_wizard_data"].get("fulfillment"))
 
 
 class WizardBudgetParsingTests(unittest.TestCase):

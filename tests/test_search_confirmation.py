@@ -315,6 +315,100 @@ class ConfirmFlowTests(ConfirmEnabledMixin, unittest.TestCase):
         self.assertFalse(has_pending_search(profile))
 
 
+class MangalsutraLoopTests(ConfirmEnabledMixin, unittest.TestCase):
+    """Regression for the transcript that looped between recap and budget."""
+
+    def _pending_profile(self) -> dict:
+        return {
+            "service_selected": SL.PRODUCT_SEARCH.value,
+            "awaiting_search_correction": True,
+            "pending_search": {
+                "entities": {
+                    "category": "mangalsutra",
+                    "gender": "women",
+                    "material_type": "diamond",
+                    "min_price": 20000,
+                    "max_price": 30000,
+                    "fulfillment": "ready",
+                },
+                "query_label": "wizard:mangalsutra",
+                "occasion_prefix": None,
+                "response_mode": None,
+                "exclude_product_id": None,
+            },
+        }
+
+    def _correct(self, profile: dict, text: str, llm_entities: dict) -> dict:
+        async def _run():
+            data = {
+                "phone_number": "919999999999",
+                "messages": _text_message(text),
+                "user_profile": profile,
+                # The classifier reads history, so it hands over a category the
+                # message never named — that is what broke slot inheritance.
+                "llm_extracted_entities": llm_entities,
+            }
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                return_value={"products": _PRODUCTS, "total_count": 1, "page": 1},
+            ) as search_mock, patch(
+                "kisna_chatbot.processors.product_search_agent_v3"
+                ".extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={},
+            ):
+                result = await ProductSearchAgentV3().process(data)
+            search_mock.assert_not_called()
+            return result
+
+        return asyncio.run(_run())
+
+    def test_refusing_ready_to_ship_keeps_every_other_slot(self):
+        profile = self._pending_profile()
+        result = self._correct(
+            profile,
+            "mujhe ready to ship nahi chahiye",
+            {"category": "mangalsutra", "fulfillment": "ready"},
+        )
+        reply = result["bot_response"][0]
+        self.assertEqual(reply["type"], "quickreply", reply)
+        text = reply["text"]
+        # Availability dropped, everything the user already answered survives.
+        self.assertNotIn("ready to ship", text)
+        self.assertNotIn("made to order", text)
+        self.assertIn("diamond mangalsutra", text)
+        self.assertIn("for women", text)
+        self.assertIn("₹20,000", text)
+        self.assertIn("₹30,000", text)
+        # Never re-asks the budget question that caused the loop.
+        self.assertNotIn("budget", text.lower())
+
+    def test_make_to_order_correction_switches_availability(self):
+        profile = self._pending_profile()
+        result = self._correct(
+            profile,
+            "Mujhe make to order chahiye",
+            {"category": "mangalsutra"},
+        )
+        text = result["bot_response"][0]["text"]
+        self.assertIn("made to order", text)
+        self.assertIn("diamond mangalsutra", text)
+        self.assertIn("₹20,000", text)
+
+    def test_unparseable_correction_asks_once_then_releases(self):
+        profile = self._pending_profile()
+        first = self._correct(profile, "hmm okay so", {})
+        self.assertEqual(first["bot_response"][0]["type"], "text")
+        self.assertIn("didn't catch", first["bot_response"][0]["text"])
+        self.assertTrue(has_pending_search(profile))
+
+        second = self._correct(profile, "hmm okay so", {})
+        # Released — the message routes normally instead of trapping the user.
+        self.assertFalse(has_pending_search(profile))
+        self.assertIn("bot_response", second)
+
+
 class WizardConfirmTests(ConfirmEnabledMixin, unittest.TestCase):
     def test_wizard_completion_recaps_before_products(self):
         profile = {

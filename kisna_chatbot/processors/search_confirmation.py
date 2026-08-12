@@ -17,6 +17,12 @@ CONFIRM_NO_MSGID = "confirm$search$no"
 
 PENDING_SEARCH_KEY = "pending_search"
 AWAITING_CORRECTION_KEY = "awaiting_search_correction"
+CORRECTION_ATTEMPTS_KEY = "search_correction_attempts"
+
+# After this many unreadable corrections the pending recap is released so the
+# message routes normally — a user must never be stuck answering a question
+# the bot cannot parse.
+MAX_CORRECTION_ATTEMPTS = 2
 
 _YES_TITLES = frozenset({"yes, show me", "yes", "yeah", "correct"})
 _NO_TITLES = frozenset({"no, change it", "no", "change"})
@@ -153,6 +159,98 @@ def build_correction_prompt() -> dict:
     }
 
 
+def build_correction_unclear_prompt() -> dict:
+    return {
+        "type": "text",
+        "text": (
+            "Sorry, I didn't catch that. Tell me the part to change — "
+            "the material (*gold*, *diamond*), the budget (*under 40k*), "
+            "who it's for (*for men*), or *ready to ship* / *made to order*."
+        ),
+        "_compose": "search_correction_unclear",
+    }
+
+
+def apply_correction(
+    entities: dict,
+    text: str | None,
+    llm_entities: dict | None = None,
+) -> tuple[dict, bool]:
+    """Overlay a correction onto the filters the user just saw.
+
+    Only the fields THIS message names are touched, so an untouched audience or
+    budget survives. Returns the new entities and whether anything changed.
+    Routing the correction through the generic search pipeline instead used to
+    lose slots: the classifier reads history, so it supplies a category the
+    message never named, and a named category switches off slot inheritance.
+    """
+    from kisna_chatbot.processors.entity_extractor import (
+        _INDIC_SCRIPT_RE,
+        apply_llm_evidence_gate,
+        extract_entities,
+        extract_fulfillment_change,
+    )
+    from kisna_chatbot.processors.shopping_wizard import _gender_from_text
+
+    before = dict(entities or {})
+    out = dict(before)
+    message = text or ""
+    if not message.strip():
+        return out, False
+
+    regex_ents = extract_entities(message)
+    gated = apply_llm_evidence_gate(message, dict(llm_entities or {}))
+
+    # The classifier sees history, so its category can name a product the user
+    # never mentioned. Trust the Latin extractor, and the LLM only where that
+    # extractor is blind (native script).
+    category = regex_ents.get("category")
+    if not category and _INDIC_SCRIPT_RE.search(message):
+        category = gated.get("category")
+    if category and str(category) != str(before.get("category") or ""):
+        # A different product resets what belonged to the old one.
+        out = {
+            **before,
+            "category": category,
+            "categories": [category],
+            "multi_category": False,
+            "secondary_category": None,
+            "material_type": None,
+            "gender": None,
+            "min_price": None,
+            "max_price": None,
+            "fulfillment": None,
+            "title": None,
+            "collection": None,
+        }
+
+    material = gated.get("material_type") or regex_ents.get("material_type")
+    if material in ("gold", "diamond", "gemstone"):
+        out["material_type"] = material
+
+    gender = gated.get("gender") or _gender_from_text(message)
+    if gender in ("women", "men", "kids"):
+        out["gender"] = gender
+
+    min_p = regex_ents.get("min_price")
+    max_p = regex_ents.get("max_price")
+    if min_p is None and max_p is None:
+        min_p, max_p = gated.get("min_price"), gated.get("max_price")
+    if min_p is not None or max_p is not None:
+        out["min_price"] = min_p
+        out["max_price"] = max_p
+
+    fulfillment = extract_fulfillment_change(message)
+    if fulfillment is None and gated.get("fulfillment") in ("ready", "mto"):
+        fulfillment = gated.get("fulfillment")
+    if fulfillment == "clear":
+        out["fulfillment"] = None
+    elif fulfillment in ("ready", "mto"):
+        out["fulfillment"] = fulfillment
+
+    return out, out != before
+
+
 def _button_reply(messages: dict) -> dict | None:
     interactive = (messages or {}).get("interactive") or {}
     if interactive.get("type") != "button_reply":
@@ -214,6 +312,7 @@ def set_pending_search(
         "exclude_product_id": exclude_product_id,
     }
     user_profile.pop(AWAITING_CORRECTION_KEY, None)
+    user_profile.pop(CORRECTION_ATTEMPTS_KEY, None)
 
 
 def get_pending_search(user_profile: dict) -> dict | None:
@@ -236,6 +335,7 @@ def clear_confirm_state(user_profile: dict) -> None:
         return
     user_profile.pop(PENDING_SEARCH_KEY, None)
     user_profile.pop(AWAITING_CORRECTION_KEY, None)
+    user_profile.pop(CORRECTION_ATTEMPTS_KEY, None)
 
 
 def is_awaiting_correction(user_profile: dict) -> bool:

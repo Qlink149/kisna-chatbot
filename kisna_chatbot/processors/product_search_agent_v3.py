@@ -45,8 +45,10 @@ from kisna_chatbot.utils.jewellery_profile import (
     merge_jewellery_profile,
 )
 from kisna_chatbot.processors.search_confirmation import (
+    apply_correction,
     build_confirm_prompt,
     build_correction_prompt,
+    build_correction_unclear_prompt,
     build_search_recap,
     clear_confirm_state,
     get_pending_search,
@@ -58,6 +60,8 @@ from kisna_chatbot.processors.search_confirmation import (
     set_pending_search,
     should_confirm,
     AWAITING_CORRECTION_KEY,
+    CORRECTION_ATTEMPTS_KEY,
+    MAX_CORRECTION_ATTEMPTS,
 )
 from kisna_chatbot.processors.shopping_wizard import (
     ANY_SLOT,
@@ -2326,7 +2330,8 @@ class ProductSearchAgentV3(Processor):
             and value != ANY_SLOT
         }
         # Classifier entities are the only slot source that reads native script
-        # (extract_entities is Latin-only), so hand them to the wizard.
+        # (extract_entities is Latin-only), so hand them to the wizard, which
+        # evidence-gates them before filling any slot.
         status, responses = advance_wizard(
             user_profile,
             messages,
@@ -2436,12 +2441,38 @@ class ProductSearchAgentV3(Processor):
         if not text:
             return None
 
-        # The correction is merged against what we just read back, so untouched
-        # slots survive and the normal pipeline re-asks for confirmation.
-        user_profile["last_search_filters"] = dict(pending.get("entities") or {})
+        # Apply the correction to the filters the user just saw. Falling through
+        # to the generic pipeline lost slots: the classifier reads history, so a
+        # message like "ready to ship nahi chahiye" arrived carrying a category
+        # it never named, and a named category switches off slot inheritance —
+        # the budget vanished and the funnel restarted.
+        corrected, changed = apply_correction(
+            pending.get("entities") or {},
+            text,
+            data.get("llm_extracted_entities"),
+        )
+        if not changed:
+            attempts = int(user_profile.get(CORRECTION_ATTEMPTS_KEY) or 0) + 1
+            if attempts >= MAX_CORRECTION_ATTEMPTS:
+                clear_confirm_state(user_profile)
+                user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                return None
+            user_profile[CORRECTION_ATTEMPTS_KEY] = attempts
+            data["bot_response"] = [build_correction_unclear_prompt()]
+            return data
+
         clear_confirm_state(user_profile)
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-        return None
+        logger.info(
+            "Search confirmation corrected",
+            extra={"phone_number": phone_number, "correction": text},
+        )
+        return await self._execute_search(
+            data,
+            phone_number,
+            {**_empty_entities(), **corrected},
+            query_label=f"correction:{text}",
+        )
 
     async def _complete_shopping_wizard(
         self, data: dict, phone_number: str

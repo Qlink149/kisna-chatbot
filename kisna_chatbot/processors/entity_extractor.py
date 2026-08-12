@@ -2280,14 +2280,50 @@ _FULFILLMENT_MTO_RE = re.compile(
 )
 
 
+# "ready to ship nahi chahiye" contains "ready to ship" — without this the
+# phrase match read a refusal as a request and re-applied the filter the user
+# was trying to drop.
+_FULFILLMENT_NEGATION_RE = re.compile(
+    r"\b("
+    r"nahi|nahin|nai|na\s+chahiye|mat|nako|venda|beda|"
+    r"do\s*n[o']?t|dont|don't|not|no\s+need|without|except|"
+    r"avoid|skip|other\s+than|apart\s+from"
+    r")\b",
+    re.I,
+)
+
+
+def _fulfillment_negated(text: str, match: re.Match) -> bool:
+    """True when a refusal sits in the same clause as the availability phrase."""
+    window = f"{text[max(0, match.start() - 40):match.start()]} {text[match.end():match.end() + 40]}"
+    return bool(_FULFILLMENT_NEGATION_RE.search(window))
+
+
 def extract_fulfillment(text: str | None) -> str | None:
-    """Return 'ready' | 'mto' | None from natural-language availability cues."""
+    """Return 'ready' | 'mto' | None from natural-language availability cues.
+
+    A negated phrase ("mujhe ready to ship nahi chahiye") yields None — it is
+    not evidence that the user wants that availability.
+    """
+    change = extract_fulfillment_change(text)
+    return change if change in ("ready", "mto") else None
+
+
+def extract_fulfillment_change(text: str | None) -> str | None:
+    """Return 'ready' | 'mto' | 'clear' | None.
+
+    'clear' means the user refused an availability ("I don't want ready to
+    ship") — the filter is dropped rather than flipped, so both ready-to-ship
+    and made-to-order pieces stay in the results.
+    """
     if not text or not str(text).strip():
         return None
-    if _FULFILLMENT_READY_RE.search(text):
-        return "ready"
-    if _FULFILLMENT_MTO_RE.search(text):
-        return "mto"
+    ready = _FULFILLMENT_READY_RE.search(text)
+    if ready:
+        return "clear" if _fulfillment_negated(text, ready) else "ready"
+    mto = _FULFILLMENT_MTO_RE.search(text)
+    if mto:
+        return "clear" if _fulfillment_negated(text, mto) else "mto"
     return None
 
 
