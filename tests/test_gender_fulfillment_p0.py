@@ -39,7 +39,7 @@ from kisna_chatbot.processors.shopping_wizard import (  # noqa: E402
     start_wizard,
 )
 from kisna_chatbot.prompts.classifier_kisna import (  # noqa: E402
-    kisna_classifier,
+    kisna_classifier_intent as kisna_classifier,  # noqa: F401  (routing assertions)
     kisna_entity_extractor,
 )
 
@@ -244,15 +244,20 @@ class GenderSanitizeAndPromptTests(unittest.TestCase):
         self.assertIsNone(_sanitize_llm_entities({"gender": "unisex"})["gender"])
 
     def test_prompt_null_first_and_override(self):
-        for prompt in (kisna_classifier, kisna_entity_extractor):
-            self.assertIn("NULL-FIRST", prompt)
-            self.assertIn("I want it for men", prompt)
-            self.assertIn("never female", prompt.lower())
-            self.assertIn("fulfillment", prompt)
-            self.assertIn("gold ring for mom", prompt)
-            self.assertIn("bracelet for dad", prompt)
-            self.assertIn("necklace for parents", prompt)
-            self.assertIn("AMBIGUOUS", prompt)
+        # Gender / fulfillment extraction is owned by the extractor alone —
+        # the classifier no longer emits either field.
+        for assertion in (
+            "NULL-FIRST",
+            "I want it for men",
+            "fulfillment",
+            "gold ring for mom",
+            "bracelet for dad",
+            "necklace for parents",
+            "AMBIGUOUS",
+        ):
+            with self.subTest(assertion=assertion):
+                self.assertIn(assertion, kisna_entity_extractor)
+        self.assertIn("never female", kisna_entity_extractor.lower())
 
 
 class WizardFulfillmentGenderNLTests(unittest.TestCase):

@@ -284,6 +284,30 @@
       "expect_entities": {"action": "more", "category": null}
     },
     {
+      "id": "cx-02-hi",
+      "bucket": "context",
+      "message": "और दिखाओ",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"action": "more", "category": null}
+    },
+    {
+      "id": "cx-02-gu",
+      "bucket": "context",
+      "message": "વધુ બતાવો",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"action": "more", "category": null}
+    },
+    {
+      "id": "cx-02-new",
+      "bucket": "context",
+      "message": "नेकलेस दिखाओ",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "necklace", "action": null}
+    },
+    {
       "id": "cx-03",
       "bucket": "context",
       "message": "for men",

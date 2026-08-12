@@ -419,14 +419,16 @@ def production_entities(extractor: dict, classifier: dict | None) -> dict:
     """Merge exactly as product_search_agent_v3.py does.
 
     The context-free extractor is the single source of truth for every search
-    filter; ``product_reference`` is the one field taken from the classifier,
-    because resolving it legitimately needs the shown-products context
-    (product_search_agent_v3.py:2052-2065).
+    filter. Two fields come from the classifier: ``product_reference`` (resolving
+    it needs the shown-products context the extractor never sees) and ``action``
+    (``_is_show_more_request`` reads it to decide whether the extractor runs at
+    all, so it cannot come from the extractor without a circular dependency).
     """
     merged = dict(extractor or {})
-    ref = (classifier or {}).get("product_reference")
-    if ref is not None and merged.get("product_reference") is None:
-        merged["product_reference"] = ref
+    for field in ("product_reference", "action"):
+        value = (classifier or {}).get(field)
+        if value is not None and merged.get(field) is None:
+            merged[field] = value
     return merged
 
 

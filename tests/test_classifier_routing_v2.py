@@ -21,7 +21,9 @@ from kisna_chatbot.processors.classifier import (
     _programmatic_intent_override,
     _route_resolved_intent,
 )
-from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
+from kisna_chatbot.prompts.classifier_kisna import (
+    kisna_classifier_intent as kisna_classifier,
+)
 
 
 class ProgrammaticOverrideTests(unittest.TestCase):
@@ -135,17 +137,40 @@ class EntityExtractorPromptTests(unittest.TestCase):
         self.assertIn("gram", kisna_entity_extractor.lower())
         self.assertIn("under 22k", kisna_entity_extractor)
 
-    def test_classifier_prompt_mirrors_key_entity_rules(self):
-        self.assertIn("lightweight", kisna_classifier)
-        self.assertIn("NEGATION", kisna_classifier)
+    def test_entity_rules_live_in_the_extractor_not_the_classifier(self):
+        """The classifier routes; the extractor extracts. One owner per rule.
 
-    def test_fulfillment_schema_in_both_prompts(self):
+        These rules used to be duplicated into the classifier prompt. Keeping
+        two copies in sync is what let them drift apart and contradict each
+        other, so the classifier must NOT carry them.
+        """
         from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        for prompt in (kisna_classifier, kisna_entity_extractor):
-            self.assertIn('"fulfillment"', prompt)
-            self.assertIn("ready|mto", prompt)
-            self.assertIn("CURRENT message", prompt)
+        for rule in ("lightweight", "NEGATION", "25-30k"):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, kisna_entity_extractor)
+                self.assertNotIn(rule, kisna_classifier)
+
+        # price_direction appears in the classifier ONLY in the explicit
+        # "never output these" list — it must not be taught there.
+        self.assertIn("price_direction", kisna_entity_extractor)
+        self.assertIn(
+            "style or price_direction — a separate extractor owns them",
+            kisna_classifier,
+        )
+        # "thoda sasta dikhao" stays as a ROUTING example (it is a
+        # product_search), but the classifier no longer says what
+        # price_direction value to emit for it.
+        self.assertNotIn('price_direction "lower"', kisna_classifier)
+
+    def test_fulfillment_schema_in_the_extractor(self):
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn('"fulfillment"', kisna_entity_extractor)
+        self.assertIn("ready|mto", kisna_entity_extractor)
+        self.assertIn("CURRENT message", kisna_entity_extractor)
+        # The classifier must not define the field it no longer emits.
+        self.assertNotIn('"fulfillment"', kisna_classifier)
 
     def test_fulfillment_sanitizer_allowlist(self):
         from kisna_chatbot.processors.classifier import _sanitize_llm_entities
@@ -184,13 +209,12 @@ class EntityExtractorPromptTests(unittest.TestCase):
         )
         self.assertIsNone(_sanitize_llm_entities({"gender": "unisex"})["gender"])
 
-    def test_null_first_and_gender_override_in_prompts(self):
+    def test_null_first_and_gender_override_in_extractor(self):
         from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        for prompt in (kisna_classifier, kisna_entity_extractor):
-            self.assertIn("NULL-FIRST", prompt)
-            self.assertIn("I want it for men", prompt)
-            self.assertIn("never female", prompt.lower())
+        self.assertIn("NULL-FIRST", kisna_entity_extractor)
+        self.assertIn("I want it for men", kisna_entity_extractor)
+        self.assertIn("never female", kisna_entity_extractor.lower())
 
 
 class IndicScriptGateTests(unittest.TestCase):
@@ -348,20 +372,18 @@ class PriceDirectionTests(unittest.TestCase):
             _entities_for_price_direction({}, "lower"), (None, None)
         )
 
-    def test_prompts_teach_price_direction(self):
+    def test_extractor_teaches_price_direction(self):
         from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        self.assertIn("price_direction", kisna_classifier)
         self.assertIn("price_direction", kisna_entity_extractor)
 
-    def test_prompts_teach_range_suffix_distribution(self):
+    def test_extractor_teaches_range_suffix_distribution(self):
         # LLM-primary: the suffix-distribution rule (25-30k → 25k-30k) must be
-        # in the prompts, not only the regex fallback.
+        # in the extractor prompt, not only the regex fallback.
         from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        self.assertIn("25-30k", kisna_classifier)
-        self.assertIn("distribute", kisna_classifier.lower())
         self.assertIn("25-30k", kisna_entity_extractor)
+        self.assertIn("distribute", kisna_entity_extractor.lower())
 
 
 class FlowSwitchAckDeadEndTests(unittest.TestCase):
@@ -456,29 +478,23 @@ class NativeScriptExtractionTests(unittest.TestCase):
         self.assertIsNone(out["gender"])  # Latin gate still guards hallucination
 
     def test_prompts_carry_native_script_examples(self):
-        from kisna_chatbot.prompts.classifier_kisna import (
-            kisna_classifier,
-            kisna_entity_extractor,
-        )
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        # Devanagari + Gujarati present in both prompts now.
+        # The classifier still ROUTES native script (its examples prove it);
+        # the extractor still READS native amounts.
         self.assertIn("अंगूठी", kisna_classifier)
         self.assertIn("બુટ્ટી", kisna_classifier)
         self.assertIn("हज़ार", kisna_entity_extractor)
 
-    def test_prompts_teach_native_ranges(self):
+    def test_extractor_teaches_native_ranges(self):
         # Regression: "૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચે" (between) returned all-null
-        # entities → budget re-ask. BOTH prompts must teach the native range
-        # pattern and native digits.
-        from kisna_chatbot.prompts.classifier_kisna import (
-            kisna_classifier,
-            kisna_entity_extractor,
-        )
+        # entities → budget re-ask. Range parsing is extraction, so the rule
+        # lives in the extractor.
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        for prompt in (kisna_classifier, kisna_entity_extractor):
-            self.assertIn("ની વચ્ચે", prompt)      # Gujarati "between"
-            self.assertIn("के बीच", prompt)        # Hindi "between"
-            self.assertIn("૧૦,૦૦૦", prompt)        # Gujarati digits example
+        self.assertIn("ની વચ્ચે", kisna_entity_extractor)   # Gujarati "between"
+        self.assertIn("के बीच", kisna_entity_extractor)     # Hindi "between"
+        self.assertIn("૧૦,૦૦૦", kisna_entity_extractor)     # Gujarati digits
         # The exact failing query is a worked example in the extractor.
         self.assertIn("કાનની બુટ્ટી", kisna_entity_extractor)
 
@@ -976,11 +992,11 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         self.assertIn("[Product: Selvi Ring]", body)
         self.assertIn("[Button: See Collection]", body)
 
-    def test_prompts_teach_entity_source_law(self):
-        # Both prompts forbid copying entities from context/history.
+    def test_extractor_teaches_entity_source_law(self):
+        # The extractor forbids copying entities from context/history. The
+        # classifier no longer needs the rule because it no longer extracts.
         from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        self.assertIn("ENTITY SOURCE LAW", kisna_classifier)
         self.assertIn("ENTITY SOURCE LAW", kisna_entity_extractor)
 
     def test_repair_intent_acknowledges_and_clarifies(self):

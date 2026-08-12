@@ -2072,11 +2072,23 @@ class ProductSearchAgentV3(Processor):
             # context we pass gets copied under pressure ("stuck on diamond
             # rings" loop). Carry-over of prior filters is handled
             # deterministically by merge_search_entities below.
-            extracted_llm = await extract_entities_with_llm(
-                user_query=query,
-                client_id=data.get("client_id", "kisna"),
-                phone_number=phone_number,
+            #
+            # The classifier already ran exactly this pass for this message, so
+            # reuse it rather than paying for a second identical call. The stash
+            # is keyed to the message: a miss (absent, malformed, or keyed to a
+            # different message) falls through and extracts normally, because a
+            # stale hit would reintroduce the context bleed we removed.
+            from kisna_chatbot.processors.classifier import (
+                read_context_free_entities,
             )
+
+            extracted_llm = read_context_free_entities(data, query)
+            if extracted_llm is None:
+                extracted_llm = await extract_entities_with_llm(
+                    user_query=query,
+                    client_id=data.get("client_id", "kisna"),
+                    phone_number=phone_number,
+                )
             if extracted_llm:
                 # SINGLE SOURCE OF TRUTH for search filters: when the
                 # context-free pass runs, ALL semantic entities (category,

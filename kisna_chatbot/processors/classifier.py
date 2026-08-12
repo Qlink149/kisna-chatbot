@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 from typing import Any
@@ -31,7 +32,7 @@ from kisna_chatbot.processors.shopping_wizard import (
     is_fulfillment_slot_answer,
 )
 from kisna_chatbot.processors.support_handler import build_expert_support_bot_response
-from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
+from kisna_chatbot.prompts.classifier_kisna import kisna_classifier_intent
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.reply_composer import sanitize_classifier_language
@@ -45,7 +46,7 @@ from kisna_chatbot.utils.session_state import (
 
 india_tz = ZoneInfo("Asia/Kolkata")
 
-CONTEXT = kisna_classifier
+CONTEXT = kisna_classifier_intent
 
 CLARIFICATION_CONFIDENCE_THRESHOLD = 0.45
 PRODUCT_SEARCH_SESSION_EXPIRY_SECONDS = 2 * 60 * 60
@@ -921,6 +922,74 @@ def _sanitize_llm_entities(entities: dict) -> dict:
     out["product_reference"] = ref
 
     return out
+
+
+# ── Context-free extraction stash ──────────────────────────────────────────
+#
+# The classifier runs one context-free entity extraction per turn (see the
+# canonical extraction in process()). The search agent needs exactly the same
+# thing, so it reads this instead of extracting a second time — otherwise a
+# search turn costs three LLM calls: classifier + extractor + extractor.
+#
+# Keyed to the CURRENT message. A stash whose key does not match the message
+# being searched is IGNORED, not used: a miss costs one extra call, whereas a
+# stale hit would be a context-bleed bug of exactly the kind this whole
+# refactor removes. Fails open in every failure mode.
+_ENTITY_STASH_KEY = "_context_free_entities"
+
+# Intents whose turn can end in a catalogue search, and therefore need entities.
+# Everything else (store_info, order_tracking, returns_refund, complaint,
+# callback, video_call, gold_rate, repair) needs none, and skipping the call
+# there is where the saving comes from.
+_ENTITY_EXTRACTION_INTENTS = frozenset(
+    {
+        "product_search",
+        "product_info",
+        "compare",
+        "general",
+        "menu_help",
+        "greeting",
+    }
+)
+
+# Fields that make an extraction pass unnecessary — a search filter is already
+# present for this message.
+_SEARCH_ENTITY_FIELDS = (
+    "category",
+    "material_type",
+    "min_price",
+    "max_price",
+    "collection",
+    "title",
+)
+
+
+def _has_search_entities(entities: dict | None) -> bool:
+    return any((entities or {}).get(field) is not None for field in _SEARCH_ENTITY_FIELDS)
+
+
+def _message_key(message: str | None) -> str:
+    return hashlib.sha256((message or "").strip().encode("utf-8")).hexdigest()
+
+
+def stash_context_free_entities(
+    data: dict, message: str | None, entities: dict | None
+) -> None:
+    data[_ENTITY_STASH_KEY] = {
+        "message_key": _message_key(message),
+        "entities": dict(entities or {}),
+    }
+
+
+def read_context_free_entities(data: dict, message: str | None) -> dict | None:
+    """The extraction for THIS message, or None to extract normally."""
+    stash = data.get(_ENTITY_STASH_KEY)
+    if not isinstance(stash, dict):
+        return None
+    if stash.get("message_key") != _message_key(message):
+        return None
+    entities = stash.get("entities")
+    return dict(entities) if isinstance(entities, dict) else None
 
 
 def _store_llm_entities(data: dict, user_profile: dict, entities: dict) -> None:
@@ -2503,52 +2572,50 @@ class Classifier(Processor):
                     parsed.get("entities") or {}
                 )
 
-                # Second-chance extraction: on native script the classifier's
-                # combined task (intent + entities + language) often drops the
-                # category/price even when it nails the intent. Two failure modes:
-                #  - soft 'general'/'product_info' with no category -> handed to
-                #    GeneralAgent, only acknowledged (never searched)
-                #  - 'product_search' with NO category AND NO price -> the search
-                #    agent asks for a budget the user ALREADY gave ("વીંટી ૧૦ લાખ").
-                # The dedicated entity extractor (a focused prompt) is far more
-                # reliable on Devanagari/Gujarati, so give it one focused pass.
-                _missing_cat = not sanitized_entities.get("category")
-                _missing_price = (
-                    sanitized_entities.get("min_price") is None
-                    and sanitized_entities.get("max_price") is None
-                )
-                _empty_product_search = (
-                    intent == "product_search" and _missing_cat and _missing_price
-                )
-                if (
-                    _missing_cat
-                    and intent in ("general", "product_info", "menu_help")
-                ) or _empty_product_search:
+                # CANONICAL ENTITY EXTRACTION for this turn.
+                #
+                # The classifier prompt no longer extracts search filters — it
+                # returns intent, confidence, language and the two routing
+                # fields only. This focused, context-free pass is therefore the
+                # single place search filters come from, and its result is
+                # stashed for the search agent to reuse, so a search turn stays
+                # at two LLM calls (classifier + extractor) rather than three.
+                #
+                # It runs only for intents that can lead to a catalogue search.
+                # The "already has entities" guard is NOT vestigial: it skips
+                # the call when the response already carried filters — the regex
+                # entities a sticky escape stores, and mocked/legacy classifier
+                # responses — which is also what stops a price-only refinement
+                # being disturbed by a re-read.
+                if intent in _ENTITY_EXTRACTION_INTENTS and not _has_search_entities(
+                    sanitized_entities
+                ):
                     try:
                         from kisna_chatbot.processors.entity_extractor import (
                             extract_entities_with_llm,
                         )
 
-                        second = await extract_entities_with_llm(
+                        extracted = await extract_entities_with_llm(
                             user_query=raw_query,
                             client_id=client_id,
                             phone_number=phone_number,
                         )
-                        if second and second.get("category"):
-                            for key, val in second.items():
+                        if extracted:
+                            for key, val in extracted.items():
                                 if val is not None and not sanitized_entities.get(key):
                                     sanitized_entities[key] = val
+                            stash_context_free_entities(data, raw_query, extracted)
                             logger.info(
-                                "Second-chance extraction rescued a product query",
+                                "Canonical entity extraction complete",
                                 extra={
                                     "phone_number": phone_number,
-                                    "category": second.get("category"),
+                                    "category": extracted.get("category"),
                                     "llm_intent": intent,
                                 },
                             )
                     except Exception:
                         logger.warning(
-                            "second-chance entity extraction failed",
+                            "canonical entity extraction failed — regex fallback",
                             exc_info=True,
                         )
 

@@ -30,7 +30,9 @@ from kisna_chatbot.processors.classifier import (
     _sticky_wait_escape_intent,
     classify_query_for_audit,
 )
-from kisna_chatbot.prompts.classifier_kisna import kisna_classifier
+from kisna_chatbot.prompts.classifier_kisna import (
+    kisna_classifier_intent as kisna_classifier,
+)
 
 STORE_QUERIES = (
     "do you have a store in Mumbai",
