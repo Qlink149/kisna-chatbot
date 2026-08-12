@@ -1096,9 +1096,29 @@ def _extract_around_price(text: str) -> tuple[float | None, float | None]:
     return None, None
 
 
-# Single source of truth for the single-price variance. The LLM never computes
-# bands (it emits min == max == stated amount); only this code widens them.
-_SINGLE_PRICE_BAND_FACTOR = 0.05  # ±5%
+# The price buckets offered on kisna.com. A single stated amount is widened to
+# the bucket that contains it, so chat results line up with what the same filter
+# returns on the website. The LLM never computes bands (it emits
+# min == max == stated amount); only this code widens them.
+_LAKH = 100000.0
+
+PRICE_BANDS: tuple[tuple[float, float], ...] = (
+    (0.0, 10000.0),
+    (10000.0, 20000.0),
+    (20000.0, 30000.0),
+    (30000.0, 40000.0),
+    (40000.0, 50000.0),
+    (50000.0, 60000.0),
+    (60000.0, 70000.0),
+    (70000.0, 80000.0),
+    (80000.0, 100000.0),
+    (100000.0, 150000.0),
+    (150000.0, 200000.0),
+)
+
+# At and beyond this the site stops bracketing and offers "Above 2L", "Above
+# 3L", … — an open-ended minimum floored to the whole lakh.
+_OPEN_BAND_FLOOR = 200000.0
 
 # Explicit-range markers (English, Hinglish, Devanagari). A price pair WITHOUT
 # one of these came from a single stated amount, not a user-given range.
@@ -1107,17 +1127,21 @@ _RANGE_INDICATOR_RE = re.compile(
 )
 
 
-def _snap_single_price_to_band(price: float) -> tuple[float, float]:
-    """Symmetric ±5% band around a single price.
+def _snap_single_price_to_band(price: float) -> tuple[float, float | None]:
+    """Widen a single stated price to the website's price bucket.
 
-    One delta mirrored both sides (rounded half-up to nearest 50) so the band
-    is always exactly symmetric: 25000 → (23750, 26250), 50000 → (47500,
-    52500) — never lopsided like the old (23800, 26200).
+    An amount sitting exactly on an edge belongs to the bucket that starts
+    there: 20000 → (20000, 30000), 50000 → (50000, 60000). From 2 lakh up the
+    site stops bracketing, so 2.5 lakh reads as "above 2 lakh" — a floored
+    minimum with no ceiling.
     """
-    delta = float(int(price * _SINGLE_PRICE_BAND_FACTOR / 50 + 0.5) * 50)
-    lo = max(price - delta, 0.0)
-    hi = price + delta
-    return lo, hi
+    amount = max(float(price), 0.0)
+    if amount >= _OPEN_BAND_FLOOR:
+        return float(int(amount / _LAKH) * _LAKH), None
+    for low, high in PRICE_BANDS:
+        if amount < high:
+            return low, high
+    return PRICE_BANDS[-1]
 
 
 def _extract_single_target_listed_price(text: str) -> tuple[float | None, float | None]:

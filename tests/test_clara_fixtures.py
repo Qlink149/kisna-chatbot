@@ -257,11 +257,11 @@ class ClaraFixtureTests(unittest.TestCase):
         note = _fallback_prefix_note("budget", [], {"max_price": 10000.0}, {})
         self.assertIn("No pieces found under ₹10,000", note)
 
-    def test_fallback_budget_note_band_says_around(self):
+    def test_fallback_budget_note_band_names_the_range(self):
         note = _fallback_prefix_note(
-            "budget", [], {"min_price": 45000, "max_price": 55000}, {}
+            "budget", [], {"min_price": 40000, "max_price": 50000}, {}
         )
-        self.assertIn("around ₹50,000", note)
+        self.assertIn("₹40,000–₹50,000", note)
         self.assertNotIn("under ₹", note)
 
     def test_pendant_set_maps_to_category_not_title(self):

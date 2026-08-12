@@ -795,14 +795,14 @@ def _entities_from_preferences(user_profile: dict) -> dict:
     return entities
 
 
-def _snap_single_price_to_band(price: float) -> tuple[int, int]:
-    """Delegates to the single source of truth in entity_extractor (±5%)."""
+def _snap_single_price_to_band(price: float) -> tuple[int, int | None]:
+    """Delegates to the single source of truth in entity_extractor."""
     from kisna_chatbot.processors.entity_extractor import (
         _snap_single_price_to_band as _snap,
     )
 
     lo, hi = _snap(price)
-    return int(lo), int(hi)
+    return int(lo), (int(hi) if hi is not None else None)
 
 
 def _parse_custom_budget_text(text: str) -> tuple[int | None, int | None]:
@@ -1226,10 +1226,8 @@ def _fallback_prefix_note(
         min_p = original_entities.get("min_price")
         max_p = original_entities.get("max_price")
         if min_p is not None and max_p is not None and float(min_p) > 0:
-            mid = int(round((float(min_p) + float(max_p)) / 2))
             return (
-                f"No pieces found around ₹{mid:,} "
-                f"(₹{int(min_p):,}–₹{int(max_p):,}) right now — "
+                f"No pieces found in ₹{int(min_p):,}–₹{int(max_p):,} right now — "
                 f"here are our closest picks ✨"
             )
         if max_p is not None:
