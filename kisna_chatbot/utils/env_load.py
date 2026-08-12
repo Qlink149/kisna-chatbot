@@ -116,9 +116,11 @@ kisna_vtiger_token = _getenv("KISNA_VTIGER_TOKEN")
 nkl_vtiger_base = _getenv("NKL_VTIGER_BASE")
 nkl_vtiger_token = _getenv("NKL_VTIGER_TOKEN")
 
-ai_provider = _getenv("AI_PROVIDER", "groq")
+# Defaults mirror kisna_chatbot.ai.config: OpenAI for every agent, matching
+# production. Groq is opt-in / fallback only.
+ai_provider = _getenv("AI_PROVIDER", "openai")
 ai_provider_classifier = _getenv("AI_PROVIDER_CLASSIFIER")
-ai_provider_general = _getenv("AI_PROVIDER_GENERAL", "groq")
+ai_provider_general = _getenv("AI_PROVIDER_GENERAL")
 groq_api_key = _getenv("GROQ_API_KEY")
 
 is_production = _getenv("ENV_MODE", "dev").lower() == "prod"

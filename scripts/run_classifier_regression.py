@@ -47,9 +47,16 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / ".env", override=False)
 
-# Production classifier model is OpenAI gpt-4o-mini; Groq is fallback only.
-os.environ["AI_PROVIDER_CLASSIFIER"] = "openai"
-os.environ.setdefault("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+# PINNED, not inherited: results must be comparable across stages and across
+# machines regardless of what the local .env says. Production runs OpenAI
+# gpt-4o-mini for the classifier; Groq is fallback only (and 413s on the
+# current prompt, so it could not produce a comparable run anyway).
+REGRESSION_PROVIDER = "openai"
+REGRESSION_MODEL = "gpt-4o-mini"
+os.environ["AI_PROVIDER"] = REGRESSION_PROVIDER
+os.environ["AI_PROVIDER_CLASSIFIER"] = REGRESSION_PROVIDER
+os.environ["AI_PROVIDER_GENERAL"] = REGRESSION_PROVIDER
+os.environ["OPENAI_CHAT_MODEL"] = REGRESSION_MODEL
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt")
@@ -264,7 +271,7 @@ class Caller:
         self.client = AsyncOpenAI(
             api_key=os.environ["OPENAI_API_KEY"], timeout=180.0
         )
-        self.model = os.environ.get("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+        self.model = REGRESSION_MODEL
         self.calls = 0
         self.prompt_tokens = 0
         self.completion_tokens = 0

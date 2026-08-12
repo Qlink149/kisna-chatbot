@@ -28,9 +28,13 @@ def _parse_provider(value: str) -> ProviderName:
 @lru_cache(maxsize=1)
 def get_ai_settings() -> dict:
     """Load AI settings from environment (cached until process restart)."""
-    default_provider = _parse_provider(_env("AI_PROVIDER", "groq"))
+    # OpenAI is the default for EVERY agent. Production runs gpt-4o-mini; a
+    # shared default pointing at the fallback provider is how dev silently
+    # diverged from production (and produced a false Groq 413 diagnosis).
+    # Groq stays available, but only when explicitly selected or as fallback.
+    default_provider = _parse_provider(_env("AI_PROVIDER", "openai"))
     classifier_override = _env("AI_PROVIDER_CLASSIFIER")
-    general_override = _env("AI_PROVIDER_GENERAL", "groq")
+    general_override = _env("AI_PROVIDER_GENERAL")
     groq_api_keys = parse_groq_api_keys()
 
     return {
@@ -38,7 +42,9 @@ def get_ai_settings() -> dict:
         "classifier_provider": _parse_provider(classifier_override)
         if classifier_override
         else default_provider,
-        "general_provider": _parse_provider(general_override),
+        "general_provider": _parse_provider(general_override)
+        if general_override
+        else default_provider,
         "fallback_enabled": _env("AI_FALLBACK_ENABLED", "false").lower()
         in ("1", "true", "yes"),
         "fallback_provider": _parse_provider(
