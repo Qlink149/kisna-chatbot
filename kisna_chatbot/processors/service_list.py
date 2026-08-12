@@ -450,6 +450,8 @@ def _clear_explore_browse_session(user_profile: dict) -> None:
     user_profile.pop("awaiting_custom_budget", None)
     user_profile.pop("custom_budget_attempts", None)
     user_profile.pop("pending_explore_search", None)
+    user_profile.pop("pending_search", None)
+    user_profile.pop("awaiting_search_correction", None)
     # FIX 12: reset Show-More exhaustion counters so stale values don't
     # cause incorrect exhaustion on the very first Show More after a fresh browse.
     user_profile["last_search_filter_ratio"] = 1.0

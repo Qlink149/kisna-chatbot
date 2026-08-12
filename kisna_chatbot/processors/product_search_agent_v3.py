@@ -44,6 +44,21 @@ from kisna_chatbot.utils.jewellery_profile import (
     entities_to_jewellery_profile,
     merge_jewellery_profile,
 )
+from kisna_chatbot.processors.search_confirmation import (
+    build_confirm_prompt,
+    build_correction_prompt,
+    build_search_recap,
+    clear_confirm_state,
+    get_pending_search,
+    has_pending_search,
+    is_awaiting_correction,
+    is_confirm_enabled,
+    parse_confirm_reply,
+    pop_pending_search,
+    set_pending_search,
+    should_confirm,
+    AWAITING_CORRECTION_KEY,
+)
 from kisna_chatbot.processors.shopping_wizard import (
     ANY_SLOT,
     WIZARD_CARRYOVER_KEYS as _WIZARD_CARRYOVER_KEYS,
@@ -1590,6 +1605,9 @@ class ProductSearchAgentV3(Processor):
             return True
         if is_wizard_active(user_profile):
             return True
+        # A pending recap owns the next turn ("yes" / "no" / the correction).
+        if has_pending_search(user_profile):
+            return True
         if _product_button_msgid(messages):
             return True
         if _search_button_msgid(messages):
@@ -1650,6 +1668,10 @@ class ProductSearchAgentV3(Processor):
 
         # --- FIX 3: Enforce 2-hour session expiry ---
         _clear_session_if_expired(user_profile)
+
+        confirmed = await self._handle_search_confirmation(data, phone_number)
+        if confirmed is not None:
+            return confirmed
 
         # Guided shopping wizard (smart-skip funnel)
         # Typed title of a currently shown product wins over wizard restart.
@@ -1778,11 +1800,13 @@ class ProductSearchAgentV3(Processor):
                 if not _clara_configured():
                     data["bot_response"] = _build_catalog_not_configured_response()
                     return data
+                # Explicit tap on already-confirmed filters — no re-ask.
                 return await self._execute_search(
                     data,
                     phone_number,
                     entities,
                     query_label="browse_more",
+                    confirm=False,
                 )
 
             if product_msgid == "product$similar":
@@ -1803,6 +1827,7 @@ class ProductSearchAgentV3(Processor):
                     entities,
                     query_label=f"similar:{label}",
                     exclude_product_id=exclude_id or None,
+                    confirm=False,
                 )
 
         material_msgid = _material_button_msgid(messages)
@@ -1889,6 +1914,7 @@ class ProductSearchAgentV3(Processor):
                 phone_number,
                 entities,
                 query_label=f"similar:{label}",
+                confirm=False,
             )
 
         # Reference pick ("the second one", "बीच वाला") — the LLM resolved it to
@@ -2357,6 +2383,68 @@ class ProductSearchAgentV3(Processor):
         data["bot_response"] = responses or [build_vague_slot_fill_response()]
         return data
 
+    async def _handle_search_confirmation(
+        self, data: dict, phone_number: str
+    ) -> dict | None:
+        """Resolve a pending recap. Returns None when the turn is not an answer."""
+        user_profile = data.get("user_profile", {})
+        pending = get_pending_search(user_profile)
+        if not pending:
+            return None
+
+        messages = data.get("messages", {})
+        text = _extract_search_query(messages)
+        answer = parse_confirm_reply(messages, text)
+
+        if answer == "yes":
+            pop_pending_search(user_profile)
+            entities = {**_empty_entities(), **(pending.get("entities") or {})}
+            logger.info(
+                "Search confirmation accepted",
+                extra={
+                    "phone_number": phone_number,
+                    "query": pending.get("query_label"),
+                },
+            )
+            return await self._execute_search(
+                data,
+                phone_number,
+                entities,
+                query_label=pending.get("query_label") or "confirmed",
+                occasion_prefix=pending.get("occasion_prefix"),
+                response_mode=pending.get("response_mode"),
+                exclude_product_id=pending.get("exclude_product_id"),
+                confirm=False,
+            )
+
+        if answer == "no":
+            user_profile[AWAITING_CORRECTION_KEY] = True
+            logger.info(
+                "Search confirmation rejected",
+                extra={
+                    "phone_number": phone_number,
+                    "query": pending.get("query_label"),
+                },
+            )
+            data["bot_response"] = [build_correction_prompt()]
+            return data
+
+        if not is_awaiting_correction(user_profile):
+            # Not an answer at all — a fresh request. Drop the recap and let
+            # normal routing handle the new message.
+            clear_confirm_state(user_profile)
+            return None
+
+        if not text:
+            return None
+
+        # The correction is merged against what we just read back, so untouched
+        # slots survive and the normal pipeline re-asks for confirmation.
+        user_profile["last_search_filters"] = dict(pending.get("entities") or {})
+        clear_confirm_state(user_profile)
+        user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        return None
+
     async def _complete_shopping_wizard(
         self, data: dict, phone_number: str
     ) -> dict:
@@ -2795,9 +2883,40 @@ class ProductSearchAgentV3(Processor):
         exclude_product_id: str | None = None,
         occasion_prefix: str | None = None,
         response_mode: str | None = None,
+        confirm: bool = True,
     ) -> dict:
         user_profile = data.get("user_profile", {})
         entities = finalize_search_entities(entities)
+
+        # Read the filters back before spending them on an API call — an
+        # inherited material/gender/budget is only wrong if the user can't see it.
+        if confirm and is_confirm_enabled() and should_confirm(entities):
+            set_pending_search(
+                user_profile,
+                entities,
+                query_label=query_label,
+                occasion_prefix=occasion_prefix,
+                response_mode=response_mode,
+                exclude_product_id=exclude_product_id,
+            )
+            recap = build_search_recap(entities)
+            try:
+                from kisna_chatbot.utils.message_trace import trace_step
+
+                trace_step(data, "Confirmation asked", recap)
+            except Exception:
+                pass
+            logger.info(
+                "Search confirmation asked",
+                extra={
+                    "phone_number": phone_number,
+                    "query": query_label,
+                    "recap": recap,
+                },
+            )
+            data["bot_response"] = [build_confirm_prompt(entities)]
+            return data
+
         last_filters = user_profile.get("last_search_filters") or {}
         if not _entities_equal(entities, last_filters):
             user_profile["shown_product_ids"] = []
