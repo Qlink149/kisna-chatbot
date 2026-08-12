@@ -113,5 +113,74 @@ class WizardMaterialRestateTests(unittest.TestCase):
         self.assertEqual(profile["shopping_wizard_data"]["material_type"], "gold")
 
 
+class WizardBudgetGenderRestateTests(unittest.TestCase):
+    def _fulfillment_profile(self, **extra):
+        profile = {}
+        entities = {
+            "category": "ring",
+            "gender": "women",
+            "material_type": "diamond",
+            "min_price": 15000,
+            "max_price": 30000,
+        }
+        entities.update(extra)
+        start_wizard(profile, entities=entities)
+        self.assertEqual(profile["shopping_wizard_step"], "fulfillment")
+        return profile
+
+    def test_under_40k_overwrites_budget_at_fulfillment(self):
+        profile = self._fulfillment_profile()
+        status, _ = advance_wizard(profile, {}, text="under 40k")
+        self.assertEqual(status, "prompt")
+        self.assertEqual(profile["shopping_wizard_step"], "fulfillment")
+        self.assertIsNone(profile["shopping_wizard_data"].get("min_price"))
+        self.assertEqual(profile["shopping_wizard_data"]["max_price"], 40000)
+
+    def test_for_him_overwrites_gender_at_fulfillment(self):
+        profile = self._fulfillment_profile()
+        status, _ = advance_wizard(profile, {}, text="for him")
+        self.assertEqual(status, "prompt")
+        self.assertEqual(profile["shopping_wizard_data"]["gender"], "men")
+        self.assertEqual(profile["shopping_wizard_step"], "fulfillment")
+        self.assertEqual(profile["shopping_wizard_data"]["material_type"], "diamond")
+
+    def test_gold_under_40k_combined_mid_wizard(self):
+        profile = self._fulfillment_profile()
+        status, _ = advance_wizard(profile, {}, text="gold under 40k")
+        self.assertEqual(status, "prompt")
+        data = profile["shopping_wizard_data"]
+        self.assertEqual(data["material_type"], "gold")
+        self.assertIsNone(data.get("min_price"))
+        self.assertEqual(data["max_price"], 40000)
+        self.assertEqual(data["gender"], "women")
+        self.assertEqual(profile["shopping_wizard_step"], "fulfillment")
+
+
+class CombinedMergeTests(unittest.TestCase):
+    def test_gold_under_40k_for_him_keeps_category(self):
+        prior = {
+            "category": "ring",
+            "material_type": "diamond",
+            "gender": "women",
+            "min_price": 15000,
+            "max_price": 30000,
+        }
+        new = {
+            "category": None,
+            "material_type": "gold",
+            "gender": "men",
+            "min_price": None,
+            "max_price": 40000,
+            "title": None,
+            "fulfillment": None,
+        }
+        merged = merge_search_entities(prior, new, "gold under 40k for him")
+        self.assertEqual(merged["category"], "ring")
+        self.assertEqual(merged["material_type"], "gold")
+        self.assertEqual(merged["gender"], "men")
+        self.assertIsNone(merged["min_price"])
+        self.assertEqual(merged["max_price"], 40000)
+
+
 if __name__ == "__main__":
     unittest.main()

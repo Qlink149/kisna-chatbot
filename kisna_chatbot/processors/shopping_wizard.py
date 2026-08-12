@@ -251,6 +251,25 @@ def _looks_like_pincode(digits: str, text: str | None) -> bool:
     return digits == re.sub(r"[^\d]", "", normalized)
 
 
+def _budget_restated_in_text(
+    text: str | None, llm_entities: dict | None
+) -> bool:
+    """True when THIS message names a budget / price band."""
+    llm = llm_entities or {}
+    if llm.get("min_price") is not None or llm.get("max_price") is not None:
+        return True
+    from kisna_chatbot.processors.entity_extractor import (
+        _extract_prices,
+        extract_entities,
+    )
+
+    ents = extract_entities(text or "")
+    if ents.get("min_price") is not None or ents.get("max_price") is not None:
+        return True
+    min_p, max_p = _extract_prices(text or "")
+    return min_p is not None or max_p is not None
+
+
 def _slot_restated_in_text(
     slot: str, value: str, text: str | None, llm_entities: dict | None
 ) -> bool:
@@ -877,8 +896,17 @@ def advance_wizard(
                     collected[k] = v
                 elif not collected.get(k):
                     collected[k] = v
+            elif k in ("min_price", "max_price"):
+                # Budget is a pair — handled below when restated.
+                continue
             elif not collected.get(k):
                 collected[k] = v
+        # Replace the whole budget when the user restates it mid-funnel
+        # ("under 40k" at fulfillment). Empty-only fill left 15–30k stuck.
+        if _budget_restated_in_text(text, llm_entities):
+            collected["min_price"] = ents.get("min_price")
+            collected["max_price"] = ents.get("max_price")
+            collected.pop("budget", None)
         if value is None and collected == before and step:
             # Nothing parsed — re-ask
             user_profile["shopping_wizard_step"] = step
