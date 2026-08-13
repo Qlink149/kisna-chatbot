@@ -414,6 +414,35 @@ def test_save_to_mongo_drops_falsy_live_agent_flags():
     assert "live_agent_required" not in captured["set"]
 
 
+def test_save_to_mongo_unsets_popped_session_keys():
+    """Greeting pops last_search_at; $set-only used to leave the stale Mongo value."""
+    from unittest.mock import MagicMock, patch
+
+    from kisna_chatbot.database import db_utils
+
+    captured = {}
+
+    def _capture(_filter, update, **kwargs):
+        captured["update"] = update
+        return {}
+
+    with patch.object(db_utils.users, "find_one_and_update", side_effect=_capture), \
+         patch.object(db_utils, "dual_write_chat_entries", MagicMock()):
+        db_utils.save_to_mongo(
+            {
+                "phone_number": "919999999999",
+                "client_id": "kisna",
+                "messages": {"type": "text", "text": {"body": "Hey"}},
+                "bot_response": [{"type": "text", "text": "hi"}],
+                "user_profile": {"chat_history": []},
+            }
+        )
+    unset = captured["update"].get("$unset") or {}
+    assert "last_search_at" in unset
+    assert "pending_search" in unset
+    assert "last_search_at" not in captured["update"]["$set"]
+
+
 def test_save_to_mongo_still_persists_a_raised_flag():
     from unittest.mock import MagicMock, patch
 

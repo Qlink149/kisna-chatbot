@@ -14,6 +14,7 @@ from kisna_chatbot.database.collections import (
 )
 from kisna_chatbot.utils.format_chathistory import format_chat_history, trim_chat_history
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.session_state import mongo_unset_for_missing_session_keys
 
 MAX_CHAT_HISTORY = int(os.getenv("CHAT_HISTORY_MAX_LENGTH", "50"))
 
@@ -185,9 +186,14 @@ def save_to_mongo(data: dict) -> dict | None:
             if not user_profile_data.get(owned_key):
                 user_profile_data.pop(owned_key, None)
 
+        update = {"$set": user_profile_data}
+        unset_fields = mongo_unset_for_missing_session_keys(user_profile_data)
+        if unset_fields:
+            update["$unset"] = unset_fields
+
         response = users.find_one_and_update(
             _user_filter(phone_number, client_id),
-            {"$set": user_profile_data},
+            update,
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )

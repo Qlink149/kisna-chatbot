@@ -117,6 +117,17 @@ class FreshStartResetTests(unittest.TestCase):
         self.assertIsNone(merged.get("category"))
         self.assertEqual(merged.get("max_price"), 20000)
 
+    def test_greeting_clears_pending_search_recap(self):
+        profile = {
+            "pending_search": {"query_label": "wizard:ring:gold:ready", "entities": {}},
+            "awaiting_search_correction": True,
+            "last_search_at": 1786537615,
+        }
+        reset_session_on_fresh_start(profile)
+        self.assertNotIn("pending_search", profile)
+        self.assertNotIn("awaiting_search_correction", profile)
+        self.assertNotIn("last_search_at", profile)
+
 
 class StickyWaitEscapeTests(unittest.TestCase):
     def test_wizard_offers_escape(self):

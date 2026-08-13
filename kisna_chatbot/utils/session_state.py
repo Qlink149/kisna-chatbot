@@ -37,10 +37,23 @@ _TRANSIENT_KEYS = (
 _SEARCH_CONTEXT_KEYS = (
     "last_search_filters",
     "last_search_products",
+    "last_search_buffer",
+    "last_search_page",
+    "last_search_total",
+    "last_search_api_total",
+    "last_search_filter_ratio",
     "last_viewed_product",
     "shown_product_ids",
     "last_search_at",
+    # Recap must die with the search session. Greeting used to leave
+    # pending_search in Mongo, so Yes/No after "Hey" still owned the next tap.
+    "pending_search",
+    "awaiting_search_correction",
 )
+
+# Keys that processors pop() in memory. save_to_mongo is $set-only, so a pop
+# otherwise leaves the old Mongo value (stale last_search_at after greeting).
+_MONGO_UNSET_IF_MISSING = _TRANSIENT_KEYS + _SEARCH_CONTEXT_KEYS
 
 _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
     "product_search": (
@@ -55,6 +68,8 @@ _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
         "shopping_wizard_active",
         "shopping_wizard_step",
         "shopping_wizard_data",
+        "pending_search",
+        "awaiting_search_correction",
     ),
     "ad_flow": ("awaiting_store_pincode", "store_pincode_attempts"),
     "complaint": ("pending_clarification",),
@@ -111,6 +126,13 @@ def maybe_expire_session(user_profile: dict) -> None:
     _expire_session_now(user_profile)
 
 
+def mongo_unset_for_missing_session_keys(user_profile: dict) -> dict:
+    """Mongo `$unset` map for session keys popped from the in-memory profile."""
+    if not isinstance(user_profile, dict):
+        return {}
+    return {key: "" for key in _MONGO_UNSET_IF_MISSING if key not in user_profile}
+
+
 def reset_session_on_fresh_start(user_profile: dict) -> None:
     """Greeting / menu = fresh start: wipe waits and prior search context."""
     reset_transient_state(user_profile)
@@ -126,6 +148,8 @@ _STICKY_WAIT_KEYS = (
     "store_pincode_attempts",
     "awaiting_custom_budget",
     "custom_budget_attempts",
+    "pending_search",
+    "awaiting_search_correction",
 )
 
 

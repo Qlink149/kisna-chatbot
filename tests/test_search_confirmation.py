@@ -137,13 +137,14 @@ class ParseConfirmReplyTests(unittest.TestCase):
         self.assertEqual(parse_confirm_reply(_button_message("No, change it")), "no")
 
     def test_typed_answers(self):
-        for text in ("yes", "haan", "ok", "sahi hai", "Yes!"):
+        for text in ("yes", "haan", "ok", "sahi hai", "Yes!", "Yes, show me", "okay show me"):
             self.assertEqual(parse_confirm_reply({}, text), "yes", text)
-        for text in ("no", "nahi", "galat", "change"):
+        for text in ("no", "nahi", "galat", "change", "No, change it"):
             self.assertEqual(parse_confirm_reply({}, text), "no", text)
 
     def test_new_query_is_not_an_answer(self):
         self.assertIsNone(parse_confirm_reply({}, "show me gold necklaces"))
+        self.assertIsNone(parse_confirm_reply({}, "yes I want gold rings"))
 
 
 class ConfirmFlowTests(ConfirmEnabledMixin, unittest.TestCase):
@@ -217,6 +218,34 @@ class ConfirmFlowTests(ConfirmEnabledMixin, unittest.TestCase):
         search_mock.assert_awaited()
         params = search_mock.await_args_list[0].kwargs or {}
         self.assertEqual(params.get("materialType") or params.get("material_type"), "diamond")
+        self.assertFalse(has_pending_search(profile))
+        self.assertNotEqual(result["bot_response"][0].get("msgid"), CONFIRM_MSGID)
+
+    def test_typed_yes_show_me_runs_the_pending_search(self):
+        """Live: Yogansh typed 'Yes, show me' and the wizard restarted."""
+        profile = {
+            "service_selected": SL.PRODUCT_SEARCH.value,
+            "pending_search": {
+                "entities": {"category": "ring", "material_type": "gold"},
+                "query_label": "typed-yes",
+                "occasion_prefix": None,
+                "response_mode": None,
+                "exclude_product_id": None,
+            },
+        }
+
+        async def _run():
+            data = self._agent_data(_text_message("Yes, show me"), profile)
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                return_value={"products": _PRODUCTS, "total_count": 1, "page": 1},
+            ) as search_mock:
+                result = await ProductSearchAgentV3().process(data)
+            return result, search_mock
+
+        result, search_mock = asyncio.run(_run())
+        search_mock.assert_awaited()
         self.assertFalse(has_pending_search(profile))
         self.assertNotEqual(result["bot_response"][0].get("msgid"), CONFIRM_MSGID)
 

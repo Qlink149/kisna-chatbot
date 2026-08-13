@@ -23,16 +23,25 @@ _YES_TITLES = frozenset({"yes, show me", "yes", "yeah", "correct"})
 _NO_TITLES = frozenset({"no, change it", "no", "change"})
 
 _YES_TEXT_RE = re.compile(
-    r"^\s*(yes|yeah|yep|yup|ya|yaa|sure|ok|okay|okk|k|correct|right|"
+    r"^\s*(?:"
+    r"(?:yes|yeah|yep|yup|ya|yaa|sure|ok|okay|okk|k|correct|right|"
     r"perfect|sahi|sahi hai|haan|han|haa|ha|hanji|ji|ji haan|thik|"
-    r"theek|theek hai|thik hai|bilkul|go ahead|show me|show|proceed)"
-    r"\s*[!.]*\s*$",
+    r"theek|theek hai|thik hai|bilkul|go ahead)"
+    r"(?:\s*,?\s*(?:show me|show|proceed))?"
+    r"|"
+    r"(?:show me|show|proceed)"
+    r")\s*[!.]*\s*$",
     re.I,
 )
 
 _NO_TEXT_RE = re.compile(
-    r"^\s*(no|nope|nah|na|nahi|nahin|galat|wrong|not correct|incorrect|"
-    r"change|change it|edit)\s*[!.]*\s*$",
+    r"^\s*(?:"
+    r"(?:no|nope|nah|na|nahi|nahin|galat|wrong|not correct|incorrect|"
+    r"change|edit)"
+    r"(?:\s*,?\s*(?:change it|change))?"
+    r"|"
+    r"(?:change it)"
+    r")\s*[!.]*\s*$",
     re.I,
 )
 
