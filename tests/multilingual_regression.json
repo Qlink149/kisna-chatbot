@@ -324,6 +324,29 @@
       "expect_entities": {"category": "ring"}
     },
     {
+      "id": "bd-01",
+      "bucket": "context",
+      "message": "I want to talk to a representative from Kisna",
+      "context": {"active_search": true},
+      "expect_intent": "human_handoff",
+      "expect_entities": {}
+    },
+    {
+      "id": "bd-02",
+      "bucket": "context",
+      "message": "mujhe call karo",
+      "context": {"active_search": true},
+      "expect_intent": "callback",
+      "expect_entities": {}
+    },
+    {
+      "id": "bd-03",
+      "bucket": "context",
+      "message": "मुझे वीडियो कॉल पर ज्वेलरी देखनी है",
+      "expect_intent": "video_call",
+      "expect_entities": {}
+    },
+    {
       "id": "cx-05",
       "bucket": "context",
       "message": "the second one",

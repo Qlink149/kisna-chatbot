@@ -829,6 +829,18 @@ A city name beside a place-word is a LOCATION signal.
 A city name with no place-word is not a product filter either.
 "available in store" about a SHOWN product is product_info (stock).
 
+### LIVE PERSON vs CALLBACK vs VIDEO
+
+All three sit at ≥0.9 and share trigger language, so decide by the CHANNEL asked for:
+- Wants to talk NOW, in this chat → **human_handoff**
+  "connect me with an agent", "talk to a human", "customer care",
+  "I want to talk to a representative"
+- Wants a PHONE call later → **callback**
+  "call me back", "mujhe call karo", "callback chahiye"
+- Wants a VIDEO consultation → **video_call**
+  "video call schedule karo", "video pe dikhao"
+"connect me" alone, with no channel named → human_handoff.
+
 ---
 
 ## NATIVE SCRIPT — CRITICAL (Devanagari, Gujarati, and other Indic scripts)
@@ -962,16 +974,9 @@ Fallback for unclear or spam/gibberish:
 "product damage ho gaya" -> complaint .95
 "galat item deliver hua" -> complaint .92
 "human se baat karo" -> human_handoff .95
-"Connect me with agent" / "Connect me with a human" -> human_handoff .95
-"talk to a human" / "speak to an agent" -> human_handoff .95
-"transfer me to support" -> human_handoff .93
-"I need a real person" -> human_handoff .92
-"customer care" -> human_handoff .92
+"talk to a human" -> human_handoff .95
 "call me back" -> callback .95
-"please call me" -> callback .93
-"mujhe call karo" -> callback .95
 "video call schedule karna hai" -> video_call .95
-(live person -> human_handoff · phone call-back -> callback · video -> video_call)
 "return policy kya hai" -> general .9
 "gold kaise maintain kare" -> general .85
 "mujhe jhumka dikhao" -> product_search .93
