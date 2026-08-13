@@ -27,6 +27,7 @@ def test_extract_multi_category_flags():
     assert entities["secondary_category"] == "earring"
 
 
+@pytest.mark.no_search_recap
 def test_execute_search_no_also_showing_quick_reply():
     """Multi-category search no longer appends quick reply after results."""
     async def _run():

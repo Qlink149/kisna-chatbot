@@ -10,9 +10,20 @@ def disable_kisna_utms_in_tests(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def disable_search_confirmation_in_tests(monkeypatch):
-    """Legacy suites assert products on the first turn; recap tested separately."""
-    monkeypatch.setenv("KISNA_SEARCH_CONFIRM_ENABLED", "false")
+def match_production_search_confirmation(request, monkeypatch):
+    """Run the suite with the PRODUCTION default (audit P2-2).
+
+    This used to force the recap OFF for the whole suite, so every test
+    exercised a configuration no user ever sees — which is how the
+    search-confirmation correction loop reached production untested.
+
+    The recap gates the FIRST turn of a search. Tests of what happens AFTER
+    that gate (Clara call shape, client-side filtering, fallback strategies)
+    opt out explicitly with @pytest.mark.no_search_recap, so the bypass is
+    visible in the test rather than hidden in a global default.
+    """
+    enabled = "false" if request.node.get_closest_marker("no_search_recap") else "true"
+    monkeypatch.setenv("KISNA_SEARCH_CONFIRM_ENABLED", enabled)
 
 
 # ── No live LLM calls in pytest ────────────────────────────────────────────

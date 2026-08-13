@@ -29,6 +29,7 @@ def test_payal_flags_unsupported():
     assert entities["unsupported_category"] is True
 
 
+@pytest.mark.no_search_recap
 def test_search_prepends_unsupported_note():
     async def _run():
         agent = ProductSearchAgentV3()

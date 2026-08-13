@@ -4,6 +4,8 @@ import json
 import os
 import time
 import unittest
+
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # Set minimal env before kisna_chatbot imports (database connects at import time).
@@ -95,7 +97,12 @@ class RoutingTests(unittest.TestCase):
         self.assertIsInstance(pipeline, ReturnsRefundPipeline)
 
 
+@pytest.mark.no_search_recap
 class ProductSearchTests(unittest.TestCase):
+    """Search mechanics behind the confirmation gate: Clara call shape,
+    client-side filtering, and the fallback strategy ladder. The recap itself
+    is covered by tests/test_search_confirmation.py."""
+
     def test_parse_product_list_selection(self):
         list_id = json.dumps(
             {"msgid": "product_select$results", "postbackText": "prod-42"}

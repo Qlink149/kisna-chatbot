@@ -3,6 +3,8 @@
 import asyncio
 import os
 import unittest
+
+import pytest
 from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("ENV_MODE", "dev")
@@ -62,6 +64,7 @@ class ClaraCategoryMappingTests(unittest.TestCase):
             has_clara_search_scope(params, {"category": "bangle_bracelet"})
         )
 
+    @pytest.mark.no_search_recap
     def test_bangle_bracelet_makes_two_clara_calls(self):
         async def _run():
             agent = ProductSearchAgentV3()
