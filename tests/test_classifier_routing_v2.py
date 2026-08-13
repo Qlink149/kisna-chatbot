@@ -522,6 +522,14 @@ class NativeScriptExtractionTests(unittest.TestCase):
         self.assertIn("૧૦,૦૦૦", kisna_entity_extractor)     # Gujarati digits
         # The exact failing query is a worked example in the extractor.
         self.assertIn("કાનની બુટ્ટી", kisna_entity_extractor)
+        # Live: Gujarati વીંટી (ring) was extracted as earring because the only
+        # Gujarati jewellery few-shots were બુટ્ટી. Contrast must live in the prompt.
+        self.assertIn("વીંટી", kisna_entity_extractor)
+        self.assertIn("GUJARATI LOOK-ALIKES", kisna_entity_extractor)
+        self.assertIn(
+            "મારે મારી પત્ની માટે 25 હજાર રૂપિયાની અંદર સોનાની વીંટી",
+            kisna_entity_extractor,
+        )
 
 
 class CategoryDrivenSearchGuardTests(unittest.TestCase):

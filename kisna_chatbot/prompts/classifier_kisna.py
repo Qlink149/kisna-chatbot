@@ -482,6 +482,9 @@ lost.
    Superlatives about shown items ("cheapest", "sabse sasta wala kaun sa") →
    price_direction=null (that is a question, not a refinement).
    A number present → normal min/max extraction, price_direction=null.
+8. GUJARATI LOOK-ALIKES — વીંટી is RING. બુટ્ટી / કાનની બુટ્ટી is EARRING.
+   Same-looking ending, different words. Never map વીંટી to earring.
+   Hindi अंगूठी / Punjabi ਅੰਗੂਠੀ are also ring, never earring.
 
 {
   "category": "ring|earring|necklace|pendant|pendant_set|necklace_set|
@@ -536,7 +539,8 @@ category (REQUIRED when type word in message):
   bichhiya/toe ring/hathphool/kamarband/coin/sikka → category=null
   (not carried — do NOT force a wrong category)
   NATIVE SCRIPT (map identically):
-    अंगूठी/अँगूठी/રિંગ → ring | बाली/झुमका/इयररिंग/बुँदे/બુટ્ટી/કાનની → earring
+    अंगूठी/अँगूठी/વીંટી/ਰਿੰਗ/ਰਿਂગ → ring (વીંટી NEVER earring)
+    बाली/झुमका/इयररिंग/बुँदे/બુટ્ટી/કાનની → earring
     हार/नेकलेस/નેકલેસ → necklace | चेन/ચેન → chain | कंगन/चूड़ी/બંગડી → bangle
     ब्रेसलेट/બ્રેસલેટ → bracelet | मंगलसूत्र/મંગળસૂત્ર → mangalsutra
     पेंडेंट/लॉकेट/લોકેટ → pendant | पायल/પાયલ → anklet | नथ/नोज़ पिन → nose_ring
@@ -812,6 +816,10 @@ NATIVE SCRIPT full examples (extract exactly like the romanized twin):
 "મારે ૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચેની કિંમતની કાનની બુટ્ટી જોઈએ છે" →
 {"category":"earring","min_price":10000,"max_price":30000}
 (native digits + "થી ... ની વચ્ચે" = between → BOTH bounds, never all-null)
+
+"મારે મારી પત્ની માટે 25 હજાર રૂપિયાની અંદર સોનાની વીંટી જોઈએ છે।" →
+{"category":"ring","material_type":"gold","gender":"women","max_price":25000}
+(વીંટી = ring. Same sentence with બુટ્ટી would be earring — do not swap them.)
 
 "१०,००० से ३०,००० के बीच का हार चाहिए" →
 {"category":"necklace","min_price":10000,"max_price":30000}
