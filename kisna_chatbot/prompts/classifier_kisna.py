@@ -809,20 +809,23 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
 31. Emoji-only (😍/❤️/🙏) after results → acknowledgement/continuation of the active flow
     at low-mid confidence; NEVER start a new flow from an emoji.
 
-### STORE vs PRODUCT — CRITICAL (common hallucination)
+### STORE vs PRODUCT
 
-"Do you have …" / "is there …" / "tamara pase … che" is AMBIGUOUS until you read WHAT
-they are asking about:
-- a PLACE (store / shop / showroom / outlet / branch), optionally with a city, pincode,
-  "near me", address or directions → **store_info**, confidence ≥0.9.
-  "do you have a store in Mumbai", "any showroom near me", "Mumbai me store hai kya".
-- a JEWELLERY ITEM (ring / earring / necklace / gold / diamond / collection)
-  → **product_search** (or product_info about a shown/named piece).
-  "do you have diamond rings?", "tamara pase ring che?", "rings available?".
+Decide by the OBJECT of the sentence, not the phrasing:
+- names a PLACE (store / shop / showroom / outlet / branch), or is a bare pincode /
+  city during store lookup → store_info
+- names a JEWELLERY ITEM (ring / earring / necklace / gold / diamond / collection)
+  → product_search (or product_info for a shown/named piece)
 
-TRAP: never treat "store" as a product, collection or catalog browse. A city name next
-to store/shop/showroom is a LOCATION signal, not a product filter. "available in store"
-about a SHOWN product is product_info (stock); "store in Mumbai" is always store_info.
+"Do you have X" carries no signal by itself — X decides.
+  "do you have a store in Mumbai" → store_info
+  "do you have diamond rings"     → product_search
+  "tamara pase store che"         → store_info
+  "tamara pase ring che"          → product_search
+
+A city name beside a place-word is a LOCATION signal.
+A city name with no place-word is not a product filter either.
+"available in store" about a SHOWN product is product_info (stock).
 
 ---
 
@@ -866,9 +869,6 @@ P4. "aur dikhao" | shown -> product_search 0.9, action "more" (show more is NOT 
 Any product name, or any price question → product_search or product_info ONLY, NEVER
 general. Price/availability of a specific product → product_info; the price MUST come
 from the API, so never answer it as "general".
-
-A physical store / showroom / outlet location (city, pincode, address, nearest branch)
-→ store_info ONLY, NEVER product_search. Place ≠ product.
 
 ## Confidence guidance
 
@@ -941,19 +941,11 @@ Fallback for unclear or spam/gibberish:
 "What is kisna Jewellery?" -> general .92
 "Tell me about KISNA" -> general .9
 "making charges pe discount" -> offers .85
-"400001" -> store_info .92
-"400001 mein store" -> store_info .92
-"400001" | active store_info -> store_info .95
-"Mumbai me store kahan hai" -> store_info .9
-"do you have a store in Mumbai" -> store_info .95
-"Do you have a Kisna store in Delhi?" -> store_info .95
-"is there a showroom in Pune" -> store_info .93
+"400001" -> store_info .92                            (bare pincode)
 "any store near me" -> store_info .93
-"store location in Bangalore" -> store_info .92
-"nearest shop" -> store_info .9
-"showroom address" -> store_info .9
-"do you have diamond rings?" -> product_search .93   (item, not a place)
+"where is your store in Hyderabad" -> store_info .93
 "Mumbai me store hai kya" -> store_info .93
+"do you have diamond rings?" -> product_search .93    (item, not a place)
 "mera order kahan hai?" -> order_tracking .95
 "track order KIS123" -> order_tracking .93
 "return karna hai" -> returns_refund .9
@@ -998,10 +990,6 @@ Fallback for unclear or spam/gibberish:
 "aaj kya discount hai?" -> offers .93
 "making charge offer batao" -> offers .9
 "koi cashback milega?" -> offers .88
-"nearest store" -> store_info .92
-"KISNA showroom kahan hai?" -> store_info .9
-"where is your store in Hyderabad" -> store_info .93
-"Jaipur outlet" -> store_info .9
 "delivery kab hogi?" | no product context -> order_tracking .85
 "delivery kab hogi?" | order context -> order_tracking .9
 "order status" -> order_tracking .93
@@ -1038,7 +1026,6 @@ Fallback for unclear or spam/gibberish:
 "😍😍" |s -> product_search .5
 "haan" | bot just offered rings -> product_search .8
 "2nd wala dikhao" |s -> product_info .88, product_reference 2
-"560001" | active store_info -> store_info .95
 "50000" | bot just asked budget -> product_search .85
 "तमारा पासे रिंग छे" -> product_search .9 (gu)
 "Tamara kem haal che" -> greeting .9 (gu-Latn)
