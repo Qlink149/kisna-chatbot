@@ -247,7 +247,7 @@ class GenderSanitizeAndPromptTests(unittest.TestCase):
         # Gender / fulfillment extraction is owned by the extractor alone —
         # the classifier no longer emits either field.
         for assertion in (
-            "NULL-FIRST",
+            "CURRENT MESSAGE FIRST",
             "I want it for men",
             "fulfillment",
             "gold ring for mom",

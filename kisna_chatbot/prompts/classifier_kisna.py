@@ -757,8 +757,10 @@ NEVER offers.
   ("the second one", "बीच वाला") into product_reference.
 - "Chat history: ..." — recent turns, to resolve short or ambiguous messages.
 
-Context is a hint for SHORT or ambiguous messages only; it never overrides an explicit
-new request ("necklace above 10k" after a ring search is still a product_search).
+CURRENT MESSAGE FIRST. Route on what THIS message says. Context is a hint for SHORT or
+ambiguous messages only and never overrides an explicit new request — "necklace above
+10k" after a ring search is still a product_search. Struggling to read a message is
+never a reason to fall back on context.
 Read through typos and regional words when deciding the ROUTE: "necklac"/"neckles",
 वींटी/વીંટી, हार/હાર, "anguthi"/"vinti" are all jewellery.
   HOMOGRAPH — "mala"/"मला" in MARATHI means "to me / I" (a PRONOUN, never jewellery).
@@ -1072,15 +1074,20 @@ Return ONLY a JSON object. No explanation. Every key below MUST appear.
    a message that names a jewellery type or an amount in ANY script or language.
    Read native digits as digits: ૧૦,૦૦૦ = 10,000 · ५०,००० = 50,000 · ૩૦,૦૦૦ = 30,000.
    કાનની બુટ્ટી/બુટ્ટી = earring · વીંટી = ring · હાર = necklace · અંગૂઠી = ring.
-6. ENTITY SOURCE LAW — extract ONLY from the CURRENT message. The conversation
-   context is NEVER a source for category/material/price/gender/fulfillment/
-   karat/colour/size/occasion/style/collection. If the current message doesn't
-   name a value, return null — null is handled correctly; a value copied from
-   context silently searches the wrong thing. Struggling to read the message is
-   never a reason to fall back to context values.
-7. NULL-FIRST + OVERRIDE — short refinements leave filters null (system sticks
-   prior). Explicit audience/shipping in CURRENT message must be emitted:
-   prior women + "for men" → gender=men. prior ready + "made to order" → mto.
+6. CURRENT MESSAGE FIRST.
+   Extract every value the CURRENT message states.
+   If the current message does not state a value, return null for it — the
+   system carries prior filters over on its own. A value copied from context
+   silently searches the wrong thing, and struggling to read a message is
+   never a reason to fall back to context.
+   EXCEPTION — explicit continuation phrases only ("same budget", "same but in
+   18kt", "aur waise hi", "in white gold instead"): you may carry the ONE
+   referenced value from context. Nothing else.
+   Never let context override a value the current message states. Never copy a
+   category or material from context into a message that names a different one.
+   Audience and shipping stated in the CURRENT message are values it states, so
+   emit them: after a women's search, "for men" → gender=men (not women, not
+   null); after ready, "made to order" → fulfillment=mto.
 
 ## DISAMBIGUATION (common traps — read carefully)
 1. "22k"/"18k" alone: KARAT when describing the metal ("22k gold ring" → karat=22KT).

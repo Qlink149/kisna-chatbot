@@ -209,11 +209,17 @@ class EntityExtractorPromptTests(unittest.TestCase):
         )
         self.assertIsNone(_sanitize_llm_entities({"gender": "unisex"})["gender"])
 
-    def test_null_first_and_gender_override_in_extractor(self):
+    def test_current_message_first_and_gender_override_in_extractor(self):
+        """Replaces NULL-FIRST + OVERRIDE, which contradicted rule 6.
+
+        Same guarantee, one rule instead of two that disagreed: unstated
+        values are null, and an audience stated in THIS message is emitted.
+        """
         from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        self.assertIn("NULL-FIRST", kisna_entity_extractor)
+        self.assertIn("CURRENT MESSAGE FIRST", kisna_entity_extractor)
         self.assertIn("I want it for men", kisna_entity_extractor)
+        self.assertIn('"for men" → gender=men', kisna_entity_extractor)
         self.assertIn("never female", kisna_entity_extractor.lower())
 
 
@@ -992,12 +998,21 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         self.assertIn("[Product: Selvi Ring]", body)
         self.assertIn("[Button: See Collection]", body)
 
-    def test_extractor_teaches_entity_source_law(self):
+    def test_extractor_teaches_current_message_first(self):
         # The extractor forbids copying entities from context/history. The
         # classifier no longer needs the rule because it no longer extracts.
         from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
 
-        self.assertIn("ENTITY SOURCE LAW", kisna_entity_extractor)
+        self.assertIn("CURRENT MESSAGE FIRST", kisna_entity_extractor)
+        self.assertIn("return null", kisna_entity_extractor)
+        # The rule now matches the worked examples: a named continuation
+        # phrase may carry exactly ONE value, and nothing else may.
+        self.assertIn("same budget", kisna_entity_extractor)
+        self.assertIn("referenced value from context. Nothing else.",
+                      kisna_entity_extractor)
+        # The contradictory pair it replaced must be gone.
+        self.assertNotIn("ENTITY SOURCE LAW", kisna_entity_extractor)
+        self.assertNotIn("NULL-FIRST", kisna_entity_extractor)
 
     def test_repair_intent_acknowledges_and_clarifies(self):
         import asyncio
