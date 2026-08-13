@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import re
+
 from kisna_chatbot.ai.factory import complete_chat
 from kisna_chatbot.ai.types import AgentName
 from kisna_chatbot.utils.logger_config import logger
 
 _CACHE: dict[tuple[str, str], str] = {}
+
+# Same range the classifier uses: Devanagari through Malayalam (includes Gujarati).
+_INDIC_SCRIPT_RE = re.compile(r"[ऀ-ൿ]")
 
 _LANGUAGE_LABELS = {
     "hi": "Hindi (Devanagari script)",
@@ -71,6 +76,52 @@ def sanitize_classifier_language(code: str | None) -> str:
     return "en"
 
 
+def _needs_native_script(lang: str) -> bool:
+    """True when the rewrite must contain Indic characters (not Hinglish / -Latn)."""
+    return lang in _LANGUAGE_LABELS and not lang.endswith("-Latn")
+
+
+def _is_native_script_echo(lang: str, rewritten: str) -> bool:
+    """True when a native-script language came back with no Indic characters."""
+    if not _needs_native_script(lang):
+        return False
+    return not bool(_INDIC_SCRIPT_RE.search(rewritten or ""))
+
+
+def _compose_instruction(label: str, *, strict: bool = False) -> str:
+    """Faithful rewrite prompt. ``strict`` is the one-shot echo retry."""
+    instruction = (
+        "You rewrite WhatsApp customer-service messages for KISNA jewellery. "
+        "Keep the tone warm, natural, and concise like a jewellery salesperson "
+        "on WhatsApp — never bazaar or chat slang. "
+        "Keep emojis. Keep prices, URLs, emails, phone numbers, pincodes, SKUs, "
+        "and proper product titles (e.g. Maggio) EXACTLY unchanged. "
+        "DO translate generic jewellery words in canned copy — gold, rings, "
+        "necklace, for women, for men, for kids, ready to ship, made to order. "
+        "Those are not product names. "
+        "People: never crude or overly casual adult words (do not use औरत, मर्द, "
+        "aurat, mard, or लड़की/लड़का for adult jewellery). Hindi Devanagari: "
+        "महिला / पुरुष, बच्चों for kids. Hinglish or other Latin script: keep "
+        "women / men / kids. Other native scripts: that language's respectful "
+        "adult pair, same idea as महिला/पुरुष. "
+        "Budget: keep the rupee figures; never recast a price as cheap / सस्ता "
+        "/ equivalent. "
+        "Products: use the normal shop words for jewellery in that language; "
+        "never माल or similar slang. "
+        "Use EXACTLY the language AND script requested — if Latin/romanized is "
+        "requested, do not output native script, and vice versa. "
+        "Output only the rewritten message — no quotes or explanation."
+    )
+    if strict:
+        instruction += (
+            f" STRICT: You MUST write in {label}. Do not leave the English "
+            "sentence unchanged. Translate fully into the requested language "
+            "and script. Keep prices, URLs, emails, phones, pincodes, SKUs, "
+            "and proper product titles unchanged."
+        )
+    return instruction
+
+
 async def compose(
     template_key: str,
     text: str,
@@ -100,17 +151,9 @@ async def compose(
         return _CACHE[cache_key]
 
     label = _language_label(lang)
-    instruction = (
-        "You rewrite WhatsApp customer-service messages for KISNA jewellery. "
-        "Keep the tone warm, natural, and concise like a helpful salesperson. "
-        "Keep emojis. Keep prices, URLs, product names, and numbers EXACTLY unchanged. "
-        "Use EXACTLY the language AND script requested — if Latin/romanized is "
-        "requested, do not output native script, and vice versa. "
-        "Output only the rewritten message — no quotes or explanation."
-    )
     user_msg = f"Rewrite this message in {label}:\n\n{text}"
 
-    try:
+    async def _rewrite(instruction: str) -> str:
         rewritten = await complete_chat(
             agent=AgentName.GENERAL,
             instruction=instruction,
@@ -119,8 +162,22 @@ async def compose(
             phone_number=phone_number,
             client_id=client_id,
         )
-        result = (rewritten or text).strip() or text
-        # Bounded cache — identical (language, source text) reuses the rewrite.
+        return (rewritten or "").strip()
+
+    try:
+        result = await _rewrite(_compose_instruction(label))
+        if not result:
+            result = text
+        if _is_native_script_echo(lang, result):
+            retry = await _rewrite(_compose_instruction(label, strict=True))
+            if retry and not _is_native_script_echo(lang, retry):
+                result = retry
+            else:
+                logger.warning(
+                    "reply_composer echo — using English",
+                    extra={"template_key": template_key, "language": lang},
+                )
+                return text
         if len(_CACHE) < 2000:
             _CACHE[cache_key] = result
         return result

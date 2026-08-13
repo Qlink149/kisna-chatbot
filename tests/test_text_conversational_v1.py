@@ -88,12 +88,12 @@ class ReplyComposerTests(unittest.TestCase):
             with patch(
                 "kisna_chatbot.utils.reply_composer.complete_chat",
                 new_callable=AsyncMock,
-                side_effect=["STORE-hi", "RETURN-hi"],
+                side_effect=["स्टोर", "रिटर्न"],
             ):
                 a = await rc.compose("flow_switch_ack", "find a store", language="hi")
                 b = await rc.compose("flow_switch_ack", "help with returns", language="hi")
-            self.assertEqual(a, "STORE-hi")
-            self.assertEqual(b, "RETURN-hi")  # different text → not the cached store ack
+            self.assertEqual(a, "स्टोर")
+            self.assertEqual(b, "रिटर्न")  # different text → not the cached store ack
 
         asyncio.run(_run())
 
@@ -105,11 +105,158 @@ class ReplyComposerTests(unittest.TestCase):
             with patch(
                 "kisna_chatbot.utils.reply_composer.complete_chat",
                 new_callable=AsyncMock,
-                return_value="cached-hi",
+                return_value="कैश्ड",
             ) as mocked:
                 await rc.compose("x", "same text", language="hi")
                 await rc.compose("x", "same text", language="hi")
             self.assertEqual(mocked.call_count, 1)  # second is a cache hit
+
+        asyncio.run(_run())
+
+    def test_compose_instruction_bans_crude_gender_words(self):
+        import kisna_chatbot.utils.reply_composer as rc
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value="महिलाओं के लिए सोने की अंगूठी",
+            ) as mocked:
+                await rc.compose(
+                    "search_confirm",
+                    "gold rings for women",
+                    language="hi",
+                )
+            instruction = mocked.await_args.kwargs["instruction"]
+            self.assertIn("महिला", instruction)
+            self.assertIn("पुरुष", instruction)
+            self.assertIn("औरत", instruction)
+            self.assertIn("मर्द", instruction)
+            self.assertIn("women / men / kids", instruction)
+
+        asyncio.run(_run())
+
+    def test_native_script_echo_retries_then_caches(self):
+        import kisna_chatbot.utils.reply_composer as rc
+
+        english = (
+            "Understood 👍 I'll look in our catalogue for "
+            "*gold rings for women between ₹20,000 and ₹30,000*. "
+            "Does this sound correct to you?"
+        )
+        gujarati = (
+            "સમજાઈ ગયું 👍 હું કેટલોગમાં મહિલાઓ માટે સોનાની રિંગ "
+            "₹20,000 અને ₹30,000 વચ્ચે શોધીશ. શું આ સાચું લાગે છે?"
+        )
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                side_effect=[english, gujarati],
+            ) as mocked:
+                out = await rc.compose("search_confirm", english, language="gu")
+                again = await rc.compose("search_confirm", english, language="gu")
+            self.assertEqual(out, gujarati)
+            self.assertEqual(again, gujarati)
+            self.assertEqual(mocked.call_count, 2)  # retry, then cache hit
+            self.assertIn("STRICT", mocked.await_args_list[1].kwargs["instruction"])
+
+        asyncio.run(_run())
+
+    def test_native_script_echo_not_cached_on_double_miss(self):
+        import kisna_chatbot.utils.reply_composer as rc
+
+        english = "Understood 👍 I'll look in our catalogue for *gold rings*."
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value=english,
+            ) as mocked:
+                first = await rc.compose("search_confirm", english, language="gu")
+                second = await rc.compose("search_confirm", english, language="gu")
+            self.assertEqual(first, english)
+            self.assertEqual(second, english)
+            # Miss is not cached — each compose retries once (2 calls × 2).
+            self.assertEqual(mocked.call_count, 4)
+
+        asyncio.run(_run())
+
+    def test_latn_rewrite_does_not_retry(self):
+        import kisna_chatbot.utils.reply_composer as rc
+
+        hinglish = "Samajh gaya, gold rings for women under 30000"
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value=hinglish,
+            ) as mocked:
+                out = await rc.compose("search_confirm", "gold rings for women", language="hi-Latn")
+            self.assertEqual(out, hinglish)
+            self.assertEqual(mocked.call_count, 1)
+
+        asyncio.run(_run())
+
+    def test_indic_happy_path_does_not_retry(self):
+        import kisna_chatbot.utils.reply_composer as rc
+
+        hindi = "कृपया अपना 6 अंकों का पिनकोड बताइए"
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value=hindi,
+            ) as mocked:
+                out = await rc.compose(
+                    "store_pincode",
+                    "Share your 6-digit pincode",
+                    language="hi",
+                )
+            self.assertEqual(out, hindi)
+            self.assertEqual(mocked.call_count, 1)
+
+        asyncio.run(_run())
+
+    def test_support_keep_list_survives_native_script_rewrite(self):
+        import kisna_chatbot.utils.reply_composer as rc
+
+        source = (
+            "Here are our customer care details 📞\n"
+            "• Phone: 1800-123-4567\n"
+            "• Email: care@kisna.com"
+        )
+        hindi = (
+            "हमारी कस्टमर केयर डिटेल्स 📞\n"
+            "• Phone: 1800-123-4567\n"
+            "• Email: care@kisna.com"
+        )
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value=hindi,
+            ) as mocked:
+                out = await rc.compose("support_contact", source, language="hi")
+            instruction = mocked.await_args.kwargs["instruction"]
+            self.assertEqual(out, hindi)
+            self.assertIn("1800-123-4567", out)
+            self.assertIn("care@kisna.com", out)
+            self.assertIn("emails", instruction)
+            self.assertIn("phone numbers", instruction)
+            self.assertIn("pincodes", instruction)
+            self.assertEqual(mocked.call_count, 1)
 
         asyncio.run(_run())
 
