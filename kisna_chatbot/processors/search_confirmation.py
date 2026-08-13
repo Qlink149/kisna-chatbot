@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 
 CONFIRM_MSGID = "confirm$search"
 CONFIRM_YES_MSGID = "confirm$search$yes"
@@ -171,6 +172,18 @@ def _button_msgid(raw_id: str) -> str:
     return raw_id or ""
 
 
+def is_confirm_interactive(messages: dict) -> bool:
+    """True when this inbound is the search-recap Yes/No quick-reply."""
+    reply = _button_reply(messages)
+    if reply is None:
+        return False
+    msgid = _button_msgid(str(reply.get("id") or ""))
+    if msgid.startswith("confirm$"):
+        return True
+    title = (reply.get("title") or "").strip().lower()
+    return title in {"yes, show me", "no, change it"}
+
+
 def parse_confirm_reply(messages: dict, text: str | None = None) -> str | None:
     """Return "yes" / "no" from a confirmation tap or typed answer."""
     reply = _button_reply(messages)
@@ -181,7 +194,7 @@ def parse_confirm_reply(messages: dict, text: str | None = None) -> str | None:
         if msgid == CONFIRM_NO_MSGID:
             return "no"
         title = (reply.get("title") or "").strip().lower()
-        if msgid == CONFIRM_MSGID or title in _YES_TITLES or title in _NO_TITLES:
+        if msgid == CONFIRM_MSGID or msgid.startswith("confirm$") or title in _YES_TITLES or title in _NO_TITLES:
             if title in _YES_TITLES:
                 return "yes"
             if title in _NO_TITLES:
@@ -214,6 +227,10 @@ def set_pending_search(
         "exclude_product_id": exclude_product_id,
     }
     user_profile.pop(AWAITING_CORRECTION_KEY, None)
+    # Recap wait counts as an active search session. Without this stamp,
+    # a stale last_search_at from an earlier browse expires the recap
+    # before Yes/No can run.
+    user_profile["last_search_at"] = int(time.time())
 
 
 def get_pending_search(user_profile: dict) -> dict | None:

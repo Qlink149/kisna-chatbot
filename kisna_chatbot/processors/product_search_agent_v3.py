@@ -55,6 +55,7 @@ from kisna_chatbot.processors.search_confirmation import (
     has_pending_search,
     is_awaiting_correction,
     is_confirm_enabled,
+    is_confirm_interactive,
     parse_confirm_reply,
     pop_pending_search,
     set_pending_search,
@@ -1636,6 +1637,8 @@ class ProductSearchAgentV3(Processor):
         # A pending recap owns the next turn ("yes" / "no" / the correction).
         if has_pending_search(user_profile):
             return True
+        if is_confirm_interactive(messages):
+            return True
         if _product_button_msgid(messages):
             return True
         if _search_button_msgid(messages):
@@ -1694,12 +1697,15 @@ class ProductSearchAgentV3(Processor):
 
         user_profile = data.get("user_profile", {})
 
-        # --- FIX 3: Enforce 2-hour session expiry ---
-        _clear_session_if_expired(user_profile)
-
+        # Honor Yes/No on a live recap BEFORE session expiry. Recap does not
+        # previously stamp last_search_at, so a 2h-old browse timestamp would
+        # pop pending_search and the tap would fall through to the generic
+        # "couldn't help" fallback (button replies have no text.body).
         confirmed = await self._handle_search_confirmation(data, phone_number)
         if confirmed is not None:
             return confirmed
+
+        _clear_session_if_expired(user_profile)
 
         # Guided shopping wizard (smart-skip funnel)
         # Typed title of a currently shown product wins over wizard restart.
@@ -2436,12 +2442,25 @@ class ProductSearchAgentV3(Processor):
         """Resolve a pending recap. Returns None when the turn is not an answer."""
         user_profile = data.get("user_profile", {})
         pending = get_pending_search(user_profile)
-        if not pending:
-            return None
-
         messages = data.get("messages", {})
         text = _extract_search_query(messages)
         answer = parse_confirm_reply(messages, text)
+
+        if not pending:
+            if is_confirm_interactive(messages) and answer in ("yes", "no"):
+                data["bot_response"] = [
+                    {
+                        "type": "text",
+                        "text": (
+                            "That confirmation expired — tell me what you're "
+                            "looking for (e.g. gold rings under 50k) and I'll "
+                            "search again."
+                        ),
+                        "_compose": "search_confirm_expired",
+                    }
+                ]
+                return data
+            return None
 
         if answer == "yes":
             pop_pending_search(user_profile)

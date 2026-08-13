@@ -839,7 +839,15 @@ def _handle_rating_button(button_reply: dict, data: dict, phone_number: str) -> 
 
 def _is_delegated_button(msgid: str) -> bool:
     """True if another processor should handle this button."""
-    prefixes = ("buy$", "preorder$", "track$", "details$", "product$", "wizard$")
+    prefixes = (
+        "buy$",
+        "preorder$",
+        "track$",
+        "details$",
+        "product$",
+        "wizard$",
+        "confirm$",
+    )
     return any(msgid.startswith(p) for p in prefixes)
 
 
@@ -924,7 +932,7 @@ class ServiceList(Processor):
                     )
                     return data
 
-                if btn_msgid.startswith("wizard$"):
+                if btn_msgid.startswith("wizard$") or btn_msgid.startswith("confirm$"):
                     user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
                     return data
 

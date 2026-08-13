@@ -220,6 +220,51 @@ class ConfirmFlowTests(ConfirmEnabledMixin, unittest.TestCase):
         self.assertFalse(has_pending_search(profile))
         self.assertNotEqual(result["bot_response"][0].get("msgid"), CONFIRM_MSGID)
 
+    def test_yes_runs_even_when_last_search_at_is_stale(self):
+        """Live bug: recap Yes hit expiry before confirm and fell to fallback."""
+        import time
+
+        profile = {
+            "service_selected": SL.PRODUCT_SEARCH.value,
+            "last_search_at": int(time.time()) - (19 * 60 * 60),
+            "last_search_filters": {"category": "pendant"},
+            "pending_search": {
+                "entities": {"category": "ring", "material_type": "gold"},
+                "query_label": "live-trace:confirm",
+                "occasion_prefix": None,
+                "response_mode": None,
+                "exclude_product_id": None,
+            },
+        }
+
+        async def _run():
+            data = self._agent_data(_button_message("Yes, show me"), profile)
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                return_value={"products": _PRODUCTS, "total_count": 1, "page": 1},
+            ) as search_mock:
+                result = await ProductSearchAgentV3().process(data)
+            return result, search_mock
+
+        result, search_mock = asyncio.run(_run())
+        search_mock.assert_awaited()
+        params = search_mock.await_args_list[0].kwargs or {}
+        self.assertEqual(params.get("materialType") or params.get("material_type"), "gold")
+        self.assertIn("bot_response", result)
+        self.assertNotIn("couldn't help", (result["bot_response"][0].get("text") or "").lower())
+
+    def test_confirm_tap_without_pending_asks_to_search_again(self):
+        profile = {"service_selected": SL.PRODUCT_SEARCH.value}
+
+        async def _run():
+            data = self._agent_data(_button_message("Yes, show me"), profile)
+            return await ProductSearchAgentV3().process(data)
+
+        result = asyncio.run(_run())
+        text = (result["bot_response"][0].get("text") or "").lower()
+        self.assertIn("expired", text)
+
     def test_no_asks_what_to_change_and_keeps_slots(self):
         profile = {
             "service_selected": SL.PRODUCT_SEARCH.value,
