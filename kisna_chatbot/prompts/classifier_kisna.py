@@ -130,7 +130,10 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
 19. Bare material ("gold", "diamond") with no action word → low confidence, do not guess
 20. While browsing, comparative questions ("cheapest", "sabse sasta", "which is better")
     → compare. Exception: picking ONE shown item ("2nd wala dikhao") → product_info.
-21. Gold as a METAL → gold_rate. Price of a jewellery piece → product_info.
+21. Gold as a METAL → gold_rate, including misspelt rate words: "gold aret",
+    "gold rat", "gold ret", "sone ka bhav/bhaav". Read the intent through the
+    typo. Price of a jewellery PIECE → product_info. "gold" plus a rate word is
+    never a product search, and never invent a jewellery category from it.
 22. Video call / consultation / video shopping → video_call
 23. Scheme / savings plan / KMR / Meri Roshni / installment plan → general (KB), NEVER
     offers — offers is only discounts on purchases.
@@ -140,6 +143,12 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
     (usually the first concrete request); the user will ask the rest next.
 27. Bare 6-digit number: store lookup in context/history → store_info; browsing or just
     asked budget → product_search; no context → store_info (pincode is more common).
+27a. A number followed by a THOUSAND-word is a BUDGET, never a place — including
+     misspellings: hazaar / hajar / hazar / bazaar / bazar / thousand / k.
+     "20 bazaar k aas pass" = around 20,000 → product_search. The word "bazaar"
+     here is a typo for "hazaar", NOT a marketplace.
+27b. 7 or more digits with no budget word ("987654321") is neither a pincode nor a
+     price — it is a phone number or noise → general, low confidence.
 28. "yes"/"haan"/"ok" right after a bot question → continue the active flow from history
     (bot offered to show products → product_search). Never greeting.
 29. Ordinal picks while browsing ("2nd wala", "pehla dikhao", "the last one") → product_info
@@ -258,9 +267,15 @@ action — "more" ONLY for pure pagination of the SAME search with NO new subjec
 dikhao", "necklaces dikhao", "नेकलेस दिखाओ") → action MUST be null: that is a NEW
 search, not more. "dikhao"/"show" alone is NOT pagination. null in every other case.
 
-language — detect the LANGUAGE, not the script: en · hi (Devanagari) · hi-Latn
-(Hinglish) · gu · mr · ta · te · bn · kn … Gujarati is "gu" in ANY script; marker words
-che/chho/tamara/tame/kem/su/mate/joie mean Gujarati, NOT Hinglish.
+language — detect the LANGUAGE, not the script:
+  en · hi (Devanagari) · hi-Latn (Hinglish) · gu · mr · ta · te · bn · kn · ml ·
+  pa (Punjabi/Gurmukhi) · or · as
+Each script maps to ONE code — never answer with a neighbouring language's code
+because it looks similar. Gurmukhi (ਸੋਨੇ) is "pa", NOT "gu". Malayalam (സ്വർണ്ണം)
+is "ml", NOT "kn". If you truly cannot tell, use "en" rather than guessing wrong:
+a wrong code makes the bot reply in a language the user does not read.
+Gujarati is "gu" in ANY script; marker words che/chho/tamara/tame/kem/su/mate/joie
+mean Gujarati, NOT Hinglish.
 CRITICAL SCRIPT RULE: the code's script MUST match how the user typed THIS message.
 Latin letters only → the -Latn form (hi-Latn, gu-Latn, mr-Latn); native script → the
 plain code (hi, gu, mr). "Return krna hai" → hi-Latn · "रिटर्न करना है" → hi ·
@@ -450,6 +465,12 @@ lost.
 4. NEGATION — never extract a value the user is EXCLUDING:
    "bina diamond ke gold ring" → category=ring, material_type=gold (diamond NOT set)
    "without stones" → do not set diamond/gemstone.
+4a. A MATERIAL-ONLY correction ("X nahi Y ka chahiye" / "not X, Y chahiye") states a
+   material, not a jewellery type — category stays null unless a category word is
+   ALSO present. This holds even with filler/typo words before it (much/mujhe/bahut):
+   "Much diamond nahi gold ka chahiye" → material_type=gold, category=null.
+   Do not default category to "ring" or any other item — there is no category word
+   in that sentence to extract.
 5. Two categories in one message ("rings aur earrings") → category = FIRST mentioned.
 6. Numbers 7-22 are size ONLY next to a size word (size/sz/number/no.):
    "ring size 12" → size=12. "12 rings dikhao" → size=null.
@@ -564,7 +585,10 @@ price (ALWAYS extract when budget words present — integers in INR):
   lakh/lac/lacs/lakhs all mean lakh. "1 crore" → 10000000.
   Comma/currency formats: "₹50,000" → 50000, "Rs. 25,000" → 25000
   "das hazaar" → 10000, "paanch hazaar" → 5000, "50 hazaar" → 50000
-  "30 hazaar" → 30000, "bees hazaar" → 20000 (hazaar/hazar/hajar same)
+  "30 hazaar" → 30000, "bees hazaar" → 20000
+  THOUSAND-WORD SPELLINGS are all the same: hazaar / hazar / hajar / hazzar /
+  bazaar / bazar. "20 bazaar k aas pass" → min 20000, max 20000 — "bazaar" next
+  to a number is a misspelt "hazaar", never a marketplace.
   "das hazaar se upar" → min_price=10000
   "ek lakh" → 100000, "do lakh" → 200000
   "X se upar" / "X se zyada" / "minimum X" / "at least X" → min_price=X
@@ -635,6 +659,9 @@ fulfillment (shipping / availability — CURRENT message only):
 
 If a field is not present → null.
 NEVER invent values not in the message.
+NEVER infer a category from a material alone. "gold", "gold aret", "sona" name no
+jewellery type, so category stays null — inventing "earring" there sends the user
+a search they never asked for.
 
 Examples:
 "rose gold rings under 50000" →

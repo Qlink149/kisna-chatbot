@@ -1,4 +1,5 @@
 import json
+import re
 import time
 
 from kisna_chatbot.config.gupshup import get_callback_flow_id, get_videocall_flow_id
@@ -9,11 +10,42 @@ from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_
 from kisna_chatbot.processors.support_handler import (
     HELP_CALLBACK_POSTBACK,
     HELP_CALLBACK_QR_MSGID,
+    SUPPORT_CONTACT_MSGID,
     build_expert_support_bot_response,
 )
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.session_state import start_store_lookup
 from kisna_chatbot.utils.support_hours import format_support_hours_text
+
+_SUPPORT_CONNECT_YES_RE = re.compile(
+    r"\b(yes|yeah|yep|haan|haa|ji|sure|ok(ay)?|connect|please|karo|chahiye)\b",
+    re.I,
+)
+
+
+def _handle_support_connect_reply(
+    title: str, data: dict, user_profile: dict, phone_number: str
+) -> None:
+    """Answer to "shall I connect you?" after the contact details were sent."""
+    user_profile.pop("awaiting_support_connect", None)
+    if _SUPPORT_CONNECT_YES_RE.search(title or ""):
+        data["classified_category"] = "human_handoff"
+        data["bot_response"] = build_expert_support_bot_response(
+            phone_number, user_profile
+        )
+        return
+    data["classified_category"] = "general"
+    user_profile["service_selected"] = ""
+    data["bot_response"] = [
+        {
+            "type": "text",
+            "text": (
+                "No problem 👍 The details are above whenever you need them. "
+                "Anything else I can help you find?"
+            ),
+            "_compose": "support_contact_declined",
+        }
+    ]
 
 _FLOW_SWITCH_PENDING_TTL = 300  # 5 minutes — FIX 13b
 
@@ -876,6 +908,11 @@ class ServiceList(Processor):
 
                 if btn_msgid == QuickReplyId.COMPLAINT_REGISTER.value:
                     data["bot_response"] = [build_complaint_flow_bot_response()]
+                    return data
+
+                if btn_msgid == SUPPORT_CONTACT_MSGID:
+                    _handle_support_connect_reply(title, data, user_profile,
+                                                  phone_number)
                     return data
 
                 if btn_msgid in (HELP_CALLBACK_QR_MSGID, HELP_CALLBACK_POSTBACK):

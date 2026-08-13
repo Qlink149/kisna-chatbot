@@ -210,6 +210,41 @@ _HUMAN_HANDOFF_RE = re.compile(
     re.I,
 )
 
+# Asking FOR contact details is not asking to be put through. "What's the
+# customer care number?" was being handed straight to a live agent: the user's
+# actual question went unanswered and a human was paged who was never needed.
+_SUPPORT_CONTACT_RE = re.compile(
+    r"\b(?:"
+    r"(?:customer\s*care|custumer\s*care|support|helpline|help\s*line|contact)"
+    r"\s*(?:team\s*)?(?:ka|ke|ki)?\s*"
+    r"(?:number|no\.?|num|phone|mobile|email|e-?mail|id|details|address|info)"
+    r"|(?:number|phone|email|e-?mail|contact\s*details?)\s*(?:of|for|de[nd]o|do)\s*"
+    r"(?:customer\s*care|support|helpline)"
+    r"|helpline"
+    r"|how\s+(?:do\s+i|can\s+i|to)\s+(?:contact|reach)\b"
+    r"|kaise\s+contact\s+kar"
+    r")\b",
+    re.I,
+)
+
+# A message that also asks to be CONNECTED wants the agent, not the number.
+_CONNECT_VERB_RE = re.compile(
+    r"\b(connect|transfer|talk|speak|chat|baat\s*kar|call\s*me|"
+    r"put\s+me\s+through)\b",
+    re.I,
+)
+
+
+def _is_support_contact_request(text: str) -> bool:
+    """True when the user wants the contact details, not a live transfer."""
+    normalized = (text or "").strip()
+    if not normalized:
+        return False
+    if _CONNECT_VERB_RE.search(normalized):
+        return False
+    return bool(_SUPPORT_CONTACT_RE.search(normalized))
+
+
 _CALLBACK_RE = re.compile(
     r"\b("
     r"call\s*me\s*back|call\s*back|callback|request\s+(?:a\s+)?callback|"
@@ -1729,6 +1764,16 @@ def _route_resolved_intent(
         return True
 
     if intent == "human_handoff":
+        if _is_support_contact_request(user_query):
+            # Answer the question that was actually asked, then offer the
+            # transfer as a choice rather than making it for them.
+            from kisna_chatbot.processors.support_handler import (
+                build_support_contact_response,
+            )
+
+            data["classified_category"] = "support_contact"
+            data["bot_response"] = build_support_contact_response(user_profile)
+            return True
         if _is_custom_jewellery_query(user_query):
             _handle_custom_jewellery_handoff(data, user_profile, phone_number)
         else:
@@ -2390,6 +2435,21 @@ class Classifier(Processor):
                         return data
                     # Non-rating message — fall through and treat normally
 
+                if user_profile.get("awaiting_support_connect"):
+                    # They were shown the customer-care details and asked
+                    # whether to connect. Handle a TYPED yes/no here; a tapped
+                    # quick reply is handled in service_list.
+                    from kisna_chatbot.processors.service_list import (
+                        _handle_support_connect_reply,
+                    )
+
+                    _store_llm_entities(data, user_profile, {})
+                    _handle_support_connect_reply(
+                        raw_query, data, user_profile, phone_number
+                    )
+                    await _finalize_classifier_response(data)
+                    return data
+
                 if is_menu_request(raw_query):
                     _reset_session_on_fresh_start(user_profile)
                     _store_llm_entities(data, user_profile, {})
@@ -2622,14 +2682,32 @@ class Classifier(Processor):
                 _store_llm_entities(data, user_profile, sanitized_entities)
 
                 # Entity-driven product-search guard (language-agnostic): if a
-                # jewellery category was extracted (by either pass), the user is
-                # shopping — regardless of a low confidence score or a
-                # general/product_info label. Trust the extraction and search.
+                # jewellery category was extracted and the classifier's own
+                # label was general/menu_help/greeting, the user is shopping and
+                # the classifier missed it entirely — trust the extraction.
+                #
+                # product_info is handled separately below: unlike the other
+                # three, a product_info label is not automatically a miss. Any
+                # "price of a NAMED product" query ("Maggio ring ki price kya
+                # hai?") legitimately contains a category word — the product's
+                # own name — so the extractor finds "ring" even when
+                # product_info was exactly right. Overriding those sent every
+                # specific-product price question to a browse search instead of
+                # answering the question asked. Only override when the
+                # classifier itself was unsure (below its own clarification
+                # threshold), which is the genuine "browse query mislabelled at
+                # low confidence" case this guard exists for.
                 if sanitized_entities.get("category") and intent in (
                     "general",
-                    "product_info",
                     "menu_help",
                     "greeting",
+                ):
+                    intent = "product_search"
+                    confidence = max(confidence, 0.8)
+                elif (
+                    sanitized_entities.get("category")
+                    and intent == "product_info"
+                    and confidence < CLARIFICATION_CONFIDENCE_THRESHOLD
                 ):
                     intent = "product_search"
                     confidence = max(confidence, 0.8)

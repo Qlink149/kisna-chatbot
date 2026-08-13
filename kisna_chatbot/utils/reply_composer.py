@@ -17,6 +17,13 @@ _LANGUAGE_LABELS = {
     "bn": "Bengali (Bengali script)",
     "gu": "Gujarati (Gujarati script)",
     "kn": "Kannada (Kannada script)",
+    # Added after a Gurmukhi message was answered in Gujarati: an unlisted
+    # language falls back to the nearest listed one, which is worse than
+    # replying in English.
+    "ml": "Malayalam (Malayalam script)",
+    "pa": "Punjabi (Gurmukhi script)",
+    "or": "Odia (Odia script)",
+    "as": "Assamese (Bengali-Assamese script)",
 }
 
 

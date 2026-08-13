@@ -30,6 +30,8 @@ _TRANSIENT_KEYS = (
     # An explicit "reply in English only" lasts until the user greets again or
     # the session expires — not forever.
     "language_override",
+    # "Shall I connect you?" after customer-care details were sent.
+    "awaiting_support_connect",
 )
 
 _SEARCH_CONTEXT_KEYS = (

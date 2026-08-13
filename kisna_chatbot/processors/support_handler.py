@@ -13,6 +13,59 @@ from kisna_chatbot.whatsapp_functions.template.send_customer_support_template im
 HELP_CALLBACK_POSTBACK = "help$callback"
 HELP_CALLBACK_QR_MSGID = "help$callback$qr"
 
+SUPPORT_CONTACT_MSGID = "support$contact$qr"
+
+
+def build_support_contact_response(user_profile: dict) -> list[dict]:
+    """Answer "what's the customer care number?" with the details, then offer.
+
+    Asking FOR a contact number is not the same as asking to be put through.
+    Handing such a user straight to an agent both fails to answer the question
+    and pages a human who was never needed — so give the details first and let
+    the user choose.
+    """
+    from kisna_chatbot.prompts.general_agent_kisna import (
+        _SUPPORT_EMAIL,
+        _SUPPORT_PHONE,
+    )
+
+    status = get_support_status()
+    hours = format_support_hours_text()
+    open_now = status["status"] == "open"
+
+    lines = [
+        "Here are our customer care details 📞",
+        "",
+        f"• Phone: {_SUPPORT_PHONE}",
+        f"• Email: {_SUPPORT_EMAIL}",
+        f"• Hours: {hours}",
+    ]
+    lines.append("")
+    if open_now:
+        lines.append(
+            "Would you like me to connect you with a representative right now?"
+        )
+    else:
+        lines.append(
+            "Our team is offline at the moment — I can arrange a callback "
+            "instead. Would you like that?"
+        )
+
+    user_profile["awaiting_support_connect"] = True
+    return [
+        {
+            "type": "quickreply",
+            "text": "\n".join(lines),
+            "caption": "",
+            "options": [
+                {"title": "Yes, connect me"},
+                {"title": "No, thanks"},
+            ],
+            "msgid": SUPPORT_CONTACT_MSGID,
+            "_compose": "support_contact",
+        }
+    ]
+
 
 def _notify_admins(customer_name: str, customer_phone: str) -> None:
     for admin in ADMINS:

@@ -137,6 +137,25 @@ class EntityExtractorPromptTests(unittest.TestCase):
         self.assertIn("gram", kisna_entity_extractor.lower())
         self.assertIn("under 22k", kisna_entity_extractor)
 
+    def test_material_only_correction_does_not_invent_a_category(self):
+        """"Much diamond nahi gold ka chahiye" hallucinated category=ring.
+
+        Laksh Keshwani's real message: a material-only correction with no
+        category word at all ("not diamond, want gold"). The extractor
+        consistently invented category=ring anyway — 6/6 live calls, not
+        nondeterminism. Root cause: nothing told the model that "chahiye" with
+        only a material stated is not license to guess a jewellery type.
+        """
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn(
+            "Much diamond nahi gold ka chahiye",
+            kisna_entity_extractor,
+            "the exact failing message must be a worked example, not just a "
+            "paraphrase — the model matched the literal phrasing",
+        )
+        self.assertIn("category=null", kisna_entity_extractor)
+
     def test_entity_rules_live_in_the_extractor_not_the_classifier(self):
         """The classifier routes; the extractor extracts. One owner per rule.
 
@@ -541,7 +560,10 @@ class CategoryDrivenSearchGuardTests(unittest.TestCase):
         self.assertEqual(data["classified_category"], "product_search")
         self.assertNotIn("bot_response", data)  # search pipeline will run
 
-    def test_product_info_with_category_routes_to_search(self):
+    def test_low_confidence_product_info_with_category_routes_to_search(self):
+        # confidence 0.4 < CLARIFICATION_CONFIDENCE_THRESHOLD (0.45): the
+        # classifier itself was unsure, so this really is the "browse query
+        # mislabelled at low confidence" case the guard exists for.
         data = self._run(
             "५० हज़ार से ज़्यादा कीमत वाला नेकलेस",
             {"intent": "product_info", "confidence": 0.4,
@@ -549,6 +571,39 @@ class CategoryDrivenSearchGuardTests(unittest.TestCase):
         )
         self.assertEqual(data["classified_category"], "product_search")
         self.assertNotIn("bot_response", data)
+
+    def test_high_confidence_product_info_with_category_not_overridden(self):
+        """A NAMED product's price question must not be forced into a search.
+
+        Found by replaying real messages: "Maggio ring ki price kya hai?" and
+        "what is the price of the Elysia ring" were classified product_info at
+        0.9+ confidence — correctly, since both ask a specific product's price.
+        The entity extractor also (sometimes) reads "ring" as a category,
+        because the product's own name contains it. The old guard treated ANY
+        extracted category as proof the classifier missed a shopping intent
+        and force-promoted these to product_search — turning a specific price
+        question into a generic browse list. High classifier confidence means
+        product_info was not a miss, so the guard must leave it alone.
+        """
+        data = self._run(
+            "Maggio ring ki price kya hai?",
+            {"intent": "product_info", "confidence": 0.91,
+             "entities": {"category": "ring", "title": "Maggio"}},
+        )
+        self.assertEqual(data["classified_category"], "product_info")
+
+    def test_confidence_boundary_is_exclusive_of_the_threshold(self):
+        """At exactly the clarification threshold, product_info is trusted."""
+        from kisna_chatbot.processors.classifier import (
+            CLARIFICATION_CONFIDENCE_THRESHOLD,
+        )
+
+        data = self._run(
+            "Rivaah ring ki price kya hai",
+            {"intent": "product_info", "confidence": CLARIFICATION_CONFIDENCE_THRESHOLD,
+             "entities": {"category": "ring", "title": "Rivaah"}},
+        )
+        self.assertEqual(data["classified_category"], "product_info")
 
     def test_genuine_faq_not_hijacked(self):
         # Classifier general + second extractor finds no category → stays general.
