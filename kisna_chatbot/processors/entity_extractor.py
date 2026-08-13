@@ -2007,13 +2007,40 @@ def extract_entities(text: str) -> dict[str, Any]:
     }
 
 
+_ELLIPSIS_SHORTHAND_RE = re.compile(
+    r",?\s*\.\.\.\s*[a-z_ ]*null[a-z_ ]*\s*(?=[},])", re.I
+)
+
+
 def _parse_entity_json(raw: str) -> dict:
-    """Parse flat entity JSON from LLM response."""
+    """Parse flat entity JSON from an LLM response, repairing known damage.
+
+    The prompt's examples used to abbreviate unset fields as "...nulls", and
+    the model copied that shorthand into real output:
+
+        {"category":"ring","material_type":"gold",...nulls}
+
+    That is invalid JSON, so the whole response was discarded and extraction
+    fell back to the Latin-only regex — silently, because the caller swallows
+    the error. Native-script and romanized messages lost every filter.
+
+    The prompt no longer teaches the shorthand. This strips it anyway: losing
+    one malformed key is always better than losing the entire extraction.
+    """
     text = (raw or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
         text = re.sub(r"\s*```$", "", text)
-    parsed = json.loads(text)
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        repaired = _ELLIPSIS_SHORTHAND_RE.sub("", text)
+        repaired = re.sub(r",\s*([}\]])", r"\1", repaired)  # trailing comma
+        parsed = json.loads(repaired)
+        logger.warning(
+            "entity_extractor: repaired malformed JSON from the model",
+            extra={"raw": text[:200]},
+        )
     return parsed if isinstance(parsed, dict) else {}
 
 

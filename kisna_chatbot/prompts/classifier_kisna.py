@@ -396,7 +396,16 @@ references like "the third one", "same budget", "aur waise hi",
 "in white gold instead". Extract the user's CURRENT intent — do not
 re-apply old filters unless the user is clearly refining the previous search.
 
-Return ONLY a JSON object. No explanation. Every key below MUST appear.
+Return ONLY a strictly valid JSON object. No explanation, no comments, no
+markdown fences, no trailing commentary of ANY kind.
+
+Output only the keys you are actually setting. Any key you omit is treated as
+null, so a short answer like {"category":"ring","material_type":"gold"} is
+correct and preferred. The examples below follow that convention.
+
+NEVER write "..." or shorthand such as "...nulls" inside the JSON. That is not
+valid JSON, the parser rejects the whole response, and every extracted value is
+lost.
 
 ## CRITICAL (never skip these)
 1. If ANY jewellery type word appears → category MUST be set (never null).
@@ -630,67 +639,66 @@ NEVER invent values not in the message.
 Examples:
 "rose gold rings under 50000" →
 {"category":"ring","material_type":"rose_gold",
- "metal_colour":"rose","max_price":50000,...nulls}
+ "metal_colour":"rose","max_price":50000}
 
 "ready to ship diamond rings under 20k" →
 {"category":"ring","material_type":"diamond","max_price":20000,
- "fulfillment":"ready",...nulls}
+ "fulfillment":"ready"}
 
 "made to order gold necklace for her" →
 {"category":"necklace","material_type":"gold","gender":"women",
- "fulfillment":"mto",...nulls}
+ "fulfillment":"mto"}
 
 "mujhe ready to ship nahi chahiye" (refusal, not a request) →
-{"fulfillment":"any", "category":null, "material_type":null, ...nulls}
+{"fulfillment":"any", "category":null, "material_type":null}
 
 "gold ring for mom" →
-{"category":"ring","material_type":"gold","gender":"women",...nulls}
+{"category":"ring","material_type":"gold","gender":"women"}
 
 "bracelet for dad" →
-{"category":"bracelet","gender":"men",...nulls}
+{"category":"bracelet","gender":"men"}
 
 "necklace for parents" →
-{"category":"necklace","gender":null,...nulls}
+{"category":"necklace","gender":null}
 
 "gift for a friend" →
-{"occasion":"gift","gender":null,...nulls}
+{"occasion":"gift","gender":null}
 
 "under 20k" (refinement; prior search exists) →
-{"max_price":20000, "category":null, "gender":null, "fulfillment":null, ...nulls}
+{"max_price":20000, "category":null, "gender":null, "fulfillment":null}
 
 "I want it for men" (prior gender=women) →
-{"gender":"men", "category":null, "fulfillment":null, ...nulls}
+{"gender":"men", "category":null, "fulfillment":null}
 
 "for men" (prior women gold rings) →
-{"gender":"men", ...all other filters null}
+{"gender":"men"}
 
 "18KT white gold diamond earrings" →
 {"category":"earring","material_type":"diamond",
- "karat":"18KT","metal_colour":"white",...nulls}
+ "karat":"18KT","metal_colour":"white"}
 
 "anniversary ke liye kuch accha 1 lakh tak" →
-{"occasion":"anniversary","max_price":100000,
- ...all others null}
+{"occasion":"anniversary","max_price":100000}
 
 "wife ke liye minimal gold earrings under 30k" →
 {"category":"earring","material_type":"gold",
- "gender":"women","style":"minimal","max_price":30000,...nulls}
+ "gender":"women","style":"minimal","max_price":30000}
 
 "shaadi ke liye heavy mangalsutra" →
 {"category":"mangalsutra","occasion":"wedding",
- "style":"heavy",...nulls}
+ "style":"heavy"}
 
 "bhai 14KT yellow gold ring size 8" →
 {"category":"ring","material_type":"gold",
- "karat":"14KT","metal_colour":"yellow","size":8,...nulls}
+ "karat":"14KT","metal_colour":"yellow","size":8}
 
 "Evil Eye bracelet under 30k" →
 {"category":"bracelet","collection":"Evil Eye",
- "max_price":30000,...nulls}
+ "max_price":30000}
 
 "Send me diamond rings between 20000-50000" →
 {"category":"ring","material_type":"diamond",
- "min_price":20000,"max_price":50000,"title":null,...nulls}
+ "min_price":20000,"max_price":50000,"title":null}
 
 "Show me gold rings of price 50000" →
 {"category":"ring","material_type":"gold","min_price":50000,"max_price":50000,
@@ -698,11 +706,11 @@ Examples:
  "gender":null,"occasion":null,"style":null,"action":null}
 
 "rings 25-30k" →
-{"category":"ring","min_price":25000,"max_price":30000,...all others null}
+{"category":"ring","min_price":25000,"max_price":30000}
 (suffix distributes — NOT min 25, max 30000)
 
 "budget 50000" →
-{"min_price":50000,"max_price":50000,...all others null}
+{"min_price":50000,"max_price":50000}
 
 "gold rings above 50k" →
 {"category":"ring","material_type":"gold","min_price":50000,"max_price":null,
@@ -716,23 +724,23 @@ Examples:
 
 "gold chains under 1 lakh" →
 {"category":"chain","material_type":"gold","max_price":100000,"min_price":null,
- "title":null,...nulls}
+ "title":null}
 
 "sone ki chain 80k tak" →
 {"category":"chain","material_type":"gold","max_price":80000,"min_price":null,
- "title":null,...nulls}
+ "title":null}
 
 "show me something above 5 lac" →
-{"min_price":500000,...all others null}
+{"min_price":500000}
 
 "30k se upar diamond earrings" →
-{"category":"earring","material_type":"diamond","min_price":30000,...nulls}
+{"category":"earring","material_type":"diamond","min_price":30000}
 
 "minimum 1 lakh ka necklace" →
-{"category":"necklace","min_price":100000,...nulls}
+{"category":"necklace","min_price":100000}
 
 "aur dikhao" →
-{"action":"more",...all null}
+{"action":"more"}
 
 Recent conversation context examples:
 
@@ -759,70 +767,70 @@ Current: same budget mein necklace →
  "gender":null,"occasion":null,"style":null,"action":null}
 
 "show me some lightweight rings" →
-{"category":"ring","style":"minimal",...all others null}
+{"category":"ring","style":"minimal"}
 
 NATIVE SCRIPT full examples (extract exactly like the romanized twin):
 "मुझे सोने की अंगूठी चाहिए" →
-{"category":"ring","material_type":"gold",...all others null}
+{"category":"ring","material_type":"gold"}
 
 "५० हज़ार से ज़्यादा कीमत वाला नेकलेस" →
-{"category":"necklace","min_price":50000,...all others null}
+{"category":"necklace","min_price":50000}
 
 "१० हज़ार से कम की हीरे की इयररिंग" →
-{"category":"earring","material_type":"diamond","max_price":10000,...all others null}
+{"category":"earring","material_type":"diamond","max_price":10000}
 
 "મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે" →
-{"category":"earring","min_price":40000,...all others null}
+{"category":"earring","min_price":40000}
 
 "મારે ૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચેની કિંમતની કાનની બુટ્ટી જોઈએ છે" →
-{"category":"earring","min_price":10000,"max_price":30000,...all others null}
+{"category":"earring","min_price":10000,"max_price":30000}
 (native digits + "થી ... ની વચ્ચે" = between → BOTH bounds, never all-null)
 
 "१०,००० से ३०,००० के बीच का हार चाहिए" →
-{"category":"necklace","min_price":10000,"max_price":30000,...all others null}
+{"category":"necklace","min_price":10000,"max_price":30000}
 
 "halki gold chain office ke liye" →
 {"category":"chain","material_type":"gold","style":"minimal",
- "occasion":"daily_wear",...nulls}
+ "occasion":"daily_wear"}
 
 "bina diamond ke gold ring" →
-{"category":"ring","material_type":"gold",...all others null}
+{"category":"ring","material_type":"gold"}
 (diamond is NEGATED — not extracted)
 
 "5 gram ki gold chain" →
-{"category":"chain","material_type":"gold",...all others null}
+{"category":"chain","material_type":"gold"}
 (gram weight is NOT a price or size)
 
 "earrings under 22k" →
-{"category":"earring","max_price":22000,"karat":null,...nulls}
+{"category":"earring","max_price":22000,"karat":null}
 (budget word before 22k → price, not karat)
 
 "22k gold kangan" →
-{"category":"bangle","material_type":"gold","karat":"22KT",...nulls}
+{"category":"bangle","material_type":"gold","karat":"22KT"}
 
 "couple rings for engagement" →
-{"category":"ring","style":"couple_bands","occasion":"engagement",...nulls}
+{"category":"ring","style":"couple_bands","occasion":"engagement"}
 
 "gf ke liye valentine gift under 15k" →
-{"gender":"women","occasion":"gift","max_price":15000,...all others null}
+{"gender":"women","occasion":"gift","max_price":15000}
 
 "₹50,000 tak ki neckless" →
-{"category":"necklace","max_price":50000,...nulls}
+{"category":"necklace","max_price":50000}
 (misspelling still maps; comma amount parsed)
 
 "thoda sasta dikhao" | Context: bot showed gold rings →
 {"category":"ring","material_type":"gold","price_direction":"lower",
- "min_price":null,"max_price":null,...nulls}
+ "min_price":null,"max_price":null}
 (relative price words never invent numbers — direction only)
 
 "इसका price बहुत ज्यादा है" | Context: bot showed necklaces →
-{"category":"necklace","price_direction":"lower",...all others null}
+{"category":"necklace","price_direction":"lower"}
 
 "aur premium options dikhao" | Context: bot showed rings →
-{"category":"ring","price_direction":"higher",...nulls}
+{"category":"ring","price_direction":"higher"}
 
 Context: User: gold rings under 50k
 Current: same but in 18kt →
 {"category":"ring","material_type":"gold","karat":"18KT","max_price":50000,
- "min_price":null,...nulls}
+ "min_price":null}
 """

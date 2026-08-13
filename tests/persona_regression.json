@@ -1,0 +1,659 @@
+{
+  "_meta": {
+    "purpose": "Persona-driven black-box regression matrix for the KISNA WhatsApp bot: intent routing + context-free entity extraction, built from real production behaviour of three users (English/Hinglish shopper, Hinglish+Gujarati corrector, Marathi service-heavy user). Covers language mix, typos, corrections, store lookups, service/FAQ routing, handoff-vs-callback-vs-video boundaries, numeric edges, pagination and short mid-search refinements.",
+    "source": "production transcripts of 3 users",
+    "buckets": {
+      "marathi": "Marathi, Devanagari and romanized",
+      "gujarati": "Gujarati, native script and romanized",
+      "hindi-native": "Devanagari Hindi",
+      "hinglish": "romanized Hindi",
+      "english": "English",
+      "typo": "misspellings and phonetic slips",
+      "correction": "negations, refusals, 'X nahi Y chahiye'",
+      "store": "physical store / pincode / city lookups",
+      "service": "FAQ, schemes, digital gold, offers, tracking, complaint, brand",
+      "boundary": "human_handoff vs callback vs video_call vs bespoke vs MTO filter",
+      "numeric-edge": "pincodes, phone numbers, karat-vs-price, grams, absurd amounts",
+      "pagination": "show-more across languages, plus the new-search contrast",
+      "context": "short refinements that only make sense mid-search"
+    },
+    "context_keys": {
+      "active_search": "user has an active jewellery search (last_search_filters set)",
+      "shown_products": "numbered list of products currently on screen",
+      "store_wait": "awaiting_store_pincode is set"
+    },
+    "expect_entities": "only the listed fields are asserted; a field set to null must be null/absent in the output"
+  },
+
+  "cases": [
+    {
+      "id": "mr-01",
+      "bucket": "marathi",
+      "message": "मला अंगठी हवी आहे",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"},
+      "rationale": "Marathi 'I want a ring' — names a jewellery item, so browsing."
+    },
+    {
+      "id": "mr-02",
+      "bucket": "marathi",
+      "message": "anghuti bagaht ahe",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"},
+      "rationale": "Romanized Marathi 'I am looking at rings' — anguthi is a ring even misspelt."
+    },
+    {
+      "id": "mr-03",
+      "bucket": "marathi",
+      "message": "mala sonyachi angathi dakhva",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "gold"},
+      "rationale": "Marathi 'mala' is the pronoun 'to me', not a necklace; ring + gold are stated."
+    },
+    {
+      "id": "mr-04",
+      "bucket": "marathi",
+      "message": "जवळचे दुकान कुठे आहे",
+      "expect_intent": "store_info",
+      "expect_entities": {"category": null},
+      "rationale": "Marathi 'where is the nearest shop' — the object is a place, not an item."
+    },
+    {
+      "id": "mr-05",
+      "bucket": "marathi",
+      "message": "मला परत करायचे आहे",
+      "expect_intent": "returns_refund",
+      "expect_entities": {},
+      "rationale": "Marathi 'I want to return it' asks to PERFORM the action, not about policy."
+    },
+
+    {
+      "id": "gu-01",
+      "bucket": "gujarati",
+      "message": "મારે લગ્ન માટે મંગળસૂત્ર જોઈએ છે",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "mangalsutra", "occasion": "wedding"},
+      "rationale": "Gujarati 'I need a mangalsutra for a wedding' — item plus occasion."
+    },
+    {
+      "id": "gu-02",
+      "bucket": "gujarati",
+      "message": "maare maari chain maate ek vinti joiae chhe, je hu aa diwali par maari mammine bhet aapi shaku",
+      "expect_intent": "product_search",
+      "expect_entities": {"gender": "women", "occasion": "gift"},
+      "rationale": "Romanized Gujarati gift request for mother this Diwali; category deliberately unasserted (chain and vinti both appear)."
+    },
+    {
+      "id": "gu-03",
+      "bucket": "gujarati",
+      "message": "તમારી પાસે ઉદયપુરમાં સ્ટોર છે?",
+      "expect_intent": "store_info",
+      "expect_entities": {"category": null},
+      "rationale": "'Do you have a store in Udaipur' — 'do you have X' is decided by X, and X is a place."
+    },
+    {
+      "id": "gu-04",
+      "bucket": "gujarati",
+      "message": "mane ready to ship nathi joitu",
+      "expect_intent": "product_search",
+      "expect_entities": {"fulfillment": "any"},
+      "rationale": "Availability filter refused, so fulfillment=any; a refusal is never the value refused, and never a handoff."
+    },
+    {
+      "id": "gu-05",
+      "bucket": "gujarati",
+      "message": "sona no bhav su chhe aaje",
+      "expect_intent": "gold_rate",
+      "expect_entities": {},
+      "rationale": "Gujarati 'what is the gold rate today' — gold as a metal, not a product price."
+    },
+    {
+      "id": "gu-06",
+      "bucket": "gujarati",
+      "message": "kem cho, majama?",
+      "expect_intent": "greeting",
+      "expect_entities": {"category": null},
+      "rationale": "Romanized Gujarati 'how are you' — a pure greeting; the marker words must not be mistaken for a request."
+    },
+
+    {
+      "id": "hi-01",
+      "bucket": "hindi-native",
+      "message": "मुझे अपनी माँ के लिए हीरे की अंगूठी चाहिए",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "diamond", "gender": "women"},
+      "rationale": "Diamond ring for mother — item, material and a clear female recipient."
+    },
+    {
+      "id": "hi-02",
+      "bucket": "hindi-native",
+      "message": "रिटर्न पॉलिसी क्या है?",
+      "expect_intent": "general",
+      "expect_entities": {},
+      "rationale": "Asking ABOUT the policy is a knowledge-base question, not a return request."
+    },
+    {
+      "id": "hi-03",
+      "bucket": "hindi-native",
+      "message": "मुझे ऑर्डर वापस करना है",
+      "expect_intent": "returns_refund",
+      "expect_entities": {},
+      "rationale": "'karna hai' is an action request — the return itself, not the policy."
+    },
+    {
+      "id": "hi-04",
+      "bucket": "hindi-native",
+      "message": "क्या कोई स्कीम है? केएमआर के बारे में बताइए",
+      "expect_intent": "general",
+      "expect_entities": {},
+      "rationale": "Schemes / Kisna Meri Roshni are answered from the knowledge base, never offers."
+    },
+    {
+      "id": "hi-05",
+      "bucket": "hindi-native",
+      "message": "मुझे कल फोन कीजिए",
+      "expect_intent": "callback",
+      "expect_entities": {},
+      "rationale": "Wants a phone call later — callback, not a live agent now."
+    },
+    {
+      "id": "hi-06",
+      "bucket": "hindi-native",
+      "message": "मेरा सामान टूटा हुआ आया है",
+      "expect_intent": "complaint",
+      "expect_entities": {},
+      "rationale": "Damaged item that was DELIVERED is a complaint, not order tracking."
+    },
+
+    {
+      "id": "hg-01",
+      "bucket": "hinglish",
+      "message": "mummy ke liye mangalsutra dikhao 40 hazaar tak",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "mangalsutra", "gender": "women", "max_price": 40000},
+      "rationale": "'tak' is an upper bound only; mummy gives gender=women."
+    },
+    {
+      "id": "hg-02",
+      "bucket": "hinglish",
+      "message": "bhai koi offer chal raha hai kya",
+      "expect_intent": "offers",
+      "expect_entities": {},
+      "rationale": "Discounts on purchases — offers, and no scheme word is present."
+    },
+    {
+      "id": "hg-03",
+      "bucket": "hinglish",
+      "message": "18kt wali chain hai kya 20k tak",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "chain", "karat": "18KT", "max_price": 20000},
+      "rationale": "18kt describes the metal (karat) while 20k sits next to 'tak' (budget) — the two numbers must not collide."
+    },
+    {
+      "id": "hg-04",
+      "bucket": "hinglish",
+      "message": "shaadi ke liye couple bands dikhao",
+      "expect_intent": "product_search",
+      "expect_entities": {"style": "couple_bands", "occasion": "wedding"},
+      "rationale": "Style plus occasion browse; category left unasserted since 'bands' maps to ring only implicitly."
+    },
+    {
+      "id": "hg-05",
+      "bucket": "hinglish",
+      "message": "mujhe menu chahiye",
+      "expect_intent": "menu_help",
+      "expect_entities": {"category": null},
+      "rationale": "Explicit menu request; 'chahiye' must not turn it into a product search."
+    },
+
+    {
+      "id": "en-01",
+      "bucket": "english",
+      "message": "Do you have rings for my parents?",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "gender": null},
+      "rationale": "'Do you have X' with X = jewellery is a search; 'parents' is ambiguous so gender must stay null."
+    },
+    {
+      "id": "en-02",
+      "bucket": "english",
+      "message": "I want a gold ring for my mom",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "gold", "gender": "women"},
+      "rationale": "Explicit item, material and female recipient."
+    },
+    {
+      "id": "en-03",
+      "bucket": "english",
+      "message": "Can you show me Mangal Sutra?",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "mangalsutra"},
+      "rationale": "Category named with a space — still mangalsutra."
+    },
+    {
+      "id": "en-04",
+      "bucket": "english",
+      "message": "I need a ring for my chain for my mom to gift her this diwali",
+      "expect_intent": "product_search",
+      "expect_entities": {"gender": "women", "occasion": "gift"},
+      "rationale": "English twin of gu-02; gift for mother, category left unasserted because two type words appear."
+    },
+    {
+      "id": "en-05",
+      "bucket": "english",
+      "message": "new arrival products",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": null},
+      "rationale": "Browsing the catalogue with no category named — a search, not a brand FAQ."
+    },
+    {
+      "id": "en-06",
+      "bucket": "english",
+      "message": "ring design",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"},
+      "rationale": "Design browsing for a category; 'design' alone is not a bespoke request without 'custom'/'my own'."
+    },
+    {
+      "id": "en-07",
+      "bucket": "english",
+      "message": "what is the price of the Elysia ring",
+      "expect_intent": "product_info",
+      "expect_entities": {},
+      "rationale": "Contrast with ty-02 'gold aret': the price of a NAMED jewellery piece is product_info, never gold_rate and never general."
+    },
+
+    {
+      "id": "ty-01",
+      "bucket": "typo",
+      "message": "Show me braceltes",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "bracelet"},
+      "rationale": "Misspelt bracelet must still resolve to the category."
+    },
+    {
+      "id": "ty-02",
+      "bucket": "typo",
+      "message": "gold aret",
+      "expect_intent": "gold_rate",
+      "expect_entities": {"category": null},
+      "rationale": "'aret' is 'rate' — metal price, and no jewellery category may be invented from the word gold."
+    },
+    {
+      "id": "ty-03",
+      "bucket": "typo",
+      "message": "neckless under 30k",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "necklace", "max_price": 30000},
+      "rationale": "Known misspelling of necklace plus an explicit upper bound."
+    },
+    {
+      "id": "ty-04",
+      "bucket": "typo",
+      "message": "mangalsutr dikhao gold ka",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "mangalsutra", "material_type": "gold"},
+      "rationale": "Truncated category word plus material."
+    },
+    {
+      "id": "ty-05",
+      "bucket": "typo",
+      "message": "do you hv a stor in Bombay",
+      "expect_intent": "store_info",
+      "expect_entities": {"category": null},
+      "rationale": "Misspelt 'store' plus a city — still a physical location lookup, and no category may leak."
+    },
+
+    {
+      "id": "co-01",
+      "bucket": "correction",
+      "message": "Mujhe gold nahi dimaond ki ring dikhao",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "diamond"},
+      "rationale": "Correction: the refused material (gold) must not be extracted, the requested one must."
+    },
+    {
+      "id": "co-02",
+      "bucket": "correction",
+      "message": "Much diamond nahi gold ka chahiye",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"material_type": "gold", "category": null},
+      "rationale": "Mid-search material flip (typo for 'mujhe'); no category is named so none may be carried over."
+    },
+    {
+      "id": "co-03",
+      "bucket": "correction",
+      "message": "mujhe ready to ship nahi chahiye",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"fulfillment": "any"},
+      "rationale": "Refusing an availability filter sets fulfillment=any — never 'ready', never a handoff."
+    },
+    {
+      "id": "co-04",
+      "bucket": "correction",
+      "message": "Mujhe make to order chahiye",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"fulfillment": "mto"},
+      "rationale": "Made-to-order is a catalogue availability filter, not bespoke work."
+    },
+    {
+      "id": "co-05",
+      "bucket": "correction",
+      "message": "nahi ye nahi, kuch aur",
+      "context": {"active_search": true},
+      "expect_intent": "repair",
+      "expect_entities": {},
+      "rationale": "Dissatisfaction with the last answer is repair, not pagination."
+    },
+
+    {
+      "id": "st-01",
+      "bucket": "store",
+      "message": "Do you have a store in Udaipur?",
+      "expect_intent": "store_info",
+      "expect_entities": {"category": null},
+      "rationale": "Place named after 'do you have' — store lookup."
+    },
+    {
+      "id": "st-02",
+      "bucket": "store",
+      "message": "313001",
+      "expect_intent": "store_info",
+      "expect_entities": {"min_price": null, "max_price": null},
+      "rationale": "Bare 6-digit number with no context defaults to a pincode lookup and is never a price."
+    },
+    {
+      "id": "st-03",
+      "bucket": "store",
+      "message": "can you help me find kisna stores",
+      "expect_intent": "store_info",
+      "expect_entities": {"category": null},
+      "rationale": "Explicit store-finder request."
+    },
+    {
+      "id": "st-04",
+      "bucket": "store",
+      "message": "400065",
+      "context": {"store_wait": true},
+      "expect_intent": "store_info",
+      "expect_entities": {"min_price": null, "max_price": null},
+      "rationale": "Pincode supplied while the bot is awaiting one — stays in the store flow."
+    },
+
+    {
+      "id": "sv-01",
+      "bucket": "service",
+      "message": "return policy",
+      "expect_intent": "general",
+      "expect_entities": {},
+      "rationale": "Policy lookup, answered from the knowledge base."
+    },
+    {
+      "id": "sv-02",
+      "bucket": "service",
+      "message": "return karna hai",
+      "expect_intent": "returns_refund",
+      "expect_entities": {},
+      "rationale": "Contrast with sv-01: asking to PERFORM the return routes to the returns agent."
+    },
+    {
+      "id": "sv-03",
+      "bucket": "service",
+      "message": "digital gold FAQ's",
+      "expect_intent": "general",
+      "expect_entities": {},
+      "rationale": "Digital gold is a savings product answered from the KB, never offers, never gold_rate."
+    },
+    {
+      "id": "sv-05",
+      "bucket": "service",
+      "message": "KMR faq",
+      "expect_intent": "general",
+      "expect_entities": {},
+      "rationale": "Kisna Meri Roshni is a scheme — KB, never offers."
+    },
+    {
+      "id": "sv-06",
+      "bucket": "service",
+      "message": "offers",
+      "expect_intent": "offers",
+      "expect_entities": {},
+      "rationale": "Contrast with sv-05: a bare offers request really is the offers agent."
+    },
+    {
+      "id": "sv-07",
+      "bucket": "service",
+      "message": "my order track",
+      "expect_intent": "order_tracking",
+      "expect_entities": {},
+      "rationale": "Status of an existing order."
+    },
+    {
+      "id": "sv-08",
+      "bucket": "service",
+      "message": "mera order damage hoke aaya hai",
+      "expect_intent": "complaint",
+      "expect_entities": {},
+      "rationale": "Damaged goods already delivered is a complaint even though the word 'order' appears."
+    },
+    {
+      "id": "sv-09",
+      "bucket": "service",
+      "message": "office hours",
+      "expect_intent": "general",
+      "expect_entities": {},
+      "rationale": "Support/office hours are a knowledge-base fact, not a handoff request."
+    },
+    {
+      "id": "sv-10",
+      "bucket": "service",
+      "message": "about kisna",
+      "expect_intent": "general",
+      "expect_entities": {"category": null},
+      "rationale": "Brand information — never product_search, never offers."
+    },
+
+    {
+      "id": "bd-01",
+      "bucket": "boundary",
+      "message": "I want to talk to a representative from Kisna",
+      "expect_intent": "human_handoff",
+      "expect_entities": {},
+      "rationale": "Wants a live person now, in this chat."
+    },
+    {
+      "id": "bd-02",
+      "bucket": "boundary",
+      "message": "I want to talk to a female representative at Kisna, is it possible.",
+      "expect_intent": "human_handoff",
+      "expect_entities": {},
+      "rationale": "Still a live-person request; the 'is it possible' phrasing must not demote it to a policy question."
+    },
+    {
+      "id": "bd-03",
+      "bucket": "boundary",
+      "message": "Can pls arrange a call back",
+      "expect_intent": "callback",
+      "expect_entities": {},
+      "rationale": "Phone call later, not live chat."
+    },
+    {
+      "id": "bd-04",
+      "bucket": "boundary",
+      "message": "video call",
+      "expect_intent": "video_call",
+      "expect_entities": {},
+      "rationale": "Video consultation channel named explicitly."
+    },
+    {
+      "id": "bd-05",
+      "bucket": "boundary",
+      "message": "custom ring banwana hai",
+      "expect_intent": "human_handoff",
+      "expect_entities": {},
+      "rationale": "Bespoke work the catalogue cannot serve — design expert handoff."
+    },
+    {
+      "id": "bd-06",
+      "bucket": "boundary",
+      "message": "made to order rings dikhao",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "fulfillment": "mto"},
+      "rationale": "Direct contrast with bd-05: made-to-order is a catalogue filter, never a bespoke handoff."
+    },
+    {
+      "id": "bd-07",
+      "bucket": "boundary",
+      "message": "order cancel karna hai",
+      "expect_intent": "human_handoff",
+      "expect_entities": {},
+      "rationale": "The bot cannot cancel or modify orders, so cancellation escalates to a human."
+    },
+
+    {
+      "id": "nm-01",
+      "bucket": "numeric-edge",
+      "message": "123456",
+      "expect_intent": "store_info",
+      "expect_entities": {"min_price": null, "max_price": null},
+      "rationale": "Bare 6-digit number with no active budget question reads as a pincode."
+    },
+    {
+      "id": "nm-02",
+      "bucket": "numeric-edge",
+      "message": "987654321",
+      "expect_intent": "general",
+      "expect_entities": {"min_price": null, "max_price": null},
+      "rationale": "Nine digits is neither a pincode nor a budget; it falls through to the general agent."
+    },
+    {
+      "id": "nm-03",
+      "bucket": "numeric-edge",
+      "message": "50k ke ass pas",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"min_price": 50000, "max_price": 50000},
+      "rationale": "A single 'around' amount sets both bounds to the exact figure; code widens it afterwards."
+    },
+    {
+      "id": "nm-04",
+      "bucket": "numeric-edge",
+      "message": "20 bazaar k aas pass",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"min_price": 20000, "max_price": 20000},
+      "rationale": "'bazaar' is a typo for 'hazaar' — twenty thousand, both bounds."
+    },
+    {
+      "id": "nm-05",
+      "bucket": "numeric-edge",
+      "message": "1 crore tak ki ring dikhao",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "max_price": 10000000},
+      "rationale": "Absurd but well-formed budget; 'tak' is an upper bound only."
+    },
+    {
+      "id": "nm-06",
+      "bucket": "numeric-edge",
+      "message": "5 gram ki chain chahiye",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "chain", "min_price": null, "max_price": null, "size": null},
+      "rationale": "Gram weight is neither a price nor a ring size."
+    },
+
+    {
+      "id": "pg-01",
+      "bucket": "pagination",
+      "message": "aur dikhao",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"action": "more", "category": null},
+      "rationale": "Pure pagination of the same search."
+    },
+    {
+      "id": "pg-02",
+      "bucket": "pagination",
+      "message": "और दिखाओ",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"action": "more", "category": null},
+      "rationale": "Devanagari show-more must behave exactly like its romanized twin."
+    },
+    {
+      "id": "pg-03",
+      "bucket": "pagination",
+      "message": "વધુ બતાવો",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"action": "more", "category": null},
+      "rationale": "Gujarati show-more."
+    },
+    {
+      "id": "pg-04",
+      "bucket": "pagination",
+      "message": "अजून दाखवा",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"action": "more", "category": null},
+      "rationale": "Marathi show-more."
+    },
+    {
+      "id": "pg-05",
+      "bucket": "pagination",
+      "message": "bangles dikhao",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "bangle", "action": null},
+      "rationale": "Contrast: naming a category mid-search is a NEW search, so action must be null."
+    },
+
+    {
+      "id": "cx-01",
+      "bucket": "context",
+      "message": "rose gold mein dikhao",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"material_type": "rose_gold", "metal_colour": "rose", "category": null},
+      "rationale": "Material-only refinement of the running search; colour is set alongside the material."
+    },
+    {
+      "id": "cx-02",
+      "bucket": "context",
+      "message": "thoda sasta dikhao",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"price_direction": "lower", "min_price": null, "max_price": null},
+      "rationale": "Relative price phrase with no number — direction only, never an invented budget."
+    },
+    {
+      "id": "cx-03",
+      "bucket": "context",
+      "message": "papa ke liye chahiye",
+      "context": {"active_search": true},
+      "expect_intent": "product_search",
+      "expect_entities": {"gender": "men", "category": null},
+      "rationale": "Audience stated in the current message overrides a prior women's search."
+    },
+    {
+      "id": "cx-04",
+      "bucket": "context",
+      "message": "teesra wala kitne ka hai",
+      "context": {"shown_products": ["Solitaire Diamond Ring ₹42,500", "Yellow Gold Band ₹18,900", "Rose Gold Halo Ring ₹55,200"]},
+      "expect_intent": "product_info",
+      "expect_entities": {"product_reference": 3},
+      "rationale": "Picking one shown item by position is product_info with its 1-based number."
+    },
+    {
+      "id": "cx-05",
+      "bucket": "context",
+      "message": "in dono me se sasta kaun sa hai",
+      "context": {"shown_products": ["Solitaire Diamond Ring ₹42,500", "Yellow Gold Band ₹18,900"]},
+      "expect_intent": "compare",
+      "expect_entities": {"price_direction": null},
+      "rationale": "A superlative question about shown items is compare, not a cheaper-refinement."
+    }
+  ]
+}

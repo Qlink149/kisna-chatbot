@@ -1,0 +1,1130 @@
+{
+  "label": "post_json_fix",
+  "classifier_prompt": "classifier.CONTEXT",
+  "classifier_prompt_tokens": 5269,
+  "entity_extractor_tokens": 5602,
+  "model": "gpt-4o-mini",
+  "runs": 1,
+  "cases": 46,
+  "api_calls": 8,
+  "api_prompt_tokens": 48340,
+  "api_completion_tokens": 2464,
+  "elapsed_s": 39.6,
+  "overall": {
+    "intent_pct": 100.0,
+    "guarded_intent_pct": 100.0,
+    "entity_pct": 100.0,
+    "classifier_entity_pct": 47.8,
+    "classifier_emitted_entities_n": 46,
+    "overall_pct": 100.0
+  },
+  "buckets": {
+    "gu-native": {
+      "n": 8,
+      "intent_pct": 100.0,
+      "guarded_intent_pct": 100.0,
+      "entity_pct": 100.0,
+      "classifier_entity_pct": 25.0,
+      "overall_pct": 100.0
+    },
+    "hi-native": {
+      "n": 8,
+      "intent_pct": 100.0,
+      "guarded_intent_pct": 100.0,
+      "entity_pct": 100.0,
+      "classifier_entity_pct": 37.5,
+      "overall_pct": 100.0
+    },
+    "romanized": {
+      "n": 6,
+      "intent_pct": 100.0,
+      "guarded_intent_pct": 100.0,
+      "entity_pct": 100.0,
+      "classifier_entity_pct": 0.0,
+      "overall_pct": 100.0
+    },
+    "store": {
+      "n": 6,
+      "intent_pct": 100.0,
+      "guarded_intent_pct": 100.0,
+      "entity_pct": 100.0,
+      "classifier_entity_pct": 100.0,
+      "overall_pct": 100.0
+    },
+    "contrast": {
+      "n": 6,
+      "intent_pct": 100.0,
+      "guarded_intent_pct": 100.0,
+      "entity_pct": 100.0,
+      "classifier_entity_pct": 50.0,
+      "overall_pct": 100.0
+    },
+    "context": {
+      "n": 12,
+      "intent_pct": 100.0,
+      "guarded_intent_pct": 100.0,
+      "entity_pct": 100.0,
+      "classifier_entity_pct": 66.7,
+      "overall_pct": 100.0
+    }
+  },
+  "nondeterministic": [],
+  "batch_vs_individual_disagreements": [
+    {
+      "id": "cx-04",
+      "batched_intent": "store_info",
+      "individual_intent": "product_search"
+    }
+  ],
+  "results": [
+    {
+      "id": "gu-01",
+      "bucket": "gu-native",
+      "message": "તમારી પાસે રિંગ છે?",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "gu-02",
+      "bucket": "gu-native",
+      "message": "મારે ૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચેની કાનની બુટ્ટી જોઈએ છે",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "earring",
+        "min_price": 10000,
+        "max_price": 30000
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "earring",
+        "min_price": 10000,
+        "max_price": 30000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "gu-03",
+      "bucket": "gu-native",
+      "message": "મને સોનાની વીંટી બતાવો",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring",
+        "material_type": "gold"
+      },
+      "source": "individual",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring",
+        "material_type": "gold"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "gu-04",
+      "bucket": "gu-native",
+      "message": "મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "earring",
+        "min_price": 40000
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "earring",
+        "min_price": 40000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "gu-05",
+      "bucket": "gu-native",
+      "message": "હીરાનું મંગળસૂત્ર બતાવો",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "mangalsutra",
+        "material_type": "diamond"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "mangalsutra",
+        "material_type": "diamond"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "gu-06",
+      "bucket": "gu-native",
+      "message": "૫૦ હજારથી ઓછી કિંમતનો નેકલેસ",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "necklace",
+        "max_price": 50000
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "necklace",
+        "max_price": 50000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "gu-07",
+      "bucket": "gu-native",
+      "message": "આજે સોનાનો ભાવ શું છે?",
+      "expect_intent": "gold_rate",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "gold_rate",
+      "guarded_intent": "gold_rate",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "gu-08",
+      "bucket": "gu-native",
+      "message": "મારે રિટર્ન કરવું છે",
+      "expect_intent": "returns_refund",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "returns_refund",
+      "guarded_intent": "returns_refund",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "hi-01",
+      "bucket": "hi-native",
+      "message": "मुझे सोने की अंगूठी दिखाओ",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring",
+        "material_type": "gold"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring",
+        "material_type": "gold"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "hi-02",
+      "bucket": "hi-native",
+      "message": "५० हज़ार से ज़्यादा कीमत वाला नेकलेस चाहिए",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "necklace",
+        "min_price": 50000
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "necklace",
+        "min_price": 50000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "hi-03",
+      "bucket": "hi-native",
+      "message": "१० हज़ार से कम की हीरे की इयररिंग",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "earring",
+        "material_type": "diamond",
+        "max_price": 10000
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "earring",
+        "material_type": "diamond",
+        "max_price": 10000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "hi-04",
+      "bucket": "hi-native",
+      "message": "१०,००० से ३०,००० के बीच का हार चाहिए",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "necklace",
+        "min_price": 10000,
+        "max_price": 30000
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "necklace",
+        "min_price": 10000,
+        "max_price": 30000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "hi-05",
+      "bucket": "hi-native",
+      "message": "मुझे एजेंट से बात करनी है",
+      "expect_intent": "human_handoff",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "human_handoff",
+      "guarded_intent": "human_handoff",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "hi-06",
+      "bucket": "hi-native",
+      "message": "मेरा ऑर्डर कहाँ है?",
+      "expect_intent": "order_tracking",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "order_tracking",
+      "guarded_intent": "order_tracking",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "hi-07",
+      "bucket": "hi-native",
+      "message": "शादी के लिए मंगलसूत्र दिखाइए",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "mangalsutra",
+        "occasion": "wedding"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "mangalsutra",
+        "occasion": "wedding"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "hi-08",
+      "bucket": "hi-native",
+      "message": "मुझे वीडियो कॉल शेड्यूल करनी है",
+      "expect_intent": "video_call",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "video_call",
+      "guarded_intent": "video_call",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "rom-01",
+      "bucket": "romanized",
+      "message": "tamara pase ring che?",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "rom-02",
+      "bucket": "romanized",
+      "message": "mala ek ring pahije",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "rom-03",
+      "bucket": "romanized",
+      "message": "mane sona nu mangalsutra joie che",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "mangalsutra",
+        "material_type": "gold"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "mangalsutra",
+        "material_type": "gold"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "rom-04",
+      "bucket": "romanized",
+      "message": "sone ki anguthi dikhao 50k tak",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring",
+        "material_type": "gold",
+        "max_price": 50000
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring",
+        "material_type": "gold",
+        "max_price": 50000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "rom-05",
+      "bucket": "romanized",
+      "message": "heere ki bali 30 hazaar se upar",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "earring",
+        "material_type": "diamond",
+        "min_price": 30000
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "earring",
+        "material_type": "diamond",
+        "min_price": 30000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "rom-06",
+      "bucket": "romanized",
+      "message": "mala sonyacha haar dakhva",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "necklace",
+        "material_type": "gold"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "necklace",
+        "material_type": "gold"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "st-01",
+      "bucket": "store",
+      "message": "do you have a store in Mumbai",
+      "expect_intent": "store_info",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "st-02",
+      "bucket": "store",
+      "message": "400001",
+      "expect_intent": "store_info",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "st-03",
+      "bucket": "store",
+      "message": "nearest showroom",
+      "expect_intent": "store_info",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "st-04",
+      "bucket": "store",
+      "message": "Mumbai me store kahan hai",
+      "expect_intent": "store_info",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "st-05",
+      "bucket": "store",
+      "message": "is there a Kisna showroom in Pune",
+      "expect_intent": "store_info",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "st-06",
+      "bucket": "store",
+      "message": "Jaipur outlet ka address",
+      "expect_intent": "store_info",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "ct-01a",
+      "bucket": "contrast",
+      "message": "do you have a store in Mumbai",
+      "expect_intent": "store_info",
+      "expect_entities": {
+        "category": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "ct-01b",
+      "bucket": "contrast",
+      "message": "do you have diamond rings",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring",
+        "material_type": "diamond"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring",
+        "material_type": "diamond"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "ct-02a",
+      "bucket": "contrast",
+      "message": "tamara pase store che",
+      "expect_intent": "store_info",
+      "expect_entities": {
+        "category": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "ct-02b",
+      "bucket": "contrast",
+      "message": "tamara pase ring che",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring"
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "ct-03a",
+      "bucket": "contrast",
+      "message": "Delhi me store hai kya",
+      "expect_intent": "store_info",
+      "expect_entities": {
+        "category": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "store_info",
+      "guarded_intent": "store_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "ct-03b",
+      "bucket": "contrast",
+      "message": "gold chain hai kya",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "chain",
+        "material_type": "gold"
+      },
+      "source": "individual",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "chain",
+        "material_type": "gold"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-01",
+      "bucket": "context",
+      "message": "under 20k",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "max_price": 20000,
+        "category": null,
+        "material_type": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "max_price": 20000
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-02",
+      "bucket": "context",
+      "message": "aur dikhao",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "action": "more",
+        "category": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "action": "more"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {
+        "action": "more"
+      },
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-02-hi",
+      "bucket": "context",
+      "message": "और दिखाओ",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "action": "more",
+        "category": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "action": "more"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {
+        "action": "more"
+      },
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-02-gu",
+      "bucket": "context",
+      "message": "વધુ બતાવો",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "action": "more",
+        "category": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "action": "more"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {
+        "action": "more"
+      },
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-02-new",
+      "bucket": "context",
+      "message": "नेकलेस दिखाओ",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "necklace",
+        "action": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "necklace"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-03",
+      "bucket": "context",
+      "message": "for men",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "gender": "men",
+        "category": null
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "gender": "men"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-04",
+      "bucket": "context",
+      "message": "Ring",
+      "expect_intent": "product_search",
+      "expect_entities": {
+        "category": "ring"
+      },
+      "source": "individual",
+      "varied_across_runs": false,
+      "intent": "product_search",
+      "guarded_intent": "product_search",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "category": "ring"
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": false,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "bd-01",
+      "bucket": "context",
+      "message": "I want to talk to a representative from Kisna",
+      "expect_intent": "human_handoff",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "human_handoff",
+      "guarded_intent": "human_handoff",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "bd-02",
+      "bucket": "context",
+      "message": "mujhe call karo",
+      "expect_intent": "callback",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "callback",
+      "guarded_intent": "callback",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "bd-03",
+      "bucket": "context",
+      "message": "मुझे वीडियो कॉल पर ज्वेलरी देखनी है",
+      "expect_intent": "video_call",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "video_call",
+      "guarded_intent": "video_call",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-05",
+      "bucket": "context",
+      "message": "the second one",
+      "expect_intent": "product_info",
+      "expect_entities": {
+        "product_reference": 2
+      },
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "product_info",
+      "guarded_intent": "product_info",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {
+        "product_reference": 2
+      },
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {
+        "product_reference": 2
+      },
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    },
+    {
+      "id": "cx-06",
+      "bucket": "context",
+      "message": "which one is cheaper",
+      "expect_intent": "compare",
+      "expect_entities": {},
+      "source": "batched",
+      "varied_across_runs": false,
+      "intent": "compare",
+      "guarded_intent": "compare",
+      "intent_ok": true,
+      "guarded_ok": true,
+      "entities": {},
+      "entity_ok": true,
+      "entity_mismatches": [],
+      "classifier_entities": {},
+      "classifier_entity_ok": true,
+      "classifier_emitted_entities": true
+    }
+  ]
+}
