@@ -869,3 +869,16 @@ Current: same but in 18kt →
 {"category":"ring","material_type":"gold","karat":"18KT","max_price":50000,
  "min_price":null}
 """
+
+# Seasonal overlay appended when the Rakhi flag is on. The base strings above
+# are unchanged so flipping the flag restores today's prompts.
+from kisna_chatbot.utils.rakhi_season import (  # noqa: E402
+    RAKHI_EXTRACTOR_PROMPT_SNIPPET,
+    RAKHI_INTENT_PROMPT_SNIPPET,
+    RAKHI_TITLE_SEARCH_ENABLED,
+)
+
+if RAKHI_TITLE_SEARCH_ENABLED:
+    kisna_classifier_intent = kisna_classifier_intent + RAKHI_INTENT_PROMPT_SNIPPET
+    kisna_entity_extractor = kisna_entity_extractor + RAKHI_EXTRACTOR_PROMPT_SNIPPET
+

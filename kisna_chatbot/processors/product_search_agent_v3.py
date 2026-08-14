@@ -77,6 +77,7 @@ from kisna_chatbot.processors.shopping_wizard import (
 )
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.kisna_url_tracking import kisna_home_url
+from kisna_chatbot.utils.rakhi_season import apply_rakhi_title_hint
 from kisna_chatbot.utils.product_formatter import (
     BROWSE_PRODUCTS_GLOBAL_TITLE,
     build_catalogue_url,
@@ -2165,6 +2166,7 @@ class ProductSearchAgentV3(Processor):
         extracted, occasion_prefix = apply_occasion_style_hints(
             extracted, query=query
         )
+        extracted = apply_rakhi_title_hint(extracted, query=query)
 
         # ── Relative price follow-up ("too costly", "thoda sasta", "aur mehnga",
         # any language) — LLM sets price_direction; we move the band ~30%.

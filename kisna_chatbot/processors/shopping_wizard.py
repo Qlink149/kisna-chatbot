@@ -882,11 +882,17 @@ def advance_wizard(
         ("reask", [bot_responses]) — invalid answer; re-prompt
     """
     from kisna_chatbot.processors.entity_extractor import extract_entities
+    from kisna_chatbot.utils.rakhi_season import is_rakhi_query
 
     collected = _wizard_data(user_profile)
     # Drop stale occasion from older sessions
     collected.pop("occasion", None)
     step = user_profile.get("shopping_wizard_step") or get_next_step(collected)
+    # Seasonal: rakhi is a title search, not a wizard category. Escape so the
+    # entity path can set title=rakhi (wizard completion always zeros title).
+    if text and step == "category" and is_rakhi_query(text):
+        clear_wizard_state(user_profile)
+        return "escape", None
     if step == "occasion":
         step = get_next_step(collected)
         user_profile["shopping_wizard_step"] = step
@@ -998,6 +1004,10 @@ def should_start_wizard(entities: dict | None, *, confidence: float = 1.0) -> bo
 
     Smart-skip: if every slot is already known, skip the wizard entirely.
     """
+    from kisna_chatbot.utils.rakhi_season import should_skip_wizard_for_rakhi
+
+    if should_skip_wizard_for_rakhi(entities):
+        return False
     collected = seed_wizard_from_entities(entities)
     if get_next_step(collected) is None:
         return False
