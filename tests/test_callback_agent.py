@@ -7,8 +7,22 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("GROQ_API_KEY", "test")
+os.environ.setdefault("OPENAI_API_KEY", "test")
+os.environ.setdefault("JWT_SECRET_KEY", "test-jwt")
+os.environ.setdefault("SYSTEM_API_KEY", "test-api")
+os.environ.setdefault("KISNA_PRODUCT_API", "https://example.com/products")
+os.environ.setdefault("KISNA_OFFERS_API", "http://localhost")
+os.environ.setdefault("KISNA_STORE_API", "http://localhost")
+os.environ.setdefault("KISNA_VTIGER_BASE", "http://localhost")
+os.environ.setdefault("KISNA_VTIGER_TOKEN", "test")
+os.environ.setdefault("GUPSHUP_APP_ID", "test-app-id")
+os.environ.setdefault("GUPSHUP_TOKEN", "test-token")
+os.environ.setdefault("GUPSHUP_APP_NAME", "test-app")
+os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
+os.environ.setdefault("GUPSHUP_WEBHOOK_SECRET", "test")
 os.environ["KISNA_CALLBACK_FLOW_ID"] = "flow_callback_test"
 os.environ["KISNA_VIDEOCALL_FLOW_ID"] = "flow_video_test"
 
@@ -17,6 +31,8 @@ from kisna_chatbot.processors.callback_agent import (  # noqa: E402
     _build_request_doc,
     _is_past_date,
     _parse_support_request_flow,
+    parse_text_mobile,
+    resolve_callback_mobile,
 )
 from kisna_chatbot.utils.support_slots import (  # noqa: E402
     SLOT_CAPACITY,
@@ -299,6 +315,80 @@ class TestCallbackAgent(unittest.TestCase):
             result["user_profile"]["service_selected"], "product_search"
         )
         self.assertNotIn("bot_response", result)
+
+    def test_resolve_callback_mobile_falls_back_to_whatsapp(self):
+        self.assertEqual(
+            resolve_callback_mobile("", "919999999999"),
+            "919999999999",
+        )
+        self.assertEqual(
+            resolve_callback_mobile("  ", "+91 99999 99999"),
+            "919999999999",
+        )
+        self.assertEqual(
+            resolve_callback_mobile("98765-43210", "919999999999"),
+            "9876543210",
+        )
+
+    def test_parse_text_mobile_skip_and_digits(self):
+        mobile, err = parse_text_mobile("skip", "919111111111")
+        self.assertEqual(mobile, "919111111111")
+        self.assertIsNone(err)
+        mobile, err = parse_text_mobile("98 765 43210", "919111111111")
+        self.assertEqual(mobile, "9876543210")
+        self.assertIsNone(err)
+        mobile, err = parse_text_mobile("call me maybe", "919111111111")
+        self.assertIsNone(mobile)
+        self.assertIn("digits", err.lower())
+
+    @patch("kisna_chatbot.processors.callback_agent.callback_requests")
+    @patch("kisna_chatbot.processors.callback_agent.send_customer_support_template")
+    @patch(_FLOW_ID_PATCHES[1], return_value="flow_video_test")
+    @patch(_FLOW_ID_PATCHES[0], return_value="flow_callback_test")
+    def test_flow_blank_mobile_uses_whatsapp_number(
+        self, _mock_cb_id, _mock_vc_id, mock_notify, mock_coll
+    ):
+        mock_coll.insert_one = MagicMock()
+        agent = CallbackAgent()
+        data = {
+            "phone_number": "919999999999",
+            "client_id": "kisna",
+            "client_config": MagicMock(client_id="kisna"),
+            "whatsapp_username": "Test User",
+            "user_profile": {"service_selected": "callback"},
+            "messages": {
+                "interactive": {
+                    "nfm_reply": {
+                        "response_json": json.dumps(
+                            {
+                                "flow_token": "flow_callback_test",
+                                "mobile": "",
+                                "reason": "product_enquiry",
+                                "preferred_date": "2099-08-03",
+                                "preferred_time": "13-15",
+                                "request_type": "callback",
+                            }
+                        )
+                    }
+                }
+            },
+        }
+        asyncio.run(agent.process(data))
+        saved = mock_coll.insert_one.call_args[0][0]
+        self.assertEqual(saved["mobile"], "919999999999")
+        mock_notify.assert_called()
+        self.assertEqual(mock_notify.call_args.kwargs["customer_phone"], "919999999999")
+
+    def test_callback_flow_json_mobile_is_optional_digits(self):
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parents[1]
+        for name in ("callback_request.json", "video_call_request.json"):
+            spec = json.loads((root / "json" / name).read_text(encoding="utf-8"))
+            children = spec["screens"][0]["layout"]["children"][0]["children"]
+            mobile = next(c for c in children if c.get("name") == "mobile")
+            self.assertFalse(mobile.get("required"))
+            self.assertEqual(mobile.get("input-type"), "number")
 
 
 if __name__ == "__main__":

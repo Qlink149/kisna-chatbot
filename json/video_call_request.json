@@ -47,10 +47,11 @@
               },
               {
                 "type": "TextInput",
-                "label": "Mobile Number",
+                "label": "Mobile Number (optional)",
                 "name": "mobile",
-                "required": true,
-                "input-type": "text"
+                "required": false,
+                "input-type": "number",
+                "helper-text": "Leave blank to use this WhatsApp number. Digits only."
               },
               {
                 "type": "DatePicker",

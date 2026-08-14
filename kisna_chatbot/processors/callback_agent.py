@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -66,6 +67,39 @@ _GENERIC_ERROR = (
     "Sorry, we couldn't register your request right now. "
     "Please try again or contact our support team."
 )
+
+_MOBILE_DIGITS_HINT = (
+    "Please enter digits only, or reply skip to use this WhatsApp number."
+)
+
+_SKIP_MOBILE_RE = re.compile(
+    r"^(?:skip|same|none|na|n/?a|no|-)?$",
+    re.I,
+)
+
+
+def _digits_only(value: str | None) -> str:
+    return re.sub(r"\D", "", value or "")
+
+
+def resolve_callback_mobile(entered: str | None, default_phone: str) -> str:
+    """Use the typed number when it has digits; otherwise the WhatsApp number."""
+    return _digits_only(entered) or _digits_only(default_phone)
+
+
+def parse_text_mobile(
+    text: str, default_phone: str
+) -> tuple[str | None, str | None]:
+    """Return (mobile, error). error is set when the reply is not digits or skip."""
+    raw = (text or "").strip()
+    if _SKIP_MOBILE_RE.match(raw):
+        return resolve_callback_mobile("", default_phone), None
+    if re.search(r"[A-Za-z]", raw):
+        return None, _MOBILE_DIGITS_HINT
+    digits = _digits_only(raw)
+    if not digits:
+        return None, _MOBILE_DIGITS_HINT
+    return digits, None
 
 _REJECT_FULLY_BOOKED = (
     "We're fully booked for the next several weeks. "
@@ -318,6 +352,8 @@ class CallbackAgent(Processor):
 
             preferred_date, preferred_time, was_rescheduled = resolved
 
+            mobile = resolve_callback_mobile(mobile, phone_number)
+
             request_id = generate_request_id(
                 "VC" if request_type == "video_call" else "CB"
             )
@@ -388,7 +424,11 @@ class CallbackAgent(Processor):
         request_type = draft.get("request_type", "callback")
 
         if step == 1:
-            draft["mobile"] = text
+            mobile, error = parse_text_mobile(text, data.get("phone_number", ""))
+            if error:
+                data["bot_response"] = [{"type": "text", "text": error}]
+                return data
+            draft["mobile"] = mobile
             user_profile["callback_draft"] = draft
             if request_type == "video_call":
                 user_profile["callback_capture_step"] = 2
@@ -462,6 +502,10 @@ class CallbackAgent(Processor):
 
             preferred_date, preferred_time, was_rescheduled = resolved
 
+            mobile = resolve_callback_mobile(
+                draft.get("mobile", ""), phone_number
+            )
+
             request_id = generate_request_id(
                 "VC" if request_type == "video_call" else "CB"
             )
@@ -471,7 +515,7 @@ class CallbackAgent(Processor):
                     client_id=client_id,
                     phone_number=phone_number,
                     customer_name=customer_name,
-                    mobile=draft.get("mobile", ""),
+                    mobile=mobile,
                     reason=draft.get("reason"),
                     preferred_time=preferred_time,
                     preferred_date=preferred_date,
@@ -483,7 +527,7 @@ class CallbackAgent(Processor):
                 phone_number,
                 request_id,
                 request_type,
-                draft.get("mobile", ""),
+                mobile,
             )
             data["bot_response"] = _build_confirmation(
                 request_id,
@@ -509,7 +553,10 @@ def build_callback_text_prompt(
     step: int, preferred_date: str | None = None
 ) -> str:
     if step == 1:
-        return "Please share the mobile number we should call you on."
+        return (
+            "Mobile number is optional — reply skip to use this WhatsApp number, "
+            "or send the digits we should call."
+        )
     if step == 2:
         return (
             "What is this regarding?\n"
@@ -533,7 +580,10 @@ def build_video_call_text_prompt(
     step: int, preferred_date: str | None = None
 ) -> str:
     if step == 1:
-        return "Please share the mobile number for your video call."
+        return (
+            "Mobile number is optional — reply skip to use this WhatsApp number, "
+            "or send the digits for the video call."
+        )
     if step == 2:
         return (
             "Which date works for you?\n"
