@@ -103,6 +103,10 @@ def build_search_recap(entities: dict) -> str:
         parts.append(str(material).replace("_", " "))
 
     category = _category_phrase(entities)
+    if not category:
+        from kisna_chatbot.utils.rakhi_season import recap_product_word
+
+        category = recap_product_word(entities)
     parts.append(category or "jewellery")
 
     gender = _GENDER_LABELS.get(str(entities.get("gender") or "").lower())

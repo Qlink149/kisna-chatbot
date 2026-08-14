@@ -180,5 +180,99 @@ class RakhiSeasonOffTests(unittest.TestCase):
         self.assertNotIn("category", fields)
 
 
+
+class RakhiFollowupInheritTests(unittest.TestCase):
+    def test_price_followup_keeps_rakhi_title(self):
+        from kisna_chatbot.utils.rakhi_season import inherit_rakhi_title
+
+        out = inherit_rakhi_title(
+            {"min_price": 15000},
+            {"title": "rakhi"},
+        )
+        self.assertEqual(out.get("title"), "rakhi")
+        self.assertEqual(out.get("min_price"), 15000)
+        self.assertIsNone(out.get("category"))
+
+    def test_new_category_drops_rakhi_title(self):
+        from kisna_chatbot.utils.rakhi_season import inherit_rakhi_title
+
+        out = inherit_rakhi_title(
+            {"category": "ring"},
+            {"title": "rakhi"},
+        )
+        self.assertIsNone(out.get("title"))
+        self.assertEqual(out.get("category"), "ring")
+
+    def test_bridal_title_is_not_inherited(self):
+        from kisna_chatbot.utils.rakhi_season import inherit_rakhi_title
+
+        out = inherit_rakhi_title({"min_price": 15000}, {"title": "bridal"})
+        self.assertIsNone(out.get("title"))
+
+    def test_rivaah_title_is_not_inherited(self):
+        from kisna_chatbot.utils.rakhi_season import inherit_rakhi_title
+
+        out = inherit_rakhi_title({"max_price": 10000}, {"title": "rivaah"})
+        self.assertIsNone(out.get("title"))
+
+    def test_flag_off_does_not_inherit(self):
+        from kisna_chatbot.utils.rakhi_season import inherit_rakhi_title
+
+        with patch(
+            "kisna_chatbot.utils.rakhi_season.RAKHI_TITLE_SEARCH_ENABLED",
+            False,
+        ):
+            out = inherit_rakhi_title({"min_price": 15000}, {"title": "rakhi"})
+        self.assertIsNone(out.get("title"))
+
+    def test_price_only_refinement_sees_rakhi_prior(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _is_price_only_refinement,
+        )
+
+        profile = {
+            "last_search_filters": {"title": "rakhi"},
+            "service_selected": "product_search",
+        }
+        self.assertTrue(_is_price_only_refinement("above 15000", profile))
+        self.assertFalse(
+            _is_price_only_refinement(
+                "above 15000",
+                {"last_search_filters": {"title": "rivaah"}},
+            )
+        )
+
+    def test_ring_price_refinement_still_true(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _is_price_only_refinement,
+        )
+
+        profile = {
+            "last_search_filters": {"category": "ring", "material_type": "gold"},
+            "service_selected": "product_search",
+        }
+        self.assertTrue(_is_price_only_refinement("under 10k", profile))
+
+    def test_recap_says_rakhi_not_jewellery(self):
+        from kisna_chatbot.processors.search_confirmation import build_search_recap
+
+        recap = build_search_recap({"title": "rakhi", "min_price": 15000})
+        self.assertIn("rakhi", recap.lower())
+        self.assertNotIn("jewellery", recap.lower())
+
+    def test_recap_ring_unchanged(self):
+        from kisna_chatbot.processors.search_confirmation import build_search_recap
+
+        recap = build_search_recap({"category": "ring", "max_price": 50000})
+        self.assertIn("ring", recap.lower())
+        self.assertNotIn("rakhi", recap.lower())
+
+    def test_inherited_rakhi_skips_wizard(self):
+        from kisna_chatbot.utils.rakhi_season import inherit_rakhi_title
+
+        out = inherit_rakhi_title({"min_price": 15000}, {"title": "rakhi"})
+        self.assertFalse(should_start_wizard(out))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -102,3 +102,45 @@ def should_skip_wizard_for_rakhi(entities: dict[str, Any] | None) -> bool:
         return False
     title = str((entities or {}).get("title") or "").strip().lower()
     return title == RAKHI_API_TITLE
+
+def prior_rakhi_title(prior: dict[str, Any] | None) -> str | None:
+    """Return 'rakhi' only when the last search was this seasonal title overlay.
+
+    Other titles (bridal, rivaah, collections) stay non-inheritable.
+    """
+    if not RAKHI_TITLE_SEARCH_ENABLED:
+        return None
+    title = str((prior or {}).get("title") or "").strip().lower()
+    return RAKHI_API_TITLE if title == RAKHI_API_TITLE else None
+
+
+def inherit_rakhi_title(
+    entities: dict[str, Any] | None,
+    prior: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Keep title=rakhi on price/material follow-ups.
+
+    Drop it when the user names a new jewellery type or a different title.
+    Flag-off is a no-op.
+    """
+    out = dict(entities or {})
+    keep = prior_rakhi_title(prior)
+    if not keep:
+        return out
+    current = str(out.get("title") or "").strip().lower()
+    if current and current != RAKHI_API_TITLE:
+        return out
+    if out.get("category") and current != RAKHI_API_TITLE:
+        return out
+    out["title"] = keep
+    return out
+
+
+def recap_product_word(entities: dict[str, Any] | None) -> str | None:
+    """Use 'rakhi' in the confirm recap instead of generic 'jewellery'."""
+    if not should_skip_wizard_for_rakhi(entities):
+        return None
+    if (entities or {}).get("category") or (entities or {}).get("categories"):
+        return None
+    return RAKHI_API_TITLE
+

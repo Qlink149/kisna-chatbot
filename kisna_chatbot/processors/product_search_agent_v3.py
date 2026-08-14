@@ -77,7 +77,11 @@ from kisna_chatbot.processors.shopping_wizard import (
 )
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.kisna_url_tracking import kisna_home_url
-from kisna_chatbot.utils.rakhi_season import apply_rakhi_title_hint
+from kisna_chatbot.utils.rakhi_season import (
+    apply_rakhi_title_hint,
+    inherit_rakhi_title,
+    prior_rakhi_title,
+)
 from kisna_chatbot.utils.product_formatter import (
     BROWSE_PRODUCTS_GLOBAL_TITLE,
     build_catalogue_url,
@@ -128,7 +132,9 @@ def _is_price_only_refinement(
     """
     prior = user_profile.get("last_search_filters") or {}
     has_prior_context = bool(
-        prior.get("category") or prior.get("material_type")
+        prior.get("category")
+        or prior.get("material_type")
+        or prior_rakhi_title(prior)
     )
     if not has_prior_context:
         return False
@@ -1502,7 +1508,7 @@ def _entities_for_price_direction(
     }
     base.pop("min_price", None)
     base.pop("max_price", None)
-    entities = {**_empty_entities(), **base}
+    entities = inherit_rakhi_title({**_empty_entities(), **base}, filters)
 
     if direction == "lower":
         anchor = filters.get("max_price") or (min(prices) if prices else None)
@@ -2004,10 +2010,11 @@ class ProductSearchAgentV3(Processor):
                 for k, v in prior_raw.items()
                 if k not in _NEVER_INHERIT_FIELDS and v is not None
             }
-            # Build merged entities: prior category/material + new price
+            # Build merged entities: prior category/material + new price.
+            # Title stays None except seasonal rakhi (Clara has no rakhi category).
             search_entities = {
                 **prior_clean,
-                "title": None,       # never inherit
+                "title": prior_rakhi_title(prior_raw),
                 "collection": None,  # never inherit
             }
             new_min = price_entities.get("min_price")
@@ -2205,12 +2212,14 @@ class ProductSearchAgentV3(Processor):
                     occasion_prefix=note,
                 )
 
+        last_filters = user_profile.get("last_search_filters") or {}
         prior = {
             k: v
-            for k, v in (user_profile.get("last_search_filters") or {}).items()
+            for k, v in last_filters.items()
             if k not in _NEVER_INHERIT_FIELDS and v is not None  # FIX 4: exclude None values
         } or None
         entities = merge_search_entities(prior, extracted, query)
+        entities = inherit_rakhi_title(entities, last_filters)
         entities = finalize_search_entities(
             entities,
             query=query,
