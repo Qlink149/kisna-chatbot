@@ -16,6 +16,8 @@ from kisna_chatbot.processors.ad_flow_agent import (
 )
 from kisna_chatbot.processors.offers_agent import (
     _build_offers_text,
+    _format_amount_range,
+    _format_inr,
     _format_promo_line,
     _is_labour_promo,
 )
@@ -51,9 +53,8 @@ class OffersFormatTests(unittest.TestCase):
                 "category": "Gold",
             }
         )
-        self.assertIn("Making Charges", line)
-        self.assertNotIn("₹", line)
-        self.assertNotIn("up to", line)
+        self.assertIn("10% off on Making Charges", line)
+        self.assertIn("₹1,00,000 – ₹1,99,999", line)
 
     def test_build_offers_text_sections(self):
         promos = [
@@ -90,6 +91,10 @@ class OffersFormatTests(unittest.TestCase):
         self.assertIn("*Gold Jewellery*", text)
         self.assertIn("*Diamond Jewellery*", text)
         self.assertIn("21% off on Diamond Prices", text)
+        self.assertIn(
+            "These % apply to *making charges* only (not gold/diamond value)",
+            text,
+        )
         diamond_pos = text.index("*Diamond Jewellery*")
         gold_pos = text.index("*Gold Jewellery*")
         self.assertLess(diamond_pos, gold_pos)
@@ -116,17 +121,56 @@ class OffersFormatTests(unittest.TestCase):
         self.assertNotIn("Browse Gold", str(resp))
         self.assertNotIn("Browse Diamond", str(resp))
 
-    def test_promo_line_omits_amount_range(self):
+    def test_promo_line_includes_amount_range(self):
         line = _format_promo_line(
             {
                 "discountLable": "20% off on Making Charges",
                 "fromAmt": 0,
-                "toAmt": 49999,
+                "toAmt": 50000,
+                "discOn": "Labour",
+            }
+        )
+        self.assertEqual(
+            line, "• 20% off on Making Charges — Up to ₹50,000"
+        )
+
+    def test_promo_line_open_ended_slab(self):
+        line = _format_promo_line(
+            {
+                "discountLable": "100 % off on Making Charges",
+                "fromAmt": 1000001,
+                "toAmt": 999999999,
+                "discOn": "Labour",
+            }
+        )
+        self.assertEqual(
+            line,
+            "• 100% off on Making Charges — ₹10,00,001 and above",
+        )
+
+    def test_promo_line_mid_range_slab(self):
+        line = _format_promo_line(
+            {
+                "discountLable": "45% off on Making Charges",
+                "fromAmt": 100001,
+                "toAmt": 200000,
+                "discOn": "Labour",
+            }
+        )
+        self.assertEqual(
+            line,
+            "• 45% off on Making Charges — ₹1,00,001 – ₹2,00,000",
+        )
+
+    def test_promo_line_omits_range_when_amounts_missing(self):
+        line = _format_promo_line(
+            {
+                "discountLable": "20% off on Making Charges",
                 "discOn": "Labour",
             }
         )
         self.assertEqual(line, "• 20% off on Making Charges")
-        self.assertNotIn("up to", line)
+        self.assertNotIn("₹", line)
 
     def test_making_charges_disc_on_is_labour_promo(self):
         self.assertTrue(_is_labour_promo({"discOn": "Making Charges"}))
@@ -140,7 +184,29 @@ class OffersFormatTests(unittest.TestCase):
                 "discOn": "Making Charges",
             }
         )
-        self.assertIn("15% off on Making Charges", line)
+        self.assertEqual(
+            line, "• 15% off on Making Charges — Up to ₹99,999"
+        )
+
+    def test_format_inr_indian_grouping(self):
+        self.assertEqual(_format_inr(50_000), "50,000")
+        self.assertEqual(_format_inr(100_000), "1,00,000")
+        self.assertEqual(_format_inr(1_000_001), "10,00,001")
+
+    def test_format_amount_range_shapes(self):
+        self.assertEqual(
+            _format_amount_range({"fromAmt": 0, "toAmt": 50000}),
+            "Up to ₹50,000",
+        )
+        self.assertEqual(
+            _format_amount_range({"fromAmt": 50001, "toAmt": 100000}),
+            "₹50,001 – ₹1,00,000",
+        )
+        self.assertEqual(
+            _format_amount_range({"fromAmt": 1000001, "toAmt": 999999999}),
+            "₹10,00,001 and above",
+        )
+        self.assertEqual(_format_amount_range({}), "")
 
 
 class StoreFormatTests(unittest.TestCase):

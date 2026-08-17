@@ -14,10 +14,17 @@ _ERROR_TEXT = (
     "Sorry, we couldn't load offers right now. Please try again in a moment."
 )
 
-_MAKING_CHARGES_FOOTER = (
-    "_Making charges are the craftsmanship cost added to the gold rate._\n"
-    "_These offers apply to the making charges portion of your order._"
+_OFFERS_INTRO = (
+    "These % apply to *making charges* only (not gold/diamond value), "
+    "based on jewellery price:"
 )
+
+_MAKING_CHARGES_FOOTER = (
+    "_Making charges are added on top of the metal rate. "
+    "Higher jewellery value = higher making-charge discount._"
+)
+
+_OPEN_ENDED_TO_AMT = 999_999_999
 
 
 def _is_labour_promo(promo: dict) -> bool:
@@ -38,6 +45,20 @@ def _is_active_promo(promo: dict) -> bool:
     return True
 
 
+def _format_inr(amount: int) -> str:
+    """Indian grouping: 100000 → 1,00,000; 1000001 → 10,00,001."""
+    digits = str(abs(int(amount)))
+    if len(digits) <= 3:
+        return digits
+    last3 = digits[-3:]
+    rest = digits[:-3]
+    groups: list[str] = []
+    while rest:
+        groups.append(rest[-2:])
+        rest = rest[:-2]
+    return ",".join(reversed(groups)) + "," + last3
+
+
 def _format_amount_range(promo: dict) -> str:
     try:
         from_amt = int(float(promo.get("fromAmt", 0)))
@@ -48,16 +69,20 @@ def _format_amount_range(promo: dict) -> str:
     except (TypeError, ValueError):
         to_amt = 0
 
-    if from_amt == 0:
-        return f"up to ₹{to_amt:,}"
-    if to_amt >= 999999999:
-        return f"₹{from_amt:,} and above"
-    return f"₹{from_amt:,} – ₹{to_amt:,}"
+    if from_amt <= 0 and to_amt <= 0:
+        return ""
+    if from_amt <= 0:
+        return f"Up to ₹{_format_inr(to_amt)}"
+    if to_amt >= _OPEN_ENDED_TO_AMT:
+        return f"₹{_format_inr(from_amt)} and above"
+    if to_amt <= 0:
+        return f"₹{_format_inr(from_amt)} and above"
+    return f"₹{_format_inr(from_amt)} – ₹{_format_inr(to_amt)}"
 
 
 def _format_promo_line(promo: dict) -> str | None:
     label = promo.get("discountLable") or promo.get("discountLabel") or ""
-    label = label.replace(" %", "%")
+    label = str(label).replace(" %", "%").strip()
     if not label:
         disc = promo.get("disc") or promo.get("discount")
         disc_on = promo.get("discOn") or "Making Charges"
@@ -68,6 +93,9 @@ def _format_promo_line(promo: dict) -> str | None:
         except (TypeError, ValueError):
             return None
         label = f"{disc_val}% off on {disc_on}"
+    amount_range = _format_amount_range(promo)
+    if amount_range:
+        return f"• {label} — {amount_range}"
     return f"• {label}"
 
 
@@ -98,7 +126,7 @@ def _build_offers_text(promotions: list) -> str:
         key=lambda p: ((p.get("category") or ""), p.get("fromAmt", 0)),
     )
 
-    parts = ["*Current KISNA Offers* 🎁", ""]
+    parts = ["*Current KISNA Offers* 🎁", "", _OFFERS_INTRO, ""]
 
     parts.append("*Diamond Jewellery*")
     diamond_lines = [
