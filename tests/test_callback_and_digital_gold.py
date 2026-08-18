@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 os.environ.setdefault("OPENAI_API_KEY", "test")
 os.environ.setdefault("GUPSHUP_APP_ID", "test")
 os.environ.setdefault("GUPSHUP_TOKEN", "test")

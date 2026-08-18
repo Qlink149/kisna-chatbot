@@ -5,7 +5,6 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 
 from kisna_chatbot.utils.support_hours import SUPPORT_HOLIDAYS  # noqa: E402
 from kisna_chatbot.utils.support_slots import (  # noqa: E402

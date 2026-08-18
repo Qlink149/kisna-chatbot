@@ -12,7 +12,7 @@ ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git openssh-client && \
+    apt-get install -y --no-install-recommends git openssh-client build-essential && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p -m 0600 ~/.ssh && \
     ssh-keyscan github.com >> ~/.ssh/known_hosts

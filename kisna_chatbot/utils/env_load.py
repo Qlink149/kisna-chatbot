@@ -57,8 +57,7 @@ def get_missing_ai_env_keys() -> list[str]:
     """
     Return env var names missing for configured AI providers and KB.
 
-    OPENAI_API_KEY is required only when OpenAI is used for chat or KB is enabled.
-    GROQ_API_KEY / GROQ_API_KEYS required when Groq is used for chat.
+    OPENAI_API_KEY is required when OpenAI is used for chat or KB is enabled.
     """
     from kisna_chatbot.ai.config import get_ai_settings, refresh_ai_settings
 
@@ -68,14 +67,9 @@ def get_missing_ai_env_keys() -> list[str]:
     providers_needed: set[str] = {settings["default_provider"].value}
     providers_needed.add(settings["classifier_provider"].value)
     providers_needed.add(settings["general_provider"].value)
-    if settings["fallback_enabled"]:
-        providers_needed.add(settings["fallback_provider"].value)
-
     missing: list[str] = []
     if "openai" in providers_needed and not settings["openai_api_key"]:
         missing.append("OPENAI_API_KEY")
-    if "groq" in providers_needed and not settings["groq_api_keys"]:
-        missing.append("GROQ_API_KEY or GROQ_API_KEYS")
     if is_kb_enabled() and not settings["openai_api_key"]:
         label = "OPENAI_API_KEY (required for KB embeddings, not chat)"
         if label not in missing and "OPENAI_API_KEY" not in missing:
@@ -117,11 +111,10 @@ nkl_vtiger_base = _getenv("NKL_VTIGER_BASE")
 nkl_vtiger_token = _getenv("NKL_VTIGER_TOKEN")
 
 # Defaults mirror kisna_chatbot.ai.config: OpenAI for every agent, matching
-# production. Groq is opt-in / fallback only.
+# production.
 ai_provider = _getenv("AI_PROVIDER", "openai")
 ai_provider_classifier = _getenv("AI_PROVIDER_CLASSIFIER")
 ai_provider_general = _getenv("AI_PROVIDER_GENERAL")
-groq_api_key = _getenv("GROQ_API_KEY")
 
 is_production = _getenv("ENV_MODE", "dev").lower() == "prod"
 

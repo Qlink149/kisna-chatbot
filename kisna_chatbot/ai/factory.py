@@ -8,8 +8,6 @@ from kisna_chatbot.ai.config import (
     resolve_model,
     resolve_provider,
 )
-from kisna_chatbot.ai.fallback import FallbackChatProvider
-from kisna_chatbot.ai.groq_chat import create_groq_chat_provider
 from kisna_chatbot.ai.openai_chat import create_openai_chat_provider
 from kisna_chatbot.ai.types import (
     AgentName,
@@ -22,27 +20,18 @@ from kisna_chatbot.utils.logger_config import logger
 
 
 def _create_provider(provider: ProviderName, model: str | None = None):
-    if provider == ProviderName.GROQ:
-        return create_groq_chat_provider(model)
+    if provider != ProviderName.OPENAI:
+        raise ValueError(
+            f"Unsupported AI provider '{provider.value}'. Only 'openai' is supported."
+        )
     return create_openai_chat_provider(model)
 
 
 def get_chat_provider(agent: AgentName):
-    """Return chat provider for agent, with optional fallback wrapper."""
-    settings = get_ai_settings()
+    """Return chat provider for agent."""
     primary_name = resolve_provider(agent)
     model = resolve_model(primary_name)
-    primary = _create_provider(primary_name, model)
-
-    if not settings["fallback_enabled"]:
-        return primary
-
-    fallback_name = settings["fallback_provider"]
-    if fallback_name == primary_name:
-        return primary
-
-    fallback = _create_provider(fallback_name, resolve_model(fallback_name))
-    return FallbackChatProvider(primary, fallback)
+    return _create_provider(primary_name, model)
 
 
 async def complete_chat(

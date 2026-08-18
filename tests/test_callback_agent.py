@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 os.environ.setdefault("OPENAI_API_KEY", "test")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt")
 os.environ.setdefault("SYSTEM_API_KEY", "test-api")

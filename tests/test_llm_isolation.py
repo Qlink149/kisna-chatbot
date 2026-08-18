@@ -41,7 +41,7 @@ def _assert_blocked(coro):
 
 class LlmIsolationTests(unittest.TestCase):
     def test_provider_credentials_are_sentinels(self):
-        for var in ("OPENAI_API_KEY", "GROQ_API_KEY", "GROQ_API_KEYS"):
+        for var in ("OPENAI_API_KEY",):
             self.assertEqual(
                 os.environ.get(var),
                 "test-sentinel-do-not-use",

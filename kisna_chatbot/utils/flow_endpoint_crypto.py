@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import base64
 from base64 import b64decode, b64encode
 
 from cryptography.hazmat.primitives.asymmetric.padding import MGF1, OAEP
@@ -25,6 +26,13 @@ def _normalize_pem(raw: str) -> bytes:
     return text.encode("utf-8")
 
 
+def _load_flow_private_key() -> str:
+    b64 = os.getenv("KISNA_FLOW_PRIVATE_KEY_B64", "").strip()
+    if b64:
+        return base64.b64decode(b64).decode("utf-8")
+    return os.getenv("KISNA_FLOW_PRIVATE_KEY", "")
+
+
 def load_flow_private_key(
     private_key_pem: str | None = None,
     passphrase: str | None = None,
@@ -32,6 +40,8 @@ def load_flow_private_key(
     pem = private_key_pem if private_key_pem is not None else os.getenv(
         "KISNA_FLOW_PRIVATE_KEY", ""
     )
+    if private_key_pem is None:
+        pem = _load_flow_private_key()
     if passphrase is None:
         passphrase = os.getenv("KISNA_FLOW_PRIVATE_KEY_PASSPHRASE") or None
     password = passphrase.encode("utf-8") if passphrase else None

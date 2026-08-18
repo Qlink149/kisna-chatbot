@@ -4,7 +4,6 @@ import os
 import unittest
 
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 
 from kisna_chatbot.processors.entity_extractor import (
     apply_llm_evidence_gate,

@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
-os.environ.setdefault("GROQ_API_KEY", "test-groq-key")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt")
 os.environ.setdefault("SYSTEM_API_KEY", "test-api")
 os.environ.setdefault("KISNA_PRODUCT_API", "https://example.com/products")
@@ -25,7 +24,6 @@ from kisna_chatbot.ai.config import (
     refresh_ai_settings,
     resolve_provider,
 )
-from kisna_chatbot.ai.fallback import is_transient_error
 from kisna_chatbot.ai.types import AgentName, ProviderName
 
 
@@ -39,12 +37,6 @@ class AIConfigTests(unittest.TestCase):
         refresh_ai_settings()
         self.assertEqual(resolve_provider(AgentName.CLASSIFIER), ProviderName.OPENAI)
 
-    def test_classifier_groq_override(self):
-        os.environ["AI_PROVIDER"] = "openai"
-        os.environ["AI_PROVIDER_CLASSIFIER"] = "groq"
-        refresh_ai_settings()
-        self.assertEqual(resolve_provider(AgentName.CLASSIFIER), ProviderName.GROQ)
-
     def test_general_defaults_openai(self):
         os.environ["AI_PROVIDER_GENERAL"] = "openai"
         refresh_ai_settings()
@@ -54,9 +46,8 @@ class AIConfigTests(unittest.TestCase):
 class ProviderDefaultTests(unittest.TestCase):
     """Every agent defaults to OpenAI so dev matches production.
 
-    AI_PROVIDER used to default to "groq" and the classifier inherited it, so
-    an unset environment ran the FALLBACK provider as primary — which is how a
-    local Groq 413 was mistaken for a production outage.
+    An unset environment should always run OpenAI as primary so local behavior
+    matches production and alerting is easier to reason about.
     """
 
     def setUp(self):
@@ -82,130 +73,6 @@ class ProviderDefaultTests(unittest.TestCase):
 
     def test_default_provider_is_openai_when_unset(self):
         self.assertEqual(get_ai_settings()["default_provider"], ProviderName.OPENAI)
-
-    def test_groq_remains_selectable(self):
-        os.environ["AI_PROVIDER_CLASSIFIER"] = "groq"
-        refresh_ai_settings()
-        self.assertEqual(resolve_provider(AgentName.CLASSIFIER), ProviderName.GROQ)
-
-
-class FallbackTests(unittest.TestCase):
-    def test_transient_errors(self):
-        from openai import RateLimitError
-
-        exc = RateLimitError("rate limit", response=MagicMock(), body=None)
-        self.assertTrue(is_transient_error(exc))
-
-        self.assertFalse(is_transient_error(ValueError("bad")))
-
-    def test_non_transient_errors_do_not_trigger_fallback(self):
-        """413 / 5xx / auth are NOT covered — documented, not accidental."""
-        from openai import (
-            APIStatusError,
-            AuthenticationError,
-            BadRequestError,
-            InternalServerError,
-        )
-
-        for exc_cls in (
-            InternalServerError,
-            APIStatusError,
-            BadRequestError,
-            AuthenticationError,
-        ):
-            with self.subTest(exc=exc_cls.__name__):
-                self.assertFalse(
-                    issubclass(
-                        exc_cls,
-                        (
-                            __import__("openai").RateLimitError,
-                            __import__("openai").APITimeoutError,
-                            __import__("openai").APIConnectionError,
-                        ),
-                    )
-                )
-
-    def _result(self, provider: ProviderName):
-        from kisna_chatbot.ai.types import CompletionResult
-
-        return CompletionResult(
-            text="ok",
-            provider=provider,
-            model="m",
-            prompt_tokens=1,
-            completion_tokens=1,
-            latency_ms=1,
-        )
-
-    def _providers(self, primary_exc=None):
-        from kisna_chatbot.ai.fallback import FallbackChatProvider
-
-        primary = MagicMock()
-        primary.provider_name = ProviderName.OPENAI
-        primary.model = "gpt-4o-mini"
-        primary.complete = AsyncMock(
-            side_effect=primary_exc
-            if primary_exc
-            else None,
-            return_value=None if primary_exc else self._result(ProviderName.OPENAI),
-        )
-        secondary = MagicMock()
-        secondary.provider_name = ProviderName.GROQ
-        secondary.model = "llama-3.3-70b-versatile"
-        secondary.complete = AsyncMock(return_value=self._result(ProviderName.GROQ))
-        return FallbackChatProvider(primary, secondary), primary, secondary
-
-    def test_transient_failure_switches_to_fallback_provider(self):
-        import asyncio
-
-        from openai import RateLimitError
-
-        exc = RateLimitError("429", response=MagicMock(), body=None)
-        provider, primary, secondary = self._providers(primary_exc=exc)
-        result = asyncio.run(provider.complete(MagicMock()))
-
-        primary.complete.assert_awaited_once()
-        secondary.complete.assert_awaited_once()
-        self.assertEqual(result.provider, ProviderName.GROQ)
-        self.assertTrue(result.fallback_used)
-
-    def test_non_transient_failure_raises_without_fallback(self):
-        import asyncio
-
-        provider, primary, secondary = self._providers(
-            primary_exc=ValueError("prompt too large")
-        )
-        with self.assertRaises(ValueError):
-            asyncio.run(provider.complete(MagicMock()))
-        primary.complete.assert_awaited_once()
-        secondary.complete.assert_not_awaited()
-
-    def test_healthy_primary_never_calls_fallback(self):
-        import asyncio
-
-        provider, primary, secondary = self._providers()
-        result = asyncio.run(provider.complete(MagicMock()))
-        self.assertEqual(result.provider, ProviderName.OPENAI)
-        secondary.complete.assert_not_awaited()
-
-    def test_fallback_is_unreachable_while_the_flag_is_off(self):
-        """AI_FALLBACK_ENABLED=false means no wrapper is built at all."""
-        from kisna_chatbot.ai.factory import get_chat_provider
-        from kisna_chatbot.ai.fallback import FallbackChatProvider
-
-        saved = os.environ.get("AI_FALLBACK_ENABLED")
-        os.environ["AI_FALLBACK_ENABLED"] = "false"
-        refresh_ai_settings()
-        try:
-            provider = get_chat_provider(AgentName.CLASSIFIER)
-            self.assertNotIsInstance(provider, FallbackChatProvider)
-        finally:
-            if saved is None:
-                os.environ.pop("AI_FALLBACK_ENABLED", None)
-            else:
-                os.environ["AI_FALLBACK_ENABLED"] = saved
-            refresh_ai_settings()
-
 
 class CompleteChatTests(unittest.TestCase):
     def test_complete_chat_returns_text(self):

@@ -7,7 +7,6 @@ from typing import Any
 
 class ProviderName(str, Enum):
     OPENAI = "openai"
-    GROQ = "groq"
 
 
 class AgentName(str, Enum):

@@ -7,7 +7,6 @@ from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa

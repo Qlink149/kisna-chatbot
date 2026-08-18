@@ -5,7 +5,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 
 
 class TestChatPagination(unittest.TestCase):

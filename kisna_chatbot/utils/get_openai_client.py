@@ -17,8 +17,7 @@ def get_openai_client() -> AsyncOpenAI:
     if _client is None:
         if not openai_api_key:
             raise RuntimeError(
-                "OPENAI_API_KEY is required for OpenAI GeneralAgent "
-                "(set AI_PROVIDER_GENERAL=groq to use Groq only)."
+                "OPENAI_API_KEY is required for OpenAI GeneralAgent."
             )
         _client = AsyncOpenAI(api_key=openai_api_key)
     return _client

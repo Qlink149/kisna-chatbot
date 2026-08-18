@@ -244,7 +244,7 @@ class SingletonLogger:
             stderr_handler.addFilter(context_filter)
             self.logger.addHandler(stderr_handler)
 
-            if not os.getenv("VERCEL"):
+            if os.getenv("LOG_TO_FILE", "").lower() in ("1", "true", "yes"):
                 file_handler = logging.FileHandler(filename=log_file_path, mode="a")
                 file_handler.setLevel(logging.DEBUG)
                 file_handler.setFormatter(formatter)

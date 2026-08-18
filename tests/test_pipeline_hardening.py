@@ -9,7 +9,6 @@ for _k, _v in {
     "ENV_MODE": "dev",
     "MONGO_URI": "mongodb://localhost:27017",
     "OPENAI_API_KEY": "test-key",
-    "GROQ_API_KEY": "test",
     "GUPSHUP_APP_NAME": "test",
     "GUPSHUP_API_KEY": "test",
 }.items():

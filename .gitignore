@@ -97,3 +97,8 @@ docker-compose.override.yml
 
 # Chroma / vector store local cache (if used locally)
 .chroma/
+
+# Local audit dumps (not for commit)
+audit/*.txt
+_write_audit_answers.py
+scripts/_dump_confirm_profile.py

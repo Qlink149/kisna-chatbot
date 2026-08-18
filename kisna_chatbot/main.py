@@ -67,13 +67,11 @@ async def _get_user_lock(phone: str) -> asyncio.Lock:
         _USER_LOCKS[phone] = asyncio.Lock()
     return _USER_LOCKS[phone]
 
+_default_origins = "https://kisna-wa.claraai.tech"
 ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://kisna-dashboard.example.com",
-    "https://kisna-dashboard.vercel.app",
-    "https://kisna-chatbot-dashboard.vercel.app",
-    "https://kisna-wa.claraai.tech",
+    o.strip().rstrip("/")
+    for o in os.getenv("CORS_ORIGINS", _default_origins).split(",")
+    if o.strip()
 ]
 
 def _log_webhook_payload_enabled() -> bool:

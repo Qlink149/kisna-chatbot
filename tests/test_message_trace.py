@@ -5,7 +5,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 
 from kisna_chatbot.utils.message_trace import (  # noqa: E402
     persist_message_trace,

@@ -5,7 +5,6 @@ import unittest
 
 for _k, _v in {
     "MONGO_URI": "mongodb://localhost:27017",
-    "GROQ_API_KEY": "test",
     "GUPSHUP_APP_ID": "test",
     "GUPSHUP_TOKEN": "test",
     "GUPSHUP_APP_NAME": "test",

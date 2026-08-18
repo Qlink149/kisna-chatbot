@@ -28,8 +28,8 @@ def match_production_search_confirmation(request, monkeypatch):
 
 # ── No live LLM calls in pytest ────────────────────────────────────────────
 #
-# The suite was making real API calls: complete_chat succeeded with
-# GROQ_API_KEY="test" because real credentials reach tests from the
+# The suite was making real API calls: complete_chat succeeded because real
+# credentials could reach tests from the
 # developer's ambient environment. Results were environment-dependent and not
 # reproducible on a clean machine or in CI, and some tests were quietly
 # asserting against live model output.
@@ -47,8 +47,6 @@ _LIVE_CALL_MESSAGE = (
 
 _PROVIDER_KEY_VARS = (
     "OPENAI_API_KEY",
-    "GROQ_API_KEY",
-    "GROQ_API_KEYS",
     "CHROMA_API_KEY",
 )
 
@@ -96,7 +94,6 @@ class _BlockedAsyncOpenAI:
 # (module path, attribute, replacement) reaching a provider over the network.
 _NETWORK_BOUNDARY = (
     ("kisna_chatbot.ai.base", "AsyncOpenAI", _BlockedAsyncOpenAI),
-    ("kisna_chatbot.ai.groq_chat", "AsyncOpenAI", _BlockedAsyncOpenAI),
     ("kisna_chatbot.utils.get_openai_client", "AsyncOpenAI", _BlockedAsyncOpenAI),
     ("kisna_chatbot.ai.openai_responses", "get_openai_client", _raise_live_call),
     ("kisna_chatbot.utils.get_openai_client", "get_openai_client", _raise_live_call),

@@ -2,13 +2,13 @@
 
 The classifier prompt grew to 12,819 estimated tokens through a series of
 well-meaning additions, each small on its own. Nothing measured the total, so
-nobody noticed until it exceeded Groq's 12,000 TPM ceiling and every call on
-that provider returned HTTP 413.
+nobody noticed until it exceeded a safe request-size ceiling and requests
+started returning HTTP 413.
 
 Estimate is len(prompt) / 3.6. That UNDERSTATES real tokens by roughly 15% on
 this content (Indic script and JSON tokenise badly), so the budgets below are
 set with that in mind: 6,000 estimated is ~6,900 real, leaving ~5,000 tokens of
-context headroom under Groq's ceiling.
+context headroom under the configured ceiling.
 """
 
 import unittest
@@ -21,9 +21,9 @@ from kisna_chatbot.prompts.classifier_kisna import (
 MAX_CLASSIFIER_INTENT_TOKENS = 6000
 MAX_ENTITY_EXTRACTOR_TOKENS = 6500
 
-# Groq on-demand TPM ceiling for llama-3.3-70b-versatile. The prompt plus its
-# context and the user message must fit inside this or the call 413s.
-GROQ_TPM_CEILING = 12000
+# Conservative request-size ceiling. The prompt plus context and user message
+# must fit inside this to avoid request-too-large errors.
+REQUEST_SIZE_CEILING = 12000
 EST_TO_REAL_TOKEN_RATIO = 1.16
 
 
@@ -51,20 +51,15 @@ class PromptBudgetTests(unittest.TestCase):
             f"{MAX_ENTITY_EXTRACTOR_TOKENS}.",
         )
 
-    def test_classifier_fits_under_the_groq_ceiling_with_context(self):
-        """The fallback provider must remain usable for the classifier.
-
-        At 12,819 est tokens this was false: Groq returned 413 on every
-        classifier call, so arming the fallback would have protected every
-        agent except the one users notice.
-        """
+    def test_classifier_fits_under_request_ceiling_with_context(self):
+        """Classifier prompt must leave enough room for runtime context."""
         real = estimate_tokens(kisna_classifier_intent) * EST_TO_REAL_TOKEN_RATIO
-        headroom = GROQ_TPM_CEILING - real
+        headroom = REQUEST_SIZE_CEILING - real
         self.assertGreater(
             headroom,
             3000,
             f"classifier is ~{real:.0f} real tokens; only {headroom:.0f} tokens "
-            f"left under Groq's {GROQ_TPM_CEILING} ceiling for chat history, "
+            f"left under {REQUEST_SIZE_CEILING} ceiling for chat history, "
             f"shown products and the user message.",
         )
 
@@ -80,8 +75,8 @@ class PromptBudgetTests(unittest.TestCase):
 
         historical = HISTORICAL_CLASSIFIER_CHARS / 3.6
         self.assertGreater(historical, MAX_CLASSIFIER_INTENT_TOKENS)
-        # And it blew the provider ceiling, which is the failure that mattered.
-        self.assertGreater(historical * EST_TO_REAL_TOKEN_RATIO, GROQ_TPM_CEILING)
+        # And it blew the request-size ceiling, which is the failure that mattered.
+        self.assertGreater(historical * EST_TO_REAL_TOKEN_RATIO, REQUEST_SIZE_CEILING)
 
 
 if __name__ == "__main__":

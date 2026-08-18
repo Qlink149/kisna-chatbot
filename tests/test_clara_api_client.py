@@ -23,7 +23,6 @@ os.environ.setdefault("GUPSHUP_TOKEN", "test-token")
 os.environ.setdefault("GUPSHUP_APP_NAME", "test-app")
 os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
 os.environ.setdefault("GUPSHUP_WEBHOOK_SECRET", "test-webhook-secret")
-os.environ.setdefault("GROQ_API_KEY", "test-groq-key")
 
 from kisna_chatbot.integrations.clara_api import (  # noqa: E402
     build_products_query_params,

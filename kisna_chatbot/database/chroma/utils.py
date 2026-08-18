@@ -1,8 +1,6 @@
 import time
 import uuid
 
-from kisna_chatbot.constants import EMBEDDING_MODEL
-from kisna_chatbot.utils.env_load import chroma_api, chroma_tenant, openai_api_key
 from kisna_chatbot.utils.logger_config import logger
 
 _chroma_client = None
@@ -54,28 +52,15 @@ def chunk_kb_text(
 
 
 def _get_chroma_client():
-    global _chroma_client
-    if _chroma_client is None:
-        import chromadb
-
-        _chroma_client = chromadb.CloudClient(
-            tenant=chroma_tenant,
-            database="Kisna_Chatbot",
-            api_key=chroma_api,
-        )
-    return _chroma_client
+    raise RuntimeError(
+        "Chroma is disabled: install and configure 'chromadb' to enable KB/vector search."
+    )
 
 
 def _get_embedding_fn():
-    global _embedding_fn
-    if _embedding_fn is None:
-        from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
-
-        _embedding_fn = OpenAIEmbeddingFunction(
-            api_key=openai_api_key,
-            model_name=EMBEDDING_MODEL,
-        )
-    return _embedding_fn
+    raise RuntimeError(
+        "Chroma is disabled: install and configure 'chromadb' to enable embeddings."
+    )
 
 
 def _get_product_collection():

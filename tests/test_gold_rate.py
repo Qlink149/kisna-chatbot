@@ -6,7 +6,6 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 
 from kisna_chatbot.processors.gold_rate_handler import (  # noqa: E402
     build_gold_rate_bot_response,

@@ -9,7 +9,6 @@ for _k, _v in {
     "ENV_MODE": "dev",
     "MONGO_URI": "mongodb://localhost:27017",
     "OPENAI_API_KEY": "test-key",
-    "GROQ_API_KEY": "test",
     "KISNA_CALLBACK_FLOW_ID": "flow_callback_test",
 }.items():
     os.environ.setdefault(_k, _v)

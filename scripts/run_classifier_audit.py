@@ -12,6 +12,15 @@ import sys
 
 USE_LLM = "--llm" in sys.argv
 
+if USE_LLM:
+    from dotenv import load_dotenv
+
+    load_dotenv(
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+        override=False,
+    )
+    os.environ.setdefault("AI_PROVIDER_CLASSIFIER", "openai")
+
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 if not USE_LLM:

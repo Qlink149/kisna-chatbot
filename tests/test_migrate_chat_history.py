@@ -5,7 +5,6 @@ import unittest
 from unittest.mock import MagicMock
 
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("GROQ_API_KEY", "test")
 
 from scripts.migrate_chat_history import (  # noqa: E402
     _synthetic_timestamps,
