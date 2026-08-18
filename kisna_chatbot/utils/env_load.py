@@ -26,9 +26,12 @@ REQUIRED_IN_PROD = (
     "GUPSHUP_WEBHOOK_SECRET",
     "JWT_SECRET_KEY",
     "SYSTEM_API_KEY",
+    "KISNA_CLARA_BASE_URL",
+    "CLARA_API_KEY",
+)
+
+OPTIONAL_FEATURE_VARS = (
     "KISNA_PRODUCT_API",
-    "KISNA_OFFERS_API",
-    "KISNA_STORE_API",
     "KISNA_VTIGER_BASE",
     "KISNA_VTIGER_TOKEN",
 )
@@ -122,22 +125,38 @@ _gupshup_startup_validated = False
 _ai_startup_validated = False
 
 
+def _warn_optional_features() -> None:
+    """Warn when optional feature env vars are unset. Never blocks startup."""
+    missing = {key for key in OPTIONAL_FEATURE_VARS if not _getenv(key)}
+    if "KISNA_PRODUCT_API" in missing:
+        _log_warning(
+            "KISNA_PRODUCT_API not set — legacy pre-order flow unavailable"
+        )
+    if "KISNA_VTIGER_BASE" in missing or "KISNA_VTIGER_TOKEN" in missing:
+        _log_warning(
+            "KISNA_VTIGER_BASE/TOKEN not set — complaint tickets will save to "
+            "MongoDB only, VTiger sync disabled"
+        )
+
+
 def validate_env() -> None:
     """
     Validate required environment variables.
 
     Raises RuntimeError in production when any required key is missing.
     Logs warnings in non-production when keys are missing.
+    Optional feature vars never block startup; they log a warning if unset.
     """
     missing = [key for key in REQUIRED_IN_PROD if not _getenv(key)]
     missing.extend(get_missing_ai_env_keys())
 
-    if not missing:
-        return
-    message = f"Missing required environment variables: {', '.join(missing)}"
-    if is_production:
-        raise RuntimeError(message)
-    _log_warning(message)
+    if missing:
+        message = f"Missing required environment variables: {', '.join(missing)}"
+        if is_production:
+            raise RuntimeError(message)
+        _log_warning(message)
+
+    _warn_optional_features()
 
 
 def validate_gupshup_config() -> None:
