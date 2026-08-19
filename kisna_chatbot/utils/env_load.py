@@ -23,7 +23,6 @@ REQUIRED_IN_PROD = (
     "GUPSHUP_TOKEN",
     "GUPSHUP_APP_NAME",
     "GUPSHUP_API_KEY",
-    "GUPSHUP_WEBHOOK_SECRET",
     "JWT_SECRET_KEY",
     "SYSTEM_API_KEY",
     "KISNA_CLARA_BASE_URL",
@@ -34,6 +33,7 @@ OPTIONAL_FEATURE_VARS = (
     "KISNA_PRODUCT_API",
     "KISNA_VTIGER_BASE",
     "KISNA_VTIGER_TOKEN",
+    "GUPSHUP_WEBHOOK_SECRET",
 )
 
 GUPSHUP_REQUIRED_KEYS = (
@@ -137,6 +137,12 @@ def _warn_optional_features() -> None:
             "KISNA_VTIGER_BASE/TOKEN not set — complaint tickets will save to "
             "MongoDB only, VTiger sync disabled"
         )
+    if "GUPSHUP_WEBHOOK_SECRET" in missing:
+        _log_warning(
+            "GUPSHUP_WEBHOOK_SECRET not set — inbound webhook signature "
+            "verification is DISABLED. Any party who knows the webhook URL "
+            "can POST messages. See docs/GO_LIVE.md."
+        )
 
 
 def validate_env() -> None:
@@ -172,11 +178,6 @@ def validate_gupshup_config() -> None:
     _gupshup_startup_validated = True
 
     missing = [key for key in GUPSHUP_REQUIRED_KEYS if not _getenv(key)]
-    if is_production:
-        prod_only = []
-        if not _getenv("GUPSHUP_WEBHOOK_SECRET"):
-            prod_only.append("GUPSHUP_WEBHOOK_SECRET")
-        missing = list(dict.fromkeys(missing + prod_only))
 
     if missing:
         message = f"Missing Gupshup configuration: {', '.join(missing)}"
@@ -192,11 +193,6 @@ def validate_gupshup_config() -> None:
         if is_production:
             raise RuntimeError(message)
         _log_warning(message)
-
-    if not _getenv("GUPSHUP_WEBHOOK_SECRET"):
-        if is_production:
-            raise RuntimeError("GUPSHUP_WEBHOOK_SECRET is required in production")
-        _log_warning("GUPSHUP_WEBHOOK_SECRET not set, skipping webhook verification")
 
 
 def validate_ai_config() -> None:
