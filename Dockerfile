@@ -56,4 +56,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ping')" || exit 1
 
-CMD ["uvicorn", "kisna_chatbot.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Single worker: in-process _USER_LOCKS and PubSubManager mean multiple
+# workers break per-user locking and SSE routing.
+CMD ["uvicorn", "kisna_chatbot.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
