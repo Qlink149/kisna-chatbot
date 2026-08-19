@@ -3,7 +3,6 @@
 import json
 import os
 import unittest
-from pathlib import Path
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -39,8 +38,9 @@ from kisna_chatbot.utils.product_formatter import (
     format_price_line,
     get_product_price_bundle,
 )
+from tests.clara_local_fixtures import CLARA_FIXTURE_DIR, skip_without_clara
 
-_FIXTURES = Path(__file__).resolve().parent.parent / "json" / "api" / "v1" / "clara"
+_FIXTURES = CLARA_FIXTURE_DIR
 
 
 def _load_products() -> list[dict]:
@@ -58,10 +58,12 @@ def _nitara_ring() -> dict:
 
 
 class ClaraFixtureTests(unittest.TestCase):
+    @skip_without_clara("products.json")
     def test_nitara_category_from_product_type(self):
         product = _nitara_ring()
         self.assertEqual(extract_category_from_product(product), "ring")
 
+    @skip_without_clara("products.json")
     def test_filter_rings_below_10k_fixture_returns_zero(self):
         rings = [
             p for p in _load_products() if extract_category_from_product(p) == "ring"
@@ -73,6 +75,7 @@ class ClaraFixtureTests(unittest.TestCase):
         )
         self.assertEqual(filtered, [])
 
+    @skip_without_clara("products.json")
     def test_filter_drops_non_ring_when_category_ring(self):
         bracelet = next(
             p
@@ -87,6 +90,7 @@ class ClaraFixtureTests(unittest.TestCase):
         self.assertEqual(len(filtered), 1)
         self.assertEqual(filtered[0]["title"], "Nitara Ring")
 
+    @skip_without_clara("products.json")
     def test_filter_drops_wrong_material(self):
         ring = _nitara_ring()
         filtered = filter_products_by_entities(
@@ -95,6 +99,7 @@ class ClaraFixtureTests(unittest.TestCase):
         )
         self.assertEqual(filtered, [])
 
+    @skip_without_clara("products.json")
     def test_nitara_price_bundle_api_only_no_estimated_mrp(self):
         product = _nitara_ring()
         bundle = get_product_price_bundle(product)
@@ -103,6 +108,7 @@ class ClaraFixtureTests(unittest.TestCase):
         self.assertEqual(bundle["sku"], "KFLR10009G")
         self.assertIn("30% off", bundle["promo_label"] or "")
 
+    @skip_without_clara("products.json")
     def test_nitara_price_line_single_api_price(self):
         line = format_price_line(_nitara_ring())
         self.assertIn("64,892", line)
@@ -341,6 +347,7 @@ class ClaraFixtureTests(unittest.TestCase):
         }
         self.assertTrue(clf.should_run(data))
 
+    @skip_without_clara("promotions.json")
     def test_promotions_fixture_loads(self):
         path = _FIXTURES / "promotions.json"
         with open(path, encoding="utf-8") as f:
@@ -349,6 +356,7 @@ class ClaraFixtureTests(unittest.TestCase):
         self.assertIsInstance(promos, list)
         self.assertTrue(len(promos) > 0)
 
+    @skip_without_clara("stores.json")
     def test_stores_fixture_loads(self):
         path = _FIXTURES / "stores.json"
         with open(path, encoding="utf-8") as f:

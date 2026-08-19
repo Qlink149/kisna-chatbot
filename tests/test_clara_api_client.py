@@ -3,7 +3,6 @@
 import json
 import os
 import unittest
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("ENV_MODE", "dev")
@@ -31,7 +30,9 @@ from kisna_chatbot.integrations.clara_api import (  # noqa: E402
     search_products,
 )
 
-_FIXTURES = Path(__file__).resolve().parent.parent / "json" / "api" / "v1" / "clara"
+from tests.clara_local_fixtures import CLARA_FIXTURE_DIR, skip_without_clara
+
+_FIXTURES = CLARA_FIXTURE_DIR
 
 
 class BuildProductsQueryParamsTests(unittest.TestCase):
@@ -89,6 +90,7 @@ class BuildProductsQueryParamsTests(unittest.TestCase):
         self.assertNotIn("madeToOrder", both)
 
 
+@skip_without_clara("products.json")
 class ParseProductsResponseTests(unittest.TestCase):
     def test_parses_products_fixture(self):
         path = _FIXTURES / "products.json"
@@ -103,6 +105,7 @@ class ParseProductsResponseTests(unittest.TestCase):
         self.assertIn("productType", first)
 
 
+@skip_without_clara("products.json")
 class SearchProductsRoundTripTests(unittest.TestCase):
     def test_search_products_uses_builder_and_parser(self):
         async def _run():
@@ -133,6 +136,7 @@ class SearchProductsRoundTripTests(unittest.TestCase):
         asyncio.run(_run())
 
 
+@skip_without_clara("stores.json")
 class GetStoresQueryParamsTests(unittest.TestCase):
     def _run_get_stores(self, **kwargs):
         async def _run():

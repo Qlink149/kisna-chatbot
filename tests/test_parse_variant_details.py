@@ -3,7 +3,6 @@
 import json
 import os
 import unittest
-from pathlib import Path
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -21,8 +20,9 @@ from kisna_chatbot.integrations.clara_api import (
     DEFAULT_API_PAGE_SIZE,
 )
 from kisna_chatbot.utils.product_formatter import parse_variant_details
+from tests.clara_local_fixtures import CLARA_FIXTURE_DIR, skip_without_clara
 
-_FIXTURES = Path(__file__).resolve().parent.parent / "json" / "api" / "v1" / "clara"
+_FIXTURES = CLARA_FIXTURE_DIR
 
 
 def _load_products() -> list[dict]:
@@ -59,6 +59,7 @@ class ParseVariantDetailsTests(unittest.TestCase):
         self.assertEqual(parsed["metal_colour"], "rose")
         self.assertEqual(parsed["size"], 8)
 
+    @skip_without_clara("products.json")
     def test_fixture_peace_hamsa_variant(self):
         product = _peace_hamsa_bracelet()
         parsed = parse_variant_details(product)
@@ -99,6 +100,7 @@ class ClientFilterTests(unittest.TestCase):
         self.assertNotIn("collection", params)
         self.assertNotIn("metal_colour", params)
 
+    @skip_without_clara("products.json")
     def test_filter_evil_eye_collection_fixture(self):
         product_id = _peace_hamsa_bracelet()["_id"]
         filtered, note = filter_products_by_extracted_extras(
@@ -108,6 +110,7 @@ class ClientFilterTests(unittest.TestCase):
         filtered_ids = {p["_id"] for p in filtered}
         self.assertIn(product_id, filtered_ids)
 
+    @skip_without_clara("products.json")
     def test_filter_karat_14kt_fixture(self):
         ring_id = _nitara_ring()["_id"]
         filtered, _note = filter_products_by_extracted_extras(
@@ -117,6 +120,7 @@ class ClientFilterTests(unittest.TestCase):
         filtered_ids = {p["_id"] for p in filtered}
         self.assertIn(ring_id, filtered_ids)
 
+    @skip_without_clara("products.json")
     def test_relaxation_returns_note_when_strict_filter_thin(self):
         products = _load_products()[:2]
         filtered, note = filter_products_by_extracted_extras(
