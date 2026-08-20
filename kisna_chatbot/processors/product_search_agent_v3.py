@@ -3048,6 +3048,16 @@ class ProductSearchAgentV3(Processor):
         user_profile = data.get("user_profile", {})
         entities = finalize_search_entities(entities)
 
+        # Phase 5: block impossible karat/colour/collection/gender when filters warm.
+        from kisna_chatbot.processors.filter_validation import (
+            build_impossible_value_prompt,
+        )
+
+        impossible = build_impossible_value_prompt(entities)
+        if impossible:
+            data["bot_response"] = impossible
+            return data
+
         # Read the filters back before spending them on an API call — an
         # inherited material/gender/budget is only wrong if the user can't see it.
         if confirm and is_confirm_enabled() and should_confirm(entities):

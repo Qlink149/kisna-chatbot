@@ -551,6 +551,15 @@ def is_value_available(
     if not options:
         # Cold / empty: callers must skip validation (degradation contract).
         return False
+    if facet == FACET_GENDER:
+        aliases = {
+            "women": ("women", "female", "for her"),
+            "men": ("men", "mens", "male", "for him"),
+            "kids": ("kids", "children", "child"),
+        }
+        key = _norm_label(value)
+        needles = aliases.get(key, (key,))
+        return any(_match_option(options, needle) is not None for needle in needles)
     fuzzy = facet == FACET_COLLECTION
     return _match_option(options, value, fuzzy=fuzzy) is not None
 
