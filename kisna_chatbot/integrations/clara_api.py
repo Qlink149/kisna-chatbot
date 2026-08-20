@@ -144,6 +144,7 @@ GENDER_TAG_MANAGER_IDS: dict[str, str] = {
 def build_products_query_params(
     *,
     category: str | None = None,
+    category_id: str | None = None,
     material_type: str | None = None,
     min_price: float | None = None,
     max_price: float | None = None,
@@ -159,11 +160,11 @@ def build_products_query_params(
     """
     Build Clara GET /api/v1/clara/products query params.
 
-    Core filters: category, materialType, minPrice, maxPrice, title.
+    Prefer categoryId over category slug when available (slug over-matches).
     Extended filters from /clara/filters:
       - tagManagerId (gender)
       - collectionId
-      - metaSubAttributeValue (karat / color)
+      - metaSubAttributeValue (karat / color) — one value only (AND unsupported)
       - readyTOShip / madeToOrder (availability) — note Clara's readyTOShip casing
     """
     params: dict[str, Any] = {
@@ -172,7 +173,11 @@ def build_products_query_params(
     }
     has_filters = False
 
-    if category is not None and str(category).strip():
+    # categoryId takes precedence — live audit: category=ring over-matches earrings.
+    if category_id is not None and str(category_id).strip():
+        params["categoryId"] = str(category_id).strip()
+        has_filters = True
+    elif category is not None and str(category).strip():
         params["category"] = str(category).strip()
         has_filters = True
     if material_type is not None and str(material_type).strip():
@@ -209,7 +214,12 @@ def build_products_query_params(
         params["madeToOrder"] = "true"
         has_filters = True
 
-    if has_filters:
+    # Clara's searchUrl mode builds a text $or from slug `category` / `title`.
+    # ObjectId-only (or material/price-only) queries return 400
+    # "$or argument must be a non-empty array" when searchUrl=true is sent.
+    # Live-verified: categoryId / collectionId / meta / tagManagerId work
+    # without searchUrl; title matching still needs searchUrl=true.
+    if has_filters and ("title" in params or "category" in params):
         params["searchUrl"] = "true"
 
     return _omit_empty_params(params)
@@ -254,6 +264,7 @@ def _extract_list_payload(data: Any) -> list:
 
 async def search_products(
     category: str | None = None,
+    category_id: str | None = None,
     material_type: str | None = None,
     min_price: float | None = None,
     max_price: float | None = None,
@@ -270,8 +281,8 @@ async def search_products(
     Search products via Clara API. Never cached — pricing changes daily.
 
     Query params: pageNo, pageSize, materialType, minPrice, maxPrice, category,
-    title, tagManagerId, collectionId, metaSubAttributeValue, readyTOShip,
-    madeToOrder, searchUrl=true.
+    categoryId, title, tagManagerId, collectionId, metaSubAttributeValue,
+    readyTOShip, madeToOrder, searchUrl=true.
 
     List prices use price.variantPrice; WhatsApp display/MRP use API fields only
     via utils.price_calculator (no computed MRP).
@@ -281,6 +292,7 @@ async def search_products(
     """
     params = build_products_query_params(
         category=category,
+        category_id=category_id,
         material_type=material_type,
         min_price=min_price,
         max_price=max_price,
@@ -304,6 +316,10 @@ async def search_products(
             "page_size": page_size,
             "result_count": len(result["products"]),
             "total_count": result["total_count"],
+            "used_category_id": bool(params.get("categoryId")),
+            "used_category_slug": bool(params.get("category")),
+            "has_meta": bool(params.get("metaSubAttributeValue")),
+            "has_collection_id": bool(params.get("collectionId")),
         },
     )
     return result

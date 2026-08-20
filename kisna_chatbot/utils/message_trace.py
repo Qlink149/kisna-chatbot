@@ -28,6 +28,7 @@ _PRODUCTS_PATH = "/api/v1/clara/products"
 
 _FALLBACK_DROP_LABELS = {
     "drop_fulfillment": "ready-to-ship / made-to-order filter",
+    "drop_meta": "karat/colour/collection filter",
     "drop_price": "price filter",
     "drop_price_fulfillment": "price and availability filters",
     "drop_title": "title filter",

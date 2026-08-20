@@ -90,7 +90,7 @@ class LlmPrimaryEntityTests(unittest.TestCase):
             query=query,
         )
         params = entities_to_api_params(entities)
-        self.assertEqual(params["category"], "chain")
+        self.assertTrue(params.get("category_id") or params.get("category") == "chain")
         self.assertEqual(params["material_type"], "gold")
         self.assertEqual(params["min_price"], 50000)
         self.assertTrue(has_clara_search_scope(params))

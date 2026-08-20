@@ -26,27 +26,35 @@ from kisna_chatbot.processors.entity_extractor import (  # noqa: E402
 
 
 class ClaraCategoryMappingTests(unittest.TestCase):
+    def _assert_clara_category(self, params: dict, clara_slug: str) -> None:
+        """Warm filters → categoryId; cold → slug. Either is correct."""
+        if params.get("category_id"):
+            self.assertNotIn("category", params)
+            from kisna_chatbot.integrations.clara_filters import get_category_id
+
+            expected_id = get_category_id(clara_slug)
+            if expected_id:
+                self.assertEqual(params["category_id"], expected_id)
+        else:
+            self.assertEqual(params.get("category"), clara_slug)
+
     def test_map_entries_with_clara_strings(self):
         for internal, clara in CATEGORY_NORMALIZATION_MAP.items():
             if clara is None:
                 continue
             params = entities_to_api_params({"category": internal})
-            self.assertEqual(
-                params.get("category"),
-                clara,
-                msg=f"{internal!r} should map to {clara!r}",
-            )
+            self._assert_clara_category(params, clara)
 
     def test_maang_tikka_maps_to_space_form(self):
         params = entities_to_api_params({"category": "maang_tikka"})
-        self.assertEqual(params["category"], "maang tikka")
+        self._assert_clara_category(params, "maang tikka")
 
     def test_maang_tikka_diamond_above_50k_not_blocked(self):
         entities = finalize_search_entities(
             extract_entities("Show me Maang Tikka above 50k in diamond")
         )
         params = entities_to_api_params(entities)
-        self.assertEqual(params.get("category"), "maang tikka")
+        self._assert_clara_category(params, "maang tikka")
         self.assertEqual(params.get("material_type"), "diamond")
         self.assertEqual(params.get("min_price"), 50000)
         self.assertTrue(has_clara_search_scope(params, entities))

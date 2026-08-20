@@ -59,6 +59,8 @@ class BuildProductsQueryParamsTests(unittest.TestCase):
         self.assertNotIn("category", params)
         self.assertNotIn("title", params)
         self.assertIn("materialType", params)
+        # material-only must not send searchUrl (Clara $or 400).
+        self.assertNotIn("searchUrl", params)
 
     def test_availability_and_gender_params(self):
         params = build_products_query_params(

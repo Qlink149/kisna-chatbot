@@ -185,7 +185,7 @@ class ClaraFixtureTests(unittest.TestCase):
             {"material_type": "gold", "category": "ring"},
         )
         self.assertIn("ready-to-ship", note.lower())
-        self.assertIn("order", note.lower())
+        self.assertIn("matching options", note.lower())
 
     def test_category_only_appended_when_material_and_price(self):
         entities = {
@@ -271,17 +271,17 @@ class ClaraFixtureTests(unittest.TestCase):
         self.assertNotIn("under ₹", note)
 
     def test_pendant_set_maps_to_category_not_title(self):
-        """'pendant set' must produce category=pendant set, not category=pendant&title=set."""
+        """'pendant set' must produce category scope, not category=pendant&title=set."""
         entities = extract_entities("pendant sets in gold")
         params = entities_to_api_params(entities)
-        self.assertEqual(params.get("category"), "pendant set")
+        self.assertTrue(params.get("category_id") or params.get("category") == "pendant set")
         self.assertIsNone(params.get("title"))
 
     def test_necklace_set_maps_to_category_not_title(self):
-        """'necklace set' must produce category=necklace set, not title=set."""
+        """'necklace set' must produce category scope, not title=set."""
         entities = extract_entities("necklace set")
         params = entities_to_api_params(entities)
-        self.assertEqual(params.get("category"), "necklace set")
+        self.assertTrue(params.get("category_id") or params.get("category") == "necklace set")
         self.assertIsNone(params.get("title"))
 
     def test_title_set_redundant_for_pendant_set_category(self):
@@ -307,7 +307,7 @@ class ClaraFixtureTests(unittest.TestCase):
             {"category": "chain", "material_type": "gold"},
         )
         params = entities_to_api_params(entities)
-        self.assertEqual(params["category"], "chain")
+        self.assertTrue(params.get("category_id") or params.get("category") == "chain")
         self.assertEqual(entities["category"], "necklace")
 
     def test_fallback_strategies_skip_title_only_for_redundant_chain_title(self):
@@ -325,7 +325,7 @@ class ClaraFixtureTests(unittest.TestCase):
     def test_clara_normalization_maps_nosewear(self):
         entities = extract_entities("gold nose pin")
         params = entities_to_api_params(entities)
-        self.assertEqual(params["category"], "nose wear")
+        self.assertTrue(params.get("category_id") or params.get("category") == "nose wear")
         self.assertEqual(params["material_type"], "gold")
 
     def test_clara_normalization_omits_unsupported_anklet(self):

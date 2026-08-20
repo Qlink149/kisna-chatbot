@@ -548,7 +548,11 @@ class ProductSearchTests(unittest.TestCase):
                     return {"products": [], "total_count": 0, "page": 1}
                 if kwargs.get("ready_to_ship") or kwargs.get("tag_manager_id"):
                     return {"products": [], "total_count": 0, "page": 1}
-                if kwargs.get("category") == "maang tikka":
+                # Phase 3 may send categoryId instead of slug.
+                if (
+                    kwargs.get("category") == "maang tikka"
+                    or kwargs.get("category_id")
+                ):
                     return {
                         "products": [mock_product],
                         "total_count": 1,

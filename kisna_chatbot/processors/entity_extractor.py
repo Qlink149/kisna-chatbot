@@ -811,15 +811,17 @@ def _clara_multi_categories_for_entities(entities: dict[str, Any]) -> list[str] 
 def has_clara_search_scope(
     api_params: dict[str, Any], entities: dict[str, Any] | None = None
 ) -> bool:
-    """Clara product search requires category or title — material/price alone errors."""
+    """Clara product search needs a category/title/collection scope.
+
+    Material/price alone errors on the API. Phase 3 may send ObjectIds
+    (categoryId / collectionId) instead of slug/title.
+    """
     if entities and _clara_multi_categories_for_entities(entities):
         return True
-    category = api_params.get("category")
-    title = api_params.get("title")
-    if category is not None and str(category).strip():
-        return True
-    if title is not None and str(title).strip():
-        return True
+    for key in ("category_id", "category", "collection_id", "title"):
+        value = api_params.get(key)
+        if value is not None and str(value).strip():
+            return True
     return False
 
 
@@ -1362,14 +1364,14 @@ def _matched_collection_label(text: str) -> str | None:
     return None
 
 
+def _extract_collection(text: str, original_text: str) -> str | None:
+    """Return matched Clara collection label, or None."""
+    return _matched_collection_label(original_text) or _matched_collection_label(text)
+
+
 def _extract_title(text: str, original_text: str) -> str | None:
-    # Known Clara collections surface as title today (Phase 3 moves them to
-    # collectionId). Fake/hardcoded names are intentionally not taught.
-    matched = _matched_collection_label(original_text) or _matched_collection_label(
-        text
-    )
-    if matched:
-        return matched
+    # Collections are extracted into the `collection` entity (Phase 3 → collectionId).
+    # Title is reserved for genuine product-name / style keywords only.
     return None
 
 
@@ -2039,6 +2041,7 @@ def extract_entities(text: str) -> dict[str, Any]:
         "min_price": min_price,
         "max_price": max_price,
         "title": _extract_title(title_normalized, title_text),
+        "collection": _extract_collection(title_normalized, title_text),
         "city": _extract_city(normalized),
         "pincode": _extract_pincode(text),
     }
@@ -2275,16 +2278,102 @@ def apply_occasion_style_hints(
     return enhanced, prefix_note
 
 
+def _choose_server_meta_key(category_id: str | None, karat: Any, colour: Any) -> str | None:
+    """Pick which of karat/colour goes server-side (Clara cannot AND both).
+
+    Rule (Phase 3 / Q1, live-measured): prefer the facet with fewer options for
+    this category in the filters cache (proxy for selectivity). On a tie,
+    prefer colour — live product counts for sample options were consistently
+    lower for colour than karat across rings/earrings/bangles/bracelets/pendants.
+    """
+    has_karat = karat is not None and str(karat).strip()
+    has_colour = colour is not None and str(colour).strip()
+    if has_karat and not has_colour:
+        return "karat"
+    if has_colour and not has_karat:
+        return "metal_colour"
+    if not has_karat and not has_colour:
+        return None
+
+    from kisna_chatbot.integrations.clara_filters import (
+        FACET_COLOR,
+        FACET_KARAT,
+        get_available_options,
+    )
+
+    n_karat = len(get_available_options(category_id, FACET_KARAT))
+    n_colour = len(get_available_options(category_id, FACET_COLOR))
+    if n_karat and n_colour:
+        if n_karat < n_colour:
+            choice = "karat"
+        elif n_colour < n_karat:
+            choice = "metal_colour"
+        else:
+            choice = "metal_colour"
+    elif n_karat and not n_colour:
+        choice = "karat"
+    elif n_colour and not n_karat:
+        choice = "metal_colour"
+    else:
+        # Cold cache — prefer colour (measured more selective).
+        choice = "metal_colour"
+    logger.info(
+        "One-meta server choice",
+        extra={
+            "choice": choice,
+            "category_id": category_id,
+            "n_karat_options": n_karat,
+            "n_colour_options": n_colour,
+            "karat": karat,
+            "metal_colour": colour,
+        },
+    )
+    return choice
+
+
+def entities_for_client_filter(entities: dict[str, Any]) -> dict[str, Any]:
+    """Copy entities with the server-applied meta key cleared for client filter."""
+    out = dict(entities or {})
+    key = out.pop("_server_meta_key", None)
+    if key:
+        out[key] = None
+    return out
+
+
 def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
     """Convert entities dict to keyword args for clara_api.search_products."""
     from kisna_chatbot.integrations.clara_api import GENDER_TAG_MANAGER_IDS
+    from kisna_chatbot.integrations.clara_filters import (
+        get_category_id,
+        get_collection_id,
+        get_colour_id,
+        get_gender_tag_id,
+        get_karat_id,
+    )
 
     normalized = normalize_entities_for_clara(entities)
     params: dict[str, Any] = {}
 
+    # Clear prior annotation so retries/ladder don't inherit a stale choice.
+    if isinstance(entities, dict):
+        entities.pop("_server_meta_key", None)
+
     clara_category = normalized.get("clara_category")
+    category_id = None
     if clara_category:
-        params["category"] = clara_category
+        category_id = get_category_id(str(clara_category))
+        if category_id:
+            params["category_id"] = category_id
+            logger.info(
+                "Clara category path",
+                extra={"path": "categoryId", "category": clara_category, "category_id": category_id},
+            )
+        else:
+            params["category"] = clara_category
+            logger.info(
+                "Clara category path",
+                extra={"path": "slug", "category": clara_category},
+            )
 
     clara_material = normalized.get("clara_material_type")
     if clara_material:
@@ -2298,24 +2387,62 @@ def entities_to_api_params(entities: dict[str, Any]) -> dict[str, Any]:
         params["min_price"] = int(float(min_p))
     elif max_p is not None and (min_p is None or float(min_p) == 0):
         params["min_price"] = 0
-    collection = normalized.get("collection")
+
+    collection = normalized.get("collection") or entities.get("collection")
     title = normalized.get("title")
+    # LLM / legacy path may still put a collection name in title — promote it.
+    if not collection and title:
+        maybe_id = get_collection_id(str(title))
+        if maybe_id:
+            collection = str(title)
+            title = None
+    collection_id = None
     if collection:
-        params["title"] = collection
-        if title and str(title).strip().lower() != str(collection).strip().lower():
-            logger.debug(
-                "Using collection as Clara title param",
-                extra={"collection": collection, "title": title},
+        collection_id = get_collection_id(str(collection))
+        if collection_id:
+            params["collection_id"] = collection_id
+            logger.info(
+                "Clara collection path",
+                extra={"path": "collectionId", "collection": collection, "collection_id": collection_id},
             )
+            # Genuine product-name titles still allowed when distinct.
+            if title and str(title).strip().lower() != str(collection).strip().lower():
+                params["title"] = title
+        else:
+            # Below fuzzy threshold — keep legacy title search behaviour.
+            params["title"] = collection
+            if title and str(title).strip().lower() != str(collection).strip().lower():
+                logger.debug(
+                    "Collection unmatched; using as Clara title",
+                    extra={"collection": collection, "title": title},
+                )
     elif title is not None:
         params["title"] = title
 
-    # Gender → Clara tagManagerId (from /clara/filters)
+    # Gender → Clara tagManagerId (live filters, hardcoded map cold fallback)
     gender = entities.get("gender")
     if isinstance(gender, str):
-        tag_id = GENDER_TAG_MANAGER_IDS.get(gender.strip().lower())
+        tag_id = get_gender_tag_id(gender.strip().lower())
+        if not tag_id:
+            tag_id = GENDER_TAG_MANAGER_IDS.get(gender.strip().lower())
         if tag_id:
             params["tag_manager_id"] = tag_id
+
+    karat = entities.get("karat")
+    colour = entities.get("metal_colour")
+    meta_key = _choose_server_meta_key(category_id, karat, colour)
+    if meta_key == "karat" and karat:
+        meta_id = get_karat_id(category_id, str(karat))
+        if meta_id:
+            params["meta_sub_attribute_value"] = meta_id
+            if isinstance(entities, dict):
+                entities["_server_meta_key"] = "karat"
+    elif meta_key == "metal_colour" and colour:
+        meta_id = get_colour_id(category_id, str(colour))
+        if meta_id:
+            params["meta_sub_attribute_value"] = meta_id
+            if isinstance(entities, dict):
+                entities["_server_meta_key"] = "metal_colour"
 
     # Availability booleans — readyTOShip subsets; madeToOrder is full catalog
     # (every product is MTO-eligible). Prefer ready when both somehow set.

@@ -92,12 +92,14 @@ class ClientFilterTests(unittest.TestCase):
         self.assertIsInstance(params["max_price"], int)
         self.assertNotIn("metal_colour", params)
 
-    def test_collection_maps_to_title_only(self):
+    def test_collection_maps_to_collection_id(self):
         params = entities_to_api_params(
             {"category": "bracelet", "collection": "Evil Eye", "metal_colour": "yellow"}
         )
-        self.assertEqual(params["title"], "Evil Eye")
+        self.assertIn("collection_id", params)
+        self.assertNotEqual(params.get("title"), "Evil Eye")
         self.assertNotIn("collection", params)
+        # Colour may be server-side meta; not sent as a free-form param.
         self.assertNotIn("metal_colour", params)
 
     @skip_without_clara("products.json")

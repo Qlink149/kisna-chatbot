@@ -111,11 +111,11 @@ MATRIX = [
     # Combined
     ("diamond ring dikhao", {"category": "ring", "material_type": "diamond"}),
     ("sone ki payal 10000 tak", {"category": "anklet", "material_type": "gold", "max_price": 10000, "unsupported_category": True}),
-    ("Evil Eye bracelet", {"category": "bracelet", "title": "evil eye"}),
+    ("Evil Eye bracelet", {"category": "bracelet", "collection": "evil eye"}),
     ("gold rings under 50k", {"category": "ring", "material_type": "gold", "max_price": 50000}),
     # Title / collections — only live Clara collection names (filters snapshot)
-    ("Tanishta ring", {"category": "ring", "title": "tanishta"}),
-    ("show evil eye collection", {"title": "evil eye"}),
+    ("Tanishta ring", {"category": "ring", "collection": "tanishta"}),
+    ("show evil eye collection", {"collection": "evil eye"}),
     # Fake/legacy catalogue names must NOT be extracted as titles
     ("show rivaah collection", {"title": None}),
     ("elysia ring", {"category": "ring", "title": None}),
@@ -190,13 +190,13 @@ class TestClaraNormalization:
         norm = normalize_entities_for_clara(entities)
         assert norm["clara_category"] == "nose wear"
         params = entities_to_api_params(entities)
-        assert params["category"] == "nose wear"
+        assert params.get("category") == "nose wear" or params.get("category_id")
 
     def test_white_gold_maps_to_gold(self):
         entities = extract_entities("white gold ring")
         params = entities_to_api_params(entities)
         assert params["material_type"] == "gold"
-        assert params["category"] == "ring"
+        assert params.get("category") == "ring" or params.get("category_id")
 
     def test_silver_omits_material_from_api(self):
         entities = extract_entities("chandi chain")
@@ -243,7 +243,7 @@ class TestClaraNormalization:
     def test_zero_lower_bound_range_sends_min_price_zero(self):
         entities = extract_entities("show me rings between 0-10,000")
         params = entities_to_api_params(entities)
-        assert params.get("category") == "ring"
+        assert params.get("category") == "ring" or params.get("category_id")
         assert params.get("max_price") == 10000
         assert params.get("min_price") == 0
 

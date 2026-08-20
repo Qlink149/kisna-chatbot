@@ -91,7 +91,22 @@ def _is_fresh(entry: _CacheEntry | None) -> bool:
 
 
 def _get_refresh_lock(key: str | None) -> asyncio.Lock:
+    """Return a lock for this key, bound to the current running loop.
+
+    asyncio.Lock is loop-bound; pytest creates a new loop per asyncio.run(),
+    so we recreate locks when the loop identity changes.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
     lock = _REFRESH_LOCKS.get(key)
+    if lock is not None and loop is not None:
+        try:
+            if lock._loop is not loop:  # noqa: SLF001 — loop affinity check
+                lock = None
+        except AttributeError:
+            lock = None
     if lock is None:
         lock = asyncio.Lock()
         _REFRESH_LOCKS[key] = lock

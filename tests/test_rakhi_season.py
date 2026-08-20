@@ -85,7 +85,7 @@ class RakhiSeasonOnTests(unittest.TestCase):
             ("gold rings", {"category": "ring", "material_type": "gold"}),
             ("shaadi ke liye", {"occasion": "wedding"}),
             ("rivaah collection", {"title": None}),
-            ("tanishta collection", {"title": "tanishta"}),
+            ("tanishta collection", {"collection": "tanishta"}),
             ("gift for mom", {"occasion": "gift", "gender": "women"}),
         ):
             with self.subTest(query=query):
@@ -104,7 +104,7 @@ class RakhiSeasonOnTests(unittest.TestCase):
     def test_wizard_still_starts_for_ring_and_other_titles(self):
         self.assertTrue(should_start_wizard({"category": "ring"}))
         self.assertTrue(should_start_wizard({"title": "bridal"}))
-        self.assertTrue(should_start_wizard({"title": "tanishta"}))
+        self.assertTrue(should_start_wizard({"collection": "tanishta"}))
 
     def test_api_params_title_only(self):
         params = entities_to_api_params({"title": "rakhi"})

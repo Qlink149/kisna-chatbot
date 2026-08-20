@@ -22,6 +22,7 @@ from kisna_chatbot.processors.entity_extractor import (
     build_search_context,
     enrich_entities_for_client_filter,
     entities_to_api_params,
+    entities_for_client_filter,
     combine_search_entities,
     extract_fulfillment,
     extract_fulfillment_change,
@@ -168,6 +169,15 @@ def _is_price_only_refinement(
 def _compute_show_more_retries(filter_ratio: float, api_page_size: int) -> int:
     """Total API pages to attempt per show-more when client filters may be sparse.
 
+    ``filter_ratio`` = client_survivors / server_page_size (not vs full catalogue).
+
+    Worked examples (PAGE_SIZE=10, api_page_size=30):
+      - rose gold rings under 50k: 4 survivors of 30 → ratio≈0.133 →
+        ceil(10/(0.133*30))≈3 pages → max(base, 3)
+      - 18KT only (client-side leftover after colour server filter): 12/30 →
+        ratio=0.4 → ceil(10/(0.4*30))≈1 → base retries only
+      - no client filter: ratio=1.0 → base (1+_SHOW_MORE_PAGE_RETRIES)
+
     With ratio=1.0 (no filtering) returns the default 1+_SHOW_MORE_PAGE_RETRIES.
     For low ratios, fetches enough pages to have a reasonable chance of finding
     PAGE_SIZE new matching products, capped at 15 to avoid runaway fetching.
@@ -248,6 +258,11 @@ _ENTITY_KEYS = (
     "title",
     "gender",
     "fulfillment",
+    # Server-side meta / collection (Phase 3) — must be in the identity key so
+    # drop_meta is not deduped against the full strategy.
+    "karat",
+    "metal_colour",
+    "collection",
 )
 
 _MATERIAL_BUTTON_MSGIDS = frozenset({"search$material$gold", "search$material$diamond"})
@@ -1219,6 +1234,21 @@ def _build_fallback_strategies(
         no_fulfillment = {**entities, "fulfillment": None}
         add(no_fulfillment, "fulfillment", "drop_fulfillment")
 
+    # Impossible karat/colour (and unmatched collectionId) hard-zero results;
+    # drop before softening budget so we don't waste a round-trip.
+    if (
+        entities.get("karat")
+        or entities.get("metal_colour")
+        or entities.get("collection")
+    ):
+        no_meta = {
+            **entities,
+            "karat": None,
+            "metal_colour": None,
+            "collection": None,
+        }
+        add(no_meta, "meta", "drop_meta")
+
     if entities.get("min_price") is not None or entities.get("max_price") is not None:
         no_price = {**entities, "min_price": None, "max_price": None}
         add(no_price, "budget", "drop_price")
@@ -1289,9 +1319,15 @@ def _fallback_prefix_note(
         if original_entities.get("fulfillment") == "ready":
             return (
                 "No ready-to-ship pieces matched those filters right now — "
-                "here are matching options you can order ✨"
+                "here are matching options you might like ✨"
             )
         return "Here are more options beyond that availability filter ✨"
+
+    if note_kind == "meta":
+        return (
+            "Couldn't match that karat/colour/collection exactly — "
+            "here are the closest options ✨"
+        )
 
     if note_kind == "material":
         material = original_entities.get("material_type") or "matching"
@@ -3333,7 +3369,7 @@ class ProductSearchAgentV3(Processor):
             if products:
                 api_total = result.get("total_count", 0)
                 products, extras_note = filter_products_by_extracted_extras(
-                    products, strategy_entities
+                    products, entities_for_client_filter(strategy_entities)
                 )
                 fulfillment = (
                     strategy_entities.get("fulfillment")
