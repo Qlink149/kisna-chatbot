@@ -6,8 +6,7 @@ All numbers are the resolved authoritative values. Do NOT approximate
 or let the model round these — quote them exactly.
 
 When this KB exceeds ~12k tokens, switch GeneralAgent from prompt-injection
-to Chroma kb_search() retrieval. Ingestion is handled by
-scripts/ingest_knowledge_base.py.
+injected into the GeneralAgent system prompt (no vector DB).
 """
 
 KISNA_KNOWLEDGE_BASE = """\

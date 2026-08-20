@@ -12,7 +12,6 @@ from kisna_chatbot.routes.system_sub_routes import conversation as conversation_
 from kisna_chatbot.routes.system_sub_routes import callbacks as callbacks_router
 from kisna_chatbot.routes.system_sub_routes import damage as damage_router
 from kisna_chatbot.routes.system_sub_routes import dashboard as dashboard_router
-from kisna_chatbot.routes.system_sub_routes import kb as kb_router
 from kisna_chatbot.routes.system_sub_routes import message_trace as message_trace_router
 from kisna_chatbot.routes.system_sub_routes import users as users_router
 from kisna_chatbot.routes.system_sub_routes import whatsapp as whatsapp_router
@@ -38,8 +37,6 @@ router.include_router(callbacks_router.router, dependencies=[Depends(verify_toke
 router.include_router(
     message_trace_router.router, dependencies=[Depends(verify_token)]
 )
-
-router.include_router(kb_router.router, dependencies=[Depends(verify_api_key)])
 
 router.include_router(dashboard_router.router, dependencies=[Depends(verify_token)])
 

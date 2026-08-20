@@ -49,18 +49,10 @@ def _getenv(key: str, default: str = "") -> str:
     return os.getenv(key, default)
 
 
-def is_kb_enabled() -> bool:
-    """True when Knowledge Base (Chroma embeddings) is expected to be used."""
-    if _getenv("KB_ENABLED", "").strip().lower() in ("1", "true", "yes", "on"):
-        return True
-    return bool(_getenv("CHROMA_API_KEY", "").strip())
-
-
 def get_missing_ai_env_keys() -> list[str]:
-    """
-    Return env var names missing for configured AI providers and KB.
+    """Return env var names missing for configured AI providers.
 
-    OPENAI_API_KEY is required when OpenAI is used for chat or KB is enabled.
+    OPENAI_API_KEY is required when OpenAI is used for chat.
     """
     from kisna_chatbot.ai.config import get_ai_settings, refresh_ai_settings
 
@@ -73,10 +65,6 @@ def get_missing_ai_env_keys() -> list[str]:
     missing: list[str] = []
     if "openai" in providers_needed and not settings["openai_api_key"]:
         missing.append("OPENAI_API_KEY")
-    if is_kb_enabled() and not settings["openai_api_key"]:
-        label = "OPENAI_API_KEY (required for KB embeddings, not chat)"
-        if label not in missing and "OPENAI_API_KEY" not in missing:
-            missing.append(label)
 
     return missing
 
@@ -84,9 +72,6 @@ def get_missing_ai_env_keys() -> list[str]:
 openai_api_key = _getenv("OPENAI_API_KEY")
 mongo_uri = _getenv("MONGO_URI")
 mongo_db_name = _getenv("MONGO_DB_NAME", "Kisna_Chatbot")
-
-chroma_api = _getenv("CHROMA_API_KEY")
-chroma_tenant = _getenv("CHROMA_TENANT")
 
 gupshup_app_id = _getenv("GUPSHUP_APP_ID")
 gupshup_token = _getenv("GUPSHUP_TOKEN")

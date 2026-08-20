@@ -1,5 +1,4 @@
 # KB grounding via prompt injection (KISNA_KNOWLEDGE_BASE).
-# Switch to Chroma kb_search() when KB exceeds ~12k tokens.
 
 import re
 

@@ -10,9 +10,8 @@ pip install -r requirements.txt
 cp .env.example .env      # then fill in the required keys
 ```
 
-`OPENAI_API_KEY` is required: OpenAI is the default chat provider for every
-agent and is also used for KB embeddings. Groq is fallback-only — see the
-ceiling note in `.env.example` before switching any agent to it.
+`OPENAI_API_KEY` is required: OpenAI (`gpt-4o-mini`) is the chat provider for
+every agent. Brand/policy answers use prompt-injected KB text (not a vector DB).
 
 ## Tests
 
@@ -70,9 +69,9 @@ reference; `regression_stage1..4.json` track the prompt remediation).
 ## Prompt budgets
 
 `tests/test_prompt_budget.py` and `tests/test_prompt_balance.py` run in the
-normal suite and exist because the classifier prompt once grew to 12,819
-estimated tokens — past Groq's 12,000 TPM ceiling — one small addition at a
-time, with nothing measuring the total.
+normal suite and exist because the classifier prompt once grew past ~12k
+estimated tokens — large enough to hit provider request-size limits — one small
+addition at a time, with nothing measuring the total.
 
 - The classifier prompt owns **routing**; the entity extractor owns
   **extraction**. Do not duplicate a rule into both: two copies drift, and the

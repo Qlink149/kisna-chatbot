@@ -1,6 +1,6 @@
 # Go live on Vercel (testing)
 
-Step-by-step for Mongo + Groq + Gupshup with `GUPSHUP_SOURCE` (no `GUPSHUP_PHONE_NUMBER` required).
+Step-by-step for Mongo + OpenAI + Gupshup with `GUPSHUP_SOURCE` (no `GUPSHUP_PHONE_NUMBER` required).
 
 ## 1. `.env` essentials
 
@@ -11,10 +11,9 @@ ENV_MODE=dev
 MONGO_URI=mongodb+srv://...
 MONGO_DB_NAME=Kisna_Chatbot
 
-# Groq only (no OpenAI)
-AI_PROVIDER=groq
-AI_PROVIDER_CLASSIFIER=groq
-AI_PROVIDER_GENERAL=groq
+# OpenAI (production)
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-...
 AI_FALLBACK_ENABLED=false
 GROQ_API_KEY=gsk_...
 
@@ -154,13 +153,13 @@ In Vercel → **Settings → Environment Variables**, add at least:
 
 - `ENV_MODE=dev` (do not use `prod` until all prod keys are set)
 - `MONGO_URI`, `MONGO_DB_NAME`
-- `GROQ_API_KEY`, `AI_PROVIDER=groq`, `AI_PROVIDER_GENERAL=groq`, `AI_FALLBACK_ENABLED=false`
+- `OPENAI_API_KEY`, `AI_PROVIDER=openai`
 - `GUPSHUP_APP_ID`, `GUPSHUP_TOKEN`, `GUPSHUP_APP_NAME`, `GUPSHUP_API_KEY`, `GUPSHUP_SOURCE`
 - `KISNA_DAMAGE_COMPLAINT_FLOW_ID` (from `setup_gupshup_flow.py` after publish)
 - `KISNA_PHONE_NUMBER_ID` (from webhook logs, e.g. `451074671429987`)
 - `KISNA_PRODUCT_API` (catalog base URL for product search)
 
-`OPENAI_API_KEY` is **not** required when using Groq only.
+`OPENAI_API_KEY` is **required**.
 
 After deploy, open `https://YOUR-APP.vercel.app/ping` — must return `{"status":"ok"}`. If you see **FUNCTION_INVOCATION_FAILED**, check **Logs** for missing env or import errors.
 
@@ -182,4 +181,4 @@ Leave `GUPSHUP_WEBHOOK_SECRET` empty. The app skips signature verification in de
 | No reply on WhatsApp | Vercel logs; confirm `GUPSHUP_API_KEY` + `GUPSHUP_SOURCE`; webhook script ran |
 | 401 on webhook | If you set `GUPSHUP_WEBHOOK_SECRET`, Gupshup must sign requests — remove secret for now |
 | Mongo timeout | Atlas Network Access → allow `0.0.0.0/0` for testing |
-| Groq errors | `AI_FALLBACK_ENABLED=false` and valid `GROQ_API_KEY` on Vercel |
+| OpenAI errors | Valid `OPENAI_API_KEY`; check provider status |

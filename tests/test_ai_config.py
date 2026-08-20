@@ -51,10 +51,9 @@ class MissingAiEnvKeysTests(unittest.TestCase):
         refresh_ai_settings()
         env_load._ai_startup_validated = False
 
-    def test_kb_enabled_requires_openai(self):
+    def test_openai_required_when_provider_is_openai(self):
         os.environ["AI_PROVIDER"] = "openai"
         os.environ.pop("OPENAI_API_KEY", None)
-        os.environ["CHROMA_API_KEY"] = "chroma-test"
         refresh_ai_settings()
 
         missing = env_load.get_missing_ai_env_keys()
@@ -64,8 +63,6 @@ class MissingAiEnvKeysTests(unittest.TestCase):
         os.environ["AI_PROVIDER"] = "openai"
         os.environ["AI_PROVIDER_GENERAL"] = "openai"
         os.environ.pop("OPENAI_API_KEY", None)
-        os.environ.pop("CHROMA_API_KEY", None)
-        os.environ.pop("KB_ENABLED", None)
         refresh_ai_settings()
 
         missing = env_load.get_missing_ai_env_keys()

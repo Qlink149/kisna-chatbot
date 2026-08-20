@@ -7,7 +7,7 @@ HOW TO USE:
    a. REPLACE the existing ## DIGITAL GOLD (SafeGold) section with DIGITAL_GOLD_SECTION below.
    b. APPEND KMR_SECTION to the end of KISNA_KNOWLEDGE_BASE (before the closing triple-quote).
 2. If you are past the ~12k token threshold and using Chroma RAG instead of
-   prompt-injection, re-run scripts/ingest_knowledge_base.py after updating.
+   prompt-injection into GeneralAgent after updating kisna_knowledge_base.py.
 """
 
 # ─────────────────────────────────────────────────────────────────────────────

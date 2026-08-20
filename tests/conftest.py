@@ -47,7 +47,6 @@ _LIVE_CALL_MESSAGE = (
 
 _PROVIDER_KEY_VARS = (
     "OPENAI_API_KEY",
-    "CHROMA_API_KEY",
 )
 
 def _raise_live_call(*_args, **_kwargs):
@@ -62,10 +61,9 @@ class _BlockedAsyncOpenAI:
     """Stands in for a real SDK client: constructs fine, never reaches the wire.
 
     Deliberately blocks at the CLIENT, not at ChatProvider.complete. Provider
-    unit tests (key rotation on 429, fallback-on-transient) legitimately call
-    complete() against a client they stub themselves; blocking the method would
-    make those tests untestable while blocking the client still stops every
-    real request.
+    unit tests (key rotation on 429) legitimately call complete() against a
+    client they stub themselves; blocking the method would make those tests
+    untestable while blocking the client still stops every real request.
     """
 
     def __init__(self, *_args, **_kwargs) -> None:
@@ -97,7 +95,6 @@ _NETWORK_BOUNDARY = (
     ("kisna_chatbot.utils.get_openai_client", "AsyncOpenAI", _BlockedAsyncOpenAI),
     ("kisna_chatbot.ai.openai_responses", "get_openai_client", _raise_live_call),
     ("kisna_chatbot.utils.get_openai_client", "get_openai_client", _raise_live_call),
-    ("kisna_chatbot.database.chroma.utils", "_get_embedding_fn", _raise_live_call),
 )
 
 

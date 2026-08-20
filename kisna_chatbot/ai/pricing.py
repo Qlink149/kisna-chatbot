@@ -3,8 +3,6 @@
 # Approximate list prices — estimates only; override via env if needed.
 MODEL_PRICING: dict[str, dict[str, float]] = {
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-    "llama-3.3-70b-versatile": {"input": 0.59, "output": 0.79},
-    "llama-3.1-8b-instant": {"input": 0.05, "output": 0.08},
 }
 
 
