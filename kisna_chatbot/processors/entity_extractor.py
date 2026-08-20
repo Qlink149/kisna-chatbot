@@ -108,6 +108,7 @@ _CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "watchwear": ["watch pin", "watch charm", "watch wear", "watch"],
     "anklet": ["anklet", "anklets", "payal", "pajeb", "paayal"],
     "maang_tikka": ["maang tikka", "maangtika", "maang_tikka", "tikka", "tika", "bor"],
+    "souvenir": ["souvenir", "souvenirs", "memento", "keepsake"],
     "hathphool": ["hathphool", "hath phool"],
     "kamarband": ["kamarband", "kamar band"],
 }
@@ -134,6 +135,7 @@ CATEGORY_NORMALIZATION_MAP: dict[str, str | None] = {
     "watchwear": "watch wear",
     "watch_wear": "watch wear",
     "chain": "chain",
+    "souvenir": "souvenir",
     "anklet": None,
     "any": None,
 }
@@ -220,20 +222,9 @@ _CLARA_MATERIAL_MAP: dict[str, str] = {
     "rose_gold": "gold",
 }
 
-_KISNA_COLLECTIONS = [
-    "evil eye",
-    "rivaah",
-    "elysia",
-    "maggio",
-    "rosette",
-    "bloom",
-    "solitaire",
-    "flora",
-    "celestial",
-    "iris",
-    "aadya",
-    "tanishta",
-]
+# Collection names are NOT hardcoded — they drift as KISNA launches lines.
+# Free-text guesses are fuzzy-matched against the live/snapshot /filters list
+# via kisna_chatbot.integrations.clara_filters.get_collection_id.
 
 _TITLE_STOP_WORDS = frozenset(
     {
@@ -1320,19 +1311,65 @@ def _is_blocked_title_token(lower: str, blocked: set[str]) -> bool:
     return False
 
 
-def _extract_title(text: str, original_text: str) -> str | None:
-    for coll in sorted(_KISNA_COLLECTIONS, key=len, reverse=True):
-        if _synonym_in_text(text, coll):
-            return coll
+def _matched_collection_label(text: str) -> str | None:
+    """Return a Clara collection label if the text fuzzy-matches one, else None.
 
-    tokens = re.findall(r"\b[A-Za-z][A-Za-z'-]+\b", original_text)
-    blocked = _all_category_material_terms() | _TITLE_STOP_WORDS
-    for token in tokens:
-        lower = token.lower()
-        if _is_blocked_title_token(lower, blocked):
+    Uses the filters cache/snapshot. When filters are unavailable, returns None
+    (degradation contract — no hardcoded catalogue names).
+    """
+    from kisna_chatbot.integrations.clara_filters import (
+        FACET_COLLECTION,
+        get_available_options,
+        get_collection_id,
+    )
+
+    options = get_available_options(None, FACET_COLLECTION)
+    if not options:
+        return None
+    # Prefer longer labels so "Evil Eye Collection" beats a shorter substring.
+    ranked = sorted(
+        options,
+        key=lambda opt: len(str(opt.get("label") or "")),
+        reverse=True,
+    )
+    normalized = (text or "").lower()
+    for opt in ranked:
+        label = str(opt.get("label") or "").strip()
+        if not label:
             continue
-        if lower in _KISNA_COLLECTIONS:
-            return lower
+        bare = label.lower()
+        if bare.endswith(" collection"):
+            bare = bare[: -len(" collection")].strip()
+        slug = str(opt.get("slug") or "").replace("-", " ").lower()
+        for needle in (bare, label.lower(), slug):
+            if needle and _synonym_in_text(normalized, needle):
+                return bare or label
+    # Free-text guess: whole phrase via fuzzy id lookup
+    # (covers near-miss spellings when a multi-word name wasn't caught above).
+    for token_span in re.findall(
+        r"\b[A-Za-z][A-Za-z' -]{2,40}\b", text or ""
+    ):
+        cid = get_collection_id(token_span.strip())
+        if not cid:
+            continue
+        for opt in options:
+            if str(opt.get("value")) == cid:
+                label = str(opt.get("label") or "")
+                bare = label.lower()
+                if bare.endswith(" collection"):
+                    bare = bare[: -len(" collection")].strip()
+                return bare or label.lower()
+    return None
+
+
+def _extract_title(text: str, original_text: str) -> str | None:
+    # Known Clara collections surface as title today (Phase 3 moves them to
+    # collectionId). Fake/hardcoded names are intentionally not taught.
+    matched = _matched_collection_label(original_text) or _matched_collection_label(
+        text
+    )
+    if matched:
+        return matched
     return None
 
 
@@ -1598,9 +1635,9 @@ def _collection_evidenced(query: str, collection: str | None) -> bool:
         return False
     if needle in normalized:
         return True
-    for coll in _KISNA_COLLECTIONS:
-        if coll in normalized and (coll in needle or needle in coll):
-            return True
+    matched = _matched_collection_label(query)
+    if matched and (matched in needle or needle in matched):
+        return True
     return False
 
 

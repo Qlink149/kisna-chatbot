@@ -95,7 +95,7 @@ def _compose_instruction(label: str, *, strict: bool = False) -> str:
         "Keep the tone warm, natural, and concise like a jewellery salesperson "
         "on WhatsApp — never bazaar or chat slang. "
         "Keep emojis. Keep prices, URLs, emails, phone numbers, pincodes, SKUs, "
-        "and proper product titles (e.g. Maggio) EXACTLY unchanged. "
+        "and proper product titles (e.g. Tanishta) EXACTLY unchanged. "
         "DO translate generic jewellery words in canned copy — gold, rings, "
         "necklace, for women, for men, for kids, ready to ship, made to order. "
         "Those are not product names. "

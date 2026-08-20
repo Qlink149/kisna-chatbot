@@ -229,7 +229,7 @@ class ClaraFixtureTests(unittest.TestCase):
 
     def test_collection_not_inherited_on_refinement(self):
         """collection from a previous search must not carry into a context refinement."""
-        prior = {"category": "ring", "collection": "elysia", "title": None}
+        prior = {"category": "ring", "collection": "tanishta", "title": None}
         new = {"category": None, "material_type": None, "collection": None, "title": None}
         merged = merge_search_entities(prior, new, "show me them in gold")
         self.assertIsNone(merged["collection"])

@@ -113,12 +113,12 @@ MATRIX = [
     ("sone ki payal 10000 tak", {"category": "anklet", "material_type": "gold", "max_price": 10000, "unsupported_category": True}),
     ("Evil Eye bracelet", {"category": "bracelet", "title": "evil eye"}),
     ("gold rings under 50k", {"category": "ring", "material_type": "gold", "max_price": 50000}),
-    # Title / collections
-    ("show rivaah collection", {"title": "rivaah"}),
-    ("Bloom earrings", {"category": "earring", "title": "bloom"}),
-    ("show me Rosette", {"title": "rosette"}),
-    ("elysia ring", {"category": "ring", "title": "elysia"}),
-    ("maggio pendant", {"category": "pendant", "title": "maggio"}),
+    # Title / collections — only live Clara collection names (filters snapshot)
+    ("Tanishta ring", {"category": "ring", "title": "tanishta"}),
+    ("show evil eye collection", {"title": "evil eye"}),
+    # Fake/legacy catalogue names must NOT be extracted as titles
+    ("show rivaah collection", {"title": None}),
+    ("elysia ring", {"category": "ring", "title": None}),
     # Multi-category
     (
         "rings aur earrings",

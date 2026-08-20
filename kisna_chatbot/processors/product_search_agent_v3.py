@@ -212,7 +212,7 @@ _CATALOG_NOT_CONFIGURED = (
 )
 _PROMPT_TEXT = (
     "Tell me what you're looking for — e.g. *gold ring*, "
-    "*diamond necklace under 50k*, or *rivaah collection*."
+    "*diamond necklace under 50k*, or *evil eye collection*."
 )
 _SESSION_EXPIRED_TEXT = (
     "Your search session has expired. What jewellery are you looking for?"

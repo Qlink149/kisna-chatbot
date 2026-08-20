@@ -28,8 +28,8 @@ from kisna_chatbot.processors.classifier import (
 from kisna_chatbot.processors.entity_extractor import extract_entities
 
 LLM_INTENT_MATRIX = [
-    ("what is the price of Elysia ring?", "product_info"),
-    ("Maggio ring ki price kya hai?", "product_info"),
+    ("what is the price of Tanishta ring?", "product_info"),
+    ("Evil Eye pendant ki price kya hai?", "product_info"),
     ("koi offer hai kya?", "offers"),
     ("making charge offer batao", "offers"),
     ("nearest store", "store_info"),
@@ -184,7 +184,7 @@ class ClassifierMatrixTests(unittest.TestCase):
                 return_value='{"intent": "product_info", "confidence": 0.91, "entities": {}}',
             ):
                 result = await classify_query_for_audit(
-                    "Maggio ring ki price kya hai?", use_llm=True
+                    "Tanishta ring ki price kya hai?", use_llm=True
                 )
             self.assertEqual(result["intent"], "product_info")
             self.assertEqual(result["source"], "llm")

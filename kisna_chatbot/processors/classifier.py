@@ -354,7 +354,7 @@ _PRICE_PRODUCT_INFO_RE = re.compile(
 )
 
 _PRODUCT_NAME_RE = re.compile(
-    r"\b(elysia|maggio|rivaah|aadya|tanishta|evil\s+eye)\b",
+    r"\b(tanishta|evil\s+eye)\b",
     re.I,
 )
 
@@ -764,7 +764,7 @@ _LLM_ENTITY_STYLES = frozenset(
         "adjustable",
     }
 )
-_LLM_ENTITY_KARATS = frozenset({"9KT", "14KT", "18KT", "22KT", "24KT"})
+_LLM_ENTITY_KARATS = frozenset({"9KT", "14KT", "18KT", "24KT"})
 _LLM_ENTITY_COLOURS = frozenset({"yellow", "white", "rose"})
 _LLM_ENTITY_GENDERS = frozenset({"women", "men", "kids"})
 # "any" is the user REFUSING an availability ("ready to ship nahi chahiye") or

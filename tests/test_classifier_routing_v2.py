@@ -583,20 +583,20 @@ class CategoryDrivenSearchGuardTests(unittest.TestCase):
     def test_high_confidence_product_info_with_category_not_overridden(self):
         """A NAMED product's price question must not be forced into a search.
 
-        Found by replaying real messages: "Maggio ring ki price kya hai?" and
-        "what is the price of the Elysia ring" were classified product_info at
-        0.9+ confidence — correctly, since both ask a specific product's price.
-        The entity extractor also (sometimes) reads "ring" as a category,
-        because the product's own name contains it. The old guard treated ANY
-        extracted category as proof the classifier missed a shopping intent
-        and force-promoted these to product_search — turning a specific price
-        question into a generic browse list. High classifier confidence means
-        product_info was not a miss, so the guard must leave it alone.
+        Found by replaying real messages: named-product price questions were
+        classified product_info at 0.9+ confidence — correctly, since they ask
+        a specific product's price. The entity extractor also (sometimes) reads
+        "ring" as a category, because the product's own name contains it. The
+        old guard treated ANY extracted category as proof the classifier missed
+        a shopping intent and force-promoted these to product_search — turning
+        a specific price question into a generic browse list. High classifier
+        confidence means product_info was not a miss, so the guard must leave
+        it alone.
         """
         data = self._run(
-            "Maggio ring ki price kya hai?",
+            "Tanishta ring ki price kya hai?",
             {"intent": "product_info", "confidence": 0.91,
-             "entities": {"category": "ring", "title": "Maggio"}},
+             "entities": {"category": "ring", "title": "Tanishta"}},
         )
         self.assertEqual(data["classified_category"], "product_info")
 
@@ -607,9 +607,9 @@ class CategoryDrivenSearchGuardTests(unittest.TestCase):
         )
 
         data = self._run(
-            "Rivaah ring ki price kya hai",
+            "Evil Eye ring ki price kya hai",
             {"intent": "product_info", "confidence": CLARIFICATION_CONFIDENCE_THRESHOLD,
-             "entities": {"category": "ring", "title": "Rivaah"}},
+             "entities": {"category": "ring", "title": "Evil Eye"}},
         )
         self.assertEqual(data["classified_category"], "product_info")
 

@@ -44,8 +44,16 @@ class EntityExtractorTests(unittest.TestCase):
         self.assertEqual(entities["max_price"], 10000.0)
 
     def test_collection_title(self):
+        entities = extract_entities("show tanishta collection")
+        self.assertEqual(entities["title"], "tanishta")
+
+    def test_fake_collection_not_extracted(self):
         entities = extract_entities("show rivaah collection")
-        self.assertEqual(entities["title"], "rivaah")
+        self.assertIsNone(entities.get("title"))
+
+    def test_souvenir_category(self):
+        entities = extract_entities("show me souvenir")
+        self.assertEqual(entities.get("category"), "souvenir")
 
     def test_heere_ki_jhumki(self):
         entities = extract_entities("heere ki jhumki")

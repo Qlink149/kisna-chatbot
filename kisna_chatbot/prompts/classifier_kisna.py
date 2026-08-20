@@ -299,7 +299,7 @@ Fallback for unclear or spam/gibberish:
 "options dikhao" -> menu_help .9
 "diamond ring dikhao" -> product_search .95
 "gold necklace under 50k" -> product_search .92
-"rivaah collection dikhao" -> product_search .9
+"evil eye collection dikhao" -> product_search .9
 "isme kitna padega" |s -> product_info .88
 "ye ring available hai kya" -> product_info .9
 "koi offer hai kya?" -> offers .95
@@ -342,8 +342,8 @@ Fallback for unclear or spam/gibberish:
 "heere ki bali 50k tak" -> product_search .92
 "anniversary ke liye kuch accha dikhao" -> product_search .88
 "Evil Eye bracelet" -> product_search .9
-"what is the price of Elysia ring?" -> product_info .92
-"Maggio ring ki price kya hai?" -> product_info .91
+"what is the price of Tanishta ring?" -> product_info .92
+"Evil Eye pendant ki price kya hai?" -> product_info .91
 "does it come with chain?" |s -> product_info .88
 "how many days delivery?" |s -> product_info .85
 "aaj kya discount hai?" -> offers .93
@@ -456,9 +456,12 @@ lost.
    null); after ready, "made to order" → fulfillment=mto.
 
 ## DISAMBIGUATION (common traps — read carefully)
-1. "22k"/"18k" alone: KARAT when describing the metal ("22k gold ring" → karat=22KT).
+1. "22k"/"18k" alone: KARAT only for catalogue karats 9KT/14KT/18KT/24KT
+   ("18k gold ring" → karat=18KT). "22k" is NOT a product karat — treat it as
+   material cue only (material_type=gold, karat=null) unless a budget word is
+   nearby ("under 22k" → max_price=22000). Never both karat and price from one token.
    PRICE when a budget word is nearby ("under 22k" → max_price=22000,
-   "budget 18k" → min_price=16200, max_price=19800). Never both from one token.
+   "budget 18k" → min_price=16200, max_price=19800).
 2. Gram weights are NOT price and NOT size: "5 gram ki chain" → category=chain,
    no price, no size. "2 gm ring" → category=ring only.
 3. A bare 6-digit number that looks like a pincode (400001) is NOT a price.
@@ -495,10 +498,10 @@ lost.
   "min_price": <integer INR or null>,
   "max_price": <integer INR or null>,
   "title": "<product/collection name or null>",
-  "karat": "9KT|14KT|18KT|22KT|24KT|null",
+  "karat": "9KT|14KT|18KT|24KT|null",
   "metal_colour": "yellow|white|rose|null",
   "size": <integer 7-22 or null>,
-  "collection": "<Evil Eye|Tanishta|Rivaah|etc. or null>",
+  "collection": "<free-text collection name if user named one, else null>",
   "gender": "women|men|kids|null",
   "fulfillment": "ready|mto|any|null",
   "occasion": "wedding|engagement|anniversary|birthday|
@@ -566,8 +569,10 @@ metal_colour (set separately when colour is mentioned):
   white → white
   yellow → yellow
 
-karat: extract 9KT/14KT/18KT/22KT/24KT if mentioned
-  "14 carat" → 14KT, "18k" → 18KT, "22 karat" → 22KT
+karat: extract 9KT/14KT/18KT/24KT if mentioned (Clara catalogue karats only).
+  "14 carat" → 14KT, "18k" → 18KT.
+  "22k"/"22 karat" is NOT a product karat → karat=null (still set material_type=gold
+  when gold is implied).
 
 price (ALWAYS extract when budget words present — integers in INR):
   "under X" / "below X" / "X tak" / "upto X" → max_price=X only (no band)
@@ -606,8 +611,9 @@ price (ALWAYS extract when budget words present — integers in INR):
   "५० हज़ार से ज़्यादा"→min_price=50000. "१० हज़ार से कम"→max_price=10000.
   "૪૦ હજારથી વધુ"→min_price=40000. "४ हज़ार से ज़्यादा"→min_price=4000.
 
-title — ONLY real product/collection names:
-  Elysia, Maggio, Rivaah, Rosette, Bloom, etc. → title
+title — ONLY real product/collection names the user typed
+  (e.g. Evil Eye, Tanishta, or another named line). Do NOT invent
+  catalogue names. Prefer collection when they said a collection.
   NEVER extract: send, show, get, find, give, display,
   want, need, please, suggest, recommend (command verbs)
 
@@ -841,7 +847,11 @@ NATIVE SCRIPT full examples (extract exactly like the romanized twin):
 (budget word before 22k → price, not karat)
 
 "22k gold kangan" →
-{"category":"bangle","material_type":"gold","karat":"22KT"}
+{"category":"bangle","material_type":"gold","karat":null}
+(22KT is not a catalogue karat — gold material only)
+
+"18k rose gold chain" →
+{"category":"chain","material_type":"gold","karat":"18KT","metal_colour":"rose"}
 
 "couple rings for engagement" →
 {"category":"ring","style":"couple_bands","occasion":"engagement"}
