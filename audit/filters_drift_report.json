@@ -1,0 +1,622 @@
+{
+  "generated_at": "2026-08-20T10:02:18.851609+00:00",
+  "snapshot_path": "kisna_chatbot/integrations/data/clara_filters_snapshot.json",
+  "global": {
+    "karat": {
+      "live_count": 4,
+      "snapshot_count": 4,
+      "added": [],
+      "removed": []
+    },
+    "color": {
+      "live_count": 3,
+      "snapshot_count": 3,
+      "added": [],
+      "removed": []
+    },
+    "collection": {
+      "live_count": 43,
+      "snapshot_count": 43,
+      "added": [],
+      "removed": []
+    },
+    "gender": {
+      "live_count": 3,
+      "snapshot_count": 3,
+      "added": [],
+      "removed": []
+    },
+    "categories": {
+      "live_count": 16,
+      "snapshot_count": 16,
+      "added": [],
+      "removed": []
+    },
+    "availability": {
+      "live_count": 2,
+      "snapshot_count": 2,
+      "added": [],
+      "removed": []
+    }
+  },
+  "categories_only_live": [],
+  "categories_only_snapshot": [],
+  "by_category": {
+    "66ec057581b26b00081b3faf": {
+      "label": "Bangles",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 15,
+          "snapshot_count": 15,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec04b92551200008911955": {
+      "label": "Bracelets",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 20,
+          "snapshot_count": 20,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec057581b26b00081b3fae": {
+      "label": "Chain",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 0,
+          "snapshot_count": 0,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec04c95ba5470008d0a3d5": {
+      "label": "Earrings",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 35,
+          "snapshot_count": 35,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "67a790cc61d857801f715ce0": {
+      "label": "Maang Tikka",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec04d2937b3100089b5457": {
+      "label": "Mangalsutra",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 10,
+          "snapshot_count": 10,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "67a790f061d8574664715d0f": {
+      "label": "Mangalsutra Bracelets",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec0c548da1370008d5b9fe": {
+      "label": "Necklace",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 17,
+          "snapshot_count": 17,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "682721033ec3f12f1b48bd36": {
+      "label": "Necklace Sets",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 0,
+          "snapshot_count": 0,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec04e9255120000891196d": {
+      "label": "Nose Wear",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 4,
+          "snapshot_count": 4,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "682720ae3ec3f1980c48bcba": {
+      "label": "Pendant Sets",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec057581b26b00081b3fad": {
+      "label": "Pendants",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 29,
+          "snapshot_count": 29,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec04e2bd0b630008623a89": {
+      "label": "Rings",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 4,
+          "snapshot_count": 4,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 33,
+          "snapshot_count": 33,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "67e7c3d19bfb855cf8fbc25c": {
+      "label": "Solitaire",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "66ec057581b26b00081b3fab": {
+      "label": "Souvenir",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 0,
+          "snapshot_count": 0,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 0,
+          "snapshot_count": 0,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    },
+    "67a7910261d85743a0715d56": {
+      "label": "Watch Wear",
+      "in_snapshot": true,
+      "diff": {
+        "karat": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        },
+        "color": {
+          "live_count": 3,
+          "snapshot_count": 3,
+          "added": [],
+          "removed": []
+        },
+        "collection": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "gender": {
+          "live_count": 1,
+          "snapshot_count": 1,
+          "added": [],
+          "removed": []
+        },
+        "availability": {
+          "live_count": 2,
+          "snapshot_count": 2,
+          "added": [],
+          "removed": []
+        }
+      }
+    }
+  }
+}
