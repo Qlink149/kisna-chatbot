@@ -1,0 +1,5323 @@
+{
+  "phone": "916376925843",
+  "message_count": 150,
+  "traces_joined_by_request_id": 75,
+  "user_turns_missing_trace": 0,
+  "ts_range": {
+    "first": "2026-08-13 11:42:20 UTC",
+    "last": "2026-08-20 11:54:30 UTC"
+  },
+  "join_method": "request_id+client_id=kisna; sort=(ts,_id); no positional fallback",
+  "turns": [
+    {
+      "ts": 1786621340,
+      "ts_iso": "2026-08-13 11:42:20 UTC",
+      "role": "user",
+      "content": "i need a ring",
+      "request_id": "94e94598-b766-45d1-a777-3d9a1b9aa6d4",
+      "intent": "product_search",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Great! Who is it for? (or type *anyone*)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "i need a ring",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786621340,
+      "ts_iso": "2026-08-13 11:42:20 UTC",
+      "role": "assistant",
+      "content": "Great! Who is it for? (or type *anyone*)\n[Options: Female, Male, Kids]",
+      "request_id": "94e94598-b766-45d1-a777-3d9a1b9aa6d4",
+      "intent": "product_search",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "i need a ring",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624045,
+      "ts_iso": "2026-08-13 12:27:25 UTC",
+      "role": "user",
+      "content": "Hii",
+      "request_id": "4945752a-709f-43af-ac76-efa949b960cc",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+      "paired_assistant_by_request_id": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624045,
+      "ts_iso": "2026-08-13 12:27:25 UTC",
+      "role": "assistant",
+      "content": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+      "request_id": "4945752a-709f-43af-ac76-efa949b960cc",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624057,
+      "ts_iso": "2026-08-13 12:27:37 UTC",
+      "role": "user",
+      "content": "I need a ring",
+      "request_id": "c93c4d4f-e830-447f-9fb3-150364d24ea3",
+      "intent": "product_search",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Great! Who is it for? (or type *anyone*)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624057,
+      "ts_iso": "2026-08-13 12:27:37 UTC",
+      "role": "assistant",
+      "content": "Great! Who is it for? (or type *anyone*)\n[Options: Female, Male, Kids]",
+      "request_id": "c93c4d4f-e830-447f-9fb3-150364d24ea3",
+      "intent": "product_search",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624066,
+      "ts_iso": "2026-08-13 12:27:46 UTC",
+      "role": "user",
+      "content": "User Selected - [Male] from quick reply",
+      "request_id": "b5dd6d55-bbd4-4eec-b5e8-8bb46d3ef5c2",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "What type of jewellery are you interested in?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Male",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624066,
+      "ts_iso": "2026-08-13 12:27:46 UTC",
+      "role": "assistant",
+      "content": "What type of jewellery are you interested in?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "b5dd6d55-bbd4-4eec-b5e8-8bb46d3ef5c2",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Male",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624088,
+      "ts_iso": "2026-08-13 12:28:08 UTC",
+      "role": "user",
+      "content": "User Selected - [Gold] from quick reply",
+      "request_id": "c2897c10-0bbf-4014-b003-ae57819f1815",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+      "paired_assistant_by_request_id": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Gold",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific b",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624088,
+      "ts_iso": "2026-08-13 12:28:08 UTC",
+      "role": "assistant",
+      "content": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+      "request_id": "c2897c10-0bbf-4014-b003-ae57819f1815",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Gold",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific b",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624110,
+      "ts_iso": "2026-08-13 12:28:30 UTC",
+      "role": "user",
+      "content": "15\u201335k",
+      "request_id": "c893101d-8a6d-4d7f-9f15-b45d399a902e",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "15\u201335k",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624110,
+      "ts_iso": "2026-08-13 12:28:30 UTC",
+      "role": "assistant",
+      "content": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "request_id": "c893101d-8a6d-4d7f-9f15-b45d399a902e",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "15\u201335k",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624121,
+      "ts_iso": "2026-08-13 12:28:41 UTC",
+      "role": "user",
+      "content": "User Selected - [Either is fine] from quick reply",
+      "request_id": "a7f15d01-92e7-4f5a-ac4d-4ac9583c1c73",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Understood \ud83d\udc4d I'll look in our catalogue for *gold rings for men between \u20b915,000 and \u20b935,000*. Does this sound correct to you?\n[Options: Yes, show me, No, change it]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Either is fine",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "gold rings for men between \u20b915,000 and \u20b935,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624121,
+      "ts_iso": "2026-08-13 12:28:41 UTC",
+      "role": "assistant",
+      "content": "Understood \ud83d\udc4d I'll look in our catalogue for *gold rings for men between \u20b915,000 and \u20b935,000*. Does this sound correct to you?\n[Options: Yes, show me, No, change it]",
+      "request_id": "a7f15d01-92e7-4f5a-ac4d-4ac9583c1c73",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Either is fine",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "gold rings for men between \u20b915,000 and \u20b935,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624130,
+      "ts_iso": "2026-08-13 12:28:50 UTC",
+      "role": "user",
+      "content": "User Selected - [Yes, show me] from quick reply",
+      "request_id": "bf94c063-a9b0-4e97-a0a7-960d07c1f85b",
+      "intent": null,
+      "confidence": null,
+      "outcome": "products_sent",
+      "reply_preview": "Perfect! Let me show you the best gold rings \u20b915,000\u2013\u20b935,000.\n\nFound some beautiful gold rings for you \u2728",
+      "paired_assistant_by_request_id": "Perfect! Let me show you the best gold rings \u20b915,000\u2013\u20b935,000.\n\nFound some beautiful gold rings for you \u2728\n[Product: Boldora Gold Band Ring For Him]\n[Product: RidgeLine Gold Band Ring For Him]\n[Product: Classic Gold Band Ring For Him]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold minPrice=15000 maxPrice=35000 tagManagerId=66ec862c348e37f29673a282 searchUrl=true",
+      "total_count": "3",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "Ring \u00b7 Men \u00b7 Gold \u00b7 \u20b915,000\u2013\u20b935,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold minPrice=15000 maxPrice=35000 tagManagerId=66ec862c348e37f29673a282 searchUrl=true \u2192 3 products \u00b7 Classic Gold Band Ring For Him \u20b927,617 \u00b7 RidgeLine Gold Band Ring For Him \u20b923,954",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "Reply sent",
+          "detail": "text \u2014 Perfect! Let me show you the best gold rings \u20b915,000\u2013\u20b935,000. + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786624130,
+      "ts_iso": "2026-08-13 12:28:50 UTC",
+      "role": "assistant",
+      "content": "Perfect! Let me show you the best gold rings \u20b915,000\u2013\u20b935,000.\n\nFound some beautiful gold rings for you \u2728\n[Product: Boldora Gold Band Ring For Him]\n[Product: RidgeLine Gold Band Ring For Him]\n[Product: Classic Gold Band Ring For Him]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "request_id": "bf94c063-a9b0-4e97-a0a7-960d07c1f85b",
+      "intent": null,
+      "confidence": null,
+      "outcome": "products_sent",
+      "reply_preview": "Perfect! Let me show you the best gold rings \u20b915,000\u2013\u20b935,000.\n\nFound some beautiful gold rings for you \u2728",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold minPrice=15000 maxPrice=35000 tagManagerId=66ec862c348e37f29673a282 searchUrl=true",
+      "total_count": "3",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "Ring \u00b7 Men \u00b7 Gold \u00b7 \u20b915,000\u2013\u20b935,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold minPrice=15000 maxPrice=35000 tagManagerId=66ec862c348e37f29673a282 searchUrl=true \u2192 3 products \u00b7 Classic Gold Band Ring For Him \u20b927,617 \u00b7 RidgeLine Gold Band Ring For Him \u20b923,954",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "Reply sent",
+          "detail": "text \u2014 Perfect! Let me show you the best gold rings \u20b915,000\u2013\u20b935,000. + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946391,
+      "ts_iso": "2026-08-17 05:59:51 UTC",
+      "role": "user",
+      "content": "Hii",
+      "request_id": "383ad17b-ec0b-4029-91ec-e2d61d5e30ae",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your friendly jewellery assistant. How can I assist you today?",
+      "paired_assistant_by_request_id": "Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your friendly jewellery assistant. How can I assist you today?",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your friendly jewellery assistant. How ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946391,
+      "ts_iso": "2026-08-17 05:59:51 UTC",
+      "role": "assistant",
+      "content": "Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your friendly jewellery assistant. How can I assist you today?",
+      "request_id": "383ad17b-ec0b-4029-91ec-e2d61d5e30ae",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your friendly jewellery assistant. How can I assist you today?",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your friendly jewellery assistant. How ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946403,
+      "ts_iso": "2026-08-17 06:00:03 UTC",
+      "role": "user",
+      "content": "I want a rakhi for my friend",
+      "request_id": "744cb3a1-2e43-47a1-ba53-ce5e40104d26",
+      "intent": "product_search",
+      "confidence": 0.95,
+      "outcome": "products_sent",
+      "reply_preview": "Kuch khoobsurat pieces mile hain aapke liye \u2728",
+      "paired_assistant_by_request_id": "Kuch khoobsurat pieces mile hain aapke liye \u2728\n[Product: Balaji Diamond Rakhi Pendant With Thread]\n[Product: Warrior Gold Rakhi Pendant With Thread]\n[Product: Alphabet H Diamond Rakhi Pendant With Thread]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "clara_params": "pageNo=1 pageSize=15 title=rakhi searchUrl=true",
+      "total_count": "47",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I want a rakhi for my friend",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Filters detected",
+          "detail": "\u201crakhi\u201d",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=15 title=rakhi searchUrl=true \u2192 47 products \u00b7 Balaji Diamond Rakhi Pendant With Thread \u20b99,357 \u00b7 Warrior Gold Rakhi Pendant With Thread \u20b98,195",
+          "status": "ok"
+        },
+        {
+          "order": 5,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kuch khoobsurat pieces mile hain aapke liye \u2728 + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946403,
+      "ts_iso": "2026-08-17 06:00:03 UTC",
+      "role": "assistant",
+      "content": "Kuch khoobsurat pieces mile hain aapke liye \u2728\n[Product: Balaji Diamond Rakhi Pendant With Thread]\n[Product: Warrior Gold Rakhi Pendant With Thread]\n[Product: Alphabet H Diamond Rakhi Pendant With Thread]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "request_id": "744cb3a1-2e43-47a1-ba53-ce5e40104d26",
+      "intent": "product_search",
+      "confidence": 0.95,
+      "outcome": "products_sent",
+      "reply_preview": "Kuch khoobsurat pieces mile hain aapke liye \u2728",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "pageNo=1 pageSize=15 title=rakhi searchUrl=true",
+      "total_count": "47",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I want a rakhi for my friend",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Filters detected",
+          "detail": "\u201crakhi\u201d",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=15 title=rakhi searchUrl=true \u2192 47 products \u00b7 Balaji Diamond Rakhi Pendant With Thread \u20b99,357 \u00b7 Warrior Gold Rakhi Pendant With Thread \u20b98,195",
+          "status": "ok"
+        },
+        {
+          "order": 5,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kuch khoobsurat pieces mile hain aapke liye \u2728 + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946438,
+      "ts_iso": "2026-08-17 06:00:38 UTC",
+      "role": "user",
+      "content": "I want a L Daimond rakhi",
+      "request_id": "b9838a53-1698-48d1-9d1e-f262cd400a1f",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "products_sent",
+      "reply_preview": "Yeh rahe kuch khoobsurat pieces jo maine aapke liye chune hain \u2728",
+      "paired_assistant_by_request_id": "Yeh rahe kuch khoobsurat pieces jo maine aapke liye chune hain \u2728\n[Product: Balaji Diamond Rakhi Pendant With Thread]\n[Product: Warrior Gold Rakhi Pendant With Thread]\n[Product: Alphabet H Diamond Rakhi Pendant With Thread]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "clara_params": "pageNo=1 pageSize=15 title=rakhi searchUrl=true",
+      "total_count": "47",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I want a L Daimond rakhi",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Filters detected",
+          "detail": "\u201crakhi\u201d",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=15 title=rakhi searchUrl=true \u2192 47 products \u00b7 Balaji Diamond Rakhi Pendant With Thread \u20b99,357 \u00b7 Warrior Gold Rakhi Pendant With Thread \u20b98,195",
+          "status": "ok"
+        },
+        {
+          "order": 5,
+          "label": "Reply sent",
+          "detail": "text \u2014 Yeh rahe kuch khoobsurat pieces jo maine aapke liye chune hain \u2728 + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946438,
+      "ts_iso": "2026-08-17 06:00:38 UTC",
+      "role": "assistant",
+      "content": "Yeh rahe kuch khoobsurat pieces jo maine aapke liye chune hain \u2728\n[Product: Balaji Diamond Rakhi Pendant With Thread]\n[Product: Warrior Gold Rakhi Pendant With Thread]\n[Product: Alphabet H Diamond Rakhi Pendant With Thread]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "request_id": "b9838a53-1698-48d1-9d1e-f262cd400a1f",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "products_sent",
+      "reply_preview": "Yeh rahe kuch khoobsurat pieces jo maine aapke liye chune hain \u2728",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "pageNo=1 pageSize=15 title=rakhi searchUrl=true",
+      "total_count": "47",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I want a L Daimond rakhi",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Filters detected",
+          "detail": "\u201crakhi\u201d",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=15 title=rakhi searchUrl=true \u2192 47 products \u00b7 Balaji Diamond Rakhi Pendant With Thread \u20b99,357 \u00b7 Warrior Gold Rakhi Pendant With Thread \u20b98,195",
+          "status": "ok"
+        },
+        {
+          "order": 5,
+          "label": "Reply sent",
+          "detail": "text \u2014 Yeh rahe kuch khoobsurat pieces jo maine aapke liye chune hain \u2728 + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946470,
+      "ts_iso": "2026-08-17 06:01:10 UTC",
+      "role": "user",
+      "content": "I need a rakhi above 10k and below 50k",
+      "request_id": "2c3e9e72-f7dc-4ef1-8d81-2ace410a2542",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Samajh gaya \ud83d\udc4d Main hamare catalogue mein *\u20b910,000 se upar ki rakhi* dekhunga. Kya yeh aapko theek lagta hai?\n[Options: Yes, show me, No, change it]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a rakhi above 10k and below 50k",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Confirmation asked",
+          "detail": "rakhi above \u20b910,000",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946470,
+      "ts_iso": "2026-08-17 06:01:10 UTC",
+      "role": "assistant",
+      "content": "Samajh gaya \ud83d\udc4d Main hamare catalogue mein *\u20b910,000 se upar ki rakhi* dekhunga. Kya yeh aapko theek lagta hai?\n[Options: Yes, show me, No, change it]",
+      "request_id": "2c3e9e72-f7dc-4ef1-8d81-2ace410a2542",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a rakhi above 10k and below 50k",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Confirmation asked",
+          "detail": "rakhi above \u20b910,000",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946578,
+      "ts_iso": "2026-08-17 06:02:58 UTC",
+      "role": "user",
+      "content": "User Selected - [Yes, show me] from quick reply",
+      "request_id": "84ed20df-7486-4504-9c00-c6dcfd32c1f4",
+      "intent": null,
+      "confidence": null,
+      "outcome": "products_sent",
+      "reply_preview": "Yeh hai jo maine pieces mein dekha \ud83d\udc8d",
+      "paired_assistant_by_request_id": "Yeh hai jo maine pieces mein dekha \ud83d\udc8d\n[Product: Trishul Diamond Rakhi Pendant With Thread]\n[Product: Om Gold Rakhi Pendant With Thread]\n[Product: Mahadev Gold Rakhi Pendant With Thread]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "clara_params": "pageNo=1 pageSize=15 minPrice=10000 title=rakhi searchUrl=true",
+      "total_count": "12",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "\u201crakhi\u201d \u00b7 above \u20b910,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=15 minPrice=10000 title=rakhi searchUrl=true \u2192 12 products \u00b7 Divinity Gold Rakhi Pendant With Thread \u20b914,185 \u00b7 Trishul Diamond Rakhi Pendant With Thread \u20b910,005",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "Reply sent",
+          "detail": "text \u2014 Yeh hai jo maine pieces mein dekha \ud83d\udc8d + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786946578,
+      "ts_iso": "2026-08-17 06:02:58 UTC",
+      "role": "assistant",
+      "content": "Yeh hai jo maine pieces mein dekha \ud83d\udc8d\n[Product: Trishul Diamond Rakhi Pendant With Thread]\n[Product: Om Gold Rakhi Pendant With Thread]\n[Product: Mahadev Gold Rakhi Pendant With Thread]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "request_id": "84ed20df-7486-4504-9c00-c6dcfd32c1f4",
+      "intent": null,
+      "confidence": null,
+      "outcome": "products_sent",
+      "reply_preview": "Yeh hai jo maine pieces mein dekha \ud83d\udc8d",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "pageNo=1 pageSize=15 minPrice=10000 title=rakhi searchUrl=true",
+      "total_count": "12",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "\u201crakhi\u201d \u00b7 above \u20b910,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=15 minPrice=10000 title=rakhi searchUrl=true \u2192 12 products \u00b7 Divinity Gold Rakhi Pendant With Thread \u20b914,185 \u00b7 Trishul Diamond Rakhi Pendant With Thread \u20b910,005",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "Reply sent",
+          "detail": "text \u2014 Yeh hai jo maine pieces mein dekha \ud83d\udc8d + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786949963,
+      "ts_iso": "2026-08-17 06:59:23 UTC",
+      "role": "user",
+      "content": "What are the ongoing offers",
+      "request_id": "af8e4292-2182-4b5c-ba1e-d394ed9b335b",
+      "intent": "offers",
+      "confidence": 0.95,
+      "outcome": "no_products",
+      "reply_preview": "Of course! Let me share today's offers with you. \ud83d\ude0a",
+      "paired_assistant_by_request_id": "Of course! Let me share today's offers with you. \ud83d\ude0aNo active offers right now. Check back soon \u2014 we've got fresh deals coming!",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "What are the ongoing offers",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Offers (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Action",
+          "detail": "Loading promotions",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/promotions (live) \u2192 0 promotions",
+          "status": "warn"
+        },
+        {
+          "order": 5,
+          "label": "Filter",
+          "detail": "Active offers: 0 of 0",
+          "status": "warn"
+        },
+        {
+          "order": 6,
+          "label": "Result",
+          "detail": "No active promotions",
+          "status": "warn"
+        },
+        {
+          "order": 7,
+          "label": "Reply sent",
+          "detail": "text \u2014 Of course! Let me share today's offers with you. \ud83d\ude0a",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786949963,
+      "ts_iso": "2026-08-17 06:59:23 UTC",
+      "role": "assistant",
+      "content": "Of course! Let me share today's offers with you. \ud83d\ude0aNo active offers right now. Check back soon \u2014 we've got fresh deals coming!",
+      "request_id": "af8e4292-2182-4b5c-ba1e-d394ed9b335b",
+      "intent": "offers",
+      "confidence": 0.95,
+      "outcome": "no_products",
+      "reply_preview": "Of course! Let me share today's offers with you. \ud83d\ude0a",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "What are the ongoing offers",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Offers (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Action",
+          "detail": "Loading promotions",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/promotions (live) \u2192 0 promotions",
+          "status": "warn"
+        },
+        {
+          "order": 5,
+          "label": "Filter",
+          "detail": "Active offers: 0 of 0",
+          "status": "warn"
+        },
+        {
+          "order": 6,
+          "label": "Result",
+          "detail": "No active promotions",
+          "status": "warn"
+        },
+        {
+          "order": 7,
+          "label": "Reply sent",
+          "detail": "text \u2014 Of course! Let me share today's offers with you. \ud83d\ude0a",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786950684,
+      "ts_iso": "2026-08-17 07:11:24 UTC",
+      "role": "user",
+      "content": "Hii",
+      "request_id": "4ee2cb32-56de-420b-8b89-efd1015a3581",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your go-to jewellery assistant. What can I help you with today?",
+      "paired_assistant_by_request_id": "Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your go-to jewellery assistant. What can I help you with today?",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your go-to jewellery assistant. What ca",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786950684,
+      "ts_iso": "2026-08-17 07:11:24 UTC",
+      "role": "assistant",
+      "content": "Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your go-to jewellery assistant. What can I help you with today?",
+      "request_id": "4ee2cb32-56de-420b-8b89-efd1015a3581",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your go-to jewellery assistant. What can I help you with today?",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Welcome back, Laksh Keshwani! \ud83d\udc4b I'm KIA, your go-to jewellery assistant. What ca",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786950842,
+      "ts_iso": "2026-08-17 07:14:02 UTC",
+      "role": "user",
+      "content": "Hii",
+      "request_id": "6e800e5d-ff2f-4cc4-ae34-77b33211232e",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+      "paired_assistant_by_request_id": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786950842,
+      "ts_iso": "2026-08-17 07:14:02 UTC",
+      "role": "assistant",
+      "content": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+      "request_id": "6e800e5d-ff2f-4cc4-ae34-77b33211232e",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786950861,
+      "ts_iso": "2026-08-17 07:14:21 UTC",
+      "role": "user",
+      "content": "What are the ongoing offer",
+      "request_id": "a322dd2d-7dc9-4e7b-bdab-635aa0d49687",
+      "intent": "offers",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "*Current KISNA Offers* \ud83c\udf81\n\n*Diamond Jewellery*\n\u2022 20% off on Making Charges\n\u2022 30% off on Making Charges\n\u2022 45% off on Making Charges\n\u2022 50% off on Making Charges\n\u2022 ",
+      "paired_assistant_by_request_id": "*Current KISNA Offers* \ud83c\udf81\n\n*Diamond Jewellery*\n\u2022 20% off on Making Charges\n\u2022 30% off on Making Charges\n\u2022 45% off on Making Charges\n\u2022 50% off on Making Charges\n\u2022 100% off on Making Charges\n\n*Gold Jewellery*\n\u2022 5% off on Making Charges\n\u2022 10% off on Making Charges\n\u2022 15% off on Making Charges\n\u2022 20% off on Making Charges\n\u2022 30% off on Making Charges\n\u2022 50% off on Making Charges\n\n_Making charges are the craftsmanship cost added to the gold rate._\n_These offers apply to the making charges portion of your order._",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "What are the ongoing offer",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Offers (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Action",
+          "detail": "Loading promotions",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/promotions (cache) \u2192 11 promotions",
+          "status": "ok"
+        },
+        {
+          "order": 5,
+          "label": "Filter",
+          "detail": "Active offers: 11 of 11",
+          "status": "ok"
+        },
+        {
+          "order": 6,
+          "label": "Result",
+          "detail": "Sent offers \u2014 diamond 5, gold 6",
+          "status": "ok"
+        },
+        {
+          "order": 7,
+          "label": "Reply sent",
+          "detail": "text \u2014 Current KISNA Offers* \ud83c\udf81",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1786950861,
+      "ts_iso": "2026-08-17 07:14:21 UTC",
+      "role": "assistant",
+      "content": "*Current KISNA Offers* \ud83c\udf81\n\n*Diamond Jewellery*\n\u2022 20% off on Making Charges\n\u2022 30% off on Making Charges\n\u2022 45% off on Making Charges\n\u2022 50% off on Making Charges\n\u2022 100% off on Making Charges\n\n*Gold Jewellery*\n\u2022 5% off on Making Charges\n\u2022 10% off on Making Charges\n\u2022 15% off on Making Charges\n\u2022 20% off on Making Charges\n\u2022 30% off on Making Charges\n\u2022 50% off on Making Charges\n\n_Making charges are the craftsmanship cost added to the gold rate._\n_These offers apply to the making charges portion of your order._",
+      "request_id": "a322dd2d-7dc9-4e7b-bdab-635aa0d49687",
+      "intent": "offers",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "*Current KISNA Offers* \ud83c\udf81\n\n*Diamond Jewellery*\n\u2022 20% off on Making Charges\n\u2022 30% off on Making Charges\n\u2022 45% off on Making Charges\n\u2022 50% off on Making Charges\n\u2022 ",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "What are the ongoing offer",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Offers (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Action",
+          "detail": "Loading promotions",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/promotions (cache) \u2192 11 promotions",
+          "status": "ok"
+        },
+        {
+          "order": 5,
+          "label": "Filter",
+          "detail": "Active offers: 11 of 11",
+          "status": "ok"
+        },
+        {
+          "order": 6,
+          "label": "Result",
+          "detail": "Sent offers \u2014 diamond 5, gold 6",
+          "status": "ok"
+        },
+        {
+          "order": 7,
+          "label": "Reply sent",
+          "detail": "text \u2014 Current KISNA Offers* \ud83c\udf81",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133910,
+      "ts_iso": "2026-08-19 10:05:10 UTC",
+      "role": "user",
+      "content": "I want a category from your evileye collection",
+      "request_id": "6d995acd-575a-40ef-9212-1950def7d018",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+      "paired_assistant_by_request_id": "Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I want a category from your evileye collection",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133910,
+      "ts_iso": "2026-08-19 10:05:10 UTC",
+      "role": "assistant",
+      "content": "Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+      "request_id": "6d995acd-575a-40ef-9212-1950def7d018",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I want a category from your evileye collection",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133932,
+      "ts_iso": "2026-08-19 10:05:32 UTC",
+      "role": "user",
+      "content": "Ring from your evileye collection",
+      "request_id": "d6bbfa18-9676-4fc1-97b8-8d664d75cdad",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Great! Who is it for? (or type *anyone*)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Ring from your evileye collection",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133932,
+      "ts_iso": "2026-08-19 10:05:32 UTC",
+      "role": "assistant",
+      "content": "Great! Who is it for? (or type *anyone*)\n[Options: Female, Male, Kids]",
+      "request_id": "d6bbfa18-9676-4fc1-97b8-8d664d75cdad",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Ring from your evileye collection",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133941,
+      "ts_iso": "2026-08-19 10:05:41 UTC",
+      "role": "user",
+      "content": "User Selected - [Female] from quick reply",
+      "request_id": "f11e5b10-5e68-4dae-a212-68253fb24c55",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "What type of jewellery are you interested in?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Female",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133941,
+      "ts_iso": "2026-08-19 10:05:41 UTC",
+      "role": "assistant",
+      "content": "What type of jewellery are you interested in?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "f11e5b10-5e68-4dae-a212-68253fb24c55",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Female",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133947,
+      "ts_iso": "2026-08-19 10:05:47 UTC",
+      "role": "user",
+      "content": "User Selected - [Gold] from quick reply",
+      "request_id": "204daca3-0ec0-4d93-ac36-0c0c25217201",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+      "paired_assistant_by_request_id": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Gold",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific b",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133947,
+      "ts_iso": "2026-08-19 10:05:47 UTC",
+      "role": "assistant",
+      "content": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+      "request_id": "204daca3-0ec0-4d93-ac36-0c0c25217201",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Gold",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific b",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133962,
+      "ts_iso": "2026-08-19 10:06:02 UTC",
+      "role": "user",
+      "content": "No Specific budget",
+      "request_id": "8757357b-5142-48f8-931c-95e76cc19695",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "No Specific budget",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133962,
+      "ts_iso": "2026-08-19 10:06:02 UTC",
+      "role": "assistant",
+      "content": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "request_id": "8757357b-5142-48f8-931c-95e76cc19695",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "No Specific budget",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133971,
+      "ts_iso": "2026-08-19 10:06:11 UTC",
+      "role": "user",
+      "content": "User Selected - [Either is fine] from quick reply",
+      "request_id": "b20ee481-0474-4873-9fc7-ce7b35b166bf",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Understood \ud83d\udc4d I'll look in our catalogue for *gold rings for women*. Does this sound correct to you?\n[Options: Yes, show me, No, change it]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Either is fine",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "gold rings for women",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787133971,
+      "ts_iso": "2026-08-19 10:06:11 UTC",
+      "role": "assistant",
+      "content": "Understood \ud83d\udc4d I'll look in our catalogue for *gold rings for women*. Does this sound correct to you?\n[Options: Yes, show me, No, change it]",
+      "request_id": "b20ee481-0474-4873-9fc7-ce7b35b166bf",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Either is fine",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "gold rings for women",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134012,
+      "ts_iso": "2026-08-19 10:06:52 UTC",
+      "role": "user",
+      "content": "Do you have a story udaipur",
+      "request_id": "019c4773-c894-4481-a814-7d0d66c59ac5",
+      "intent": "store_info",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "paired_assistant_by_request_id": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a story udaipur",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134012,
+      "ts_iso": "2026-08-19 10:06:52 UTC",
+      "role": "assistant",
+      "content": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "request_id": "019c4773-c894-4481-a814-7d0d66c59ac5",
+      "intent": "store_info",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a story udaipur",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134030,
+      "ts_iso": "2026-08-19 10:07:10 UTC",
+      "role": "user",
+      "content": "Do you have a Store in Mumbai",
+      "request_id": "23f7e160-b30a-44c6-80ae-8b30357ac85c",
+      "intent": "store_info",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Bilkul! Main is baat mein madad kar sakta hoon. \ud83d\ude0a",
+      "paired_assistant_by_request_id": "Bilkul! Main is baat mein madad kar sakta hoon. \ud83d\ude0a",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a Store in Mumbai",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Bilkul! Main is baat mein madad kar sakta hoon. \ud83d\ude0a",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134030,
+      "ts_iso": "2026-08-19 10:07:10 UTC",
+      "role": "assistant",
+      "content": "Bilkul! Main is baat mein madad kar sakta hoon. \ud83d\ude0a",
+      "request_id": "23f7e160-b30a-44c6-80ae-8b30357ac85c",
+      "intent": "store_info",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Bilkul! Main is baat mein madad kar sakta hoon. \ud83d\ude0a",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a Store in Mumbai",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Bilkul! Main is baat mein madad kar sakta hoon. \ud83d\ude0a",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134068,
+      "ts_iso": "2026-08-19 10:07:48 UTC",
+      "role": "user",
+      "content": "Do you have a store in Udaipur ?",
+      "request_id": "8e0fddbb-c548-4144-9768-dd8def3cff49",
+      "intent": "store_info",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "paired_assistant_by_request_id": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Udaipur ?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134068,
+      "ts_iso": "2026-08-19 10:07:48 UTC",
+      "role": "assistant",
+      "content": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "request_id": "8e0fddbb-c548-4144-9768-dd8def3cff49",
+      "intent": "store_info",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Udaipur ?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134097,
+      "ts_iso": "2026-08-19 10:08:17 UTC",
+      "role": "user",
+      "content": "Do you have a store in Mumbai?",
+      "request_id": "197580d1-64f1-4021-806c-b5559c589e60",
+      "intent": "store_info",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Bilkul! Main ismein madad kar sakta hoon.",
+      "paired_assistant_by_request_id": "Bilkul! Main ismein madad kar sakta hoon.",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Mumbai?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Bilkul! Main ismein madad kar sakta hoon.",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134097,
+      "ts_iso": "2026-08-19 10:08:17 UTC",
+      "role": "assistant",
+      "content": "Bilkul! Main ismein madad kar sakta hoon.",
+      "request_id": "197580d1-64f1-4021-806c-b5559c589e60",
+      "intent": "store_info",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Bilkul! Main ismein madad kar sakta hoon.",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Mumbai?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Bilkul! Main ismein madad kar sakta hoon.",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134117,
+      "ts_iso": "2026-08-19 10:08:37 UTC",
+      "role": "user",
+      "content": "Do you have a store in Mumbai?",
+      "request_id": "04d8d33e-0f53-46b8-a420-2cded045c71a",
+      "intent": "store_info",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\n*R City Mall, Ghatkopar - Mumbai - Maharashtra*\n\ud83d\udccd G 58A Ground Floor, RCity Mall, Phase 2, Lal Bahadur Shastri Marg, Ghatkopar, Amrut Nagar, Ghatkopar West, Mumbai 400086\n\ud83d\udcde 8591653711\n[Button: View on Map]\n*Mira Road - Mumbai - Maharashtra*\n\ud83d\udccd Shop No. 2, The Corporate Lounge Premises Co-Op Society Ltd, Mira Bhayander Road, Kashimira, Miraroad East, Mumbai 401107\n\ud83d\udcde 8655926441\n[Button: View on Map]\n*Oberoi Sky City Mall - Mumbai - Maharashtra*\n\ud83d\udccd First Floor, Sky City Mall, F-02, Western Express Hwy, Devipada, Borivali East, Mumbai 400066\n\ud83d\udcde 8693877777\n[Button: View on Map]\n*Santacruz - Mumbai - Maharashtra*\n\ud83d\udccd Nemani Chawl, 13/14, 1st Gaothan Ln, Bajaj Wadi, Railway Colony, Santacruz (West), Mumbai 400054\n\ud83d\udcde 9920778686\n[Button: View on Map]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Mumbai?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134117,
+      "ts_iso": "2026-08-19 10:08:37 UTC",
+      "role": "assistant",
+      "content": "\n*R City Mall, Ghatkopar - Mumbai - Maharashtra*\n\ud83d\udccd G 58A Ground Floor, RCity Mall, Phase 2, Lal Bahadur Shastri Marg, Ghatkopar, Amrut Nagar, Ghatkopar West, Mumbai 400086\n\ud83d\udcde 8591653711\n[Button: View on Map]\n*Mira Road - Mumbai - Maharashtra*\n\ud83d\udccd Shop No. 2, The Corporate Lounge Premises Co-Op Society Ltd, Mira Bhayander Road, Kashimira, Miraroad East, Mumbai 401107\n\ud83d\udcde 8655926441\n[Button: View on Map]\n*Oberoi Sky City Mall - Mumbai - Maharashtra*\n\ud83d\udccd First Floor, Sky City Mall, F-02, Western Express Hwy, Devipada, Borivali East, Mumbai 400066\n\ud83d\udcde 8693877777\n[Button: View on Map]\n*Santacruz - Mumbai - Maharashtra*\n\ud83d\udccd Nemani Chawl, 13/14, 1st Gaothan Ln, Bajaj Wadi, Railway Colony, Santacruz (West), Mumbai 400054\n\ud83d\udcde 9920778686\n[Button: View on Map]",
+      "request_id": "04d8d33e-0f53-46b8-a420-2cded045c71a",
+      "intent": "store_info",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Mumbai?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134153,
+      "ts_iso": "2026-08-19 10:09:13 UTC",
+      "role": "user",
+      "content": "Do you have a store in Jaipur?",
+      "request_id": "db8b3e49-4417-491b-a12d-3794e8e4bd58",
+      "intent": "store_info",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\n*MI Road - Jaipur - Rajasthan*\n\ud83d\udccd Ground Floor, 137, Mirza Ismail Rd, Panch Batti, C Scheme, Ashok Nagar, Jaipur 302001\n\ud83d\udcde 9799868500\n[Button: View on Map]\n*Vaishali Nagar - Jaipur - Rajasthan*\n\ud83d\udccd F-17 Gautam Marg vaishali nagar opposite TBZ Vaishali Nagar Jaipur, Jaipur 302021\n\ud83d\udcde 7878016882\n[Button: View on Map]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Jaipur?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134153,
+      "ts_iso": "2026-08-19 10:09:13 UTC",
+      "role": "assistant",
+      "content": "\n*MI Road - Jaipur - Rajasthan*\n\ud83d\udccd Ground Floor, 137, Mirza Ismail Rd, Panch Batti, C Scheme, Ashok Nagar, Jaipur 302001\n\ud83d\udcde 9799868500\n[Button: View on Map]\n*Vaishali Nagar - Jaipur - Rajasthan*\n\ud83d\udccd F-17 Gautam Marg vaishali nagar opposite TBZ Vaishali Nagar Jaipur, Jaipur 302021\n\ud83d\udcde 7878016882\n[Button: View on Map]",
+      "request_id": "db8b3e49-4417-491b-a12d-3794e8e4bd58",
+      "intent": "store_info",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Jaipur?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134182,
+      "ts_iso": "2026-08-19 10:09:42 UTC",
+      "role": "user",
+      "content": "\u0915\u094d\u092f\u093e \u0906\u092a\u0915\u0940 Mumbai \u092e\u0947\u0902 \u0915\u094b\u0908 \u0926\u0941\u0915\u093e\u0928 \u0939\u0948?",
+      "request_id": "eb6416fa-73dc-40a2-be34-7ed6752f6bf3",
+      "intent": "store_info",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\n*R City Mall, Ghatkopar - Mumbai - Maharashtra*\n\ud83d\udccd G 58A Ground Floor, RCity Mall, Phase 2, Lal Bahadur Shastri Marg, Ghatkopar, Amrut Nagar, Ghatkopar West, Mumbai 400086\n\ud83d\udcde 8591653711\n[Button: View on Map]\n*Mira Road - Mumbai - Maharashtra*\n\ud83d\udccd Shop No. 2, The Corporate Lounge Premises Co-Op Society Ltd, Mira Bhayander Road, Kashimira, Miraroad East, Mumbai 401107\n\ud83d\udcde 8655926441\n[Button: View on Map]\n*Oberoi Sky City Mall - Mumbai - Maharashtra*\n\ud83d\udccd First Floor, Sky City Mall, F-02, Western Express Hwy, Devipada, Borivali East, Mumbai 400066\n\ud83d\udcde 8693877777\n[Button: View on Map]\n*Santacruz - Mumbai - Maharashtra*\n\ud83d\udccd Nemani Chawl, 13/14, 1st Gaothan Ln, Bajaj Wadi, Railway Colony, Santacruz (West), Mumbai 400054\n\ud83d\udcde 9920778686\n[Button: View on Map]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "\u0915\u094d\u092f\u093e \u0906\u092a\u0915\u0940 Mumbai \u092e\u0947\u0902 \u0915\u094b\u0908 \u0926\u0941\u0915\u093e\u0928 \u0939\u0948?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134182,
+      "ts_iso": "2026-08-19 10:09:42 UTC",
+      "role": "assistant",
+      "content": "\n*R City Mall, Ghatkopar - Mumbai - Maharashtra*\n\ud83d\udccd G 58A Ground Floor, RCity Mall, Phase 2, Lal Bahadur Shastri Marg, Ghatkopar, Amrut Nagar, Ghatkopar West, Mumbai 400086\n\ud83d\udcde 8591653711\n[Button: View on Map]\n*Mira Road - Mumbai - Maharashtra*\n\ud83d\udccd Shop No. 2, The Corporate Lounge Premises Co-Op Society Ltd, Mira Bhayander Road, Kashimira, Miraroad East, Mumbai 401107\n\ud83d\udcde 8655926441\n[Button: View on Map]\n*Oberoi Sky City Mall - Mumbai - Maharashtra*\n\ud83d\udccd First Floor, Sky City Mall, F-02, Western Express Hwy, Devipada, Borivali East, Mumbai 400066\n\ud83d\udcde 8693877777\n[Button: View on Map]\n*Santacruz - Mumbai - Maharashtra*\n\ud83d\udccd Nemani Chawl, 13/14, 1st Gaothan Ln, Bajaj Wadi, Railway Colony, Santacruz (West), Mumbai 400054\n\ud83d\udcde 9920778686\n[Button: View on Map]",
+      "request_id": "eb6416fa-73dc-40a2-be34-7ed6752f6bf3",
+      "intent": "store_info",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "\u0915\u094d\u092f\u093e \u0906\u092a\u0915\u0940 Mumbai \u092e\u0947\u0902 \u0915\u094b\u0908 \u0926\u0941\u0915\u093e\u0928 \u0939\u0948?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134231,
+      "ts_iso": "2026-08-19 10:10:31 UTC",
+      "role": "user",
+      "content": "Do you have a store in Udaipur?",
+      "request_id": "74cc9929-4f6b-4e43-b607-3d1053accd78",
+      "intent": "store_info",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "paired_assistant_by_request_id": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Udaipur?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134231,
+      "ts_iso": "2026-08-19 10:10:31 UTC",
+      "role": "assistant",
+      "content": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "request_id": "74cc9929-4f6b-4e43-b607-3d1053accd78",
+      "intent": "store_info",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Udaipur?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134243,
+      "ts_iso": "2026-08-19 10:10:43 UTC",
+      "role": "user",
+      "content": "313001",
+      "request_id": "74ee56b8-ff6f-4f53-8c43-7125dc3b6e92",
+      "intent": "store_info",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\n*Udaipur - Rajasthan*\n\ud83d\udccd B-132,133, Ashok Nagar Main Road, Udaipur 313001\n\ud83d\udcde 7023003803\n[Button: View on Map]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "313001",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134243,
+      "ts_iso": "2026-08-19 10:10:43 UTC",
+      "role": "assistant",
+      "content": "\n*Udaipur - Rajasthan*\n\ud83d\udccd B-132,133, Ashok Nagar Main Road, Udaipur 313001\n\ud83d\udcde 7023003803\n[Button: View on Map]",
+      "request_id": "74ee56b8-ff6f-4f53-8c43-7125dc3b6e92",
+      "intent": "store_info",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "313001",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134262,
+      "ts_iso": "2026-08-19 10:11:02 UTC",
+      "role": "user",
+      "content": "Do you have a store in Bombay?",
+      "request_id": "8da83ad6-9ef1-4a5c-8d20-e0d92a039a5c",
+      "intent": "store_info",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+      "paired_assistant_by_request_id": "Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Bombay?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134262,
+      "ts_iso": "2026-08-19 10:11:02 UTC",
+      "role": "assistant",
+      "content": "Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+      "request_id": "8da83ad6-9ef1-4a5c-8d20-e0d92a039a5c",
+      "intent": "store_info",
+      "confidence": 0.93,
+      "outcome": "info_sent",
+      "reply_preview": "Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Bombay?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134277,
+      "ts_iso": "2026-08-19 10:11:17 UTC",
+      "role": "user",
+      "content": "400021",
+      "request_id": "4d09b8c2-1895-4ee8-abfb-ec8e356e7fb5",
+      "intent": "store_info",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\n*R City Mall, Ghatkopar - Mumbai - Maharashtra*\n\ud83d\udccd G 58A Ground Floor, RCity Mall, Phase 2, Lal Bahadur Shastri Marg, Ghatkopar, Amrut Nagar, Ghatkopar West, Mumbai 400086\n\ud83d\udcde 8591653711\n[Button: View on Map]\n*M.G.Road - Ghatkopar - Maharashtra*\n\ud83d\udccd Shop no- 6, Paras Darshan Nagar, M.G.Road, Near Ramaji Ashar School, Ghatkopar East, Mumbai 400077\n\ud83d\udcde 9821750017\n[Button: View on Map]\n*Oberoi Sky City Mall - Mumbai - Maharashtra*\n\ud83d\udccd First Floor, Sky City Mall, F-02, Western Express Hwy, Devipada, Borivali East, Mumbai 400066\n\ud83d\udcde 8693877777\n[Button: View on Map]\n*Santacruz - Mumbai - Maharashtra*\n\ud83d\udccd Nemani Chawl, 13/14, 1st Gaothan Ln, Bajaj Wadi, Railway Colony, Santacruz (West), Mumbai 400054\n\ud83d\udcde 9920778686\n[Button: View on Map]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "400021",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134277,
+      "ts_iso": "2026-08-19 10:11:17 UTC",
+      "role": "assistant",
+      "content": "\n*R City Mall, Ghatkopar - Mumbai - Maharashtra*\n\ud83d\udccd G 58A Ground Floor, RCity Mall, Phase 2, Lal Bahadur Shastri Marg, Ghatkopar, Amrut Nagar, Ghatkopar West, Mumbai 400086\n\ud83d\udcde 8591653711\n[Button: View on Map]\n*M.G.Road - Ghatkopar - Maharashtra*\n\ud83d\udccd Shop no- 6, Paras Darshan Nagar, M.G.Road, Near Ramaji Ashar School, Ghatkopar East, Mumbai 400077\n\ud83d\udcde 9821750017\n[Button: View on Map]\n*Oberoi Sky City Mall - Mumbai - Maharashtra*\n\ud83d\udccd First Floor, Sky City Mall, F-02, Western Express Hwy, Devipada, Borivali East, Mumbai 400066\n\ud83d\udcde 8693877777\n[Button: View on Map]\n*Santacruz - Mumbai - Maharashtra*\n\ud83d\udccd Nemani Chawl, 13/14, 1st Gaothan Ln, Bajaj Wadi, Railway Colony, Santacruz (West), Mumbai 400054\n\ud83d\udcde 9920778686\n[Button: View on Map]",
+      "request_id": "4d09b8c2-1895-4ee8-abfb-ec8e356e7fb5",
+      "intent": "store_info",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "400021",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134296,
+      "ts_iso": "2026-08-19 10:11:36 UTC",
+      "role": "user",
+      "content": "Tell me about the Kisna 1 scheme",
+      "request_id": "ddf7e0c8-7cc3-481a-957f-9f651bd6ab74",
+      "intent": "general",
+      "confidence": 0.9,
+      "outcome": "handoff",
+      "reply_preview": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "paired_assistant_by_request_id": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Tell me about the Kisna 1 scheme",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 I'm connecting you with a Kisna representative who'll assist you further. Thank ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134296,
+      "ts_iso": "2026-08-19 10:11:36 UTC",
+      "role": "assistant",
+      "content": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "request_id": "ddf7e0c8-7cc3-481a-957f-9f651bd6ab74",
+      "intent": "general",
+      "confidence": 0.9,
+      "outcome": "handoff",
+      "reply_preview": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Tell me about the Kisna 1 scheme",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 I'm connecting you with a Kisna representative who'll assist you further. Thank ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134364,
+      "ts_iso": "2026-08-19 10:12:44 UTC",
+      "role": "user",
+      "content": "tell me About Kisna 10+1 scheme",
+      "request_id": "ccd35c61-86bd-426a-8f69-f45d83286090",
+      "intent": "general",
+      "confidence": 0.9,
+      "outcome": "handoff",
+      "reply_preview": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "paired_assistant_by_request_id": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "tell me About Kisna 10+1 scheme",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 I'm connecting you with a Kisna representative who'll assist you further. Thank ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134364,
+      "ts_iso": "2026-08-19 10:12:44 UTC",
+      "role": "assistant",
+      "content": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "request_id": "ccd35c61-86bd-426a-8f69-f45d83286090",
+      "intent": "general",
+      "confidence": 0.9,
+      "outcome": "handoff",
+      "reply_preview": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "tell me About Kisna 10+1 scheme",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 I'm connecting you with a Kisna representative who'll assist you further. Thank ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134417,
+      "ts_iso": "2026-08-19 10:13:37 UTC",
+      "role": "user",
+      "content": "How do I return the chain that I ordered?",
+      "request_id": "844ed9ae-98ce-438f-9cf2-25b285912be2",
+      "intent": "returns_refund",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\nSent flow - [damage_complaint]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "How do I return the chain that I ordered?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Returns & refunds (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "WhatsApp form",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134417,
+      "ts_iso": "2026-08-19 10:13:37 UTC",
+      "role": "assistant",
+      "content": "\nSent flow - [damage_complaint]",
+      "request_id": "844ed9ae-98ce-438f-9cf2-25b285912be2",
+      "intent": "returns_refund",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "How do I return the chain that I ordered?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Returns & refunds (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "WhatsApp form",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134523,
+      "ts_iso": "2026-08-19 10:15:23 UTC",
+      "role": "user",
+      "content": "Tell me about the Kisna roshnischeme",
+      "request_id": "a806dbde-9aa5-40ee-ab6a-e4a9826857f6",
+      "intent": "general",
+      "confidence": 0.9,
+      "outcome": "handoff",
+      "reply_preview": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "paired_assistant_by_request_id": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Tell me about the Kisna roshnischeme",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 I'm connecting you with a Kisna representative who'll assist you further. Thank ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134523,
+      "ts_iso": "2026-08-19 10:15:23 UTC",
+      "role": "assistant",
+      "content": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "request_id": "a806dbde-9aa5-40ee-ab6a-e4a9826857f6",
+      "intent": "general",
+      "confidence": 0.9,
+      "outcome": "handoff",
+      "reply_preview": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. \ud83d\ude4f",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Tell me about the Kisna roshnischeme",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 I'm connecting you with a Kisna representative who'll assist you further. Thank ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134533,
+      "ts_iso": "2026-08-19 10:15:33 UTC",
+      "role": "user",
+      "content": "Me about Kisna Meri Roshni scheme",
+      "request_id": "ccbff1be-70c2-4794-9241-2e12b31dbeb1",
+      "intent": "general",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "The Kisna Meri Roshni scheme is a monthly savings plan with two variants: KMR-Amount and KMR-Gram. \n\n\u2022 **KMR-Amount**: Fixed monthly installment for 10 months, ",
+      "paired_assistant_by_request_id": "The Kisna Meri Roshni scheme is a monthly savings plan with two variants: KMR-Amount and KMR-Gram. \n\n\u2022 **KMR-Amount**: Fixed monthly installment for 10 months, with a bonus in the 11th month for redemption.\n\u2022 **KMR-Gram**: Each installment converts to 24KT gold grams, with a bonus gram credited at maturity.\n\nYou can join online at meriroshni.kisna.com or visit any Kisna store for assistance. Let me know if you need more details! \ud83d\udc8e\u2728",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Me about Kisna Meri Roshni scheme",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 The Kisna Meri Roshni scheme is a monthly savings plan with two variants: KMR-Am",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134533,
+      "ts_iso": "2026-08-19 10:15:33 UTC",
+      "role": "assistant",
+      "content": "The Kisna Meri Roshni scheme is a monthly savings plan with two variants: KMR-Amount and KMR-Gram. \n\n\u2022 **KMR-Amount**: Fixed monthly installment for 10 months, with a bonus in the 11th month for redemption.\n\u2022 **KMR-Gram**: Each installment converts to 24KT gold grams, with a bonus gram credited at maturity.\n\nYou can join online at meriroshni.kisna.com or visit any Kisna store for assistance. Let me know if you need more details! \ud83d\udc8e\u2728",
+      "request_id": "ccbff1be-70c2-4794-9241-2e12b31dbeb1",
+      "intent": "general",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "The Kisna Meri Roshni scheme is a monthly savings plan with two variants: KMR-Amount and KMR-Gram. \n\n\u2022 **KMR-Amount**: Fixed monthly installment for 10 months, ",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Me about Kisna Meri Roshni scheme",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 The Kisna Meri Roshni scheme is a monthly savings plan with two variants: KMR-Am",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134635,
+      "ts_iso": "2026-08-19 10:17:15 UTC",
+      "role": "user",
+      "content": "Is Kalyan Jewellers better than Kisna?",
+      "request_id": "57474c2d-e017-463d-a41a-9fa805fe7b89",
+      "intent": "general",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "Choosing between Kalyan Jewellers and Kisna depends on personal preferences. Both brands offer fine jewellery, but here are some strengths of Kisna:\n\n\u2022 *Certifi",
+      "paired_assistant_by_request_id": "Choosing between Kalyan Jewellers and Kisna depends on personal preferences. Both brands offer fine jewellery, but here are some strengths of Kisna:\n\n\u2022 *Certified jewellery*: Our diamonds are IGI-certified, and gold is BIS hallmarked.\n\u2022 *Transparent policies*: Clear exchange and buyback options.\n\u2022 *Pan-India presence*: With 120+ flagship stores, we are widely accessible.\n\nWhile many brands provide beautiful jewellery, Kisna stands out for its quality assurance and commitment to customer service. \ud83d\udc8d\u2728 \nLet me know if you have specific queries!",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Is Kalyan Jewellers better than Kisna?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Choosing between Kalyan Jewellers and Kisna depends on personal preferences. Bot",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134635,
+      "ts_iso": "2026-08-19 10:17:15 UTC",
+      "role": "assistant",
+      "content": "Choosing between Kalyan Jewellers and Kisna depends on personal preferences. Both brands offer fine jewellery, but here are some strengths of Kisna:\n\n\u2022 *Certified jewellery*: Our diamonds are IGI-certified, and gold is BIS hallmarked.\n\u2022 *Transparent policies*: Clear exchange and buyback options.\n\u2022 *Pan-India presence*: With 120+ flagship stores, we are widely accessible.\n\nWhile many brands provide beautiful jewellery, Kisna stands out for its quality assurance and commitment to customer service. \ud83d\udc8d\u2728 \nLet me know if you have specific queries!",
+      "request_id": "57474c2d-e017-463d-a41a-9fa805fe7b89",
+      "intent": "general",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "Choosing between Kalyan Jewellers and Kisna depends on personal preferences. Both brands offer fine jewellery, but here are some strengths of Kisna:\n\n\u2022 *Certifi",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Is Kalyan Jewellers better than Kisna?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Choosing between Kalyan Jewellers and Kisna depends on personal preferences. Bot",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134664,
+      "ts_iso": "2026-08-19 10:17:44 UTC",
+      "role": "user",
+      "content": "Do you sell fake diamonds?",
+      "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+      "intent": "general",
+      "confidence": 0.6,
+      "outcome": "info_sent",
+      "reply_preview": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine prod",
+      "paired_assistant_by_request_id": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine products. If you have any more questions or need assistance, I'd be happy to help! \ud83d\udc8e\u2728",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you sell fake diamonds?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (60% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kisna exclusively sells certified diamonds, ensuring quality and authenticity. O",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134664,
+      "ts_iso": "2026-08-19 10:17:44 UTC",
+      "role": "assistant",
+      "content": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine products. If you have any more questions or need assistance, I'd be happy to help! \ud83d\udc8e\u2728",
+      "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+      "intent": "general",
+      "confidence": 0.6,
+      "outcome": "info_sent",
+      "reply_preview": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine prod",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you sell fake diamonds?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (60% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kisna exclusively sells certified diamonds, ensuring quality and authenticity. O",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134682,
+      "ts_iso": "2026-08-19 10:18:02 UTC",
+      "role": "user",
+      "content": "How is Kisna related to Hari Krishna exports ?",
+      "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+      "intent": "general",
+      "confidence": 0.7,
+      "outcome": "info_sent",
+      "reply_preview": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gems",
+      "paired_assistant_by_request_id": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gemstone jewellery. Hari Krishna Exports is the parent company that supports Kisna's commitment to quality and customer satisfaction. If you have more questions about our products or policies, I'd be happy to assist! \ud83d\udc8e\u2728",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "How is Kisna related to Hari Krishna exports ?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (70% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kisna is a brand by Hari Krishna Group, which was established in 1992. The group",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134682,
+      "ts_iso": "2026-08-19 10:18:02 UTC",
+      "role": "assistant",
+      "content": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gemstone jewellery. Hari Krishna Exports is the parent company that supports Kisna's commitment to quality and customer satisfaction. If you have more questions about our products or policies, I'd be happy to assist! \ud83d\udc8e\u2728",
+      "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+      "intent": "general",
+      "confidence": 0.7,
+      "outcome": "info_sent",
+      "reply_preview": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gems",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "How is Kisna related to Hari Krishna exports ?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (70% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kisna is a brand by Hari Krishna Group, which was established in 1992. The group",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134704,
+      "ts_iso": "2026-08-19 10:18:24 UTC",
+      "role": "user",
+      "content": "Tell me more about this",
+      "request_id": "42d092f8-da48-4567-93cf-0142dc2ca5de",
+      "intent": "menu_help",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "Just tell me what you need \u2014 browse products, check offers, find a store, track an order, or get help. I'm here to assist.",
+      "paired_assistant_by_request_id": "Just tell me what you need \u2014 browse products, check offers, find a store, track an order, or get help. I'm here to assist.",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Tell me more about this",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Main menu (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Just tell me what you need \u2014 browse products, check offers, find a store, track ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134704,
+      "ts_iso": "2026-08-19 10:18:24 UTC",
+      "role": "assistant",
+      "content": "Just tell me what you need \u2014 browse products, check offers, find a store, track an order, or get help. I'm here to assist.",
+      "request_id": "42d092f8-da48-4567-93cf-0142dc2ca5de",
+      "intent": "menu_help",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "Just tell me what you need \u2014 browse products, check offers, find a store, track an order, or get help. I'm here to assist.",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Tell me more about this",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Main menu (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Just tell me what you need \u2014 browse products, check offers, find a store, track ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134742,
+      "ts_iso": "2026-08-19 10:19:02 UTC",
+      "role": "user",
+      "content": "I had ordered a chain 3 years ago. I want you to track my order. Is it still not got it ?",
+      "request_id": "3e4d37c6-f89c-4a89-a037-7035f13761b5",
+      "intent": "order_tracking",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\nOrder *ed* \u2014 click below to track your order in real-time. \ud83d\ude9a\n[Button: Track Your Order]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I had ordered a chain 3 years ago. I want you to track my order. Is it still not got it ?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Order tracking (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134742,
+      "ts_iso": "2026-08-19 10:19:02 UTC",
+      "role": "assistant",
+      "content": "\nOrder *ed* \u2014 click below to track your order in real-time. \ud83d\ude9a\n[Button: Track Your Order]",
+      "request_id": "3e4d37c6-f89c-4a89-a037-7035f13761b5",
+      "intent": "order_tracking",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I had ordered a chain 3 years ago. I want you to track my order. Is it still not got it ?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Order tracking (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134840,
+      "ts_iso": "2026-08-19 10:20:40 UTC",
+      "role": "user",
+      "content": "I have received a damaged ring. What do I do with it?",
+      "request_id": "0bed4c2b-34a6-405b-b2ce-110542d55890",
+      "intent": "complaint",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\nSent flow - [damage_complaint]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I have received a damaged ring. What do I do with it?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Complaint (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "WhatsApp form",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787134840,
+      "ts_iso": "2026-08-19 10:20:40 UTC",
+      "role": "assistant",
+      "content": "\nSent flow - [damage_complaint]",
+      "request_id": "0bed4c2b-34a6-405b-b2ce-110542d55890",
+      "intent": "complaint",
+      "confidence": 0.95,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I have received a damaged ring. What do I do with it?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Complaint (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "WhatsApp form",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787135507,
+      "ts_iso": "2026-08-19 10:31:47 UTC",
+      "role": "user",
+      "content": "Tell me about Kisna",
+      "request_id": "35c417bb-aa82-4d53-8a2c-861f46193b79",
+      "intent": "general",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "Kisna is a premier jewellery brand launched by the Hari Krishna Group in 2005, based in Mumbai. We specialize in *certified gold, diamond, and gemstone jeweller",
+      "paired_assistant_by_request_id": "Kisna is a premier jewellery brand launched by the Hari Krishna Group in 2005, based in Mumbai. We specialize in *certified gold, diamond, and gemstone jewellery*, offering a wide range of pieces like rings, necklaces, and bangles. \n\nOur jewellery is crafted with precision and is BIS hallmarked for gold and IGI certified for diamonds. We prioritize customer satisfaction with transparent policies, including a 7-day return policy and easy exchange options. \n\nWith over 120 flagship stores and 3,500+ retail touchpoints across India, we're committed to providing beautiful, high-quality jewellery to our customers. If you have specific questions or need assistance, I'd be happy to help! \ud83d\udc8d\u2728",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Tell me about Kisna",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kisna is a premier jewellery brand launched by the Hari Krishna Group in 2005, b",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787135507,
+      "ts_iso": "2026-08-19 10:31:47 UTC",
+      "role": "assistant",
+      "content": "Kisna is a premier jewellery brand launched by the Hari Krishna Group in 2005, based in Mumbai. We specialize in *certified gold, diamond, and gemstone jewellery*, offering a wide range of pieces like rings, necklaces, and bangles. \n\nOur jewellery is crafted with precision and is BIS hallmarked for gold and IGI certified for diamonds. We prioritize customer satisfaction with transparent policies, including a 7-day return policy and easy exchange options. \n\nWith over 120 flagship stores and 3,500+ retail touchpoints across India, we're committed to providing beautiful, high-quality jewellery to our customers. If you have specific questions or need assistance, I'd be happy to help! \ud83d\udc8d\u2728",
+      "request_id": "35c417bb-aa82-4d53-8a2c-861f46193b79",
+      "intent": "general",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "Kisna is a premier jewellery brand launched by the Hari Krishna Group in 2005, based in Mumbai. We specialize in *certified gold, diamond, and gemstone jeweller",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Tell me about Kisna",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "FAQ / general (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text \u2014 Kisna is a premier jewellery brand launched by the Hari Krishna Group in 2005, b",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225208,
+      "ts_iso": "2026-08-20 11:26:48 UTC",
+      "role": "user",
+      "content": "Hii",
+      "request_id": "04a63972-72dc-4de1-89ae-a292076fafa1",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Hii Laksh Keshwani! \ud83d\udc4b Main KIA hoon, aapka trusted jewellery assistant. Aaj aap kya dhoond rahe hain?",
+      "paired_assistant_by_request_id": "Hii Laksh Keshwani! \ud83d\udc4b Main KIA hoon, aapka trusted jewellery assistant. Aaj aap kya dhoond rahe hain?",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Hii Laksh Keshwani! \ud83d\udc4b Main KIA hoon, aapka trusted jewellery assistant. Aaj aap ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225208,
+      "ts_iso": "2026-08-20 11:26:48 UTC",
+      "role": "assistant",
+      "content": "Hii Laksh Keshwani! \ud83d\udc4b Main KIA hoon, aapka trusted jewellery assistant. Aaj aap kya dhoond rahe hain?",
+      "request_id": "04a63972-72dc-4de1-89ae-a292076fafa1",
+      "intent": "greeting",
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Hii Laksh Keshwani! \ud83d\udc4b Main KIA hoon, aapka trusted jewellery assistant. Aaj aap kya dhoond rahe hain?",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Hii",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Hii Laksh Keshwani! \ud83d\udc4b Main KIA hoon, aapka trusted jewellery assistant. Aaj aap ",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225329,
+      "ts_iso": "2026-08-20 11:28:49 UTC",
+      "role": "user",
+      "content": "I need a ring for my parents around 50k",
+      "request_id": "a2600f14-3536-4501-8cd9-7822c2126d81",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my parents around 50k",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225329,
+      "ts_iso": "2026-08-20 11:28:49 UTC",
+      "role": "assistant",
+      "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "request_id": "a2600f14-3536-4501-8cd9-7822c2126d81",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my parents around 50k",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225367,
+      "ts_iso": "2026-08-20 11:29:27 UTC",
+      "role": "user",
+      "content": "User Selected - [Female] from quick reply",
+      "request_id": "eaf69e00-c46a-4848-9b4a-e23a2901ad29",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Female",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225367,
+      "ts_iso": "2026-08-20 11:29:27 UTC",
+      "role": "assistant",
+      "content": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "eaf69e00-c46a-4848-9b4a-e23a2901ad29",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Female",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225385,
+      "ts_iso": "2026-08-20 11:29:45 UTC",
+      "role": "user",
+      "content": "User Selected - [Gold] from quick reply",
+      "request_id": "7e1a1323-529e-47ff-ace5-a76da0b9b668",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Kya aap ready to ship product dhoond rahe hain ya aap made to order design zyada pasand karenge?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Gold",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225385,
+      "ts_iso": "2026-08-20 11:29:45 UTC",
+      "role": "assistant",
+      "content": "Kya aap ready to ship product dhoond rahe hain ya aap made to order design zyada pasand karenge?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "request_id": "7e1a1323-529e-47ff-ace5-a76da0b9b668",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Gold",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225400,
+      "ts_iso": "2026-08-20 11:30:00 UTC",
+      "role": "user",
+      "content": "User Selected - [Either is fine] from quick reply",
+      "request_id": "c399024d-f951-4481-9e6d-cb7300444661",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Samajh gaya \ud83d\udc4d Main hamare catalogue mein *women ke liye gold rings \u20b950,000 se \u20b960,000 ke beech* dekhunga. Kya yeh sahi hai aapke liye?\n[Options: Yes, show me, No, change it]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Either is fine",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "gold rings for women between \u20b950,000 and \u20b960,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225400,
+      "ts_iso": "2026-08-20 11:30:00 UTC",
+      "role": "assistant",
+      "content": "Samajh gaya \ud83d\udc4d Main hamare catalogue mein *women ke liye gold rings \u20b950,000 se \u20b960,000 ke beech* dekhunga. Kya yeh sahi hai aapke liye?\n[Options: Yes, show me, No, change it]",
+      "request_id": "c399024d-f951-4481-9e6d-cb7300444661",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Either is fine",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "gold rings for women between \u20b950,000 and \u20b960,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225413,
+      "ts_iso": "2026-08-20 11:30:13 UTC",
+      "role": "user",
+      "content": "User Selected - [Yes, show me] from quick reply",
+      "request_id": "01891fa2-9ed6-45d2-aecc-406d080ee0f9",
+      "intent": null,
+      "confidence": null,
+      "outcome": "fallback_used",
+      "reply_preview": "Abhi \u20b950,000\u2013\u20b960,000 mein koi pieces nahi mil rahe \u2014 yeh hain hamare sabse nazdeek ke picks \u2728\n\nEk exact match nahi mila, par yeh hain sabse nazdeek ke options:\n",
+      "paired_assistant_by_request_id": "Abhi \u20b950,000\u2013\u20b960,000 mein koi pieces nahi mil rahe \u2014 yeh hain hamare sabse nazdeek ke picks \u2728\n\nEk exact match nahi mila, par yeh hain sabse nazdeek ke options:\n\nYeh hai jo mere nazar mein aaya gold rings \ud83d\udc8d\n[Product: Royal Crown Gold  Band]\n[Product: Herbora Gold Band]\n[Product: DivaHeart Gold Ring]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=6710b86de3421b6a92589b39 searchUrl=true",
+      "total_count": "151",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "Ring \u00b7 Women \u00b7 Gold \u00b7 \u20b950,000\u2013\u20b960,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold minPrice=50000 maxPrice=60000 tagManagerId=6710b86de3421b6a92589b39 searchUrl=true \u2192 1 product \u00b7 0 matched \u00b7 Gleaming Gold Domed Jhumkas \u20b951,664",
+          "status": "warn"
+        },
+        {
+          "order": 4,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without price filter",
+          "status": "warn"
+        },
+        {
+          "order": 5,
+          "label": "Closest-match search",
+          "detail": "Without price filter \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=6710b86de3421b6a92589b39 searchUrl=true \u2192 151 products \u00b7 Royal Crown Gold  Band \u20b918,215 \u00b7 Herbora Gold Band \u20b916,720",
+          "status": "ok"
+        },
+        {
+          "order": 6,
+          "label": "Reply sent",
+          "detail": "text \u2014 Abhi \u20b950,000\u2013\u20b960,000 mein koi pieces nahi mil rahe \u2014 yeh hain hamare sabse nazde + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225413,
+      "ts_iso": "2026-08-20 11:30:13 UTC",
+      "role": "assistant",
+      "content": "Abhi \u20b950,000\u2013\u20b960,000 mein koi pieces nahi mil rahe \u2014 yeh hain hamare sabse nazdeek ke picks \u2728\n\nEk exact match nahi mila, par yeh hain sabse nazdeek ke options:\n\nYeh hai jo mere nazar mein aaya gold rings \ud83d\udc8d\n[Product: Royal Crown Gold  Band]\n[Product: Herbora Gold Band]\n[Product: DivaHeart Gold Ring]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "request_id": "01891fa2-9ed6-45d2-aecc-406d080ee0f9",
+      "intent": null,
+      "confidence": null,
+      "outcome": "fallback_used",
+      "reply_preview": "Abhi \u20b950,000\u2013\u20b960,000 mein koi pieces nahi mil rahe \u2014 yeh hain hamare sabse nazdeek ke picks \u2728\n\nEk exact match nahi mila, par yeh hain sabse nazdeek ke options:\n",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=6710b86de3421b6a92589b39 searchUrl=true",
+      "total_count": "151",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "Ring \u00b7 Women \u00b7 Gold \u00b7 \u20b950,000\u2013\u20b960,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold minPrice=50000 maxPrice=60000 tagManagerId=6710b86de3421b6a92589b39 searchUrl=true \u2192 1 product \u00b7 0 matched \u00b7 Gleaming Gold Domed Jhumkas \u20b951,664",
+          "status": "warn"
+        },
+        {
+          "order": 4,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without price filter",
+          "status": "warn"
+        },
+        {
+          "order": 5,
+          "label": "Closest-match search",
+          "detail": "Without price filter \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=6710b86de3421b6a92589b39 searchUrl=true \u2192 151 products \u00b7 Royal Crown Gold  Band \u20b918,215 \u00b7 Herbora Gold Band \u20b916,720",
+          "status": "ok"
+        },
+        {
+          "order": 6,
+          "label": "Reply sent",
+          "detail": "text \u2014 Abhi \u20b950,000\u2013\u20b960,000 mein koi pieces nahi mil rahe \u2014 yeh hain hamare sabse nazde + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225486,
+      "ts_iso": "2026-08-20 11:31:26 UTC",
+      "role": "user",
+      "content": "Show me something else",
+      "request_id": "4b42ecfd-042b-482b-8bf7-b8c576c90d91",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "\n[Product: Swanheartia Gold Ring]\n[Product: Leafine Gold Ring]\n[Product: Vertex Heart Gold Ring]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Show me something else",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787225486,
+      "ts_iso": "2026-08-20 11:31:26 UTC",
+      "role": "assistant",
+      "content": "\n[Product: Swanheartia Gold Ring]\n[Product: Leafine Gold Ring]\n[Product: Vertex Heart Gold Ring]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "request_id": "4b42ecfd-042b-482b-8bf7-b8c576c90d91",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Show me something else",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226394,
+      "ts_iso": "2026-08-20 11:46:34 UTC",
+      "role": "user",
+      "content": "I need a mangalsutra",
+      "request_id": "8d471121-34c4-4707-b960-860571e04931",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a mangalsutra",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226394,
+      "ts_iso": "2026-08-20 11:46:34 UTC",
+      "role": "assistant",
+      "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "request_id": "8d471121-34c4-4707-b960-860571e04931",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a mangalsutra",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226414,
+      "ts_iso": "2026-08-20 11:46:54 UTC",
+      "role": "user",
+      "content": "User Selected - [Female] from quick reply",
+      "request_id": "2c5298ff-1cf2-459b-8235-a52dab50d17a",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Female",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226414,
+      "ts_iso": "2026-08-20 11:46:54 UTC",
+      "role": "assistant",
+      "content": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "2c5298ff-1cf2-459b-8235-a52dab50d17a",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Female",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226424,
+      "ts_iso": "2026-08-20 11:47:04 UTC",
+      "role": "user",
+      "content": "User Selected - [Diamond] from quick reply",
+      "request_id": "79261310-542e-46da-b96a-5e29d9a5521d",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+      "paired_assistant_by_request_id": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Diamond",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya p",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226424,
+      "ts_iso": "2026-08-20 11:47:04 UTC",
+      "role": "assistant",
+      "content": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+      "request_id": "79261310-542e-46da-b96a-5e29d9a5521d",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Diamond",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya p",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226456,
+      "ts_iso": "2026-08-20 11:47:36 UTC",
+      "role": "user",
+      "content": "No budget",
+      "request_id": "22a92761-caa7-4cfd-bc70-47ff7957a465",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Kya aap ready to ship product dhoond rahe hain ya aap made to order design zyada pasand karenge?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "No budget",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226456,
+      "ts_iso": "2026-08-20 11:47:36 UTC",
+      "role": "assistant",
+      "content": "Kya aap ready to ship product dhoond rahe hain ya aap made to order design zyada pasand karenge?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "request_id": "22a92761-caa7-4cfd-bc70-47ff7957a465",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "No budget",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226465,
+      "ts_iso": "2026-08-20 11:47:45 UTC",
+      "role": "user",
+      "content": "User Selected - [Either is fine] from quick reply",
+      "request_id": "93a7276a-29e0-4720-8e33-0c722f973c5d",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Understood \ud83d\udc4d Main hamare catalogue mein *diamond mangalsutra for women* dekhta hoon. Kya ye aapko theek lagta hai?\n[Options: Yes, show me, No, change it]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Either is fine",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "diamond mangalsutra for women",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226465,
+      "ts_iso": "2026-08-20 11:47:45 UTC",
+      "role": "assistant",
+      "content": "Understood \ud83d\udc4d Main hamare catalogue mein *diamond mangalsutra for women* dekhta hoon. Kya ye aapko theek lagta hai?\n[Options: Yes, show me, No, change it]",
+      "request_id": "93a7276a-29e0-4720-8e33-0c722f973c5d",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Either is fine",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "diamond mangalsutra for women",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226479,
+      "ts_iso": "2026-08-20 11:47:59 UTC",
+      "role": "user",
+      "content": "User Selected - [Yes, show me] from quick reply",
+      "request_id": "e852b6f6-3d81-4782-9f47-0f513b16f12b",
+      "intent": null,
+      "confidence": null,
+      "outcome": "products_sent",
+      "reply_preview": "Perfect! Chalo main tumhe best diamond mangalsutra dikhata hoon.\n\nYeh hai jo mere nazar mein aaya diamond mangalsutra \ud83d\udc8d",
+      "paired_assistant_by_request_id": "Perfect! Chalo main tumhe best diamond mangalsutra dikhata hoon.\n\nYeh hai jo mere nazar mein aaya diamond mangalsutra \ud83d\udc8d\n[Product: Blooming Grace Diamond Mangalsutra Pendant]\n[Product: Aarohi Dewdrop Diamond Mangalsutra Pendant]\n[Product: Cascading Sparkle Diamond Mangalsutra With Chain]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "clara_params": "pageNo=1 pageSize=50 category=mangalsutra materialType=diamond tagManagerId=6710b86de3421b6a92589b39 searchUrl=true",
+      "total_count": "163",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "Mangalsutra \u00b7 Women \u00b7 Diamond",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=50 category=mangalsutra materialType=diamond tagManagerId=6710b86de3421b6a92589b39 searchUrl=true \u2192 163 products \u00b7 Blooming Grace Diamond Mangalsutra Pendant \u20b927,614 \u00b7 Aarohi Dewdrop Diamond Mangalsutra Pendant \u20b929,968",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "Reply sent",
+          "detail": "text \u2014 Perfect! Chalo main tumhe best diamond mangalsutra dikhata hoon. + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226479,
+      "ts_iso": "2026-08-20 11:47:59 UTC",
+      "role": "assistant",
+      "content": "Perfect! Chalo main tumhe best diamond mangalsutra dikhata hoon.\n\nYeh hai jo mere nazar mein aaya diamond mangalsutra \ud83d\udc8d\n[Product: Blooming Grace Diamond Mangalsutra Pendant]\n[Product: Aarohi Dewdrop Diamond Mangalsutra Pendant]\n[Product: Cascading Sparkle Diamond Mangalsutra With Chain]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "request_id": "e852b6f6-3d81-4782-9f47-0f513b16f12b",
+      "intent": null,
+      "confidence": null,
+      "outcome": "products_sent",
+      "reply_preview": "Perfect! Chalo main tumhe best diamond mangalsutra dikhata hoon.\n\nYeh hai jo mere nazar mein aaya diamond mangalsutra \ud83d\udc8d",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "pageNo=1 pageSize=50 category=mangalsutra materialType=diamond tagManagerId=6710b86de3421b6a92589b39 searchUrl=true",
+      "total_count": "163",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "Mangalsutra \u00b7 Women \u00b7 Diamond",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=50 category=mangalsutra materialType=diamond tagManagerId=6710b86de3421b6a92589b39 searchUrl=true \u2192 163 products \u00b7 Blooming Grace Diamond Mangalsutra Pendant \u20b927,614 \u00b7 Aarohi Dewdrop Diamond Mangalsutra Pendant \u20b929,968",
+          "status": "ok"
+        },
+        {
+          "order": 4,
+          "label": "Reply sent",
+          "detail": "text \u2014 Perfect! Chalo main tumhe best diamond mangalsutra dikhata hoon. + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226509,
+      "ts_iso": "2026-08-20 11:48:29 UTC",
+      "role": "user",
+      "content": "I need a chain for my mom",
+      "request_id": "268c958f-bce3-460f-90bb-ca4747c71401",
+      "intent": "product_search",
+      "confidence": 0.85,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a chain for my mom",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (85% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226509,
+      "ts_iso": "2026-08-20 11:48:29 UTC",
+      "role": "assistant",
+      "content": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "268c958f-bce3-460f-90bb-ca4747c71401",
+      "intent": "product_search",
+      "confidence": 0.85,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a chain for my mom",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (85% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226519,
+      "ts_iso": "2026-08-20 11:48:39 UTC",
+      "role": "user",
+      "content": "I need a ring for my masi",
+      "request_id": "01d35a93-5d39-4fb8-88d9-af60986798d3",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my masi",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226519,
+      "ts_iso": "2026-08-20 11:48:39 UTC",
+      "role": "assistant",
+      "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "request_id": "01d35a93-5d39-4fb8-88d9-af60986798d3",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my masi",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226536,
+      "ts_iso": "2026-08-20 11:48:56 UTC",
+      "role": "user",
+      "content": "I need a ring for my papa",
+      "request_id": "05b1e2fb-a619-45d0-b212-e9a915250461",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my papa",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226536,
+      "ts_iso": "2026-08-20 11:48:56 UTC",
+      "role": "assistant",
+      "content": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "05b1e2fb-a619-45d0-b212-e9a915250461",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my papa",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226556,
+      "ts_iso": "2026-08-20 11:49:16 UTC",
+      "role": "user",
+      "content": "I need a ring for my chacha",
+      "request_id": "b1c1e1b3-05d9-4c25-96e8-a05e4e831e22",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my chacha",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226556,
+      "ts_iso": "2026-08-20 11:49:16 UTC",
+      "role": "assistant",
+      "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "request_id": "b1c1e1b3-05d9-4c25-96e8-a05e4e831e22",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my chacha",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226568,
+      "ts_iso": "2026-08-20 11:49:28 UTC",
+      "role": "user",
+      "content": "I need a ring for my chachi",
+      "request_id": "34a6519e-f31a-448a-a783-4d1919a78761",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my chachi",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226568,
+      "ts_iso": "2026-08-20 11:49:28 UTC",
+      "role": "assistant",
+      "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "request_id": "34a6519e-f31a-448a-a783-4d1919a78761",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my chachi",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226578,
+      "ts_iso": "2026-08-20 11:49:38 UTC",
+      "role": "user",
+      "content": "I need a ring for my aunti",
+      "request_id": "678b35da-631f-4920-bf25-7cde44aff1e1",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my aunti",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226578,
+      "ts_iso": "2026-08-20 11:49:38 UTC",
+      "role": "assistant",
+      "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "request_id": "678b35da-631f-4920-bf25-7cde44aff1e1",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my aunti",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226722,
+      "ts_iso": "2026-08-20 11:52:02 UTC",
+      "role": "user",
+      "content": "I need a ring for my daughter",
+      "request_id": "8eaa3697-b44b-4b5a-af34-c77e550f55ab",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my daughter",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226722,
+      "ts_iso": "2026-08-20 11:52:02 UTC",
+      "role": "assistant",
+      "content": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "8eaa3697-b44b-4b5a-af34-c77e550f55ab",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my daughter",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226741,
+      "ts_iso": "2026-08-20 11:52:21 UTC",
+      "role": "user",
+      "content": "I need a ring for my son",
+      "request_id": "398d157a-5722-4ccf-aef7-708a99e5bbc4",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my son",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226741,
+      "ts_iso": "2026-08-20 11:52:21 UTC",
+      "role": "assistant",
+      "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "request_id": "398d157a-5722-4ccf-aef7-708a99e5bbc4",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my son",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226759,
+      "ts_iso": "2026-08-20 11:52:39 UTC",
+      "role": "user",
+      "content": "I need a ring for my beta",
+      "request_id": "b9e7d446-5073-4082-8725-3c2101087f80",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my beta",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226759,
+      "ts_iso": "2026-08-20 11:52:39 UTC",
+      "role": "assistant",
+      "content": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "b9e7d446-5073-4082-8725-3c2101087f80",
+      "intent": "product_search",
+      "confidence": 0.9,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my beta",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226785,
+      "ts_iso": "2026-08-20 11:53:05 UTC",
+      "role": "user",
+      "content": "I need a ring for my beti",
+      "request_id": "c886b3fe-b028-4bed-bb50-9b2473fb3fa8",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my beti",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226785,
+      "ts_iso": "2026-08-20 11:53:05 UTC",
+      "role": "assistant",
+      "content": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "c886b3fe-b028-4bed-bb50-9b2473fb3fa8",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my beti",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226795,
+      "ts_iso": "2026-08-20 11:53:15 UTC",
+      "role": "user",
+      "content": "I need a ring for my kid",
+      "request_id": "5ada6725-1d56-4e42-95e7-2a856e45d3eb",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my kid",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226795,
+      "ts_iso": "2026-08-20 11:53:15 UTC",
+      "role": "assistant",
+      "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+      "request_id": "5ada6725-1d56-4e42-95e7-2a856e45d3eb",
+      "intent": "product_search",
+      "confidence": 0.92,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I need a ring for my kid",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Product search (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226804,
+      "ts_iso": "2026-08-20 11:53:24 UTC",
+      "role": "user",
+      "content": "User Selected - [Kids] from quick reply",
+      "request_id": "1bd38fde-ef66-4bca-8854-a7ce0e784499",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Kids",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226804,
+      "ts_iso": "2026-08-20 11:53:24 UTC",
+      "role": "assistant",
+      "content": "Aap kis tarah ki jewellery mein ruchi rakhte hain?\n[Options: Gold, Diamond, Gemstone]",
+      "request_id": "1bd38fde-ef66-4bca-8854-a7ce0e784499",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Kids",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226818,
+      "ts_iso": "2026-08-20 11:53:38 UTC",
+      "role": "user",
+      "content": "User Selected - [Gold] from quick reply",
+      "request_id": "f011313e-97ce-46e8-9844-4544506d7b5f",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+      "paired_assistant_by_request_id": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Gold",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya p",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226818,
+      "ts_iso": "2026-08-20 11:53:38 UTC",
+      "role": "assistant",
+      "content": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+      "request_id": "f011313e-97ce-46e8-9844-4544506d7b5f",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Gold",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "text \u2014 Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya p",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226833,
+      "ts_iso": "2026-08-20 11:53:53 UTC",
+      "role": "user",
+      "content": "80k",
+      "request_id": "af46e6c4-2374-42f9-ae4d-54faf8e0bd6c",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Kya aap ready to ship product dhoond rahe hain ya aap made to order design zyada pasand karenge?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "80k",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226833,
+      "ts_iso": "2026-08-20 11:53:53 UTC",
+      "role": "assistant",
+      "content": "Kya aap ready to ship product dhoond rahe hain ya aap made to order design zyada pasand karenge?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "request_id": "af46e6c4-2374-42f9-ae4d-54faf8e0bd6c",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "80k",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226846,
+      "ts_iso": "2026-08-20 11:54:06 UTC",
+      "role": "user",
+      "content": "User Selected - [Ready to ship] from quick reply",
+      "request_id": "394975af-16e6-41ee-8c1a-2407b6020a0e",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": "Understood \ud83d\udc4d Main hamare catalogue mein *bachelor rings for bachchon \u20b980,000 se \u20b9100,000 tak ready to ship* dekhunga. Kya yeh sahi hai aapke liye?\n[Options: Yes, show me, No, change it]",
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Ready to ship",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "gold rings for kids between \u20b980,000 and \u20b9100,000 ready to ship",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226846,
+      "ts_iso": "2026-08-20 11:54:06 UTC",
+      "role": "assistant",
+      "content": "Understood \ud83d\udc4d Main hamare catalogue mein *bachelor rings for bachchon \u20b980,000 se \u20b9100,000 tak ready to ship* dekhunga. Kya yeh sahi hai aapke liye?\n[Options: Yes, show me, No, change it]",
+      "request_id": "394975af-16e6-41ee-8c1a-2407b6020a0e",
+      "intent": null,
+      "confidence": null,
+      "outcome": "info_sent",
+      "reply_preview": "",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "",
+      "total_count": "",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Ready to ship",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Confirmation asked",
+          "detail": "gold rings for kids between \u20b980,000 and \u20b9100,000 ready to ship",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "buttons",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226870,
+      "ts_iso": "2026-08-20 11:54:30 UTC",
+      "role": "user",
+      "content": "User Selected - [Yes, show me] from quick reply",
+      "request_id": "8d5de615-31d5-4479-8694-1809822fdf10",
+      "intent": null,
+      "confidence": null,
+      "outcome": "fallback_used",
+      "reply_preview": "Mujhe \u20b980,000\u2013\u20b9100,000 range mein gold rings nahi mili, lekin yahan rings ke liye jo options hain:\n\nExact match nahi mila, lekin yahan aas-paas ke closest optio",
+      "paired_assistant_by_request_id": "Mujhe \u20b980,000\u2013\u20b9100,000 range mein gold rings nahi mili, lekin yahan rings ke liye jo options hain:\n\nExact match nahi mila, lekin yahan aas-paas ke closest options hain:\n\nKuch khoobsurat rings aapke liye mili hain \u2728\n[Product: Royal Crown Gold  Band]\n[Product: Sairose Ring]\n[Product: Nitara Ring]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true",
+      "total_count": "0",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "Ring \u00b7 Kids \u00b7 Gold \u00b7 \u20b980,000\u2013\u20b9100,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true \u2192 0 products",
+          "status": "warn"
+        },
+        {
+          "order": 4,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without ready-to-ship / made-to-order filter",
+          "status": "warn"
+        },
+        {
+          "order": 5,
+          "label": "Closest-match search",
+          "detail": "Without ready-to-ship / made-to-order filter \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c searchUrl=true \u2192 0 products",
+          "status": "warn"
+        },
+        {
+          "order": 6,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without price filter",
+          "status": "warn"
+        },
+        {
+          "order": 7,
+          "label": "Closest-match search",
+          "detail": "Without price filter \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true \u2192 0 products",
+          "status": "warn"
+        },
+        {
+          "order": 8,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without price and availability filters",
+          "status": "warn"
+        },
+        {
+          "order": 9,
+          "label": "Closest-match search",
+          "detail": "Without price and availability filters \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=66ec7af6cc1fc61e0532a14c searchUrl=true \u2192 21 products \u00b7 0 matched \u00b7 Sunshine Gold Kids Earring \u20b98,195 \u00b7 Vertex Heart Gold Kids Earring \u20b96,368",
+          "status": "warn"
+        },
+        {
+          "order": 10,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without material filter",
+          "status": "warn"
+        },
+        {
+          "order": 11,
+          "label": "Closest-match search",
+          "detail": "Without material filter \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true \u2192 0 products",
+          "status": "warn"
+        },
+        {
+          "order": 12,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without all filters except category",
+          "status": "warn"
+        },
+        {
+          "order": 13,
+          "label": "Closest-match search",
+          "detail": "Without all filters except category \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=15 category=ring searchUrl=true \u2192 3558 products \u00b7 Royal Crown Gold  Band \u20b918,215 \u00b7 Sairose Ring \u20b942,774",
+          "status": "ok"
+        },
+        {
+          "order": 14,
+          "label": "Reply sent",
+          "detail": "text \u2014 Mujhe \u20b980,000\u2013\u20b9100,000 range mein gold rings nahi mili, lekin yahan rings ke liy + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    },
+    {
+      "ts": 1787226870,
+      "ts_iso": "2026-08-20 11:54:30 UTC",
+      "role": "assistant",
+      "content": "Mujhe \u20b980,000\u2013\u20b9100,000 range mein gold rings nahi mili, lekin yahan rings ke liye jo options hain:\n\nExact match nahi mila, lekin yahan aas-paas ke closest options hain:\n\nKuch khoobsurat rings aapke liye mili hain \u2728\n[Product: Royal Crown Gold  Band]\n[Product: Sairose Ring]\n[Product: Nitara Ring]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+      "request_id": "8d5de615-31d5-4479-8694-1809822fdf10",
+      "intent": null,
+      "confidence": null,
+      "outcome": "fallback_used",
+      "reply_preview": "Mujhe \u20b980,000\u2013\u20b9100,000 range mein gold rings nahi mili, lekin yahan rings ke liye jo options hain:\n\nExact match nahi mila, lekin yahan aas-paas ke closest optio",
+      "paired_assistant_by_request_id": null,
+      "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true",
+      "total_count": "0",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Yes, show me",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Filters detected",
+          "detail": "Ring \u00b7 Kids \u00b7 Gold \u00b7 \u20b980,000\u2013\u20b9100,000",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "API call",
+          "detail": "GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true \u2192 0 products",
+          "status": "warn"
+        },
+        {
+          "order": 4,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without ready-to-ship / made-to-order filter",
+          "status": "warn"
+        },
+        {
+          "order": 5,
+          "label": "Closest-match search",
+          "detail": "Without ready-to-ship / made-to-order filter \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c searchUrl=true \u2192 0 products",
+          "status": "warn"
+        },
+        {
+          "order": 6,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without price filter",
+          "status": "warn"
+        },
+        {
+          "order": 7,
+          "label": "Closest-match search",
+          "detail": "Without price filter \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true \u2192 0 products",
+          "status": "warn"
+        },
+        {
+          "order": 8,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without price and availability filters",
+          "status": "warn"
+        },
+        {
+          "order": 9,
+          "label": "Closest-match search",
+          "detail": "Without price and availability filters \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=66ec7af6cc1fc61e0532a14c searchUrl=true \u2192 21 products \u00b7 0 matched \u00b7 Sunshine Gold Kids Earring \u20b98,195 \u00b7 Vertex Heart Gold Kids Earring \u20b96,368",
+          "status": "warn"
+        },
+        {
+          "order": 10,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without material filter",
+          "status": "warn"
+        },
+        {
+          "order": 11,
+          "label": "Closest-match search",
+          "detail": "Without material filter \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=50 category=ring minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true \u2192 0 products",
+          "status": "warn"
+        },
+        {
+          "order": 12,
+          "label": "Search fallback",
+          "detail": "No results with prior filters \u2014 retrying without all filters except category",
+          "status": "warn"
+        },
+        {
+          "order": 13,
+          "label": "Closest-match search",
+          "detail": "Without all filters except category \u2014 GET /api/v1/clara/products | pageNo=1 pageSize=15 category=ring searchUrl=true \u2192 3558 products \u00b7 Royal Crown Gold  Band \u20b918,215 \u00b7 Sairose Ring \u20b942,774",
+          "status": "ok"
+        },
+        {
+          "order": 14,
+          "label": "Reply sent",
+          "detail": "text \u2014 Mujhe \u20b980,000\u2013\u20b9100,000 range mein gold rings nahi mili, lekin yahan rings ke liy + 3 product cards + link button",
+          "status": "ok"
+        }
+      ],
+      "trace_missing": false
+    }
+  ]
+}

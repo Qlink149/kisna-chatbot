@@ -1,0 +1,351 @@
+[
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-13 12:28:08 UTC",
+    "request_id": "c2897c10-0bbf-4014-b003-ae57819f1815",
+    "message": "User Selected - [Gold] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-17 06:59:23 UTC",
+    "request_id": "af8e4292-2182-4b5c-ba1e-d394ed9b335b",
+    "message": "What are the ongoing offers",
+    "intent": "offers",
+    "confidence": 0.95,
+    "outcome": "no_products",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Of course! Let me share today's offers with you. \ud83d\ude0aNo active offers right now. Check back soon \u2014 we've got fresh deals coming!",
+    "reasons": [
+      "outcome=no_products"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-17 07:14:02 UTC",
+    "request_id": "6e800e5d-ff2f-4cc4-ae34-77b33211232e",
+    "message": "Hii",
+    "intent": "greeting",
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Welcome back, Laksh Keshwani! \ud83d\udc4b I\u2019m KIA, your friendly jewellery assistant. How can I help you today?",
+    "reasons": [
+      "user_rephrase_or_repeat"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-19 10:05:10 UTC",
+    "request_id": "6d995acd-575a-40ef-9212-1950def7d018",
+    "message": "I want a category from your evileye collection",
+    "intent": "product_search",
+    "confidence": 0.9,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-19 10:05:47 UTC",
+    "request_id": "204daca3-0ec0-4d93-ac36-0c0c25217201",
+    "message": "User Selected - [Gold] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-19 10:08:37 UTC",
+    "request_id": "04d8d33e-0f53-46b8-a420-2cded045c71a",
+    "message": "Do you have a store in Mumbai?",
+    "intent": "store_info",
+    "confidence": 0.93,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "\n*R City Mall, Ghatkopar - Mumbai - Maharashtra*\n\ud83d\udccd G 58A Ground Floor, RCity Mall, Phase 2, Lal Bahadur Shastri Marg, Ghatkopar, Amrut Nagar, Ghatkopar West, Mumbai 400086\n\ud83d\udcde 8591653711\n[Button: View on Map]\n*Mira Road - Mumbai - Maharashtra*\n\ud83d\udccd Shop No. 2, The Corporate Lounge Premises Co-Op Society ",
+    "reasons": [
+      "user_rephrase_or_repeat"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-20 11:30:13 UTC",
+    "request_id": "01891fa2-9ed6-45d2-aecc-406d080ee0f9",
+    "message": "User Selected - [Yes, show me] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "fallback_used",
+    "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold tagManagerId=6710b86de3421b6a92589b39 searchUrl=true",
+    "total_count": "151",
+    "reply_preview": "Abhi \u20b950,000\u2013\u20b960,000 mein koi pieces nahi mil rahe \u2014 yeh hain hamare sabse nazdeek ke picks \u2728\n\nEk exact match nahi mila, par yeh hain sabse nazdeek ke options:\n\nYeh hai jo mere nazar mein aaya gold rings \ud83d\udc8d\n[Product: Royal Crown Gold  Band]\n[Product: Herbora Gold Band]\n[Product: DivaHeart Gold Ring]\n",
+    "reasons": [
+      "outcome=fallback_used",
+      "ladder_or_fallback_step"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-20 11:47:04 UTC",
+    "request_id": "79261310-542e-46da-b96a-5e29d9a5521d",
+    "message": "User Selected - [Diamond] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-20 11:53:38 UTC",
+    "request_id": "f011313e-97ce-46e8-9844-4544506d7b5f",
+    "message": "User Selected - [Gold] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aaspaas (ya phir *koi specific budget nahi hai*)",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "916376925843",
+    "ts": "2026-08-20 11:54:30 UTC",
+    "request_id": "8d5de615-31d5-4479-8694-1809822fdf10",
+    "message": "User Selected - [Yes, show me] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "fallback_used",
+    "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold minPrice=80000 maxPrice=100000 tagManagerId=66ec7af6cc1fc61e0532a14c readyTOShip=true searchUrl=true",
+    "total_count": "0",
+    "reply_preview": "Mujhe \u20b980,000\u2013\u20b9100,000 range mein gold rings nahi mili, lekin yahan rings ke liye jo options hain:\n\nExact match nahi mila, lekin yahan aas-paas ke closest options hain:\n\nKuch khoobsurat rings aapke liye mili hain \u2728\n[Product: Royal Crown Gold  Band]\n[Product: Sairose Ring]\n[Product: Nitara Ring]\nWant",
+    "reasons": [
+      "outcome=fallback_used",
+      "ladder_or_fallback_step"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-13 08:23:15 UTC",
+    "request_id": "84e57477-44ee-451f-a31c-934d3138d419",
+    "message": "User Selected - [Yes, show me] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "fallback_used",
+    "clara_params": "pageNo=1 pageSize=50 category=ring materialType=gold minPrice=50000 maxPrice=60000 tagManagerId=6710b86de3421b6a92589b39 readyTOShip=true searchUrl=true",
+    "total_count": "0",
+    "reply_preview": "No pieces found in \u20b950,000\u2013\u20b960,000 right now \u2014 here are our closest picks \u2728\n\nCouldn't find an exact match, but here are the closest options:\n\nThese gold rings are gorgeous \u2014 have a look \ud83d\udc8e\n[Product: Flossie Gold  Ring]\n[Product: Emel Evil Eye Adjustable Ring]\nWant to explore more? See the full collec",
+    "reasons": [
+      "outcome=fallback_used",
+      "ladder_or_fallback_step"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-13 08:24:20 UTC",
+    "request_id": "40820c73-5576-4985-871f-230068a4123a",
+    "message": "show me in diamond",
+    "intent": "product_search",
+    "confidence": 0.92,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15\u201335k, ya 1 lakh ke aas-paas (ya keh sakte hain *koi specific budget nahi*)",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-13 08:28:55 UTC",
+    "request_id": "d58b8dca-1f72-4f1a-bf00-53557712d566",
+    "message": "do you have a showroom in surat?",
+    "intent": "store_info",
+    "confidence": 0.93,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "No KISNA stores found near you.\nBrowse all locations: https://www.kisna.com/store?utm_source=whatsapp&utm_medium=kia_bot",
+    "reasons": [
+      "user_rephrase_or_repeat"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-13 08:31:30 UTC",
+    "request_id": "8d607c14-4c5d-4dfb-9719-8b6068d382e0",
+    "message": "do you have a store in delhi?",
+    "intent": "store_info",
+    "confidence": 0.95,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "\n*Lajpat Nagar - Delhi*\n\ud83d\udccd Ground Floor, A I/78-A, Central Market, Lajpat Nagar Il, Delhi-NCR 110024\n\ud83d\udcde 8655475079\n[Button: View on Map]\n*Janakpuri - North Delhi - Delhi*\n\ud83d\udccd Ground Floor, A-1/28, Janak Puri, 627, Shivaji Marg, Opp. Metro Pillar No, Janakpuri, Delhi-NCR 110058\n\ud83d\udcde 8655812710\n[Button: View",
+    "reasons": [
+      "user_rephrase_or_repeat"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-13 08:34:21 UTC",
+    "request_id": "2bc3db37-57b9-481c-a034-eef7f49edfe9",
+    "message": "User Selected - [Diamond] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Aapka budget kya hai? Jaise ki 25k ke niche, 15\u201335k, 1 lakh ke aas-paas (ya phir *koi specific budget nahi*)",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-13 09:07:51 UTC",
+    "request_id": "bec154b1-401f-476f-b0b9-d839caa3c816",
+    "message": "User Selected - [Yes, show me] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "fallback_used",
+    "clara_params": "pageNo=1 pageSize=50 category=earring materialType=diamond minPrice=100000 maxPrice=150000 tagManagerId=66ec862c348e37f29673a282 readyTOShip=true searchUrl=true",
+    "total_count": "0",
+    "reply_preview": "\u20b9100,000\u2013\u20b9150,000 mein abhi koi pieces nahi mile \u2014 yeh hain hamare sabse kareeb options \u2728\n\nExact match nahi mil paya, lekin yeh sabse kareeb ke options hain:\n\nYeh diamond earrings bahut hi khoobsurat hain \u2014 ek baar dekho \ud83d\udc8e\n[Product: Modern Bar Diamond Earring For Him]\n[Product: Sleek Round Diamond E",
+    "reasons": [
+      "outcome=fallback_used",
+      "ladder_or_fallback_step"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-17 05:59:58 UTC",
+    "request_id": "021401e0-6d3c-475b-98fc-26b485bac946",
+    "message": "Show me Rakhi",
+    "intent": "product_search",
+    "confidence": 0.95,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "\n[Product: Divinity Gold Rakhi Pendant With Thread]\n[Product: Alphabet V Diamond Rakhi Pendant With Thread]\n[Product: Alphabet O Diamond Rakhi Pendant With Thread]\nWant to explore more? See the full collection \ud83d\udc47\n[Button: See Collection]",
+    "reasons": [
+      "user_rephrase_or_repeat"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-17 06:01:34 UTC",
+    "request_id": "eceff59d-57a9-4e9a-94b1-7170a2b1b3c2",
+    "message": "User Selected - [Diamond] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Aapka budget kya hai? Jaise ki 25k se kam, 15\u201335k, ya 1 lakh ke aas-paas (ya keh sakte hain *koi specific budget nahi*)",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-17 07:01:41 UTC",
+    "request_id": "e196983a-f424-4882-aaef-e52ed1589709",
+    "message": "Do you have any ongoing offers?",
+    "intent": "offers",
+    "confidence": 0.95,
+    "outcome": "no_products",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "No active offers right now. Check back soon \u2014 we've got fresh deals coming!",
+    "reasons": [
+      "outcome=no_products"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-17 07:13:59 UTC",
+    "request_id": "7a44df6f-bed2-4b26-b59f-01a2780e4411",
+    "message": "hi",
+    "intent": "greeting",
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Welcome back, Yogansh Banthia! \ud83d\udc4b I'm KIA, your jewellery assistant. What can I help you find today?",
+    "reasons": [
+      "user_rephrase_or_repeat"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-19 10:02:23 UTC",
+    "request_id": "565cb833-8111-4952-8d08-a3071e5c7a66",
+    "message": "Do you have something with evil eye in it?",
+    "intent": "product_search",
+    "confidence": 0.93,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-19 10:03:01 UTC",
+    "request_id": "e121e02a-5c9c-4968-a546-fbe320871e0a",
+    "message": "User Selected - [Diamond] from quick reply",
+    "intent": null,
+    "confidence": null,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "What's your budget? e.g. under 25k, 15\u201335k, around 1 lakh (or say *no specific budget*)",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  },
+  {
+    "phone": "918696979791",
+    "ts": "2026-08-19 10:04:27 UTC",
+    "request_id": "3bedebe5-f2e2-4c38-bb18-2df9db94afe3",
+    "message": "Show me something from your evil eye collection",
+    "intent": "product_search",
+    "confidence": 0.93,
+    "outcome": "info_sent",
+    "clara_params": "",
+    "total_count": "",
+    "reply_preview": "Hi! \ud83d\udc4b What are you looking for today? e.g. rings, earrings, necklaces\u2026",
+    "reasons": [
+      "clarification_or_menu_on_productish"
+    ]
+  }
+]

@@ -1,0 +1,653 @@
+{
+  "a_scheme": [
+    {
+      "ts": "2026-08-13T08:55:55+00:00",
+      "phone": "916376925843",
+      "user": "What is the Kisna 10+1 monthly plan",
+      "assistant": "Kisna's *Meri Roshni* (KMR) is a 10+1 monthly savings plan, designed for jewellery purchases. Here's how it works:\n\n• **Two Variants**: \n  • KMR-Amount: Fixed monthly installments for 10 months; 11th month's amount is a discount on redemption.\n  • KMR-Gram: Each installment converts into 24KT gold grams at the live rate.\n\n• **Minimum Installment**: ₹2,000 (in multiples of ₹500); no maximum cap.\n\n• **Redemption**:\n  • Diamond jewellery and gold jewellery only.\n  • Cannot split redemption between diamond and gold.\n\nIf you’d like more details or assistance, feel free to ask! 💍✨",
+      "trace_user": "What is the Kisna 10+1 monthly plan",
+      "trace_reply": "Kisna's *Meri Roshni* (KMR) is a 10+1 monthly savings plan, designed for jewellery purchases. Here's how it works:\n\n• **Two Variants**: \n  • KMR-Amount: Fixed m",
+      "request_id": "10c28b21-b2a8-4b1a-bf82-c14181e13453"
+    },
+    {
+      "ts": "2026-08-13T08:56:00+00:00",
+      "phone": "916376925843",
+      "user": "What is the Kisna 10+1 monthly plan",
+      "assistant": "Kisna's *10+1 Monthly Plan* is a savings scheme called **Meri Roshni**. Here's how it works:\n\n• You make fixed monthly contributions for 10 months.\n• The 11th month is free as a bonus — you receive an extra discount at redemption!\n• There are two types: **KMR-Amount** (fixed payment) and **KMR-Gram** (gold gram savings).\n\nIt's a great way to save for jewellery! Would you like more details on either type? 💍✨",
+      "trace_user": "What is the Kisna 10+1 monthly plan",
+      "trace_reply": "Kisna's *10+1 Monthly Plan* is a savings scheme called **Meri Roshni**. Here's how it works:\n\n• You make fixed monthly contributions for 10 months.\n• The 11th m",
+      "request_id": "80aa15dd-0b9f-4173-bf3e-5f0ab7e7a4e2"
+    },
+    {
+      "ts": "2026-08-19T10:11:36+00:00",
+      "phone": "916376925843",
+      "user": "Tell me about the Kisna 1 scheme",
+      "assistant": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "trace_user": "Tell me about the Kisna 1 scheme",
+      "trace_reply": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "request_id": "ddf7e0c8-7cc3-481a-957f-9f651bd6ab74"
+    },
+    {
+      "ts": "2026-08-19T10:12:44+00:00",
+      "phone": "916376925843",
+      "user": "tell me About Kisna 10+1 scheme",
+      "assistant": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "trace_user": "tell me About Kisna 10+1 scheme",
+      "trace_reply": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "request_id": "ccd35c61-86bd-426a-8f69-f45d83286090"
+    },
+    {
+      "ts": "2026-08-19T10:14:48+00:00",
+      "phone": "918696979791",
+      "user": "Tell me about the Kisna 1 scheme",
+      "assistant": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "trace_user": "Tell me about the Kisna 1 scheme",
+      "trace_reply": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "request_id": "e8637e0d-4672-4778-a0e5-a8bdcde3bc13"
+    },
+    {
+      "ts": "2026-08-19T10:15:12+00:00",
+      "phone": "918696979791",
+      "user": "Tell me about the Roshni scheme",
+      "assistant": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "trace_user": "Tell me about the Roshni scheme",
+      "trace_reply": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "request_id": "44624b66-35b8-43e2-b500-70280d62ee2a"
+    },
+    {
+      "ts": "2026-08-19T10:15:23+00:00",
+      "phone": "916376925843",
+      "user": "Tell me about the Kisna roshnischeme",
+      "assistant": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "trace_user": "Tell me about the Kisna roshnischeme",
+      "trace_reply": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "request_id": "a806dbde-9aa5-40ee-ab6a-e4a9826857f6"
+    },
+    {
+      "ts": "2026-08-19T10:15:33+00:00",
+      "phone": "916376925843",
+      "user": "Me about Kisna Meri Roshni scheme",
+      "assistant": "The Kisna Meri Roshni scheme is a monthly savings plan with two variants: KMR-Amount and KMR-Gram. \n\n• **KMR-Amount**: Fixed monthly installment for 10 months, with a bonus in the 11th month for redemption.\n• **KMR-Gram**: Each installment converts to 24KT gold grams, with a bonus gram credited at maturity.\n\nYou can join online at meriroshni.kisna.com or visit any Kisna store for assistance. Let me know if you need more details! 💎✨",
+      "trace_user": "Me about Kisna Meri Roshni scheme",
+      "trace_reply": "The Kisna Meri Roshni scheme is a monthly savings plan with two variants: KMR-Amount and KMR-Gram. \n\n• **KMR-Amount**: Fixed monthly installment for 10 months, ",
+      "request_id": "ccbff1be-70c2-4794-9241-2e12b31dbeb1"
+    },
+    {
+      "ts": "2026-08-19T10:16:31+00:00",
+      "phone": "918696979791",
+      "user": "Tell me about your schemes",
+      "assistant": "We offer two main schemes to help you save for jewellery:\n\n*1. Kisna Meri Roshni (KMR)*\n   • Monthly savings plan with two variants: KMR-Amount and KMR-Gram.\n   • Minimum installment of ₹2,000. \n   • Earn benefits upon redemption after 10 months.\n\n*2. Kisna 1 Scheme*\n   • Designed for convenient savings towards your desired jewellery.\n   • Allows you to make periodic contributions.\n\nFor more details on either scheme, I can connect you with a Kisna representative. Would you like that? 💎",
+      "trace_user": "Tell me about your schemes",
+      "trace_reply": "We offer two main schemes to help you save for jewellery:\n\n*1. Kisna Meri Roshni (KMR)*\n   • Monthly savings plan with two variants: KMR-Amount and KMR-Gram.\n  ",
+      "request_id": "3a31554f-419f-4549-9ba8-4b22f3367aee"
+    },
+    {
+      "ts": "2026-08-19T10:17:04+00:00",
+      "phone": "918696979791",
+      "user": "Tell me about *Kisna 1 Scheme*",
+      "assistant": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "trace_user": "Tell me about *Kisna 1 Scheme*",
+      "trace_reply": "I'm connecting you with a Kisna representative who'll assist you further. Thank you for your patience. 🙏",
+      "request_id": "567c1990-d25d-4a36-ba33-acd893cd4d07"
+    }
+  ],
+  "b_return": [
+    {
+      "ts": "2026-08-19T10:13:37+00:00",
+      "user": "How do I return the chain that I ordered?",
+      "assistant": "\nSent flow - [damage_complaint]",
+      "intent": "returns_refund",
+      "outcome": "info_sent",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "How do I return the chain that I ordered?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Returns & refunds (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "WhatsApp form",
+          "status": "ok"
+        }
+      ],
+      "request_id": "844ed9ae-98ce-438f-9cf2-25b285912be2"
+    }
+  ],
+  "c_order": [
+    {
+      "ts": "2026-08-19T10:19:02+00:00",
+      "user": "I had ordered a chain 3 years ago. I want you to track my order. Is it still not got it ?",
+      "assistant": "\nOrder *ed* — click below to track your order in real-time. 🚚\n[Button: Track Your Order]",
+      "intent": "order_tracking",
+      "steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "I had ordered a chain 3 years ago. I want you to track my order. Is it still not got it ?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Order tracking (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "link button",
+          "status": "ok"
+        }
+      ],
+      "request_id": "3e4d37c6-f89c-4a89-a037-7035f13761b5"
+    }
+  ],
+  "d_language": [
+    {
+      "phone": "916376925843",
+      "ts": "2026-08-13T09:04:39+00:00",
+      "user_script": "PA",
+      "user": "ਮੈਨੂੰ ਆਪਣੀ ਪਤਨੀ ਲਈ 30 ਹਜ਼ਾਰ ਦੇ ਅੰਦਰ ਸੋਨੇ ਦੀ ਅੰਗੂਠੀ ਚਾਹੀਦੀ ਹੈ।",
+      "asst_has_gu": true,
+      "asst_has_hi": false,
+      "asst_has_pa": false,
+      "asst_latin_hi_roman": false,
+      "assistant_head": "તમે તૈયાર મોકલી શકાય તેવા ઉત્પાદનોની શોધ કરી રહ્યાં છો કે તમારે ઓર્ડર માટે ડિઝાઇન ગમે છે? [Options: Ready to ship, Made ",
+      "request_id": "70d60fb7-4ca9-4e98-a560-c687e3ab544a"
+    },
+    {
+      "phone": "916376925843",
+      "ts": "2026-08-13T09:06:04+00:00",
+      "user_script": "HI",
+      "user": "मुझे अपनी पत्नी के लिए 25,000 रुपये के अंदर सोने की अंगूठी चाहिए।",
+      "asst_has_gu": false,
+      "asst_has_hi": true,
+      "asst_has_pa": false,
+      "asst_latin_hi_roman": false,
+      "assistant_head": "क्या आप तैयार-करने वाले उत्पाद की तलाश कर रहे हैं या आप ऑर्डर पर बनाए गए डिज़ाइन को पसंद करेंगे? [Options: Ready to ship",
+      "request_id": "be631a9d-2fdd-48a1-ae7e-96525a27109a"
+    },
+    {
+      "phone": "916376925843",
+      "ts": "2026-08-13T09:07:43+00:00",
+      "user_script": "PA",
+      "user": "ਮੈਨੂੰ ਆਪਣੀ ਪਤਨੀ ਲਈ 25 ਹਜ਼ਾਰ ਦੇ ਅੰਦਰ ਸੋਨੇ ਦੀ ਅੰਗੂਠੀ ਚਾਹੀਦੀ ਹੈ।",
+      "asst_has_gu": true,
+      "asst_has_hi": false,
+      "asst_has_pa": false,
+      "asst_latin_hi_roman": false,
+      "assistant_head": "શું તમે તૈયાર શિપ કરવાના ઉત્પાદનમાં હિંચકતા છો يا વૈવિધ્યપૂર્ણ ડિઝાઇન પસંદ કરશો? [Options: Ready to ship, Made to order,",
+      "request_id": "fa0880be-2434-4055-b0ea-4002cb406d3b"
+    },
+    {
+      "phone": "916376925843",
+      "ts": "2026-08-13T09:08:33+00:00",
+      "user_script": "GU",
+      "user": "મારે મારી પત્ની માટે 25 હજાર રૂપિયાની અંદર સોનાની વીંટી જોઈએ છે।",
+      "asst_has_gu": true,
+      "asst_has_hi": false,
+      "asst_has_pa": false,
+      "asst_latin_hi_roman": false,
+      "assistant_head": "તમે હવે મોકલવા માટે તૈયાર પ્રોડક્ટ શોધી રહ્યા છો અથવા તમે ઓર્ડર પ્રમાણે બનાવાયેલા ડિઝાઈનને પસંદ કરશો? [Options: Ready to",
+      "request_id": "2c3ebb21-612f-479a-97ef-cc2ed7088de3"
+    },
+    {
+      "phone": "916376925843",
+      "ts": "2026-08-13T09:12:55+00:00",
+      "user_script": "GU",
+      "user": "મને મારી પત્ની માટે ૫૦ હજાર રૂપિયાથી ઓછી કિંમતની સોનાની બુટ્ટી જોઈએ છે.",
+      "asst_has_gu": true,
+      "asst_has_hi": false,
+      "asst_has_pa": false,
+      "asst_latin_hi_roman": false,
+      "assistant_head": "શું તમે તૈયાર-shipping ઉત્પાદકની શોધમાં છો કે તમે બનાવટ-એ-આદેશ ડીઝાઇન પસંદ કરશો? [Options: Ready to ship, Made to order,",
+      "request_id": "f4440832-6cf4-42bf-ac96-5933375a182a"
+    },
+    {
+      "phone": "916376925843",
+      "ts": "2026-08-13T09:14:15+00:00",
+      "user_script": "GU",
+      "user": "મારે મારી પત્ની માટે 25 હજાર રૂપિયાની અંદર સોનાની વીંટી જોઈએ છે।",
+      "asst_has_gu": false,
+      "asst_has_hi": true,
+      "asst_has_pa": false,
+      "asst_latin_hi_roman": false,
+      "assistant_head": "क्या आप तैयार शिपिंग वाले उत्पाद की तलाश में हैं या आप ऑर्डर पर बनाए जाने वाले डिज़ाइन को पसंद करेंगे? [Options: Ready t",
+      "request_id": "0e46c3b0-ebd7-4f25-bbee-0a489c243196"
+    },
+    {
+      "phone": "916376925843",
+      "ts": "2026-08-13T09:21:39+00:00",
+      "user_script": "GU",
+      "user": "મને મારી પત્ની માટે 25 હજાર રૂપિયાથી ઓછી કિંમતની સોનાની બંગડીઓ જોઈએ છે.",
+      "asst_has_gu": false,
+      "asst_has_hi": false,
+      "asst_has_pa": false,
+      "asst_latin_hi_roman": false,
+      "assistant_head": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design? [Options: Ready to ship, Made to",
+      "request_id": "ea31164d-961c-43a6-a9b8-20902be5894a"
+    }
+  ],
+  "e_budget": [
+    {
+      "phone": "918696979791",
+      "ts": "2026-08-13T08:22:27+00:00",
+      "user": "50000",
+      "request_id": "ae707a29-80b4-4fe6-8dc3-979f91bfe8da",
+      "assistant": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "window": [
+        {
+          "role": "user",
+          "content": "50000",
+          "request_id": "ae707a29-80b4-4fe6-8dc3-979f91bfe8da"
+        },
+        {
+          "role": "assistant",
+          "content": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design?\n[Options: Ready to ship, Made to order, Either is fi",
+          "request_id": "ae707a29-80b4-4fe6-8dc3-979f91bfe8da"
+        },
+        {
+          "role": "user",
+          "content": "User Selected - [Ready to ship] from quick reply",
+          "request_id": "66d988f1-9ba7-4b76-b1e2-4224d94aacd1"
+        },
+        {
+          "role": "assistant",
+          "content": "Understood 👍 I'll look in our catalogue for *gold rings for women between ₹50,000 and ₹60,000 ready to ship*. Does this sound correct to you",
+          "request_id": "66d988f1-9ba7-4b76-b1e2-4224d94aacd1"
+        },
+        {
+          "role": "user",
+          "content": "User Selected - [Yes, show me] from quick reply",
+          "request_id": "84e57477-44ee-451f-a31c-934d3138d419"
+        },
+        {
+          "role": "assistant",
+          "content": "No pieces found in ₹50,000–₹60,000 right now — here are our closest picks ✨\n\nCouldn't find an exact match, but here are the closest options:",
+          "request_id": "84e57477-44ee-451f-a31c-934d3138d419"
+        },
+        {
+          "role": "user",
+          "content": "show me in diamond",
+          "request_id": "40820c73-5576-4985-871f-230068a4123a"
+        },
+        {
+          "role": "assistant",
+          "content": "Aapka budget kya hai? Jaise ki 25k ke neeche, 15–35k, ya 1 lakh ke aas-paas (ya keh sakte hain *koi specific budget nahi*)",
+          "request_id": "40820c73-5576-4985-871f-230068a4123a"
+        },
+        {
+          "role": "user",
+          "content": "*koi specific budget nahi*",
+          "request_id": "0de63d59-6ac4-494b-8913-2bed0a86eb8e"
+        },
+        {
+          "role": "assistant",
+          "content": "Samjha 👍 Main hamare catalogue mein *women ke liye diamond rings jo ready to ship hain* dhoondta hoon. Kya yeh sahi hai aapke liye?\n[Options",
+          "request_id": "0de63d59-6ac4-494b-8913-2bed0a86eb8e"
+        },
+        {
+          "role": "user",
+          "content": "User Selected - [Yes, show me] from quick reply",
+          "request_id": "b0ff69f7-d352-4d6b-b540-b2fa69ac98bd"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfect! Chalo main tumhe best ready-to-ship diamond rings dikhata hoon.\n\nYahan kuch lovely diamond rings hain jo maine tumhare liye chun li",
+          "request_id": "b0ff69f7-d352-4d6b-b540-b2fa69ac98bd"
+        }
+      ]
+    },
+    {
+      "phone": "918696979791",
+      "ts": "2026-08-17T06:02:39+00:00",
+      "user": "50000",
+      "request_id": "a38714dc-9e01-44e4-9cee-7d0e75386090",
+      "assistant": "Kya aap ready to ship product dhund rahe hain ya phir aap made to order design pasand karenge?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "window": [
+        {
+          "role": "user",
+          "content": "50000",
+          "request_id": "a38714dc-9e01-44e4-9cee-7d0e75386090"
+        },
+        {
+          "role": "assistant",
+          "content": "Kya aap ready to ship product dhund rahe hain ya phir aap made to order design pasand karenge?\n[Options: Ready to ship, Made to order, Eithe",
+          "request_id": "a38714dc-9e01-44e4-9cee-7d0e75386090"
+        },
+        {
+          "role": "user",
+          "content": "User Selected - [Ready to ship] from quick reply",
+          "request_id": "755cbacb-fa14-4449-9d92-d54ad1de2f21"
+        },
+        {
+          "role": "assistant",
+          "content": "Understood 👍 Main hamare catalogue me *diamond pendants for women between ₹50,000 and ₹60,000 ready to ship* dekhta hoon. Kya yeh aapko sahi",
+          "request_id": "755cbacb-fa14-4449-9d92-d54ad1de2f21"
+        },
+        {
+          "role": "user",
+          "content": "User Selected - [Yes, show me] from quick reply",
+          "request_id": "5db4c930-836b-44ec-a907-5f9e83007b1c"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfect! Main aapko best ready to ship diamond pendants dikhati hoon ₹50,000–₹50,000.\n\nKuch diamond pendants jo aapko pasand aa sakte hain 👇",
+          "request_id": "5db4c930-836b-44ec-a907-5f9e83007b1c"
+        }
+      ]
+    },
+    {
+      "phone": "918696979791",
+      "ts": "2026-08-19T10:03:19+00:00",
+      "user": "35",
+      "request_id": "50597579-002d-4dce-b560-86e6c85eadeb",
+      "assistant": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design?\n[Options: Ready to ship, Made to order, Either is fine]",
+      "window": [
+        {
+          "role": "user",
+          "content": "35",
+          "request_id": "50597579-002d-4dce-b560-86e6c85eadeb"
+        },
+        {
+          "role": "assistant",
+          "content": "Are you looking for a ready-to-ship product or would you prefer a made-to-order design?\n[Options: Ready to ship, Made to order, Either is fi",
+          "request_id": "50597579-002d-4dce-b560-86e6c85eadeb"
+        },
+        {
+          "role": "user",
+          "content": "User Selected - [Ready to ship] from quick reply",
+          "request_id": "c800592b-1d7f-4af8-842d-a59f7d4b2ac9"
+        },
+        {
+          "role": "assistant",
+          "content": "Understood 👍 I'll look in our catalogue for *diamond rings for men between ₹30,000 and ₹40,000 ready to ship*. Does this sound correct to yo",
+          "request_id": "c800592b-1d7f-4af8-842d-a59f7d4b2ac9"
+        },
+        {
+          "role": "user",
+          "content": "Show me something from your evil eye collection",
+          "request_id": "3bedebe5-f2e2-4c38-bb18-2df9db94afe3"
+        },
+        {
+          "role": "assistant",
+          "content": "Hi! 👋 What are you looking for today? e.g. rings, earrings, necklaces…",
+          "request_id": "3bedebe5-f2e2-4c38-bb18-2df9db94afe3"
+        },
+        {
+          "role": "user",
+          "content": "Show me something under 10 carats",
+          "request_id": "c2da2778-83d6-4d08-bc87-2dee77b6f6b8"
+        },
+        {
+          "role": "assistant",
+          "content": "Hi! 👋 Aaj aap kya dhoond rahe hain? Jaise ki rings, earrings, necklaces…",
+          "request_id": "c2da2778-83d6-4d08-bc87-2dee77b6f6b8"
+        },
+        {
+          "role": "user",
+          "content": "Show me rings under 10 carats",
+          "request_id": "e4dfd529-b417-4c9a-8832-19b2e6a27d56"
+        },
+        {
+          "role": "assistant",
+          "content": "Badiya! Ye kis ke liye hai? (ya phir *kisi ke liye* type karein)\n[Options: Female, Male, Kids]",
+          "request_id": "e4dfd529-b417-4c9a-8832-19b2e6a27d56"
+        },
+        {
+          "role": "user",
+          "content": "hi",
+          "request_id": "1d2fc195-7075-4fd5-a9a8-9c497222f53c"
+        },
+        {
+          "role": "assistant",
+          "content": "Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka jewellery assistant. Aap aaj kya dekhna chahenge?",
+          "request_id": "1d2fc195-7075-4fd5-a9a8-9c497222f53c"
+        }
+      ]
+    }
+  ],
+  "f_store": [
+    {
+      "ts": "2026-08-12T12:16:45+00:00",
+      "user": "Do you have a store in Udaipur",
+      "assistant_same_rid": "Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+      "trace_reply": "Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+      "trace_steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Udaipur",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (95% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text — Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+          "status": "ok"
+        }
+      ],
+      "intent": "store_info",
+      "next_assistants_within_30s": [],
+      "request_id": "d0d3c13f-64d4-4d23-891e-4659fd308b8f"
+    },
+    {
+      "ts": "2026-08-13T08:29:32+00:00",
+      "user": "Do you have a store in Udaipur?",
+      "assistant_same_rid": "Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+      "trace_reply": "Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+      "trace_steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Udaipur?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text — Please share your 6-digit pincode and I'll find the nearest KISNA store.",
+          "status": "ok"
+        }
+      ],
+      "intent": "store_info",
+      "next_assistants_within_30s": [],
+      "request_id": "95b1b116-7e61-4c76-b0f5-2208aae87bbb"
+    },
+    {
+      "ts": "2026-08-13T08:36:49+00:00",
+      "user": "Kya apki Udaipur mein koi dukaan hai kya",
+      "assistant_same_rid": "Kripya apna 6-digit pincode share karein aur main aapke liye sabse nazdeek KISNA store dhoondh doonga.",
+      "trace_reply": "Kripya apna 6-digit pincode share karein aur main aapke liye sabse nazdeek KISNA store dhoondh doonga.",
+      "trace_steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Kya apki Udaipur mein koi dukaan hai kya",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text — Kripya apna 6-digit pincode share karein aur main aapke liye sabse nazdeek KISNA",
+          "status": "ok"
+        }
+      ],
+      "intent": "store_info",
+      "next_assistants_within_30s": [
+        {
+          "ts": "2026-08-13T08:37:03+00:00",
+          "content": "\n*Udaipur - Rajasthan*\n📍 B-132,133, Ashok Nagar Main Road, Udaipur 313001\n📞 7023003803\n[Button: View",
+          "request_id": "70196345-3d3a-471e-b442-ac0e155a9977"
+        }
+      ],
+      "request_id": "b6f3ddda-7c8e-46ec-b8b8-18d8161e21a9"
+    },
+    {
+      "ts": "2026-08-19T10:06:52+00:00",
+      "user": "Do you have a story udaipur",
+      "assistant_same_rid": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "trace_reply": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "trace_steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a story udaipur",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (90% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text — Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "intent": "store_info",
+      "next_assistants_within_30s": [
+        {
+          "ts": "2026-08-19T10:07:10+00:00",
+          "content": "Bilkul! Main is baat mein madad kar sakta hoon. 😊",
+          "request_id": "23f7e160-b30a-44c6-80ae-8b30357ac85c"
+        }
+      ],
+      "request_id": "019c4773-c894-4481-a814-7d0d66c59ac5"
+    },
+    {
+      "ts": "2026-08-19T10:07:48+00:00",
+      "user": "Do you have a store in Udaipur ?",
+      "assistant_same_rid": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "trace_reply": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "trace_steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Udaipur ?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (93% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text — Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "intent": "store_info",
+      "next_assistants_within_30s": [
+        {
+          "ts": "2026-08-19T10:08:17+00:00",
+          "content": "Bilkul! Main ismein madad kar sakta hoon.",
+          "request_id": "197580d1-64f1-4021-806c-b5559c589e60"
+        }
+      ],
+      "request_id": "8e0fddbb-c548-4144-9768-dd8def3cff49"
+    },
+    {
+      "ts": "2026-08-19T10:10:22+00:00",
+      "user": "Do you have a store in udaipur",
+      "assistant_same_rid": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "trace_reply": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "trace_steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in udaipur",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text — Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "intent": "store_info",
+      "next_assistants_within_30s": [
+        {
+          "ts": "2026-08-19T10:10:27+00:00",
+          "content": "\n*Udaipur - Rajasthan*\n📍 B-132,133, Ashok Nagar Main Road, Udaipur 313001\n📞 7023003803\n[Button: View",
+          "request_id": "a5a729dd-8a5e-44ac-a542-092efdcb0b8a"
+        }
+      ],
+      "request_id": "bdcbf578-6b96-487f-a932-4be9884b479a"
+    },
+    {
+      "ts": "2026-08-19T10:10:31+00:00",
+      "user": "Do you have a store in Udaipur?",
+      "assistant_same_rid": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "trace_reply": "Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh loon gi.",
+      "trace_steps": [
+        {
+          "order": 1,
+          "label": "Message received",
+          "detail": "Do you have a store in Udaipur?",
+          "status": "ok"
+        },
+        {
+          "order": 2,
+          "label": "Understood as",
+          "detail": "Store lookup (92% confidence)",
+          "status": "ok"
+        },
+        {
+          "order": 3,
+          "label": "Reply sent",
+          "detail": "text — Kripya apna 6-digit pincode share karein, main sabse nazdeek KISNA store dhundh ",
+          "status": "ok"
+        }
+      ],
+      "intent": "store_info",
+      "next_assistants_within_30s": [
+        {
+          "ts": "2026-08-19T10:10:43+00:00",
+          "content": "\n*Udaipur - Rajasthan*\n📍 B-132,133, Ashok Nagar Main Road, Udaipur 313001\n📞 7023003803\n[Button: View",
+          "request_id": "74ee56b8-ff6f-4f53-8c43-7125dc3b6e92"
+        }
+      ],
+      "request_id": "74cc9929-4f6b-4e43-b607-3d1053accd78"
+    }
+  ]
+}

@@ -1,0 +1,901 @@
+[
+  {
+    "label": "CASE1_10+1_2nd_ask_08:56:00",
+    "phone": "916376925843",
+    "request_id": "80aa15dd-0b9f-4173-bf3e-5f0ab7e7a4e2",
+    "claimed_prod_reply_in_finding": "Yes, you can exchange old gold at any Kisna store!",
+    "chat_messages_for_request_id_insertion_order": [
+      {
+        "_id": "6a7d86a0f54b49f12812fe34",
+        "role": "user",
+        "ts": 1786611360,
+        "ts_iso": "2026-08-13T08:56:00+00:00",
+        "request_id": "80aa15dd-0b9f-4173-bf3e-5f0ab7e7a4e2",
+        "content": "What is the Kisna 10+1 monthly plan"
+      },
+      {
+        "_id": "6a7d86a0f54b49f12812fe35",
+        "role": "assistant",
+        "ts": 1786611360,
+        "ts_iso": "2026-08-13T08:56:00+00:00",
+        "request_id": "80aa15dd-0b9f-4173-bf3e-5f0ab7e7a4e2",
+        "content": "Kisna's *10+1 Monthly Plan* is a savings scheme called **Meri Roshni**. Here's how it works:\n\n• You make fixed monthly contributions for 10 months.\n• The 11th month is free as a bonus — you receive an extra discount at redemption!\n• There are two types: **KMR-Amount** (fixed payment) and **KMR-Gram** (gold gram savings).\n\nIt's a great way to save for jewellery! Would you like more details on either type? 💍✨"
+      }
+    ],
+    "neighbor_phone_window_ts_then_id": [
+      {
+        "_id": "6a7d863131a642da56ef3cce",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:54:09+00:00",
+        "request_id": "0661c4db-5aba-490e-b739-b1a8fe8f01c7",
+        "content_head": "User Selected - [Either is fine] from quick reply"
+      },
+      {
+        "_id": "6a7d863231a642da56ef3ccf",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:54:09+00:00",
+        "request_id": "0661c4db-5aba-490e-b739-b1a8fe8f01c7",
+        "content_head": "Samajh gya 👍 Main humare catalogue mein *auraton ke liye sona ke rings ₹30,000 se ₹40,000 ke beech* dekhta hoon. Kya yeh sahi hai aapke liye?\n[Options: Yes, show me, No, change it]"
+      },
+      {
+        "_id": "6a7d864731a642da56ef3cd2",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:54:31+00:00",
+        "request_id": "4777b16a-0544-4440-b54e-9527df363dcc",
+        "content_head": "User Selected - [No, change it] from quick reply"
+      },
+      {
+        "_id": "6a7d864731a642da56ef3cd3",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:54:31+00:00",
+        "request_id": "4777b16a-0544-4440-b54e-9527df363dcc",
+        "content_head": "Koi baat nahi — main kya badalun? Jaise *sunehri mein*, *40k ke neeche*, *mardon ke liye*"
+      },
+      {
+        "_id": "6a7d866cf54b49f12812fe2e",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:55:08+00:00",
+        "request_id": "ea63024c-bdbb-4092-ba2c-fb3866818e38",
+        "content_head": "I want a gold ring for my wife under ₹30,000. What do you recommend, I want something in 9KT gold. What options do you have?"
+      },
+      {
+        "_id": "6a7d866cf54b49f12812fe2f",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:55:08+00:00",
+        "request_id": "ea63024c-bdbb-4092-ba2c-fb3866818e38",
+        "content_head": "Kya aap ready-to-ship product dhund rahe hain ya aapko made-to-order design pasand hoga?\n[Options: Ready to ship, Made to order, Either is fine]"
+      },
+      {
+        "_id": "6a7d867831a642da56ef3cd6",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:55:20+00:00",
+        "request_id": "15a863ea-9b5d-4032-866f-6246530a7adc",
+        "content_head": "User Selected - [Either is fine] from quick reply"
+      },
+      {
+        "_id": "6a7d867931a642da56ef3cd7",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:55:20+00:00",
+        "request_id": "15a863ea-9b5d-4032-866f-6246530a7adc",
+        "content_head": "Samajh gaya 👍 Main hamare catalogue mein *gold rings for women under ₹30,000* dekhunga. Kya yeh sahi hai aapke liye?\n[Options: Yes, show me, No, change it]"
+      },
+      {
+        "_id": "6a7d868a6026234d2172b0a3",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:55:38+00:00",
+        "request_id": "5bfd4d6a-f28d-4ff8-8cd3-0695256fd41f",
+        "content_head": "User Selected - [Yes, show me] from quick reply"
+      },
+      {
+        "_id": "6a7d868a6026234d2172b0a4",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:55:38+00:00",
+        "request_id": "5bfd4d6a-f28d-4ff8-8cd3-0695256fd41f",
+        "content_head": "Perfect! Ab main aapko dikhata hoon best gold rings jo ₹30,000 ke neeche hain. \n\nMaine aapke liye kuch khoobsurat gold rings dhoondh li hain ✨\n[Product: Shimmer Gold Band]\n[Product"
+      },
+      {
+        "_id": "6a7d869b31a642da56ef3cda",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:55:55+00:00",
+        "request_id": "10c28b21-b2a8-4b1a-bf82-c14181e13453",
+        "content_head": "What is the Kisna 10+1 monthly plan"
+      },
+      {
+        "_id": "6a7d869b31a642da56ef3cdb",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:55:55+00:00",
+        "request_id": "10c28b21-b2a8-4b1a-bf82-c14181e13453",
+        "content_head": "Kisna's *Meri Roshni* (KMR) is a 10+1 monthly savings plan, designed for jewellery purchases. Here's how it works:\n\n• **Two Variants**: \n  • KMR-Amount: Fixed monthly installments "
+      },
+      {
+        "_id": "6a7d86a0f54b49f12812fe34",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:56:00+00:00",
+        "request_id": "80aa15dd-0b9f-4173-bf3e-5f0ab7e7a4e2",
+        "content_head": "What is the Kisna 10+1 monthly plan"
+      },
+      {
+        "_id": "6a7d86a0f54b49f12812fe35",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:56:00+00:00",
+        "request_id": "80aa15dd-0b9f-4173-bf3e-5f0ab7e7a4e2",
+        "content_head": "Kisna's *10+1 Monthly Plan* is a savings scheme called **Meri Roshni**. Here's how it works:\n\n• You make fixed monthly contributions for 10 months.\n• The 11th month is free as a bo"
+      },
+      {
+        "_id": "6a7d873f4f897f6839e2350a",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:58:39+00:00",
+        "request_id": "31cdb927-4c0d-442e-a7c4-a210d69f5ecb",
+        "content_head": "Can I exchange old gold at Kisna?"
+      },
+      {
+        "_id": "6a7d873f4f897f6839e2350b",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:58:39+00:00",
+        "request_id": "31cdb927-4c0d-442e-a7c4-a210d69f5ecb",
+        "content_head": "Yes, you can exchange old gold at any Kisna store! 🌟 You will receive **100% value** for your old gold, with no deductions. This is separate from the jewellery exchange or buyback "
+      },
+      {
+        "_id": "6a7d8751f54b49f12812fe3b",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:58:57+00:00",
+        "request_id": "815bc6f3-1824-4d77-a854-985a327af29a",
+        "content_head": "Are online and store prices different?"
+      },
+      {
+        "_id": "6a7d8752f54b49f12812fe3c",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:58:57+00:00",
+        "request_id": "815bc6f3-1824-4d77-a854-985a327af29a",
+        "content_head": "Nahi, Kisna mein online aur store prices me koi farak nahi hai. ✨ Humare pricing offers sab jagah ek jaise hote hain — chahe aap online kharidein ya kisi physical store mein. Aapko"
+      }
+    ],
+    "message_traces": [
+      {
+        "_id": "6a7d86a060991af4ab7170b7",
+        "request_id": "80aa15dd-0b9f-4173-bf3e-5f0ab7e7a4e2",
+        "phone_number": "916376925843",
+        "user_message": "What is the Kisna 10+1 monthly plan",
+        "intent": "general",
+        "outcome": "info_sent",
+        "reply_preview": "Kisna's *10+1 Monthly Plan* is a savings scheme called **Meri Roshni**. Here's how it works:\n\n• You make fixed monthly contributions for 10 months.\n• The 11th m",
+        "confidence": 0.9,
+        "ts": 1786611360,
+        "steps": [
+          {
+            "order": 1,
+            "label": "Message received",
+            "detail": "What is the Kisna 10+1 monthly plan",
+            "status": "ok"
+          },
+          {
+            "order": 2,
+            "label": "Understood as",
+            "detail": "FAQ / general (90% confidence)",
+            "status": "ok"
+          },
+          {
+            "order": 3,
+            "label": "Reply sent",
+            "detail": "text — Kisna's *10+1 Monthly Plan* is a savings scheme called **Meri Roshni**. Here's h",
+            "status": "ok"
+          }
+        ]
+      }
+    ],
+    "ai_usage_logs": [],
+    "alignment_check": {
+      "chat_user_content": "What is the Kisna 10+1 monthly plan",
+      "chat_assistant_content_head": "Kisna's *10+1 Monthly Plan* is a savings scheme called **Meri Roshni**. Here's how it works:\n\n• You make fixed monthly contributions for 10 months.\n• The 11th month is free as a bonus — you receive an",
+      "trace_user_message": "What is the Kisna 10+1 monthly plan",
+      "trace_reply_preview_head": "Kisna's *10+1 Monthly Plan* is a savings scheme called **Meri Roshni**. Here's how it works:\n\n• You make fixed monthly contributions for 10 months.\n• The 11th m",
+      "user_matches_trace": true,
+      "assistant_matches_claimed_wrong": false,
+      "assistant_is_empty": false
+    }
+  },
+  {
+    "label": "CASE2_exchange_old_gold_08:58:39",
+    "phone": "916376925843",
+    "request_id": "31cdb927-4c0d-442e-a7c4-a210d69f5ecb",
+    "claimed_prod_reply_in_finding": "(empty)",
+    "chat_messages_for_request_id_insertion_order": [
+      {
+        "_id": "6a7d873f4f897f6839e2350a",
+        "role": "user",
+        "ts": 1786611519,
+        "ts_iso": "2026-08-13T08:58:39+00:00",
+        "request_id": "31cdb927-4c0d-442e-a7c4-a210d69f5ecb",
+        "content": "Can I exchange old gold at Kisna?"
+      },
+      {
+        "_id": "6a7d873f4f897f6839e2350b",
+        "role": "assistant",
+        "ts": 1786611519,
+        "ts_iso": "2026-08-13T08:58:39+00:00",
+        "request_id": "31cdb927-4c0d-442e-a7c4-a210d69f5ecb",
+        "content": "Yes, you can exchange old gold at any Kisna store! 🌟 You will receive **100% value** for your old gold, with no deductions. This is separate from the jewellery exchange or buyback policy. Would you like assistance finding the nearest store to you? 💎"
+      }
+    ],
+    "neighbor_phone_window_ts_then_id": [
+      {
+        "_id": "6a7d873f4f897f6839e2350a",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:58:39+00:00",
+        "request_id": "31cdb927-4c0d-442e-a7c4-a210d69f5ecb",
+        "content_head": "Can I exchange old gold at Kisna?"
+      },
+      {
+        "_id": "6a7d873f4f897f6839e2350b",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:58:39+00:00",
+        "request_id": "31cdb927-4c0d-442e-a7c4-a210d69f5ecb",
+        "content_head": "Yes, you can exchange old gold at any Kisna store! 🌟 You will receive **100% value** for your old gold, with no deductions. This is separate from the jewellery exchange or buyback "
+      },
+      {
+        "_id": "6a7d8751f54b49f12812fe3b",
+        "role": "user",
+        "ts_iso": "2026-08-13T08:58:57+00:00",
+        "request_id": "815bc6f3-1824-4d77-a854-985a327af29a",
+        "content_head": "Are online and store prices different?"
+      },
+      {
+        "_id": "6a7d8752f54b49f12812fe3c",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T08:58:57+00:00",
+        "request_id": "815bc6f3-1824-4d77-a854-985a327af29a",
+        "content_head": "Nahi, Kisna mein online aur store prices me koi farak nahi hai. ✨ Humare pricing offers sab jagah ek jaise hote hain — chahe aap online kharidein ya kisi physical store mein. Aapko"
+      },
+      {
+        "_id": "6a7d87dd31339141bfddb818",
+        "role": "user",
+        "ts_iso": "2026-08-13T09:01:17+00:00",
+        "request_id": "27efffd9-bb43-4e09-8f7b-26935564b887",
+        "content_head": "I bought digital gold on another app. Can I use it at Kisna?"
+      },
+      {
+        "_id": "6a7d87dd31339141bfddb819",
+        "role": "assistant",
+        "ts_iso": "2026-08-13T09:01:17+00:00",
+        "request_id": "27efffd9-bb43-4e09-8f7b-26935564b887",
+        "content_head": "Nahi, Kisna ke liye aap kisna.com par kharidi gayi digital gold hi redeem kar sakte hain. Dusri apps se kharidi gayi digital gold Kisna par istemal nahi ki ja sakti. Kya aap Kisna "
+      }
+    ],
+    "message_traces": [
+      {
+        "_id": "6a7d873e60991af4ab717368",
+        "request_id": "31cdb927-4c0d-442e-a7c4-a210d69f5ecb",
+        "phone_number": "916376925843",
+        "user_message": "Can I exchange old gold at Kisna?",
+        "intent": "general",
+        "outcome": "info_sent",
+        "reply_preview": "Yes, you can exchange old gold at any Kisna store! 🌟 You will receive **100% value** for your old gold, with no deductions. This is separate from the jewellery ",
+        "confidence": 0.9,
+        "ts": 1786611518,
+        "steps": [
+          {
+            "order": 1,
+            "label": "Message received",
+            "detail": "Can I exchange old gold at Kisna?",
+            "status": "ok"
+          },
+          {
+            "order": 2,
+            "label": "Understood as",
+            "detail": "FAQ / general (90% confidence)",
+            "status": "ok"
+          },
+          {
+            "order": 3,
+            "label": "Reply sent",
+            "detail": "text — Yes, you can exchange old gold at any Kisna store! 🌟 You will receive **100% val",
+            "status": "ok"
+          }
+        ]
+      }
+    ],
+    "ai_usage_logs": [],
+    "alignment_check": {
+      "chat_user_content": "Can I exchange old gold at Kisna?",
+      "chat_assistant_content_head": "Yes, you can exchange old gold at any Kisna store! 🌟 You will receive **100% value** for your old gold, with no deductions. This is separate from the jewellery exchange or buyback policy. Would you li",
+      "trace_user_message": "Can I exchange old gold at Kisna?",
+      "trace_reply_preview_head": "Yes, you can exchange old gold at any Kisna store! 🌟 You will receive **100% value** for your old gold, with no deductions. This is separate from the jewellery ",
+      "user_matches_trace": true,
+      "assistant_matches_claimed_wrong": false,
+      "assistant_is_empty": false
+    }
+  },
+  {
+    "label": "CASE3_fake_diamonds",
+    "phone": "916376925843",
+    "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+    "claimed_prod_reply_in_finding": "Hari Krishna Group history",
+    "chat_messages_for_request_id_insertion_order": [
+      {
+        "_id": "6a8582c80bc5b4ba0d1ace50",
+        "role": "user",
+        "ts": 1787134664,
+        "ts_iso": "2026-08-19T10:17:44+00:00",
+        "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+        "content": "Do you sell fake diamonds?"
+      },
+      {
+        "_id": "6a8582c80bc5b4ba0d1ace51",
+        "role": "assistant",
+        "ts": 1787134664,
+        "ts_iso": "2026-08-19T10:17:44+00:00",
+        "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+        "content": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine products. If you have any more questions or need assistance, I'd be happy to help! 💎✨"
+      }
+    ],
+    "neighbor_phone_window_ts_then_id": [
+      {
+        "_id": "6a8582ab0bc5b4ba0d1ace44",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:17:15+00:00",
+        "request_id": "57474c2d-e017-463d-a41a-9fa805fe7b89",
+        "content_head": "Is Kalyan Jewellers better than Kisna?"
+      },
+      {
+        "_id": "6a8582ab0bc5b4ba0d1ace45",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:17:15+00:00",
+        "request_id": "57474c2d-e017-463d-a41a-9fa805fe7b89",
+        "content_head": "Choosing between Kalyan Jewellers and Kisna depends on personal preferences. Both brands offer fine jewellery, but here are some strengths of Kisna:\n\n• *Certified jewellery*: Our d"
+      },
+      {
+        "_id": "6a8582c80bc5b4ba0d1ace50",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:17:44+00:00",
+        "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+        "content_head": "Do you sell fake diamonds?"
+      },
+      {
+        "_id": "6a8582c80bc5b4ba0d1ace51",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:17:44+00:00",
+        "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+        "content_head": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine products. If you have an"
+      },
+      {
+        "_id": "6a8582da0bc5b4ba0d1ace57",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:18:02+00:00",
+        "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+        "content_head": "How is Kisna related to Hari Krishna exports ?"
+      },
+      {
+        "_id": "6a8582da0bc5b4ba0d1ace58",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:18:02+00:00",
+        "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+        "content_head": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gemstone jewellery. Hari"
+      },
+      {
+        "_id": "6a8582f00bc5b4ba0d1ace5d",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:18:24+00:00",
+        "request_id": "42d092f8-da48-4567-93cf-0142dc2ca5de",
+        "content_head": "Tell me more about this"
+      },
+      {
+        "_id": "6a8582f00bc5b4ba0d1ace5e",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:18:24+00:00",
+        "request_id": "42d092f8-da48-4567-93cf-0142dc2ca5de",
+        "content_head": "Just tell me what you need — browse products, check offers, find a store, track an order, or get help. I'm here to assist."
+      },
+      {
+        "_id": "6a8583160bc5b4ba0d1ace62",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:19:02+00:00",
+        "request_id": "3e4d37c6-f89c-4a89-a037-7035f13761b5",
+        "content_head": "I had ordered a chain 3 years ago. I want you to track my order. Is it still not got it ?"
+      },
+      {
+        "_id": "6a8583160bc5b4ba0d1ace63",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:19:02+00:00",
+        "request_id": "3e4d37c6-f89c-4a89-a037-7035f13761b5",
+        "content_head": "\nOrder *ed* — click below to track your order in real-time. 🚚\n[Button: Track Your Order]"
+      },
+      {
+        "_id": "6a8583780bc5b4ba0d1ace67",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:20:40+00:00",
+        "request_id": "0bed4c2b-34a6-405b-b2ce-110542d55890",
+        "content_head": "I have received a damaged ring. What do I do with it?"
+      },
+      {
+        "_id": "6a8583780bc5b4ba0d1ace68",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:20:40+00:00",
+        "request_id": "0bed4c2b-34a6-405b-b2ce-110542d55890",
+        "content_head": "\nSent flow - [damage_complaint]"
+      }
+    ],
+    "message_traces": [
+      {
+        "_id": "6a8582c860991af4abbd815a",
+        "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+        "phone_number": "916376925843",
+        "user_message": "Do you sell fake diamonds?",
+        "intent": "general",
+        "outcome": "info_sent",
+        "reply_preview": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine prod",
+        "confidence": 0.6,
+        "ts": 1787134664,
+        "steps": [
+          {
+            "order": 1,
+            "label": "Message received",
+            "detail": "Do you sell fake diamonds?",
+            "status": "ok"
+          },
+          {
+            "order": 2,
+            "label": "Understood as",
+            "detail": "FAQ / general (60% confidence)",
+            "status": "ok"
+          },
+          {
+            "order": 3,
+            "label": "Reply sent",
+            "detail": "text — Kisna exclusively sells certified diamonds, ensuring quality and authenticity. O",
+            "status": "ok"
+          }
+        ]
+      }
+    ],
+    "ai_usage_logs": [],
+    "alignment_check": {
+      "chat_user_content": "Do you sell fake diamonds?",
+      "chat_assistant_content_head": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine products. If you have any more questions or ",
+      "trace_user_message": "Do you sell fake diamonds?",
+      "trace_reply_preview_head": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine prod",
+      "user_matches_trace": true,
+      "assistant_matches_claimed_wrong": false,
+      "assistant_is_empty": false
+    }
+  },
+  {
+    "label": "CASE4_hari_krishna_exports",
+    "phone": "916376925843",
+    "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+    "claimed_prod_reply_in_finding": "(empty)",
+    "chat_messages_for_request_id_insertion_order": [
+      {
+        "_id": "6a8582da0bc5b4ba0d1ace57",
+        "role": "user",
+        "ts": 1787134682,
+        "ts_iso": "2026-08-19T10:18:02+00:00",
+        "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+        "content": "How is Kisna related to Hari Krishna exports ?"
+      },
+      {
+        "_id": "6a8582da0bc5b4ba0d1ace58",
+        "role": "assistant",
+        "ts": 1787134682,
+        "ts_iso": "2026-08-19T10:18:02+00:00",
+        "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+        "content": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gemstone jewellery. Hari Krishna Exports is the parent company that supports Kisna's commitment to quality and customer satisfaction. If you have more questions about our products or policies, I'd be happy to assist! 💎✨"
+      }
+    ],
+    "neighbor_phone_window_ts_then_id": [
+      {
+        "_id": "6a8582ab0bc5b4ba0d1ace44",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:17:15+00:00",
+        "request_id": "57474c2d-e017-463d-a41a-9fa805fe7b89",
+        "content_head": "Is Kalyan Jewellers better than Kisna?"
+      },
+      {
+        "_id": "6a8582ab0bc5b4ba0d1ace45",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:17:15+00:00",
+        "request_id": "57474c2d-e017-463d-a41a-9fa805fe7b89",
+        "content_head": "Choosing between Kalyan Jewellers and Kisna depends on personal preferences. Both brands offer fine jewellery, but here are some strengths of Kisna:\n\n• *Certified jewellery*: Our d"
+      },
+      {
+        "_id": "6a8582c80bc5b4ba0d1ace50",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:17:44+00:00",
+        "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+        "content_head": "Do you sell fake diamonds?"
+      },
+      {
+        "_id": "6a8582c80bc5b4ba0d1ace51",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:17:44+00:00",
+        "request_id": "ef83a8f7-f362-4205-9555-a8a98415b7be",
+        "content_head": "Kisna exclusively sells certified diamonds, ensuring quality and authenticity. Our diamonds are IGI-certified, so you can trust that you're getting genuine products. If you have an"
+      },
+      {
+        "_id": "6a8582da0bc5b4ba0d1ace57",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:18:02+00:00",
+        "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+        "content_head": "How is Kisna related to Hari Krishna exports ?"
+      },
+      {
+        "_id": "6a8582da0bc5b4ba0d1ace58",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:18:02+00:00",
+        "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+        "content_head": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gemstone jewellery. Hari"
+      },
+      {
+        "_id": "6a8582f00bc5b4ba0d1ace5d",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:18:24+00:00",
+        "request_id": "42d092f8-da48-4567-93cf-0142dc2ca5de",
+        "content_head": "Tell me more about this"
+      },
+      {
+        "_id": "6a8582f00bc5b4ba0d1ace5e",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:18:24+00:00",
+        "request_id": "42d092f8-da48-4567-93cf-0142dc2ca5de",
+        "content_head": "Just tell me what you need — browse products, check offers, find a store, track an order, or get help. I'm here to assist."
+      },
+      {
+        "_id": "6a8583160bc5b4ba0d1ace62",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:19:02+00:00",
+        "request_id": "3e4d37c6-f89c-4a89-a037-7035f13761b5",
+        "content_head": "I had ordered a chain 3 years ago. I want you to track my order. Is it still not got it ?"
+      },
+      {
+        "_id": "6a8583160bc5b4ba0d1ace63",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:19:02+00:00",
+        "request_id": "3e4d37c6-f89c-4a89-a037-7035f13761b5",
+        "content_head": "\nOrder *ed* — click below to track your order in real-time. 🚚\n[Button: Track Your Order]"
+      },
+      {
+        "_id": "6a8583780bc5b4ba0d1ace67",
+        "role": "user",
+        "ts_iso": "2026-08-19T10:20:40+00:00",
+        "request_id": "0bed4c2b-34a6-405b-b2ce-110542d55890",
+        "content_head": "I have received a damaged ring. What do I do with it?"
+      },
+      {
+        "_id": "6a8583780bc5b4ba0d1ace68",
+        "role": "assistant",
+        "ts_iso": "2026-08-19T10:20:40+00:00",
+        "request_id": "0bed4c2b-34a6-405b-b2ce-110542d55890",
+        "content_head": "\nSent flow - [damage_complaint]"
+      }
+    ],
+    "message_traces": [
+      {
+        "_id": "6a8582da60991af4abbd81ab",
+        "request_id": "3fdf875e-3d1c-44a7-917c-560ff13fb714",
+        "phone_number": "916376925843",
+        "user_message": "How is Kisna related to Hari Krishna exports ?",
+        "intent": "general",
+        "outcome": "info_sent",
+        "reply_preview": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gems",
+        "confidence": 0.7,
+        "ts": 1787134682,
+        "steps": [
+          {
+            "order": 1,
+            "label": "Message received",
+            "detail": "How is Kisna related to Hari Krishna exports ?",
+            "status": "ok"
+          },
+          {
+            "order": 2,
+            "label": "Understood as",
+            "detail": "FAQ / general (70% confidence)",
+            "status": "ok"
+          },
+          {
+            "order": 3,
+            "label": "Reply sent",
+            "detail": "text — Kisna is a brand by Hari Krishna Group, which was established in 1992. The group",
+            "status": "ok"
+          }
+        ]
+      }
+    ],
+    "ai_usage_logs": [],
+    "alignment_check": {
+      "chat_user_content": "How is Kisna related to Hari Krishna exports ?",
+      "chat_assistant_content_head": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gemstone jewellery. Hari Krishna Exports is ",
+      "trace_user_message": "How is Kisna related to Hari Krishna exports ?",
+      "trace_reply_preview_head": "Kisna is a brand by Hari Krishna Group, which was established in 1992. The group launched Kisna in 2005 in Mumbai, focusing on certified gold, diamond, and gems",
+      "user_matches_trace": true,
+      "assistant_matches_claimed_wrong": false,
+      "assistant_is_empty": false
+    }
+  },
+  {
+    "label": "CASE5a_hi_07:01:27",
+    "phone": "918696979791",
+    "request_id": "8a84899d-84f6-4ba8-96bc-a52f8ece51cd",
+    "claimed_prod_reply_in_finding": "No active offers right now",
+    "chat_messages_for_request_id_insertion_order": [
+      {
+        "_id": "6a82b1c7ea8c2251d2a44baa",
+        "role": "user",
+        "ts": 1786950087,
+        "ts_iso": "2026-08-17T07:01:27+00:00",
+        "request_id": "8a84899d-84f6-4ba8-96bc-a52f8ece51cd",
+        "content": "hi"
+      },
+      {
+        "_id": "6a82b1c8ea8c2251d2a44bab",
+        "role": "assistant",
+        "ts": 1786950087,
+        "ts_iso": "2026-08-17T07:01:27+00:00",
+        "request_id": "8a84899d-84f6-4ba8-96bc-a52f8ece51cd",
+        "content": "Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka trusted jewellery assistant. Kya aaj aapko kuch khaas dhundhna hai?"
+      }
+    ],
+    "neighbor_phone_window_ts_then_id": [
+      {
+        "_id": "6a82b1894a5a299db7f649c3",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:00:25+00:00",
+        "request_id": "3552eb5b-beec-4faa-a7b0-92f416cf8c0c",
+        "content_head": "hi"
+      },
+      {
+        "_id": "6a82b18a4a5a299db7f649c4",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:00:25+00:00",
+        "request_id": "3552eb5b-beec-4faa-a7b0-92f416cf8c0c",
+        "content_head": "Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka trusted jewellery assistant. Aaj aap kya dhoond rahe hain?"
+      },
+      {
+        "_id": "6a82b1984a5a299db7f649c8",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:00:40+00:00",
+        "request_id": "81fb147a-9525-4c39-b88c-3bbc629d12e6",
+        "content_head": "hello"
+      },
+      {
+        "_id": "6a82b1984a5a299db7f649c9",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:00:40+00:00",
+        "request_id": "81fb147a-9525-4c39-b88c-3bbc629d12e6",
+        "content_head": "Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka trusted jewellery assistant. Aapko kaise madad kar sakti hoon aaj?"
+      },
+      {
+        "_id": "6a82b1c7ea8c2251d2a44baa",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:01:27+00:00",
+        "request_id": "8a84899d-84f6-4ba8-96bc-a52f8ece51cd",
+        "content_head": "hi"
+      },
+      {
+        "_id": "6a82b1c8ea8c2251d2a44bab",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:01:27+00:00",
+        "request_id": "8a84899d-84f6-4ba8-96bc-a52f8ece51cd",
+        "content_head": "Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka trusted jewellery assistant. Kya aaj aapko kuch khaas dhundhna hai?"
+      },
+      {
+        "_id": "6a82b1d5ea8c2251d2a44bae",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:01:41+00:00",
+        "request_id": "e196983a-f424-4882-aaef-e52ed1589709",
+        "content_head": "Do you have any ongoing offers?"
+      },
+      {
+        "_id": "6a82b1d5ea8c2251d2a44baf",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:01:41+00:00",
+        "request_id": "e196983a-f424-4882-aaef-e52ed1589709",
+        "content_head": "No active offers right now. Check back soon — we've got fresh deals coming!"
+      }
+    ],
+    "message_traces": [
+      {
+        "_id": "6a82b1c760991af4ab9103c9",
+        "request_id": "8a84899d-84f6-4ba8-96bc-a52f8ece51cd",
+        "phone_number": "918696979791",
+        "user_message": "hi",
+        "intent": "greeting",
+        "outcome": "info_sent",
+        "reply_preview": "Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka trusted jewellery assistant. Kya aaj aapko kuch khaas dhundhna hai?",
+        "confidence": null,
+        "ts": 1786950087,
+        "steps": [
+          {
+            "order": 1,
+            "label": "Message received",
+            "detail": "hi",
+            "status": "ok"
+          },
+          {
+            "order": 2,
+            "label": "Reply sent",
+            "detail": "text — Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka trusted jewellery assistan",
+            "status": "ok"
+          }
+        ]
+      }
+    ],
+    "ai_usage_logs": [],
+    "alignment_check": {
+      "chat_user_content": "hi",
+      "chat_assistant_content_head": "Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka trusted jewellery assistant. Kya aaj aapko kuch khaas dhundhna hai?",
+      "trace_user_message": "hi",
+      "trace_reply_preview_head": "Welcome back, Yogansh Banthia! 👋 Main KIA hoon, aapka trusted jewellery assistant. Kya aaj aapko kuch khaas dhundhna hai?",
+      "user_matches_trace": true,
+      "assistant_matches_claimed_wrong": false,
+      "assistant_is_empty": false
+    }
+  },
+  {
+    "label": "CASE5b_hi_07:12:43",
+    "phone": "918696979791",
+    "request_id": "245a1d96-33ba-404a-a5ce-16f9977aac61",
+    "claimed_prod_reply_in_finding": "You are now connected to a live support agent",
+    "chat_messages_for_request_id_insertion_order": [
+      {
+        "_id": "6a82b46b612f604defebdf84",
+        "role": "user",
+        "ts": 1786950763,
+        "ts_iso": "2026-08-17T07:12:43+00:00",
+        "request_id": "245a1d96-33ba-404a-a5ce-16f9977aac61",
+        "content": "hi"
+      },
+      {
+        "_id": "6a82b46b612f604defebdf85",
+        "role": "assistant",
+        "ts": 1786950763,
+        "ts_iso": "2026-08-17T07:12:43+00:00",
+        "request_id": "245a1d96-33ba-404a-a5ce-16f9977aac61",
+        "content": "Welcome back, Yogansh Banthia! 👋 I'm KIA, your friendly jewellery assistant. What can I help you find today?"
+      }
+    ],
+    "neighbor_phone_window_ts_then_id": [
+      {
+        "_id": "6a82b41cc6f7b7a3a5367ae3",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:11:24+00:00",
+        "request_id": "27fed0bd-27c3-4219-991f-7952ccdbf9b3",
+        "content_head": "hi"
+      },
+      {
+        "_id": "6a82b41cc6f7b7a3a5367ae4",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:11:24+00:00",
+        "request_id": "27fed0bd-27c3-4219-991f-7952ccdbf9b3",
+        "content_head": "Welcome back, Yogansh Banthia! 👋 I'm KIA, your friendly jewellery assistant. What would you like to explore today?"
+      },
+      {
+        "_id": "6a82b44c23c4d1a07a4e2172",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:12:12+00:00",
+        "request_id": "2602b72b-45b3-4742-b4ac-f2dd5d88dedc",
+        "content_head": "hello"
+      },
+      {
+        "_id": "6a82b44c23c4d1a07a4e2173",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:12:12+00:00",
+        "request_id": "2602b72b-45b3-4742-b4ac-f2dd5d88dedc",
+        "content_head": "Welcome back, Yogansh Banthia! 👋 I'm KIA, your jewellery assistant. How can I help you today?"
+      },
+      {
+        "_id": "6a82b46b612f604defebdf84",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:12:43+00:00",
+        "request_id": "245a1d96-33ba-404a-a5ce-16f9977aac61",
+        "content_head": "hi"
+      },
+      {
+        "_id": "6a82b46b612f604defebdf85",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:12:43+00:00",
+        "request_id": "245a1d96-33ba-404a-a5ce-16f9977aac61",
+        "content_head": "Welcome back, Yogansh Banthia! 👋 I'm KIA, your friendly jewellery assistant. What can I help you find today?"
+      },
+      {
+        "_id": "6a82b480df9ccffd93a7d484",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:13:04+00:00",
+        "request_id": null,
+        "content_head": "You are now connected to a live support agent. Please hold on."
+      },
+      {
+        "_id": "6a82b485df9ccffd93a7d485",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:13:08+00:00",
+        "request_id": null,
+        "content_head": "hello"
+      },
+      {
+        "_id": "6a82b4a9612f604defebdf86",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:13:45+00:00",
+        "request_id": null,
+        "content_head": "You have been reconnected to our AI assistant. How can I help you?"
+      },
+      {
+        "_id": "6a82b4aa612f604defebdf87",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:13:46+00:00",
+        "request_id": null,
+        "content_head": "How was your experience? Reply with a rating from 1 to 5."
+      },
+      {
+        "_id": "6a82b4b723c4d1a07a4e217e",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:13:59+00:00",
+        "request_id": "7a44df6f-bed2-4b26-b59f-01a2780e4411",
+        "content_head": "hi"
+      },
+      {
+        "_id": "6a82b4b723c4d1a07a4e217f",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:13:59+00:00",
+        "request_id": "7a44df6f-bed2-4b26-b59f-01a2780e4411",
+        "content_head": "Welcome back, Yogansh Banthia! 👋 I'm KIA, your jewellery assistant. What can I help you find today?"
+      },
+      {
+        "_id": "6a82b4cef5dd91777ac320d7",
+        "role": "user",
+        "ts_iso": "2026-08-17T07:14:22+00:00",
+        "request_id": "d2b3af2c-fce2-4c37-b0a4-529bc83827cf",
+        "content_head": "can you tell me if you have any active offers"
+      },
+      {
+        "_id": "6a82b4cef5dd91777ac320d8",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:14:22+00:00",
+        "request_id": "d2b3af2c-fce2-4c37-b0a4-529bc83827cf",
+        "content_head": "*Current KISNA Offers* 🎁\n\n*Diamond Jewellery*\n• 20% off on Making Charges\n• 30% off on Making Charges\n• 45% off on Making Charges\n• 50% off on Making Charges\n• 100% off on Making C"
+      },
+      {
+        "_id": "6a82b51f3727d4b8679de09b",
+        "role": "assistant",
+        "ts_iso": "2026-08-17T07:15:43+00:00",
+        "request_id": null,
+        "content_head": "You have been reconnected to our AI assistant. How can I help you?"
+      }
+    ],
+    "message_traces": [
+      {
+        "_id": "6a82b46b60991af4ab911dbe",
+        "request_id": "245a1d96-33ba-404a-a5ce-16f9977aac61",
+        "phone_number": "918696979791",
+        "user_message": "hi",
+        "intent": "greeting",
+        "outcome": "info_sent",
+        "reply_preview": "Welcome back, Yogansh Banthia! 👋 I'm KIA, your friendly jewellery assistant. What can I help you find today?",
+        "confidence": null,
+        "ts": 1786950763,
+        "steps": [
+          {
+            "order": 1,
+            "label": "Message received",
+            "detail": "hi",
+            "status": "ok"
+          },
+          {
+            "order": 2,
+            "label": "Reply sent",
+            "detail": "text — Welcome back, Yogansh Banthia! 👋 I'm KIA, your friendly jewellery assistant. Wha",
+            "status": "ok"
+          }
+        ]
+      }
+    ],
+    "ai_usage_logs": [],
+    "alignment_check": {
+      "chat_user_content": "hi",
+      "chat_assistant_content_head": "Welcome back, Yogansh Banthia! 👋 I'm KIA, your friendly jewellery assistant. What can I help you find today?",
+      "trace_user_message": "hi",
+      "trace_reply_preview_head": "Welcome back, Yogansh Banthia! 👋 I'm KIA, your friendly jewellery assistant. What can I help you find today?",
+      "user_matches_trace": true,
+      "assistant_matches_claimed_wrong": false,
+      "assistant_is_empty": false
+    }
+  }
+]
