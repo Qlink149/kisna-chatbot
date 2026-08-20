@@ -413,5 +413,60 @@ class ShoppingWizardTests(unittest.TestCase):
         self.assertNotIn("shopping_wizard_explicit", profile)
 
 
+
+class DynamicWizardSkipTests(unittest.TestCase):
+    """Phase 4 — skip/auto-set gender from cached /filters."""
+
+    def setUp(self):
+        from kisna_chatbot.integrations import clara_filters as cf
+
+        cf.reset_filters_cache_for_tests()
+        payload = cf._seed_from_snapshot(None)
+        self.assertIsNotNone(payload)
+        cf._CACHE[None].fetched_at = time.time()
+        for cid in (cf._load_snapshot() or {}).get("by_category") or {}:
+            cf._seed_from_snapshot(cid)
+            if cid in cf._CACHE:
+                cf._CACHE[cid].fetched_at = time.time()
+
+    def tearDown(self):
+        from kisna_chatbot.integrations import clara_filters as cf
+
+        cf.reset_filters_cache_for_tests()
+
+    def test_chain_skips_gender_auto_set_women(self):
+        seeded = seed_wizard_from_entities({"category": "chain"})
+        self.assertEqual(get_next_step(seeded), "material")
+        self.assertEqual(seeded.get("gender"), "women")
+
+    def test_rings_asks_two_genders_male_female(self):
+        from kisna_chatbot.processors.shopping_wizard import build_step_prompt
+
+        seeded = seed_wizard_from_entities({"category": "ring"})
+        self.assertEqual(get_next_step(seeded), "gender")
+        prompt = build_step_prompt("gender", seeded)
+        titles = [o["title"] for o in prompt["options"]]
+        self.assertEqual(set(titles), {"Male", "Female"})
+        self.assertNotIn("Kids", titles)
+
+    def test_souvenir_skips_gender_as_any(self):
+        seeded = seed_wizard_from_entities({"category": "souvenir"})
+        self.assertEqual(get_next_step(seeded), "material")
+        self.assertEqual(seeded.get("gender"), "any")
+
+    def test_cold_cache_uses_legacy_wizard(self):
+        from kisna_chatbot.integrations import clara_filters as cf
+        from kisna_chatbot.processors.shopping_wizard import build_step_prompt
+
+        cf.reset_filters_cache_for_tests()
+        cf._SNAPSHOT_LOADED = True
+        cf._SNAPSHOT = None
+        seeded = seed_wizard_from_entities({"category": "chain"})
+        self.assertEqual(get_next_step(seeded), "gender")
+        prompt = build_step_prompt("gender", seeded)
+        titles = [o["title"] for o in prompt["options"]]
+        self.assertEqual(titles, ["Female", "Male", "Kids"])
+
+
 if __name__ == "__main__":
     unittest.main()

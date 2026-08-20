@@ -493,7 +493,12 @@ def _apply_any_slot(collected: dict, step: str) -> None:
 
 
 def get_next_step(collected: dict) -> str | None:
-    """Return the next missing step, or None when ready to search."""
+    """Return the next missing step, or None when ready to search.
+
+    Applies dynamic filter-driven skips/auto-sets (Phase 4) before picking
+    the next prompt so ≤1-option facets never ask the user.
+    """
+    apply_dynamic_wizard_skips(collected)
     if not collected.get("category"):
         return "category"
     if not collected.get("gender"):
@@ -509,6 +514,125 @@ def get_next_step(collected: dict) -> str | None:
     if not collected.get("fulfillment"):
         return "fulfillment"
     return None
+
+
+# Clara gender labels → bot-canonical + WhatsApp quick-reply titles.
+_CLARA_GENDER_TO_CANONICAL = {
+    "women": "women",
+    "female": "women",
+    "mens": "men",
+    "men": "men",
+    "male": "men",
+    "kids": "kids",
+    "kid": "kids",
+    "children": "kids",
+}
+_GENDER_UI_TITLE = {
+    "women": "Female",
+    "men": "Male",
+    "kids": "Kids",
+}
+
+
+def _wizard_category_id(collected: dict) -> str | None:
+    cat = collected.get("category")
+    if not cat:
+        return None
+    from kisna_chatbot.integrations.clara_filters import get_category_id
+
+    return get_category_id(str(cat))
+
+
+def _canonical_gender_from_clara_label(label: str) -> str | None:
+    key = str(label or "").strip().lower()
+    return _CLARA_GENDER_TO_CANONICAL.get(key)
+
+
+def live_gender_options_for_wizard(collected: dict) -> list[dict] | None:
+    """Return live gender quick-reply options, or None to use the legacy list.
+
+    None ⇒ filters cold — caller keeps Female/Male/Kids.
+    Empty list ⇒ 0 options (caller should have skipped via apply_dynamic_wizard_skips).
+    """
+    from kisna_chatbot.integrations import clara_filters as cf
+    from kisna_chatbot.integrations.clara_filters import (
+        FACET_GENDER,
+        filters_available,
+        get_available_options,
+    )
+
+    if not filters_available():
+        return None
+    cid = _wizard_category_id(collected)
+    if cid:
+        scoped = cf._resolve_cached_payload(cid)
+        if scoped is not None:
+            opts = get_available_options(cid, FACET_GENDER, fallback_global=False)
+        else:
+            # Missing category payload → nearest parent (global).
+            opts = get_available_options(None, FACET_GENDER)
+    else:
+        opts = get_available_options(None, FACET_GENDER)
+
+    ui: list[dict] = []
+    seen: set[str] = set()
+    for opt in opts:
+        canon = _canonical_gender_from_clara_label(str(opt.get("label") or ""))
+        if not canon or canon in seen:
+            continue
+        seen.add(canon)
+        ui.append({"title": _GENDER_UI_TITLE.get(canon, canon.title())})
+    return ui
+
+
+def apply_dynamic_wizard_skips(collected: dict) -> None:
+    """Silent auto-set / skip wizard slots from cached /filters (Phase 4).
+
+    Rule: ≤1 live option for the scoped category → do not ask.
+    Exactly 1 → auto-set that value and log. Zero → leave unset (skip ask).
+    Cold / unavailable filters → no-op (legacy behaviour).
+    """
+    from kisna_chatbot.integrations.clara_filters import (
+        FACET_GENDER,
+        filters_available,
+        get_available_options,
+    )
+    from kisna_chatbot.utils.logger_config import logger
+
+    if not filters_available():
+        return
+    cid = _wizard_category_id(collected)
+    if not cid:
+        return
+
+    from kisna_chatbot.integrations import clara_filters as cf
+
+    scoped = cf._resolve_cached_payload(cid)
+    if scoped is None:
+        # Nearest parent only — do not skip based on global counts alone.
+        return
+
+    if not collected.get("gender"):
+        opts = get_available_options(cid, FACET_GENDER, fallback_global=False)
+        if len(opts) == 0:
+            collected["gender"] = ANY_SLOT
+            logger.info(
+                "Wizard gender skipped — 0 live options",
+                extra={"category_id": cid, "category": collected.get("category")},
+            )
+        elif len(opts) == 1:
+            canon = _canonical_gender_from_clara_label(str(opts[0].get("label") or ""))
+            if canon:
+                collected["gender"] = canon
+                logger.info(
+                    "Wizard gender auto-set from filters",
+                    extra={
+                        "category_id": cid,
+                        "category": collected.get("category"),
+                        "gender": canon,
+                        "label": opts[0].get("label"),
+                    },
+                )
 
 
 def start_wizard(
@@ -566,15 +690,19 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
             "_compose": "wizard_category",
         }
     if step == "gender":
+        options = [
+            {"title": "Female"},
+            {"title": "Male"},
+            {"title": "Kids"},
+        ]
+        live = live_gender_options_for_wizard(collected)
+        if live is not None and len(live) >= 2:
+            options = live
         return {
             "type": "quickreply",
             "text": "Great! Who is it for? (or type *anyone*)",
             "caption": "",
-            "options": [
-                {"title": "Female"},
-                {"title": "Male"},
-                {"title": "Kids"},
-            ],
+            "options": options,
             "msgid": "wizard$gender",
             "_compose": "wizard_gender",
         }

@@ -521,9 +521,23 @@ def get_gender_tag_id(gender: str) -> str | None:
     return GENDER_TAG_MANAGER_IDS.get(key)
 
 
-def get_available_options(category_id: str | None, facet: str) -> list[dict]:
-    payload = _resolve_cached_payload(category_id)
-    if payload is None and category_id:
+def get_available_options(
+    category_id: str | None,
+    facet: str,
+    *,
+    fallback_global: bool = True,
+) -> list[dict]:
+    """Return facet options for a category scope.
+
+    When ``fallback_global`` is True (default) and the category payload is
+    missing, fall back to the global filters list. Wizard skip logic should
+    pass ``fallback_global=False`` so an empty per-category facet (e.g.
+    Souvenir gender=0) is not replaced by the global 3-gender list.
+    """
+    payload = _resolve_cached_payload(category_id) if category_id else None
+    if payload is None and category_id and fallback_global:
+        payload = _resolve_cached_payload(None)
+    elif payload is None and category_id is None:
         payload = _resolve_cached_payload(None)
     return list(_options(payload, facet))
 
