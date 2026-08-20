@@ -2571,13 +2571,17 @@ class ProductSearchAgentV3(Processor):
         """Run Clara search from collected wizard slots."""
         user_profile = data.get("user_profile", {})
         collected = dict(user_profile.get("shopping_wizard_data") or {})
+        explicit = dict(user_profile.get("shopping_wizard_explicit") or {})
         clear_wizard_state(user_profile)
 
         if not _clara_configured():
             data["bot_response"] = _build_catalog_not_configured_response()
             return data
 
-        entities = {**_empty_entities(), **entities_from_wizard(collected)}
+        entities = {
+            **_empty_entities(),
+            **entities_from_wizard(collected, explicit),
+        }
         # Wizard no longer asks occasion — skip bridal/title injection from empty occasion
         summary = build_wizard_summary(collected)
 

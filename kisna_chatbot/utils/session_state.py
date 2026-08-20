@@ -27,6 +27,7 @@ _TRANSIENT_KEYS = (
     "shopping_wizard_active",
     "shopping_wizard_step",
     "shopping_wizard_data",
+    "shopping_wizard_explicit",
     # An explicit "reply in English only" lasts until the user greets again or
     # the session expires — not forever.
     "language_override",
@@ -68,6 +69,7 @@ _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
         "shopping_wizard_active",
         "shopping_wizard_step",
         "shopping_wizard_data",
+        "shopping_wizard_explicit",
         "pending_search",
         "awaiting_search_correction",
     ),
@@ -144,6 +146,7 @@ _STICKY_WAIT_KEYS = (
     "shopping_wizard_active",
     "shopping_wizard_step",
     "shopping_wizard_data",
+    "shopping_wizard_explicit",
     "awaiting_store_pincode",
     "store_pincode_attempts",
     "awaiting_custom_budget",

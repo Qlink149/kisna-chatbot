@@ -378,8 +378,51 @@ def clear_wizard_state(user_profile: dict) -> None:
         "shopping_wizard_active",
         "shopping_wizard_step",
         "shopping_wizard_data",
+        "shopping_wizard_explicit",
     ):
         user_profile.pop(key, None)
+
+
+_EXPLICIT_ENTITY_KEYS = (
+    "karat",
+    "metal_colour",
+    "collection",
+    "size",
+    "style",
+    "occasion",
+    "title",
+)
+
+
+def extract_explicit_entities(entities: dict | None) -> dict[str, Any]:
+    """Non-wizard-slot fields volunteered in the user's message."""
+    ents = entities or {}
+    out: dict[str, Any] = {}
+    for key in _EXPLICIT_ENTITY_KEYS:
+        value = ents.get(key)
+        if value is None or value == "":
+            continue
+        if value == ANY_SLOT:
+            continue
+        out[key] = value
+    return out
+
+
+def update_wizard_explicit(
+    user_profile: dict,
+    entities: dict | None,
+) -> dict:
+    """Merge newly stated explicit fields into shopping_wizard_explicit."""
+    incoming = extract_explicit_entities(entities)
+    if not incoming:
+        existing = user_profile.get("shopping_wizard_explicit")
+        return existing if isinstance(existing, dict) else {}
+    current = user_profile.get("shopping_wizard_explicit")
+    if not isinstance(current, dict):
+        current = {}
+    current = {**current, **incoming}
+    user_profile["shopping_wizard_explicit"] = current
+    return current
 
 
 def _wizard_data(user_profile: dict) -> dict:
@@ -485,6 +528,7 @@ def start_wizard(
     clear_all_sticky_states(user_profile)
     user_profile["shopping_wizard_active"] = True
     user_profile["shopping_wizard_data"] = collected
+    user_profile["shopping_wizard_explicit"] = extract_explicit_entities(entities)
     step = get_next_step(collected)
     if step is None:
         # Everything known — leave active so caller can complete search.
@@ -610,15 +654,20 @@ def build_wizard_summary(collected: dict) -> str:
     return f"Perfect! Let me show you the best {desc}."
 
 
-def entities_from_wizard(collected: dict) -> dict:
-    """Map wizard data into product-search entities."""
+def entities_from_wizard(collected: dict, explicit: dict | None = None) -> dict:
+    """Map wizard data into product-search entities.
+
+    Wizard slot answers win for slot fields. Explicit non-slot fields from the
+    original (or mid-wizard) message are merged back so karat / colour /
+    collection survive completion.
+    """
     # ANY_SLOT fills a slot so the funnel moves on, but it must never reach the
     # API as a filter.
     def _filter(key: str):
         value = collected.get(key)
         return None if value == ANY_SLOT else value
 
-    return {
+    entities = {
         "category": collected.get("category"),
         "material_type": _filter("material_type"),
         "min_price": collected.get("min_price"),
@@ -636,6 +685,17 @@ def entities_from_wizard(collected: dict) -> dict:
         "action": None,
         "occasion": None,
     }
+    for key, value in (explicit or {}).items():
+        if key not in _EXPLICIT_ENTITY_KEYS:
+            continue
+        if value is None or value == "" or value == ANY_SLOT:
+            continue
+        # Slot answers already occupy category/material/gender/fulfillment/
+        # budget — never let explicit overwrite those.
+        if key in entities and entities.get(key) is not None:
+            continue
+        entities[key] = value
+    return entities
 
 
 def filter_by_fulfillment(
@@ -951,6 +1011,7 @@ def advance_wizard(
         # Opportunistic fill. The LLM pass wins over the Latin-only regex so
         # native-script answers land in the right slot.
         ents = {**extract_entities(text or ""), **_llm_slot_values(llm_entities)}
+        update_wizard_explicit(user_profile, {**ents, **(llm_entities or {})})
         before = dict(collected)
         seeded = seed_wizard_from_entities(ents, query=text)
         for k, v in seeded.items():

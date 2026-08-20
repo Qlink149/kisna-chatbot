@@ -304,6 +304,114 @@ class ShoppingWizardTests(unittest.TestCase):
         self.assertEqual(profile["shopping_wizard_data"]["gender"], "men")
         self.assertEqual(profile["shopping_wizard_data"]["material_type"], "gold")
 
+    def test_explicit_karat_colour_survive_wizard_completion(self):
+        profile = {}
+        start_wizard(
+            profile,
+            entities={
+                "category": "chain",
+                "material_type": "gold",
+                "karat": "18KT",
+                "metal_colour": "rose",
+            },
+            query="18kt rose gold chain",
+        )
+        self.assertEqual(
+            profile.get("shopping_wizard_explicit"),
+            {"karat": "18KT", "metal_colour": "rose"},
+        )
+        advance_wizard(
+            profile,
+            {
+                "interactive": {
+                    "type": "button_reply",
+                    "button_reply": {"id": "wizard$gender", "title": "Female"},
+                }
+            },
+        )
+        advance_wizard(profile, {}, text="under 50k")
+        status, _ = advance_wizard(
+            profile,
+            {
+                "interactive": {
+                    "type": "button_reply",
+                    "button_reply": {
+                        "id": "wizard$fulfillment",
+                        "title": "Either is fine",
+                    },
+                }
+            },
+        )
+        self.assertEqual(status, "complete")
+        ents = entities_from_wizard(
+            profile["shopping_wizard_data"],
+            profile.get("shopping_wizard_explicit"),
+        )
+        self.assertEqual(ents["category"], "chain")
+        self.assertEqual(ents["material_type"], "gold")
+        self.assertEqual(ents["karat"], "18KT")
+        self.assertEqual(ents["metal_colour"], "rose")
+        self.assertEqual(ents["gender"], "women")
+
+    def test_explicit_collection_survives(self):
+        ents = entities_from_wizard(
+            {
+                "category": "bracelet",
+                "gender": "women",
+                "material_type": "gold",
+                "min_price": 0,
+                "max_price": 50000,
+                "fulfillment": "any",
+            },
+            {"collection": "evil eye", "title": "evil eye"},
+        )
+        self.assertEqual(ents["collection"], "evil eye")
+        self.assertEqual(ents["title"], "evil eye")
+
+    def test_slot_answer_overrides_seeded_slot_not_explicit(self):
+        collected = {
+            "category": "ring",
+            "gender": "men",
+            "material_type": "gold",
+            "min_price": 0,
+            "max_price": 20000,
+            "fulfillment": "ready",
+        }
+        ents = entities_from_wizard(
+            collected,
+            {"karat": "18KT", "metal_colour": "rose"},
+        )
+        self.assertEqual(ents["gender"], "men")
+        self.assertEqual(ents["karat"], "18KT")
+        self.assertEqual(ents["metal_colour"], "rose")
+
+    def test_mid_wizard_explicit_karat_updates_channel(self):
+        profile = {}
+        start_wizard(profile, entities={"category": "chain", "material_type": "gold"})
+        self.assertEqual(profile.get("shopping_wizard_explicit"), {})
+        # Production feeds context-free extractor/LLM entities for THIS turn.
+        advance_wizard(
+            profile,
+            {},
+            text="actually make it 18kt",
+            llm_entities={"karat": "18KT"},
+        )
+        self.assertEqual(
+            (profile.get("shopping_wizard_explicit") or {}).get("karat"),
+            "18KT",
+        )
+
+    def test_clear_wizard_clears_explicit(self):
+        from kisna_chatbot.processors.shopping_wizard import clear_wizard_state
+
+        profile = {
+            "shopping_wizard_active": True,
+            "shopping_wizard_explicit": {"karat": "18KT"},
+            "shopping_wizard_data": {"category": "chain"},
+        }
+        clear_wizard_state(profile)
+        self.assertNotIn("shopping_wizard_explicit", profile)
+
 
 if __name__ == "__main__":
     unittest.main()
