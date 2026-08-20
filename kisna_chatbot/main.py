@@ -165,6 +165,18 @@ async def lifespan(app: FastAPI):
     from kisna_chatbot.utils.clara_cache import warm_clara_caches
 
     await warm_clara_caches(app.state)
+
+    # Filters warm is deliberately non-blocking: /filters is ~5s and the
+    # committed snapshot seeds sync accessors until live data arrives.
+    async def _warm_filters_background() -> None:
+        try:
+            from kisna_chatbot.integrations.clara_filters import warm_filters_cache
+
+            await warm_filters_cache()
+        except Exception:
+            logger.exception("Clara filters cache warm failed")
+
+    asyncio.create_task(_warm_filters_background())
     yield
 
 

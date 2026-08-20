@@ -1,0 +1,4169 @@
+{
+  "captured_at": "2026-08-20",
+  "source": "GET /api/v1/clara/filters (UAT)",
+  "global": {
+    "payload": {
+      "karat": [
+        {
+          "label": "9KT",
+          "value": "68a8683640002e9233d64e1e",
+          "slug": "9kt",
+          "queryParams": "metaSubAttributeValue"
+        },
+        {
+          "label": "14KT",
+          "value": "66ec108f8da1370008d5ba7f",
+          "slug": "14kt",
+          "queryParams": "metaSubAttributeValue"
+        },
+        {
+          "label": "18KT",
+          "value": "66ec108f8da1370008d5ba85",
+          "slug": "18kt",
+          "queryParams": "metaSubAttributeValue"
+        },
+        {
+          "label": "24KT",
+          "value": "69327f99e1dea9d26c92f024",
+          "slug": "24kt",
+          "queryParams": "metaSubAttributeValue"
+        }
+      ],
+      "color": [
+        {
+          "label": "Rose",
+          "value": "66ec109034fe190008c098b8",
+          "slug": "rose",
+          "queryParams": "metaSubAttributeValue"
+        },
+        {
+          "label": "White",
+          "value": "66ec109034fe190008c098b2",
+          "slug": "white",
+          "queryParams": "metaSubAttributeValue"
+        },
+        {
+          "label": "Yellow",
+          "value": "66ec108f34fe190008c098ac",
+          "slug": "yellow",
+          "queryParams": "metaSubAttributeValue"
+        }
+      ],
+      "collection": [
+        {
+          "label": "Aarambh Collection",
+          "value": "67a24eaa44fd4aabec0b043f",
+          "slug": "aarambh-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Akshaya Collection",
+          "value": "67e24aeae851dac0289650b4",
+          "slug": "akshaya-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Alnkar Collection",
+          "value": "67a25093410d057158efe1e2",
+          "slug": "alnkar-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Amara Collection",
+          "value": "67a250b8410d057158efe48e",
+          "slug": "amara-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Anantam Collection",
+          "value": "67a24e9744fd4aabec0b02cc",
+          "slug": "pdp",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Ananya Collection",
+          "value": "67a24ebb44fd4aabec0b0571",
+          "slug": "ananya-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Aranka Collection",
+          "value": "67a25151410d057158efefa8",
+          "slug": "aranka-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Blare Collection",
+          "value": "67a24ed644fd4aabec0b0770",
+          "slug": "blare-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Charms Collection",
+          "value": "67a2523e410d057158f000f2",
+          "slug": "charms-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Chevron Collection",
+          "value": "67a250e8410d057158efe805",
+          "slug": "chevron-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Echo",
+          "value": "685a817b7bad4cbdc9da62e3",
+          "slug": "echo",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Elira Collection",
+          "value": "67a250e2410d057158efe79e",
+          "slug": "elira-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Esme",
+          "value": "69968fcb4885801121aa7c77",
+          "slug": "esme",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Evil Eye Collection",
+          "value": "67a25167410d057158eff14d",
+          "slug": "pdp",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Ghoomar Collection",
+          "value": "67a24ea044fd4aabec0b0386",
+          "slug": "ghoomar-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Glaze Collection",
+          "value": "67a24ebe44fd4aabec0b05ad",
+          "slug": "glaze-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Harmony Collection",
+          "value": "67a250b4410d057158efe445",
+          "slug": "harmony-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Heart String",
+          "value": "698c6220e192372fe36f9310",
+          "slug": "heart-string",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Jhalak Collection",
+          "value": "67a250c3410d057158efe555",
+          "slug": "jhalak-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Letter Of Love Collection",
+          "value": "67dab8ffe642c0b9d994ae85",
+          "slug": "letter-of-love-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Lobe Luxuries Collection",
+          "value": "67a24ebb44fd4aabec0b057c",
+          "slug": "lobe-luxuries-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Love Eternity Collection",
+          "value": "67a24ef844fd4aabec0b09f9",
+          "slug": "love-eternity-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Love Shine Collection",
+          "value": "67a250ab410d057158efe391",
+          "slug": "love-shine-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Mangal Collection",
+          "value": "67a24ecf44fd4aabec0b06f0",
+          "slug": "mangal-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Mangalyam Collection",
+          "value": "69de3143a68c50253ce5cc31",
+          "slug": "mangalyam-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Nishka Collection",
+          "value": "67a250c1410d057158efe528",
+          "slug": "nishka-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Noor Collection",
+          "value": "67a250c4410d057158efe571",
+          "slug": "noor-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Nura Collection",
+          "value": "6992fd6e4d2650ffed2889f5",
+          "slug": "nura-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Panache Collection",
+          "value": "67a25165410d057158eff127",
+          "slug": "panache-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Parineeta Collection",
+          "value": "67a2513b410d057158efee0f",
+          "slug": "parineeta-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Sparkle Collection",
+          "value": "67a24ea944fd4aabec0b041d",
+          "slug": "sparkle-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Starlight Collection",
+          "value": "67a24ec544fd4aabec0b0638",
+          "slug": "starlight-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Tanishta Collection",
+          "value": "67a25154410d057158efefe3",
+          "slug": "tanishta-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Ti Amo Collection",
+          "value": "67a25161410d057158eff0da",
+          "slug": "pdp",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Tiana Collection",
+          "value": "67a24ea544fd4aabec0b03db",
+          "slug": "tiana-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Timeless Collection",
+          "value": "67a250c9410d057158efe5c9",
+          "slug": "timeless-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Tiny Tales",
+          "value": "683d96d13da0a26c901d1b91",
+          "slug": "tiny-tales",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Tisha Collection",
+          "value": "67a2515e410d057158eff0a5",
+          "slug": "tisha-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Uphaar Collection",
+          "value": "67a25111410d057158efeb02",
+          "slug": "uphaar-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Vachan",
+          "value": "67f8cf5da64752665572b1ca",
+          "slug": "vachan",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Valentine 2025",
+          "value": "67a333d5f240f751dc8cdf0e",
+          "slug": "valentine-2025",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Yuna Collection",
+          "value": "68b7c01d153ee579cf2a3f8c",
+          "slug": "yuna-collection",
+          "queryParams": "collectionId"
+        },
+        {
+          "label": "Zivah Collection",
+          "value": "67a250d3410d057158efe681",
+          "slug": "zivah-collection",
+          "queryParams": "collectionId"
+        }
+      ],
+      "gender": [
+        {
+          "label": "Kids",
+          "value": "66ec7af6cc1fc61e0532a14c",
+          "slug": "kids",
+          "queryParams": "tagManagerId"
+        },
+        {
+          "label": "Mens",
+          "value": "66ec862c348e37f29673a282",
+          "slug": "mens",
+          "queryParams": "tagManagerId"
+        },
+        {
+          "label": "Women",
+          "value": "6710b86de3421b6a92589b39",
+          "slug": "women",
+          "queryParams": "tagManagerId"
+        }
+      ],
+      "categories": [
+        {
+          "label": "Bangles",
+          "value": "66ec057581b26b00081b3faf",
+          "slug": "bangles",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Bracelets",
+          "value": "66ec04b92551200008911955",
+          "slug": "bracelets",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Chain",
+          "value": "66ec057581b26b00081b3fae",
+          "slug": "chain",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Earrings",
+          "value": "66ec04c95ba5470008d0a3d5",
+          "slug": "earrings",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Maang Tikka",
+          "value": "67a790cc61d857801f715ce0",
+          "slug": "maang-tikka",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Mangalsutra",
+          "value": "66ec04d2937b3100089b5457",
+          "slug": "mangalsutra",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Mangalsutra Bracelets",
+          "value": "67a790f061d8574664715d0f",
+          "slug": "mangalsutra-bracelets",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Necklace",
+          "value": "66ec0c548da1370008d5b9fe",
+          "slug": "necklace",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Necklace Sets",
+          "value": "682721033ec3f12f1b48bd36",
+          "slug": "necklace-sets",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Nose Wear",
+          "value": "66ec04e9255120000891196d",
+          "slug": "nose-wear",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Pendant Sets",
+          "value": "682720ae3ec3f1980c48bcba",
+          "slug": "pendant-sets",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Pendants",
+          "value": "66ec057581b26b00081b3fad",
+          "slug": "pendants",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Rings",
+          "value": "66ec04e2bd0b630008623a89",
+          "slug": "rings",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Solitaire",
+          "value": "67e7c3d19bfb855cf8fbc25c",
+          "slug": "solitaire",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Souvenir",
+          "value": "66ec057581b26b00081b3fab",
+          "slug": "souvenir",
+          "queryParams": "categoryId"
+        },
+        {
+          "label": "Watch Wear",
+          "value": "67a7910261d85743a0715d56",
+          "slug": "watch-wear",
+          "queryParams": "categoryId"
+        }
+      ],
+      "availability": [
+        {
+          "label": "Ready To Ship",
+          "value": "readyToShip",
+          "slug": "ready-to-ship",
+          "queryParams": "readyTOShip"
+        },
+        {
+          "label": "Made To Order",
+          "value": "madeToOrder",
+          "slug": "made-to-order",
+          "queryParams": "madeToOrder"
+        }
+      ]
+    },
+    "etag": "W/\"1fc4-HRHQc+0TMUn2eh+7Q/HnRHg4m4o\""
+  },
+  "by_category": {
+    "66ec057581b26b00081b3faf": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Aarambh Collection",
+            "value": "67a24eaa44fd4aabec0b043f",
+            "slug": "aarambh-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Amara Collection",
+            "value": "67a250b8410d057158efe48e",
+            "slug": "amara-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Anantam Collection",
+            "value": "67a24e9744fd4aabec0b02cc",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Blare Collection",
+            "value": "67a24ed644fd4aabec0b0770",
+            "slug": "blare-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Echo",
+            "value": "685a817b7bad4cbdc9da62e3",
+            "slug": "echo",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Harmony Collection",
+            "value": "67a250b4410d057158efe445",
+            "slug": "harmony-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Jhalak Collection",
+            "value": "67a250c3410d057158efe555",
+            "slug": "jhalak-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Love Shine Collection",
+            "value": "67a250ab410d057158efe391",
+            "slug": "love-shine-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Mangalyam Collection",
+            "value": "69de3143a68c50253ce5cc31",
+            "slug": "mangalyam-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Nishka Collection",
+            "value": "67a250c1410d057158efe528",
+            "slug": "nishka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Noor Collection",
+            "value": "67a250c4410d057158efe571",
+            "slug": "noor-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Nura Collection",
+            "value": "6992fd6e4d2650ffed2889f5",
+            "slug": "nura-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Starlight Collection",
+            "value": "67a24ec544fd4aabec0b0638",
+            "slug": "starlight-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ti Amo Collection",
+            "value": "67a25161410d057158eff0da",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiana Collection",
+            "value": "67a24ea544fd4aabec0b03db",
+            "slug": "tiana-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"1184-R0//lid3YXfs/6J9XS6ME0LK1Es\"",
+      "label": "Bangles",
+      "slug": "bangles"
+    },
+    "66ec04b92551200008911955": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Alnkar Collection",
+            "value": "67a25093410d057158efe1e2",
+            "slug": "alnkar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Anantam Collection",
+            "value": "67a24e9744fd4aabec0b02cc",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Blare Collection",
+            "value": "67a24ed644fd4aabec0b0770",
+            "slug": "blare-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Charms Collection",
+            "value": "67a2523e410d057158f000f2",
+            "slug": "charms-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Echo",
+            "value": "685a817b7bad4cbdc9da62e3",
+            "slug": "echo",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Esme",
+            "value": "69968fcb4885801121aa7c77",
+            "slug": "esme",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Evil Eye Collection",
+            "value": "67a25167410d057158eff14d",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Glaze Collection",
+            "value": "67a24ebe44fd4aabec0b05ad",
+            "slug": "glaze-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Harmony Collection",
+            "value": "67a250b4410d057158efe445",
+            "slug": "harmony-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Letter Of Love Collection",
+            "value": "67dab8ffe642c0b9d994ae85",
+            "slug": "letter-of-love-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Love Shine Collection",
+            "value": "67a250ab410d057158efe391",
+            "slug": "love-shine-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Mangalyam Collection",
+            "value": "69de3143a68c50253ce5cc31",
+            "slug": "mangalyam-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Noor Collection",
+            "value": "67a250c4410d057158efe571",
+            "slug": "noor-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Panache Collection",
+            "value": "67a25165410d057158eff127",
+            "slug": "panache-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Sparkle Collection",
+            "value": "67a24ea944fd4aabec0b041d",
+            "slug": "sparkle-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ti Amo Collection",
+            "value": "67a25161410d057158eff0da",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiana Collection",
+            "value": "67a24ea544fd4aabec0b03db",
+            "slug": "tiana-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiny Tales",
+            "value": "683d96d13da0a26c901d1b91",
+            "slug": "tiny-tales",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Valentine 2025",
+            "value": "67a333d5f240f751dc8cdf0e",
+            "slug": "valentine-2025",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Yuna Collection",
+            "value": "68b7c01d153ee579cf2a3f8c",
+            "slug": "yuna-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Kids",
+            "value": "66ec7af6cc1fc61e0532a14c",
+            "slug": "kids",
+            "queryParams": "tagManagerId"
+          },
+          {
+            "label": "Mens",
+            "value": "66ec862c348e37f29673a282",
+            "slug": "mens",
+            "queryParams": "tagManagerId"
+          },
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"1471-gJ//jY+KqbucxtNAyPgvQKKWOBM\"",
+      "label": "Bracelets",
+      "slug": "bracelets"
+    },
+    "66ec057581b26b00081b3fae": {
+      "payload": {
+        "karat": [
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"9c9-f+UWSFkb1+NXJu2ShIbamNihy2c\"",
+      "label": "Chain",
+      "slug": "chain"
+    },
+    "66ec04c95ba5470008d0a3d5": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Aarambh Collection",
+            "value": "67a24eaa44fd4aabec0b043f",
+            "slug": "aarambh-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Akshaya Collection",
+            "value": "67e24aeae851dac0289650b4",
+            "slug": "akshaya-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Alnkar Collection",
+            "value": "67a25093410d057158efe1e2",
+            "slug": "alnkar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Amara Collection",
+            "value": "67a250b8410d057158efe48e",
+            "slug": "amara-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Anantam Collection",
+            "value": "67a24e9744fd4aabec0b02cc",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ananya Collection",
+            "value": "67a24ebb44fd4aabec0b0571",
+            "slug": "ananya-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Aranka Collection",
+            "value": "67a25151410d057158efefa8",
+            "slug": "aranka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Blare Collection",
+            "value": "67a24ed644fd4aabec0b0770",
+            "slug": "blare-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Echo",
+            "value": "685a817b7bad4cbdc9da62e3",
+            "slug": "echo",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Elira Collection",
+            "value": "67a250e2410d057158efe79e",
+            "slug": "elira-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Esme",
+            "value": "69968fcb4885801121aa7c77",
+            "slug": "esme",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Evil Eye Collection",
+            "value": "67a25167410d057158eff14d",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ghoomar Collection",
+            "value": "67a24ea044fd4aabec0b0386",
+            "slug": "ghoomar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Glaze Collection",
+            "value": "67a24ebe44fd4aabec0b05ad",
+            "slug": "glaze-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Harmony Collection",
+            "value": "67a250b4410d057158efe445",
+            "slug": "harmony-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Jhalak Collection",
+            "value": "67a250c3410d057158efe555",
+            "slug": "jhalak-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Lobe Luxuries Collection",
+            "value": "67a24ebb44fd4aabec0b057c",
+            "slug": "lobe-luxuries-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Love Shine Collection",
+            "value": "67a250ab410d057158efe391",
+            "slug": "love-shine-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Mangalyam Collection",
+            "value": "69de3143a68c50253ce5cc31",
+            "slug": "mangalyam-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Nishka Collection",
+            "value": "67a250c1410d057158efe528",
+            "slug": "nishka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Noor Collection",
+            "value": "67a250c4410d057158efe571",
+            "slug": "noor-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Nura Collection",
+            "value": "6992fd6e4d2650ffed2889f5",
+            "slug": "nura-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Panache Collection",
+            "value": "67a25165410d057158eff127",
+            "slug": "panache-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Sparkle Collection",
+            "value": "67a24ea944fd4aabec0b041d",
+            "slug": "sparkle-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Starlight Collection",
+            "value": "67a24ec544fd4aabec0b0638",
+            "slug": "starlight-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tanishta Collection",
+            "value": "67a25154410d057158efefe3",
+            "slug": "tanishta-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ti Amo Collection",
+            "value": "67a25161410d057158eff0da",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiana Collection",
+            "value": "67a24ea544fd4aabec0b03db",
+            "slug": "tiana-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Timeless Collection",
+            "value": "67a250c9410d057158efe5c9",
+            "slug": "timeless-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiny Tales",
+            "value": "683d96d13da0a26c901d1b91",
+            "slug": "tiny-tales",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tisha Collection",
+            "value": "67a2515e410d057158eff0a5",
+            "slug": "tisha-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Uphaar Collection",
+            "value": "67a25111410d057158efeb02",
+            "slug": "uphaar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Valentine 2025",
+            "value": "67a333d5f240f751dc8cdf0e",
+            "slug": "valentine-2025",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Yuna Collection",
+            "value": "68b7c01d153ee579cf2a3f8c",
+            "slug": "yuna-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Zivah Collection",
+            "value": "67a250d3410d057158efe681",
+            "slug": "zivah-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Kids",
+            "value": "66ec7af6cc1fc61e0532a14c",
+            "slug": "kids",
+            "queryParams": "tagManagerId"
+          },
+          {
+            "label": "Mens",
+            "value": "66ec862c348e37f29673a282",
+            "slug": "mens",
+            "queryParams": "tagManagerId"
+          },
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"1b8e-z38Vt4iLjf1E11ILgRBVZSswFEM\"",
+      "label": "Earrings",
+      "slug": "earrings"
+    },
+    "67a790cc61d857801f715ce0": {
+      "payload": {
+        "karat": [
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Mangalyam Collection",
+            "value": "69de3143a68c50253ce5cc31",
+            "slug": "mangalyam-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiana Collection",
+            "value": "67a24ea544fd4aabec0b03db",
+            "slug": "tiana-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"b28-JBuAAFT3/izl3vz1jlsKwo+s6UY\"",
+      "label": "Maang Tikka",
+      "slug": "maang-tikka"
+    },
+    "66ec04d2937b3100089b5457": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Aarambh Collection",
+            "value": "67a24eaa44fd4aabec0b043f",
+            "slug": "aarambh-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Anantam Collection",
+            "value": "67a24e9744fd4aabec0b02cc",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ghoomar Collection",
+            "value": "67a24ea044fd4aabec0b0386",
+            "slug": "ghoomar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Harmony Collection",
+            "value": "67a250b4410d057158efe445",
+            "slug": "harmony-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Love Shine Collection",
+            "value": "67a250ab410d057158efe391",
+            "slug": "love-shine-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Noor Collection",
+            "value": "67a250c4410d057158efe571",
+            "slug": "noor-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Parineeta Collection",
+            "value": "67a2513b410d057158efee0f",
+            "slug": "parineeta-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Sparkle Collection",
+            "value": "67a24ea944fd4aabec0b041d",
+            "slug": "sparkle-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tanishta Collection",
+            "value": "67a25154410d057158efefe3",
+            "slug": "tanishta-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Valentine 2025",
+            "value": "67a333d5f240f751dc8cdf0e",
+            "slug": "valentine-2025",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"f55-4kGtJOkTzfygE7ZUyZzV3VWHs84\"",
+      "label": "Mangalsutra",
+      "slug": "mangalsutra"
+    },
+    "67a790f061d8574664715d0f": {
+      "payload": {
+        "karat": [
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Anantam Collection",
+            "value": "67a24e9744fd4aabec0b02cc",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Evil Eye Collection",
+            "value": "67a25167410d057158eff14d",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Noor Collection",
+            "value": "67a250c4410d057158efe571",
+            "slug": "noor-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"b80-wr5OtVl43qPRpnKHaQ4hVOM7gxI\"",
+      "label": "Mangalsutra Bracelets",
+      "slug": "mangalsutra-bracelets"
+    },
+    "66ec0c548da1370008d5b9fe": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Akshaya Collection",
+            "value": "67e24aeae851dac0289650b4",
+            "slug": "akshaya-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Anantam Collection",
+            "value": "67a24e9744fd4aabec0b02cc",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Blare Collection",
+            "value": "67a24ed644fd4aabec0b0770",
+            "slug": "blare-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Charms Collection",
+            "value": "67a2523e410d057158f000f2",
+            "slug": "charms-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Echo",
+            "value": "685a817b7bad4cbdc9da62e3",
+            "slug": "echo",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Harmony Collection",
+            "value": "67a250b4410d057158efe445",
+            "slug": "harmony-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Heart String",
+            "value": "698c6220e192372fe36f9310",
+            "slug": "heart-string",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Letter Of Love Collection",
+            "value": "67dab8ffe642c0b9d994ae85",
+            "slug": "letter-of-love-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Love Shine Collection",
+            "value": "67a250ab410d057158efe391",
+            "slug": "love-shine-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Mangalyam Collection",
+            "value": "69de3143a68c50253ce5cc31",
+            "slug": "mangalyam-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Nura Collection",
+            "value": "6992fd6e4d2650ffed2889f5",
+            "slug": "nura-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Sparkle Collection",
+            "value": "67a24ea944fd4aabec0b041d",
+            "slug": "sparkle-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ti Amo Collection",
+            "value": "67a25161410d057158eff0da",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiny Tales",
+            "value": "683d96d13da0a26c901d1b91",
+            "slug": "tiny-tales",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Uphaar Collection",
+            "value": "67a25111410d057158efeb02",
+            "slug": "uphaar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Valentine 2025",
+            "value": "67a333d5f240f751dc8cdf0e",
+            "slug": "valentine-2025",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Yuna Collection",
+            "value": "68b7c01d153ee579cf2a3f8c",
+            "slug": "yuna-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"1268-S/S+EJdB9y0CM7q7+CFRl4eOV/M\"",
+      "label": "Necklace",
+      "slug": "necklace"
+    },
+    "682721033ec3f12f1b48bd36": {
+      "payload": {
+        "karat": [
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"a33-27+4R5cMpVSLxNgowaK9zxgzIiU\"",
+      "label": "Necklace Sets",
+      "slug": "necklace-sets"
+    },
+    "66ec04e9255120000891196d": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Aranka Collection",
+            "value": "67a25151410d057158efefa8",
+            "slug": "aranka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Nishka Collection",
+            "value": "67a250c1410d057158efe528",
+            "slug": "nishka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Valentine 2025",
+            "value": "67a333d5f240f751dc8cdf0e",
+            "slug": "valentine-2025",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Zivah Collection",
+            "value": "67a250d3410d057158efe681",
+            "slug": "zivah-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"c74-Jt6FNzuaQ2V8E2bl0J1PvhA/HIg\"",
+      "label": "Nose Wear",
+      "slug": "nose-wear"
+    },
+    "682720ae3ec3f1980c48bcba": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Tiny Tales",
+            "value": "683d96d13da0a26c901d1b91",
+            "slug": "tiny-tales",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"b03-piSG8RKuSjGiF6MCy9YtWshR1ec\"",
+      "label": "Pendant Sets",
+      "slug": "pendant-sets"
+    },
+    "66ec057581b26b00081b3fad": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Aarambh Collection",
+            "value": "67a24eaa44fd4aabec0b043f",
+            "slug": "aarambh-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Akshaya Collection",
+            "value": "67e24aeae851dac0289650b4",
+            "slug": "akshaya-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Alnkar Collection",
+            "value": "67a25093410d057158efe1e2",
+            "slug": "alnkar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Amara Collection",
+            "value": "67a250b8410d057158efe48e",
+            "slug": "amara-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ananya Collection",
+            "value": "67a24ebb44fd4aabec0b0571",
+            "slug": "ananya-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Aranka Collection",
+            "value": "67a25151410d057158efefa8",
+            "slug": "aranka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Blare Collection",
+            "value": "67a24ed644fd4aabec0b0770",
+            "slug": "blare-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Echo",
+            "value": "685a817b7bad4cbdc9da62e3",
+            "slug": "echo",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Elira Collection",
+            "value": "67a250e2410d057158efe79e",
+            "slug": "elira-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Esme",
+            "value": "69968fcb4885801121aa7c77",
+            "slug": "esme",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Evil Eye Collection",
+            "value": "67a25167410d057158eff14d",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ghoomar Collection",
+            "value": "67a24ea044fd4aabec0b0386",
+            "slug": "ghoomar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Glaze Collection",
+            "value": "67a24ebe44fd4aabec0b05ad",
+            "slug": "glaze-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Harmony Collection",
+            "value": "67a250b4410d057158efe445",
+            "slug": "harmony-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Jhalak Collection",
+            "value": "67a250c3410d057158efe555",
+            "slug": "jhalak-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Letter Of Love Collection",
+            "value": "67dab8ffe642c0b9d994ae85",
+            "slug": "letter-of-love-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Love Shine Collection",
+            "value": "67a250ab410d057158efe391",
+            "slug": "love-shine-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Nishka Collection",
+            "value": "67a250c1410d057158efe528",
+            "slug": "nishka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Noor Collection",
+            "value": "67a250c4410d057158efe571",
+            "slug": "noor-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Panache Collection",
+            "value": "67a25165410d057158eff127",
+            "slug": "panache-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Sparkle Collection",
+            "value": "67a24ea944fd4aabec0b041d",
+            "slug": "sparkle-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tanishta Collection",
+            "value": "67a25154410d057158efefe3",
+            "slug": "tanishta-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ti Amo Collection",
+            "value": "67a25161410d057158eff0da",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Timeless Collection",
+            "value": "67a250c9410d057158efe5c9",
+            "slug": "timeless-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiny Tales",
+            "value": "683d96d13da0a26c901d1b91",
+            "slug": "tiny-tales",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tisha Collection",
+            "value": "67a2515e410d057158eff0a5",
+            "slug": "tisha-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Valentine 2025",
+            "value": "67a333d5f240f751dc8cdf0e",
+            "slug": "valentine-2025",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Yuna Collection",
+            "value": "68b7c01d153ee579cf2a3f8c",
+            "slug": "yuna-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Zivah Collection",
+            "value": "67a250d3410d057158efe681",
+            "slug": "zivah-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Kids",
+            "value": "66ec7af6cc1fc61e0532a14c",
+            "slug": "kids",
+            "queryParams": "tagManagerId"
+          },
+          {
+            "label": "Mens",
+            "value": "66ec862c348e37f29673a282",
+            "slug": "mens",
+            "queryParams": "tagManagerId"
+          },
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"18c1-EJ/pdnRZuTsmTsQNUoP3cwAOq3k\"",
+      "label": "Pendants",
+      "slug": "pendants"
+    },
+    "66ec04e2bd0b630008623a89": {
+      "payload": {
+        "karat": [
+          {
+            "label": "9KT",
+            "value": "68a8683640002e9233d64e1e",
+            "slug": "9kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "24KT",
+            "value": "69327f99e1dea9d26c92f024",
+            "slug": "24kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Aarambh Collection",
+            "value": "67a24eaa44fd4aabec0b043f",
+            "slug": "aarambh-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Alnkar Collection",
+            "value": "67a25093410d057158efe1e2",
+            "slug": "alnkar-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Amara Collection",
+            "value": "67a250b8410d057158efe48e",
+            "slug": "amara-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Anantam Collection",
+            "value": "67a24e9744fd4aabec0b02cc",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ananya Collection",
+            "value": "67a24ebb44fd4aabec0b0571",
+            "slug": "ananya-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Aranka Collection",
+            "value": "67a25151410d057158efefa8",
+            "slug": "aranka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Blare Collection",
+            "value": "67a24ed644fd4aabec0b0770",
+            "slug": "blare-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Chevron Collection",
+            "value": "67a250e8410d057158efe805",
+            "slug": "chevron-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Echo",
+            "value": "685a817b7bad4cbdc9da62e3",
+            "slug": "echo",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Elira Collection",
+            "value": "67a250e2410d057158efe79e",
+            "slug": "elira-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Esme",
+            "value": "69968fcb4885801121aa7c77",
+            "slug": "esme",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Evil Eye Collection",
+            "value": "67a25167410d057158eff14d",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Glaze Collection",
+            "value": "67a24ebe44fd4aabec0b05ad",
+            "slug": "glaze-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Harmony Collection",
+            "value": "67a250b4410d057158efe445",
+            "slug": "harmony-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Heart String",
+            "value": "698c6220e192372fe36f9310",
+            "slug": "heart-string",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Jhalak Collection",
+            "value": "67a250c3410d057158efe555",
+            "slug": "jhalak-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Love Eternity Collection",
+            "value": "67a24ef844fd4aabec0b09f9",
+            "slug": "love-eternity-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Love Shine Collection",
+            "value": "67a250ab410d057158efe391",
+            "slug": "love-shine-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Mangal Collection",
+            "value": "67a24ecf44fd4aabec0b06f0",
+            "slug": "mangal-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Mangalyam Collection",
+            "value": "69de3143a68c50253ce5cc31",
+            "slug": "mangalyam-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Nishka Collection",
+            "value": "67a250c1410d057158efe528",
+            "slug": "nishka-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Noor Collection",
+            "value": "67a250c4410d057158efe571",
+            "slug": "noor-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Panache Collection",
+            "value": "67a25165410d057158eff127",
+            "slug": "panache-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Sparkle Collection",
+            "value": "67a24ea944fd4aabec0b041d",
+            "slug": "sparkle-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tanishta Collection",
+            "value": "67a25154410d057158efefe3",
+            "slug": "tanishta-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Ti Amo Collection",
+            "value": "67a25161410d057158eff0da",
+            "slug": "pdp",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiana Collection",
+            "value": "67a24ea544fd4aabec0b03db",
+            "slug": "tiana-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Timeless Collection",
+            "value": "67a250c9410d057158efe5c9",
+            "slug": "timeless-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tiny Tales",
+            "value": "683d96d13da0a26c901d1b91",
+            "slug": "tiny-tales",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Tisha Collection",
+            "value": "67a2515e410d057158eff0a5",
+            "slug": "tisha-collection",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Vachan",
+            "value": "67f8cf5da64752665572b1ca",
+            "slug": "vachan",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Valentine 2025",
+            "value": "67a333d5f240f751dc8cdf0e",
+            "slug": "valentine-2025",
+            "queryParams": "collectionId"
+          },
+          {
+            "label": "Zivah Collection",
+            "value": "67a250d3410d057158efe681",
+            "slug": "zivah-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Mens",
+            "value": "66ec862c348e37f29673a282",
+            "slug": "mens",
+            "queryParams": "tagManagerId"
+          },
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"1a85-pAWzR9F+3kdVffpK7SimhXfTbhM\"",
+      "label": "Rings",
+      "slug": "rings"
+    },
+    "67e7c3d19bfb855cf8fbc25c": {
+      "payload": {
+        "karat": [
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Vachan",
+            "value": "67f8cf5da64752665572b1ca",
+            "slug": "vachan",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"a95-qL/zgzAin+OynWzqgS6q9LdDF3o\"",
+      "label": "Solitaire",
+      "slug": "solitaire"
+    },
+    "66ec057581b26b00081b3fab": {
+      "payload": {
+        "karat": [
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [],
+        "gender": [],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"9d3-7261OzUaHpscpyrRBZk5l3CQuOQ\"",
+      "label": "Souvenir",
+      "slug": "souvenir"
+    },
+    "67a7910261d85743a0715d56": {
+      "payload": {
+        "karat": [
+          {
+            "label": "14KT",
+            "value": "66ec108f8da1370008d5ba7f",
+            "slug": "14kt",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "18KT",
+            "value": "66ec108f8da1370008d5ba85",
+            "slug": "18kt",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "color": [
+          {
+            "label": "Rose",
+            "value": "66ec109034fe190008c098b8",
+            "slug": "rose",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "White",
+            "value": "66ec109034fe190008c098b2",
+            "slug": "white",
+            "queryParams": "metaSubAttributeValue"
+          },
+          {
+            "label": "Yellow",
+            "value": "66ec108f34fe190008c098ac",
+            "slug": "yellow",
+            "queryParams": "metaSubAttributeValue"
+          }
+        ],
+        "collection": [
+          {
+            "label": "Love Shine Collection",
+            "value": "67a250ab410d057158efe391",
+            "slug": "love-shine-collection",
+            "queryParams": "collectionId"
+          }
+        ],
+        "gender": [
+          {
+            "label": "Women",
+            "value": "6710b86de3421b6a92589b39",
+            "slug": "women",
+            "queryParams": "tagManagerId"
+          }
+        ],
+        "categories": [
+          {
+            "label": "Bangles",
+            "value": "66ec057581b26b00081b3faf",
+            "slug": "bangles",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Bracelets",
+            "value": "66ec04b92551200008911955",
+            "slug": "bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Chain",
+            "value": "66ec057581b26b00081b3fae",
+            "slug": "chain",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Earrings",
+            "value": "66ec04c95ba5470008d0a3d5",
+            "slug": "earrings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Maang Tikka",
+            "value": "67a790cc61d857801f715ce0",
+            "slug": "maang-tikka",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra",
+            "value": "66ec04d2937b3100089b5457",
+            "slug": "mangalsutra",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Mangalsutra Bracelets",
+            "value": "67a790f061d8574664715d0f",
+            "slug": "mangalsutra-bracelets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace",
+            "value": "66ec0c548da1370008d5b9fe",
+            "slug": "necklace",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Necklace Sets",
+            "value": "682721033ec3f12f1b48bd36",
+            "slug": "necklace-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Nose Wear",
+            "value": "66ec04e9255120000891196d",
+            "slug": "nose-wear",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendant Sets",
+            "value": "682720ae3ec3f1980c48bcba",
+            "slug": "pendant-sets",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Pendants",
+            "value": "66ec057581b26b00081b3fad",
+            "slug": "pendants",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Rings",
+            "value": "66ec04e2bd0b630008623a89",
+            "slug": "rings",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Solitaire",
+            "value": "67e7c3d19bfb855cf8fbc25c",
+            "slug": "solitaire",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Souvenir",
+            "value": "66ec057581b26b00081b3fab",
+            "slug": "souvenir",
+            "queryParams": "categoryId"
+          },
+          {
+            "label": "Watch Wear",
+            "value": "67a7910261d85743a0715d56",
+            "slug": "watch-wear",
+            "queryParams": "categoryId"
+          }
+        ],
+        "availability": [
+          {
+            "label": "Ready To Ship",
+            "value": "readyToShip",
+            "slug": "ready-to-ship",
+            "queryParams": "readyTOShip"
+          },
+          {
+            "label": "Made To Order",
+            "value": "madeToOrder",
+            "slug": "made-to-order",
+            "queryParams": "madeToOrder"
+          }
+        ]
+      },
+      "etag": "W/\"ab3-W84ox4k/pXk2rRGhSBGC/2fhf6c\"",
+      "label": "Watch Wear",
+      "slug": "watch-wear"
+    }
+  }
+}
