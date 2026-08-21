@@ -1246,5 +1246,101 @@ class ClassifierPromptContentTests(unittest.TestCase):
         self.assertIn("Active context:", kisna_classifier)
 
 
+def _load_real_openai_key():
+    # This module's own os.environ.setdefault("OPENAI_API_KEY", "test-key")
+    # above wins at import time (dotenv's load_dotenv() in env_load.py uses
+    # override=False), so live tests here must force the real value back in.
+    # Two things additionally cache the fake key at import time and don't
+    # notice a later os.environ change: get_ai_settings() (@lru_cache) and
+    # kisna_chatbot.utils.env_load.openai_api_key (a plain module-level
+    # variable read once, feeding get_openai_client()'s own client singleton
+    # — the Responses-API path GeneralAgent actually uses). All three must
+    # be reset for a live call in THIS test module to reach the real API.
+    import openai as openai_sdk
+    from dotenv import load_dotenv
+
+    import kisna_chatbot.utils.env_load as env_load
+    import kisna_chatbot.utils.get_openai_client as client_mod
+    from kisna_chatbot.ai.config import get_ai_settings
+
+    load_dotenv(override=True)
+    get_ai_settings.cache_clear()
+    real_key = os.environ["OPENAI_API_KEY"]
+    env_load.openai_api_key = real_key
+    client_mod._client = openai_sdk.AsyncOpenAI(api_key=real_key)
+
+
+@pytest.mark.live
+class ReturnPolicyQuestionRoutingTests(unittest.TestCase):
+    """'How do I return X (that) I ordered' is a policy QUESTION -> general,
+    not an action request -> returns_refund. Regression for the reported P0:
+    this exact phrasing used to route straight to the complaint form with no
+    informational answer at all (audit/alignment_investigation.md Task 4b)."""
+
+    def setUp(self):
+        _load_real_openai_key()
+
+    def _classify(self, text):
+        import asyncio
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _run():
+            data = {
+                "phone_number": "919999999998",
+                "client_id": "kisna",
+                "user_profile": {},
+                "messages": {"text": {"body": text}},
+            }
+            out = await Classifier().process(data)
+            return out.get("classified_category")
+
+        return asyncio.run(_run())
+
+    def test_how_do_i_return_is_general(self):
+        self.assertEqual(
+            self._classify("How do I return the chain that I ordered?"), "general"
+        )
+
+    def test_stated_intent_is_still_returns_refund(self):
+        self.assertEqual(
+            self._classify("I want to return my order"), "returns_refund"
+        )
+
+
+@pytest.mark.live
+class ReturnPolicyAnswerMentionsFormTrigger(unittest.TestCase):
+    """The KB return-policy answer must tell the user the phrase that opens
+    the in-chat return form, not just vaguely offer to help."""
+
+    def setUp(self):
+        _load_real_openai_key()
+
+    def test_answer_includes_literal_trigger_phrase(self):
+        import asyncio
+
+        from kisna_chatbot.processors.classifier import Classifier
+        from kisna_chatbot.processors.general_agent import GeneralAgent
+
+        async def _run():
+            data = {
+                "phone_number": "919999999997",
+                "client_id": "kisna",
+                "user_profile": {},
+                "messages": {
+                    "text": {"body": "How do I return the chain that I ordered?"}
+                },
+            }
+            data = await Classifier().process(data)
+            data = await GeneralAgent().process(data)
+            return data.get("bot_response")
+
+        resp = asyncio.run(_run())
+        self.assertIsNotNone(resp)
+        text = resp[0]["text"]
+        self.assertIn("I want to return my order", text)
+        self.assertIn("7", text)  # the 7-day window, proving the KB was used
+
+
 if __name__ == "__main__":
     unittest.main()

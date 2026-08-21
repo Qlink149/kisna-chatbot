@@ -120,6 +120,12 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
 11. Brand/policy FAQ (return policy, buyback rate, hallmark, BIS, EMI) → general
 11a. ASKING ABOUT a policy (how/what/kitna/process/possible) → general.
      Asking to PERFORM it (karna hai, chahiye, initiate, wapas karna) → returns_refund.
+     "How do I return X (that) I ordered/bought" is STILL a question about the
+     PROCESS, not a request to perform the return — general, even though it
+     names a specific item or says "I ordered/bought" it. Only a direct
+     statement of intent ("I want to return X", "return X", "return karna
+     hai") is returns_refund. "How do I / how can I" is always the ASKING
+     form, regardless of what follows it.
 12. "What is KISNA?" / "Tell me about KISNA" → general. NEVER product_search.
 13. "What are current offers?" → offers. NEVER product_search.
 14. If ambiguous, use chat history to continue the active flow.
@@ -317,6 +323,10 @@ Fallback for unclear or spam/gibberish:
 "return karna hai" -> returns_refund .9
 "refund kab milega" -> returns_refund .88
 "return kaise karu?" -> general .9
+"How do I return the chain that I ordered?" -> general .9   (asking HOW, not performing it)
+"How do I return my order?" -> general .88
+"How can I return the necklace I bought?" -> general .88
+"I want to return my order" -> returns_refund .95           (contrast: a statement of intent)
 "buyback kitna milega" -> general .9
 "making charges kitna hai" -> general .88
 "exchange policy kya hai" -> general .9
