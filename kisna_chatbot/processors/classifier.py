@@ -1112,6 +1112,31 @@ _INDIC_LANGS = frozenset(
     {"hi", "gu", "mr", "ta", "te", "bn", "kn", "ml", "pa", "or"}
 )
 
+# _INDIC_SCRIPT_RE (Devanagari-through-Malayalam, U+0900-U+0D7F) only answers
+# "is this ANY Indic script" — it can't tell Gurmukhi from Gujarati from
+# Devanagari, so a model that mislabels a Punjabi message as "gu" sails
+# through unchallenged (has_indic_script=True, base "gu" is in _INDIC_LANGS,
+# done). That is the actual mechanism behind observed Gurmukhi->Gujarati and
+# Gujarati->Hindi reply-language thrashing: the script check only vetoes
+# Indic-vs-Latin, never a wrong Indic language within the Indic family.
+# Each of these blocks is script-exclusive (no codepoint overlap between
+# them), so the block a message is actually written in can veto an
+# incompatible label. Devanagari is shared by hi/mr (script alone can't
+# split those two — that's a genuine identity call the LLM has to make), so
+# it maps to both with "hi" as the safe default when the model's label is
+# neither.
+_SCRIPT_LANG_RANGES: tuple[tuple[re.Pattern, frozenset[str], str], ...] = (
+    (re.compile(r"[ऀ-ॿ]"), frozenset({"hi", "mr"}), "hi"),  # Devanagari
+    (re.compile(r"[઀-૿]"), frozenset({"gu"}), "gu"),  # Gujarati
+    (re.compile(r"[਀-੿]"), frozenset({"pa"}), "pa"),  # Gurmukhi
+    (re.compile(r"[ঀ-৿]"), frozenset({"bn"}), "bn"),  # Bengali
+    (re.compile(r"[଀-୿]"), frozenset({"or"}), "or"),  # Odia
+    (re.compile(r"[஀-௿]"), frozenset({"ta"}), "ta"),  # Tamil
+    (re.compile(r"[ఀ-౿]"), frozenset({"te"}), "te"),  # Telugu
+    (re.compile(r"[ಀ-೿]"), frozenset({"kn"}), "kn"),  # Kannada
+    (re.compile(r"[ഀ-ൿ]"), frozenset({"ml"}), "ml"),  # Malayalam
+)
+
 
 def resolve_reply_language(language: str | None, user_text: str) -> str:
     """Language identity from the LLM; SCRIPT from the user's actual characters.
@@ -1119,12 +1144,19 @@ def resolve_reply_language(language: str | None, user_text: str) -> str:
     The user's message proves which script they type — never trust the model's
     -Latn judgement. "Return krna hai" + "hi" → "hi-Latn"; "रिटर्न करना है" +
     "hi-Latn" → "hi". Reply always mirrors the script of the LAST message.
+
+    Within the Indic family, the specific script block also proves the
+    specific language when that block is script-exclusive (Gujarati,
+    Gurmukhi, Bengali, ...): a model label that doesn't match what the user
+    actually typed is overridden, not trusted just because it's "some"
+    Indic language.
     """
     lang = sanitize_classifier_language(language)
     base = lang[:-5] if lang.endswith("-Latn") else lang
-    has_indic_script = bool(_INDIC_SCRIPT_RE.search(user_text or ""))
-    if has_indic_script:
-        return base if base in _INDIC_LANGS else lang
+    text = user_text or ""
+    for script_re, valid_bases, default_base in _SCRIPT_LANG_RANGES:
+        if script_re.search(text):
+            return base if base in valid_bases else default_base
     if base in _INDIC_LANGS:
         return f"{base}-Latn"
     return lang

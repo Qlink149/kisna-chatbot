@@ -4,6 +4,8 @@ import os
 import unittest
 from unittest.mock import patch
 
+import pytest
+
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
@@ -1187,6 +1189,26 @@ class ScriptMirrorLanguageTests(unittest.TestCase):
     def test_matching_script_passes_through(self):
         self.assertEqual(self._resolve("hi", "रिटर्न करना है"), "hi")
         self.assertEqual(self._resolve("hi-Latn", "Return krna hai"), "hi-Latn")
+
+    def test_script_block_vetoes_wrong_indic_label(self):
+        # The classifier LLM sometimes mislabels the language of a message
+        # while still returning the right script family — the observed
+        # production thrashing (audit/alignment_investigation.md Task 4d):
+        # Gurmukhi messages answered in Gujarati, Gujarati messages answered
+        # in Hindi. The script the user actually typed is script-exclusive
+        # for these languages (no Unicode overlap), so it must win over an
+        # incompatible model label instead of being accepted just because
+        # it's "some" Indic language.
+        self.assertEqual(self._resolve("gu", "ਤੁਹਾਡੇ ਕੋਲ ਰਿੰਗ ਹੈ?"), "pa")
+        self.assertEqual(self._resolve("hi", "તમારી પાસે રિંગ છે?"), "gu")
+        self.assertEqual(self._resolve("pa", "તમારી પાસે રિંગ છે?"), "gu")
+        self.assertEqual(self._resolve("hi", "রিং আছে?"), "bn")
+        # Devanagari is genuinely shared by Hindi and Marathi — script alone
+        # can't split those two, so a matching label is trusted...
+        self.assertEqual(self._resolve("mr", "रिटर्न करना है"), "mr")
+        # ...but a label outside the {hi, mr} family for Devanagari text
+        # still gets corrected, defaulting to Hindi.
+        self.assertEqual(self._resolve("gu", "रिटर्न करना है"), "hi")
 
     def test_store_language_last_message_wins(self):
         from kisna_chatbot.processors.classifier import _store_language
