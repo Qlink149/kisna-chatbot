@@ -393,6 +393,21 @@
       },
       "expect_intent": "compare",
       "expect_entities": {}
+    },
+
+    {
+      "id": "edge-01",
+      "bucket": "edge",
+      "message": "I need a chain for myself , under 15k do you have any",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "chain", "gender": null, "max_price": 15000}
+    },
+    {
+      "id": "edge-02",
+      "bucket": "edge",
+      "message": "ring for myself",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "gender": null}
     }
   ]
 }

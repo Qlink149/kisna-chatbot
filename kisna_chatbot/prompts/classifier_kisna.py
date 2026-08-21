@@ -652,6 +652,10 @@ gender:
   for kids/children/baby/bacche → kids
   AMBIGUOUS → null (do NOT guess): parents/parent/friend/friends/family/couple/
   someone/"gift for them" with no clear him/her cue.
+  SELF-REFERENTIAL → ALWAYS null: myself/self/khud/mere liye. Carries NO
+  gender signal — never invent one from jewellery type. "chain for myself,
+  under 15k" → gender=null. Set gender only if a cue above is ALSO present
+  ("...I am a male" → men).
   CURRENT wins: after a women search, "I want it for men" → gender=men (not null).
 
 fulfillment (shipping / availability — CURRENT message only):

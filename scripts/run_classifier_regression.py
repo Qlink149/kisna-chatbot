@@ -91,6 +91,7 @@ BUCKET_ORDER = [
     "store",
     "contrast",
     "context",
+    "edge",
 ]
 
 # Canonical conversation state for each context flag. Kept here (not in the

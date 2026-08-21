@@ -548,6 +548,18 @@ class NativeScriptExtractionTests(unittest.TestCase):
         self.assertIn("મને સોનાની વીંટી બતાવો", kisna_entity_extractor)
         self.assertIn('"-ની" possessive', kisna_entity_extractor)
 
+    def test_self_referential_phrases_never_set_gender(self):
+        """Regression: "chain for myself, under 15k" was extracted with
+        gender:"men" — "myself" carries zero gender signal, so the model was
+        inventing it (root cause: the AMBIGUOUS→null list named parents/
+        friends/family but never covered self-reference at all)."""
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn("SELF-REFERENTIAL", kisna_entity_extractor)
+        self.assertIn("myself/self/khud", kisna_entity_extractor)
+        self.assertIn('"chain for myself,', kisna_entity_extractor)
+        self.assertIn('under 15k" → gender=null', kisna_entity_extractor)
+
 
 class CategoryDrivenSearchGuardTests(unittest.TestCase):
     """A extracted jewellery category means the user is shopping — never
