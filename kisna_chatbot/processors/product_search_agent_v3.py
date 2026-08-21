@@ -1253,7 +1253,14 @@ def _build_fallback_strategies(
             "metal_colour": None,
             "collection": None,
         }
-        add(no_meta, "meta", "drop_meta")
+        # A named collection with real inventory can still be genuinely
+        # empty for the requested gender/category (most named collections
+        # skew heavily toward one gender) -- that reads very differently
+        # from a fuzzy karat/colour mismatch, so it gets its own note_kind
+        # when collection is the only reason this rung exists.
+        has_karat_or_colour = bool(entities.get("karat") or entities.get("metal_colour"))
+        meta_note = "meta" if has_karat_or_colour else "collection"
+        add(no_meta, meta_note, "drop_meta")
 
     if entities.get("min_price") is not None or entities.get("max_price") is not None:
         no_price = {**entities, "min_price": None, "max_price": None}
@@ -1332,6 +1339,34 @@ def _fallback_prefix_note(
     if note_kind == "meta":
         return (
             "Couldn't match that karat/colour/collection exactly — "
+            "here are the closest options ✨"
+        )
+
+    if note_kind == "collection":
+        # Collection resolved fine and has real inventory -- it's just
+        # genuinely empty for this gender/category combo (most named
+        # collections skew heavily toward one gender). Naming it directly
+        # is more honest than the generic "couldn't match" line above,
+        # which reads like a fuzzy-matching failure rather than "0 in
+        # stock for this combination."
+        collection = original_entities.get("collection")
+        collection_label = str(collection).strip().title() if collection else None
+        if collection_label and not collection_label.lower().endswith("collection"):
+            collection_label = f"{collection_label} Collection"
+        gender_possessive = {
+            "men": "men's",
+            "women": "women's",
+            "kids": "kids'",
+        }.get(original_entities.get("gender") or "")
+        cat_label = _category_label_plural(original_entities.get("category"))
+        what = f"{gender_possessive} {cat_label}".strip() if gender_possessive else cat_label
+        if collection_label:
+            return (
+                f"{collection_label} doesn't have {what} right now — "
+                f"here are other {cat_label} you might like ✨"
+            )
+        return (
+            "Couldn't match that collection exactly — "
             "here are the closest options ✨"
         )
 

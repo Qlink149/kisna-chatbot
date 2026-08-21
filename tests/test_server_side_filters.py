@@ -112,6 +112,39 @@ class ServerSideIdParamsTests(unittest.TestCase):
         self.assertIn("drop_price", labels)
         self.assertLess(labels.index("drop_meta"), labels.index("drop_price"))
 
+    def test_collection_only_drop_gets_its_own_note_kind(self):
+        # A genuinely-real collection with zero inventory for this
+        # gender/category (most named collections skew heavily toward one
+        # gender) needs a different message from an actual karat/colour
+        # mismatch -- "Evil Eye Collection doesn't have men's rings" is
+        # honest; the old generic "couldn't match karat/colour/collection"
+        # line read like a fuzzy-matching failure instead.
+        ents = {"category": "ring", "gender": "men", "collection": "evil eye"}
+        kinds = {
+            label: note_kind
+            for _e, note_kind, label in _build_fallback_strategies(ents)
+        }
+        self.assertEqual(kinds.get("drop_meta"), "collection")
+
+    def test_karat_and_collection_together_keep_generic_meta_note(self):
+        ents = {"category": "ring", "karat": "18KT", "collection": "evil eye"}
+        kinds = {
+            label: note_kind
+            for _e, note_kind, label in _build_fallback_strategies(ents)
+        }
+        self.assertEqual(kinds.get("drop_meta"), "meta")
+
+    def test_collection_fallback_message_names_the_collection(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _fallback_prefix_note,
+        )
+
+        ents = {"category": "ring", "gender": "men", "collection": "evil eye"}
+        dropped = {**ents, "collection": None}
+        msg = _fallback_prefix_note("collection", [], ents, dropped)
+        self.assertIn("Evil Eye Collection", msg)
+        self.assertIn("men's rings", msg)
+
     def test_build_params_category_id_and_meta_and(self):
         q = build_products_query_params(
             category_id="66ec04e2bd0b630008623a89",
