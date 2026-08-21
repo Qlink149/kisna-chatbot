@@ -74,6 +74,27 @@
       "expect_intent": "returns_refund",
       "expect_entities": {}
     },
+    {
+      "id": "gu-09",
+      "bucket": "gu-native",
+      "message": "વીંટી દેખાડો",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring"}
+    },
+    {
+      "id": "gu-10",
+      "bucket": "gu-native",
+      "message": "ગોલ્ડ વીંટી",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "gold"}
+    },
+    {
+      "id": "gu-11",
+      "bucket": "gu-native",
+      "message": "હીરાની વીંટી",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "material_type": "diamond"}
+    },
 
     {
       "id": "hi-01",

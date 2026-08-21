@@ -531,6 +531,23 @@ class NativeScriptExtractionTests(unittest.TestCase):
             kisna_entity_extractor,
         )
 
+    def test_vinti_fix_survives_short_native_material_phrasing(self):
+        """Regression for the fix in test_extractor_teaches_native_ranges above:
+        that single long worked example (25d3cd9) did NOT generalize — live
+        testing found the model got the EXACT example sentence wrong 2/5 runs,
+        and got both "મને સોનાની વીંટી બતાવો" and "હીરાની વીંટી" wrong 5/5 runs
+        (the "[material]-ની વીંટી" possessive shape, sitting right next to two
+        બુટ્ટી few-shots using the same sentence shape). The follow-up fix adds
+        short, isolated minimal-pair examples placed BEFORE the બુટ્ટી cluster
+        instead of relying on one long sentence to carry the whole rule.
+        """
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn("સોનાની વીંટી", kisna_entity_extractor)
+        self.assertIn("હીરાની વીંટી", kisna_entity_extractor)
+        self.assertIn("મને સોનાની વીંટી બતાવો", kisna_entity_extractor)
+        self.assertIn('"-ની" possessive', kisna_entity_extractor)
+
 
 class CategoryDrivenSearchGuardTests(unittest.TestCase):
     """A extracted jewellery category means the user is shopping — never

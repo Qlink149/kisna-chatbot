@@ -488,6 +488,11 @@ lost.
 8. GUJARATI LOOK-ALIKES — વીંટી is RING. બુટ્ટી / કાનની બુટ્ટી is EARRING.
    Same-looking ending, different words. Never map વીંટી to earring.
    Hindi अंगूठी / Punjabi ਅੰਗੂਠੀ are also ring, never earring.
+   This holds in EVERY sentence shape, including "[material]ની વીંટી" (સોનાની
+   વીંટી, હીરાની વીંટી, "મને સોનાની વીંટી બતાવો") — the "-ની" possessive
+   prefix before વીંટી does NOT turn it into an earring. Decide from the
+   word વીંટી itself, not from how similar the sentence shape looks to a
+   બુટ્ટી example elsewhere in this prompt.
 
 {
   "category": "ring|earring|necklace|pendant|pendant_set|necklace_set|
@@ -816,8 +821,21 @@ NATIVE SCRIPT full examples (extract exactly like the romanized twin):
 "१० हज़ार से कम की हीरे की इयररिंग" →
 {"category":"earring","material_type":"diamond","max_price":10000}
 
+"સોનાની વીંટી" →
+{"category":"ring","material_type":"gold"}
+(વીંટી stays ring right after the "-ની" material possessive — not બુટ્ટી)
+
+"હીરાની વીંટી" →
+{"category":"ring","material_type":"diamond"}
+(same word, different material — still ring, never earring)
+
+"મને સોનાની વીંટી બતાવો" →
+{"category":"ring","material_type":"gold"}
+(short imperative shape — the "-ની વીંટી" contrast above still applies)
+
 "મારે ૪૦ હજારથી વધુ કિંમતની બુટ્ટી જોઈએ છે" →
 {"category":"earring","min_price":40000}
+(બુટ્ટી, not વીંટી — contrast with the ring examples just above)
 
 "મારે ૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચેની કિંમતની કાનની બુટ્ટી જોઈએ છે" →
 {"category":"earring","min_price":10000,"max_price":30000}
