@@ -560,6 +560,18 @@ class NativeScriptExtractionTests(unittest.TestCase):
         self.assertIn('"chain for myself,', kisna_entity_extractor)
         self.assertIn('under 15k" → gender=null', kisna_entity_extractor)
 
+    def test_diamond_carat_is_never_price_or_karat(self):
+        """Regression: "Show me rings under 10 carats" was extracted with
+        max_price:10000 — carat (diamond weight) has no Kisna filter at all,
+        but the generic "under N" price rule had no unit guard for it (gram
+        weights already had one; carat did not)."""
+        from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor
+
+        self.assertIn("DIAMOND CARAT", kisna_entity_extractor)
+        self.assertIn("NOT a filter Kisna has", kisna_entity_extractor)
+        self.assertIn('"Show me rings under 10 carats"', kisna_entity_extractor)
+        self.assertIn('"diamond under 2 carats"', kisna_entity_extractor)
+
 
 class CategoryDrivenSearchGuardTests(unittest.TestCase):
     """A extracted jewellery category means the user is shopping — never

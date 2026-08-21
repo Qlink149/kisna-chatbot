@@ -464,6 +464,10 @@ lost.
    "budget 18k" → min_price=16200, max_price=19800).
 2. Gram weights are NOT price and NOT size: "5 gram ki chain" → category=chain,
    no price, no size. "2 gm ring" → category=ring only.
+2a. DIAMOND CARAT (ct) is NOT a filter Kisna has. "X carat(s)" as a bare
+   quantity is NEVER price and NEVER size — drop the clause, keep
+   category/material only. Differs from "14 carat gold" (karat section
+   below) only when a metal word is directly attached to the number.
 3. A bare 6-digit number that looks like a pincode (400001) is NOT a price.
 4. NEGATION — never extract a value the user is EXCLUDING:
    "bina diamond ke gold ring" → category=ring, material_type=gold (diamond NOT set)
@@ -570,9 +574,8 @@ metal_colour (set separately when colour is mentioned):
   yellow → yellow
 
 karat: extract 9KT/14KT/18KT/24KT if mentioned (Clara catalogue karats only).
-  "14 carat" → 14KT, "18k" → 18KT.
-  "22k"/"22 karat" is NOT a product karat → karat=null (still set material_type=gold
-  when gold is implied).
+  "14 carat gold" → 14KT, "18k" → 18KT (see 2a for bare carat quantities).
+  "22k"/"22 karat" is NOT a product karat → karat=null (still material_type=gold).
 
 price (ALWAYS extract when budget words present — integers in INR):
   "under X" / "below X" / "X tak" / "upto X" → max_price=X only (no band)
@@ -854,6 +857,12 @@ NATIVE SCRIPT full examples (extract exactly like the romanized twin):
 "5 gram ki gold chain" →
 {"category":"chain","material_type":"gold"}
 (gram weight is NOT a price or size)
+
+"Show me rings under 10 carats" →
+{"category":"ring"}
+
+"diamond under 2 carats" →
+{"category":null,"material_type":"diamond"}
 
 "earrings under 22k" →
 {"category":"earring","max_price":22000,"karat":null}

@@ -408,6 +408,13 @@
       "message": "ring for myself",
       "expect_intent": "product_search",
       "expect_entities": {"category": "ring", "gender": null}
+    },
+    {
+      "id": "edge-03",
+      "bucket": "edge",
+      "message": "Show me rings under 10 carats",
+      "expect_intent": "product_search",
+      "expect_entities": {"category": "ring", "max_price": null, "karat": null}
     }
   ]
 }
