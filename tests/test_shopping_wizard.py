@@ -731,5 +731,46 @@ class MidWizardCorrectionTests(unittest.TestCase):
         asyncio.run(_run())
 
 
+class WizardCategoryIdNormalizationTests(unittest.TestCase):
+    """_wizard_category_id must normalize the same way the real search path
+    does before resolving an id, or short underscored multi-word categories
+    (necklace_set, pendant_set) fuzzy-match Clara's plural label just under
+    the 0.9 cutoff and silently fail. Live-confirmed: this made the wizard
+    fall back to the global 3-gender list and ask "Who is it for?" for
+    Necklace Sets / Pendant Sets, even though each category's live filter
+    only offers one gender (Women)."""
+
+    def test_passes_normalized_category_to_get_category_id(self):
+        from unittest.mock import patch
+
+        from kisna_chatbot.processors.shopping_wizard import _wizard_category_id
+
+        cases = [
+            ("necklace_set", "necklace set"),
+            ("pendant_set", "pendant set"),
+            ("ring", "ring"),  # not in the map -> passed through unchanged
+        ]
+        for internal, expected_arg in cases:
+            with patch(
+                "kisna_chatbot.integrations.clara_filters.get_category_id",
+                return_value="fake-id",
+            ) as mocked:
+                result = _wizard_category_id({"category": internal})
+                mocked.assert_called_once_with(expected_arg)
+                self.assertEqual(result, "fake-id")
+
+    def test_unsupported_category_returns_none_without_calling_clara(self):
+        from unittest.mock import patch
+
+        from kisna_chatbot.processors.shopping_wizard import _wizard_category_id
+
+        with patch(
+            "kisna_chatbot.integrations.clara_filters.get_category_id"
+        ) as mocked:
+            result = _wizard_category_id({"category": "anklet"})
+            mocked.assert_not_called()
+            self.assertIsNone(result)
+
+
 if __name__ == "__main__":
     unittest.main()

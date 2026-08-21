@@ -539,8 +539,20 @@ def _wizard_category_id(collected: dict) -> str | None:
     if not cat:
         return None
     from kisna_chatbot.integrations.clara_filters import get_category_id
+    from kisna_chatbot.processors.entity_extractor import CATEGORY_NORMALIZATION_MAP
 
-    return get_category_id(str(cat))
+    # The wizard stores the raw internal token (e.g. "necklace_set"), but Clara's
+    # own category labels are multi-word plurals ("Necklace Sets"). The real
+    # search path normalizes through this same map before resolving an id
+    # (entity_extractor.entities_to_api_params); this lookup must match it, or
+    # get_category_id's singular/plural variant guessing silently fails on
+    # short underscored tokens (necklace_set, pendant_set - confirmed: their
+    # raw fuzzy-match ratio lands just under the 0.9 cutoff), and the wizard
+    # falls back to the global gender list instead of the category-scoped one.
+    normalized = CATEGORY_NORMALIZATION_MAP.get(str(cat), str(cat))
+    if not normalized:
+        return None
+    return get_category_id(normalized)
 
 
 def _canonical_gender_from_clara_label(label: str) -> str | None:
