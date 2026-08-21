@@ -102,6 +102,13 @@ _NETWORK_BOUNDARY = (
 def block_live_llm_calls(request, monkeypatch):
     """Fail loudly on any real provider call. Autouse for the whole suite."""
     if request.node.get_closest_marker("live"):
+        # Generator fixture — a bare `return` here exits before the `yield`
+        # below ever runs, which pytest's fixture machinery treats as an
+        # error ("did not yield a value") rather than a valid skip. This
+        # path was never exercised before (the default `-m "not live"`
+        # addopts excludes @pytest.mark.live tests at collection, so the
+        # fixture body never ran for them) until a test actually opted in.
+        yield
         return
 
     # A key on the developer's machine must never leak into a test run.

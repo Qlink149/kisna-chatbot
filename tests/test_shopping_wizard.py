@@ -5,6 +5,8 @@ import os
 import time
 import unittest
 
+import pytest
+
 for _k, _v in {
     "MONGO_URI": "mongodb://localhost:27017",
     "GUPSHUP_APP_ID": "test",
@@ -466,6 +468,187 @@ class DynamicWizardSkipTests(unittest.TestCase):
         prompt = build_step_prompt("gender", seeded)
         titles = [o["title"] for o in prompt["options"]]
         self.assertEqual(titles, ["Female", "Male", "Kids"])
+
+
+@pytest.mark.live
+@pytest.mark.no_search_recap
+class BudgetStepIntegrationTests(unittest.TestCase):
+    """Full ProductSearchAgentV3.process() through the text-based budget step.
+
+    NOT a re-test of maybe_expire_session (that's covered directly by
+    TtlMissingTimestampTests in test_sticky_state_hygiene.py — missing
+    last_message_at clearing sticky flags is intentional, documented
+    behavior, proven there already). This is closing a DIFFERENT gap: the
+    wizard's explicit-value survival through the budget step had only ever
+    been exercised by feeding advance_wizard()/entities_from_wizard() a
+    hand-built collected dict directly, never through the real should_run()
+    -> process() integration a live inbound message actually takes. A test
+    harness that calls Classifier/ProductSearchAgentV3 without stamping
+    last_message_at between turns (as the real db_utils.py persistence
+    layer always does before the next turn loads the profile) hits
+    maybe_expire_session's missing-timestamp path and wipes the wizard —
+    a false alarm in the harness, not a reachable production state. This
+    test stamps last_message_at exactly like production does, so it
+    exercises the real code path rather than reproducing that false alarm.
+    """
+
+    def _profile_after_wizard_start(self) -> dict:
+        profile: dict = {}
+        start_wizard(
+            profile,
+            entities={
+                "category": "chain",
+                "material_type": "gold",
+                "karat": "18KT",
+                "metal_colour": "rose",
+            },
+            query="18kt rose gold chain",
+        )
+        profile["last_message_at"] = int(time.time())
+        return profile
+
+    async def _agent_turn(self, agent, profile: dict, phone: str, *, text: str | None = None, interactive: dict | None = None):
+        messages: dict = {}
+        if text is not None:
+            messages["text"] = {"body": text}
+        if interactive is not None:
+            messages["interactive"] = interactive
+        data = {"phone_number": phone, "user_profile": profile, "messages": messages}
+        if agent.should_run(data):
+            data = await agent.process(data)
+        profile["last_message_at"] = int(time.time())
+        return data
+
+    def test_budget_text_does_not_reset_wizard(self):
+        # A single asyncio.run() for the whole test — the async OpenAI/httpx
+        # client used by the wizard's live budget-text extraction is bound
+        # to whichever event loop created it; calling asyncio.run() more
+        # than once per test (a fresh loop each time) makes its connection
+        # cleanup fire against an already-closed loop. One loop, all turns.
+        async def _run():
+            from unittest.mock import AsyncMock, patch
+
+            profile = self._profile_after_wizard_start()
+            self.assertEqual(profile.get("shopping_wizard_step"), "budget")
+            self.assertEqual(
+                profile.get("shopping_wizard_explicit"),
+                {"karat": "18KT", "metal_colour": "rose"},
+            )
+
+            async def fake_search(**kwargs):
+                return {"products": [], "total_count": 0, "page": 1}
+
+            agent = ProductSearchAgentV3()
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                side_effect=fake_search,
+            ):
+                await self._agent_turn(agent, profile, "919900001111", text="under 50k")
+
+            self.assertNotEqual(profile.get("shopping_wizard_step"), "category")
+            wizard_data = profile.get("shopping_wizard_data") or {}
+            # start_wizard() is called directly here (bypassing the chain->
+            # necklace bookkeeping normalization that happens upstream in
+            # normalize_internal_category during full-pipeline runs), so
+            # category stays exactly as given.
+            self.assertEqual(wizard_data.get("category"), "chain")
+            self.assertEqual(wizard_data.get("material_type"), "gold")
+            self.assertEqual(wizard_data.get("gender"), "women")  # chain auto-skip, C2
+            self.assertEqual(
+                profile.get("shopping_wizard_explicit"),
+                {"karat": "18KT", "metal_colour": "rose"},
+                "explicit karat/colour must survive the budget turn",
+            )
+
+        asyncio.run(_run())
+
+    def test_explicit_karat_reaches_outbound_clara_params(self):
+        async def _run():
+            from unittest.mock import AsyncMock, patch
+
+            from kisna_chatbot.integrations import clara_filters as cf
+
+            await cf.warm_filters_cache()
+            profile = self._profile_after_wizard_start()
+            # _execute_search tries a LADDER of fallback strategies (strict
+            # first, progressively relaxed) — capture EVERY call, not just
+            # the last, since a later .update() on one shared dict would
+            # silently overwrite the strict first attempt with a relaxed
+            # later one that has already dropped the karat filter.
+            all_calls: list[dict] = []
+
+            async def fake_search(**kwargs):
+                all_calls.append(dict(kwargs))
+                return {"products": [], "total_count": 0, "page": 1}
+
+            agent = ProductSearchAgentV3()
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                side_effect=fake_search,
+            ):
+                await self._agent_turn(agent, profile, "919900001112", text="under 50k")
+                for _ in range(3):
+                    if not profile.get("shopping_wizard_active"):
+                        break
+                    step = profile.get("shopping_wizard_step")
+                    if step is None:
+                        break
+                    # "Ready to ship" (not "Either is fine") to match the
+                    # exact fulfillment choice already live-verified to
+                    # carry karat through to the first search attempt.
+                    interactive = {
+                        "type": "button_reply",
+                        "button_reply": {"id": f"wizard${step}", "title": "Ready to ship"},
+                    }
+                    await self._agent_turn(agent, profile, "919900001112", interactive=interactive)
+                    if all_calls:
+                        break
+
+            self.assertTrue(all_calls, "wizard never reached a real search_products call")
+            first_call = all_calls[0]
+            # category/gender/price must always survive regardless of live
+            # catalogue state — these don't depend on Chain's own facets.
+            self.assertEqual(first_call.get("category_id"), self._chain_category_id())
+            self.assertEqual(first_call.get("tag_manager_id"), self._women_tag_id())
+            self.assertEqual(first_call.get("max_price"), 50000)
+
+            # meta_sub_attribute_value (karat/colour) additionally requires
+            # Chain's OWN category-scoped karat/colour facets to be
+            # populated upstream on Clara right now — see
+            # audit/CLARA_FILTERS_INSTABILITY.md: this has been observed
+            # empty for Chain specifically, sustained across sessions, as
+            # a live UAT catalogue issue unrelated to this codebase. When
+            # that facet is genuinely empty, get_karat_id/get_colour_id
+            # correctly return None and the meta filter is correctly
+            # omitted (same designed behavior test_filters_guardrails.py's
+            # test_cold_skips_impossible_validation pins down) — that is
+            # not a regression to fail this test over.
+            chain_karat_options = cf._resolve_cached_payload(self._chain_category_id())
+            karat_facet_populated = bool((chain_karat_options or {}).get("karat"))
+            if not karat_facet_populated:
+                self.skipTest(
+                    "Chain's live karat facet is currently empty upstream on "
+                    "Clara (audit/CLARA_FILTERS_INSTABILITY.md) — "
+                    "meta_sub_attribute_value cannot resolve regardless of "
+                    "what this codebase does; not a code regression."
+                )
+            self.assertIsNotNone(
+                first_call.get("meta_sub_attribute_value"),
+                "explicit 18KT must reach the outbound Clara search call's "
+                f"first (strictest) attempt (got: {first_call})",
+            )
+
+        asyncio.run(_run())
+
+    @staticmethod
+    def _chain_category_id() -> str:
+        return "66ec057581b26b00081b3fae"
+
+    @staticmethod
+    def _women_tag_id() -> str:
+        return "6710b86de3421b6a92589b39"
 
 
 if __name__ == "__main__":
