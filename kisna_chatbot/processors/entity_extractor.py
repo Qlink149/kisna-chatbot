@@ -649,11 +649,20 @@ _REGEX_FILL_FIELDS = (
     "max_price",
     "pincode",
     "city",
+    # collection is matched deterministically against the live Clara
+    # collections list (_matched_collection_label never returns a false
+    # positive), but the LLM consistently misses one-word collection names
+    # ("noor", "echo", "vachan" — confirmed live, 0/N caught either as
+    # collection or as a promotable title) while catching distinctive
+    # multi-word ones ("Evil Eye") fine. Treating it as LLM-only threw away
+    # a correct regex match every time the LLM came back empty, which for
+    # one-word names was effectively always — a bare "show me something in
+    # noor" silently produced zero filters. LLM value still wins when set.
+    "collection",
 )
 
 _LLM_ONLY_FIELDS = (
     "title",
-    "collection",
     "occasion",
     "style",
     "gender",

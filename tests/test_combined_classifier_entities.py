@@ -96,6 +96,27 @@ class MergeEntitiesTests(unittest.TestCase):
         )
         self.assertEqual(merged["max_price"], 30000)
 
+    def test_regex_collection_fills_when_llm_collection_null(self):
+        # Regression: collection was LLM-only, so a bare one-word collection
+        # name ("noor", "echo", "vachan" - confirmed live, the LLM
+        # consistently returns collection=None AND title=None for these,
+        # unlike distinctive multi-word names like "Evil Eye") silently
+        # produced zero search filters even though the regex extractor
+        # -- matched deterministically against the live Clara collections
+        # list, never a guess -- had already found it correctly.
+        merged = merge_llm_and_regex_entities(
+            {"collection": None, "title": None, "category": None},
+            {"collection": "noor", "category": None},
+        )
+        self.assertEqual(merged["collection"], "noor")
+
+    def test_llm_collection_wins_over_regex(self):
+        merged = merge_llm_and_regex_entities(
+            {"collection": "Evil Eye", "category": "ring"},
+            {"collection": "noor", "category": "ring"},
+        )
+        self.assertEqual(merged["collection"], "Evil Eye")
+
 
 class FinalizeSearchEntitiesTests(unittest.TestCase):
     def test_chain_category_maps_to_necklace_with_api_override(self):
