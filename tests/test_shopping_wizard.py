@@ -651,5 +651,85 @@ class BudgetStepIntegrationTests(unittest.TestCase):
         return "6710b86de3421b6a92589b39"
 
 
+@pytest.mark.live
+class MidWizardCorrectionTests(unittest.TestCase):
+    """D8 — does a mid-wizard explicit correction land, get ignored, or
+    restart the funnel? Confirmed live, 3/3: it lands cleanly. Pinning
+    down the confirmed-correct behavior so a future regression is caught.
+    """
+
+    def test_correction_updates_value_without_restarting(self):
+        from unittest.mock import AsyncMock, patch
+
+        async def fake_search(**kwargs):
+            return {"products": [], "total_count": 0, "page": 1}
+
+        async def _run():
+            phone = "919900002222"
+            profile: dict = {}
+            start_wizard(
+                profile,
+                entities={
+                    "category": "chain",
+                    "material_type": "gold",
+                    "karat": "18KT",
+                    "metal_colour": "rose",
+                },
+                query="18kt rose gold chain",
+            )
+            profile["last_message_at"] = int(time.time())
+
+            agent = ProductSearchAgentV3()
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                side_effect=fake_search,
+            ):
+                data = {
+                    "phone_number": phone,
+                    "user_profile": profile,
+                    "messages": {"text": {"body": "under 50k"}},
+                }
+                if agent.should_run(data):
+                    await agent.process(data)
+                profile["last_message_at"] = int(time.time())
+
+                budget_before_correction = dict(profile.get("shopping_wizard_data") or {})
+                data = {
+                    "phone_number": phone,
+                    "user_profile": profile,
+                    "messages": {"text": {"body": "actually make it 14kt"}},
+                }
+                if agent.should_run(data):
+                    await agent.process(data)
+
+            self.assertTrue(
+                profile.get("shopping_wizard_active"),
+                "correction must not end/restart the wizard",
+            )
+            self.assertNotEqual(
+                profile.get("shopping_wizard_step"),
+                "category",
+                "correction must not restart the funnel",
+            )
+            self.assertEqual(
+                (profile.get("shopping_wizard_explicit") or {}).get("karat"),
+                "14KT",
+                "the correction must land",
+            )
+            self.assertEqual(
+                (profile.get("shopping_wizard_explicit") or {}).get("metal_colour"),
+                "rose",
+                "unrelated explicit values must survive the correction",
+            )
+            self.assertEqual(
+                dict(profile.get("shopping_wizard_data") or {}),
+                budget_before_correction,
+                "budget already captured must survive an unrelated correction",
+            )
+
+        asyncio.run(_run())
+
+
 if __name__ == "__main__":
     unittest.main()
