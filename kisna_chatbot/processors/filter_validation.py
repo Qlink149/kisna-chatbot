@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from kisna_chatbot.integrations.clara_filters import (
@@ -25,6 +26,15 @@ _VALIDATED_FIELDS: tuple[tuple[str, str, str], ...] = (
 )
 
 _GENDER_UI = {"women": "Female", "men": "Male", "kids": "Kids"}
+_GENDER_UI_REVERSE = {v.lower(): k for k, v in _GENDER_UI.items()}
+
+# Bug 4: filter$fix$<entity_key> quick-reply state. The button msgid only
+# carries which field was invalid (karat/metal_colour/collection/gender) —
+# the corrected VALUE comes from the tapped button's title, and the entities
+# it needs to be applied to were never persisted anywhere, so the tap landed
+# nowhere (generic fallback text, service_selected left empty). This mirrors
+# search_confirmation.py's PENDING_SEARCH_KEY pattern.
+PENDING_FILTER_FIX_KEY = "pending_filter_fix"
 
 
 def _option_titles(facet: str, options: list[dict], limit: int = 3) -> list[str]:
@@ -89,15 +99,29 @@ def _single_cross_category_alternative(
     return matches[0] if len(matches) == 1 else None
 
 
-def build_impossible_value_prompt(entities: dict[str, Any] | None) -> list[dict] | None:
+def build_impossible_value_prompt(
+    entities: dict[str, Any] | None,
+    user_profile: dict[str, Any] | None = None,
+) -> list[dict] | None:
     """If an entity value is impossible for the category, return KIA + ≤3 QRs.
 
     Cold / unavailable filters → None (degradation: today's search behaviour).
+
+    When ``user_profile`` is given and a QR is returned, the triggering
+    entities are stashed under PENDING_FILTER_FIX_KEY so a later
+    ``filter$fix$<entity_key>`` tap (see ``parse_filter_fix_button`` /
+    ``resolve_filter_fix``) has something to correct and re-search.
     """
     if not entities or not filters_available():
         return None
 
-    category = entities.get("category")
+    # Chain is stored internally as category="necklace" with the real Clara
+    # category in clara_category_override (see entity_extractor.py's
+    # _CLARA_CATEGORY_OVERRIDE_FROM) — entities_to_api_params already prefers
+    # the override; validation must too, or it checks filter availability
+    # against the wrong category (necklace's karats, not chain's) and can
+    # offer/apply a value that is not actually valid for what's being searched.
+    category = entities.get("clara_category_override") or entities.get("category")
     category_id = get_category_id(str(category)) if category else None
 
     for entity_key, facet, human in _VALIDATED_FIELDS:
@@ -157,6 +181,77 @@ def build_impossible_value_prompt(entities: dict[str, Any] | None) -> list[dict]
                     "_compose": "filter_validation_qr",
                 }
             )
+            if isinstance(user_profile, dict):
+                set_pending_filter_fix(user_profile, entities, entity_key)
         return responses
 
     return None
+
+
+def set_pending_filter_fix(
+    user_profile: dict[str, Any], entities: dict[str, Any], entity_key: str
+) -> None:
+    user_profile[PENDING_FILTER_FIX_KEY] = {
+        "entities": dict(entities or {}),
+        "entity_key": entity_key,
+    }
+
+
+def get_pending_filter_fix(user_profile: dict[str, Any]) -> dict[str, Any] | None:
+    pending = (user_profile or {}).get(PENDING_FILTER_FIX_KEY)
+    return pending if isinstance(pending, dict) else None
+
+
+def pop_pending_filter_fix(user_profile: dict[str, Any]) -> dict[str, Any] | None:
+    pending = get_pending_filter_fix(user_profile)
+    if isinstance(user_profile, dict):
+        user_profile.pop(PENDING_FILTER_FIX_KEY, None)
+    return pending
+
+
+def parse_filter_fix_button(messages: dict) -> tuple[str, str] | None:
+    """Return (entity_key, tapped_title) from a filter$fix$<entity_key> tap, or None."""
+    interactive = (messages or {}).get("interactive") or {}
+    if interactive.get("type") != "button_reply":
+        return None
+    reply = interactive.get("button_reply")
+    if not isinstance(reply, dict):
+        return None
+
+    raw_id = str(reply.get("id") or "")
+    msgid = raw_id
+    try:
+        parsed = json.loads(raw_id)
+        if isinstance(parsed, dict):
+            msgid = str(parsed.get("msgid") or raw_id)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    if not msgid.startswith("filter$fix$"):
+        return None
+    entity_key = msgid[len("filter$fix$") :]
+    if not entity_key:
+        return None
+    title = (reply.get("title") or "").strip()
+    if not title:
+        return None
+    return entity_key, title
+
+
+def is_filter_fix_interactive(messages: dict) -> bool:
+    return parse_filter_fix_button(messages) is not None
+
+
+def resolve_filter_fix_value(entity_key: str, title: str) -> str | None:
+    """Map a tapped button title back to the internal entity value.
+
+    karat/metal_colour/collection reuse the same fuzzy option matching as
+    validation (get_karat_id/get_colour_id/get_collection_id), so the label
+    text Clara gave us for the button IS a value those resolvers already
+    accept — pass it straight through. gender is the one facet whose
+    internal value ("women"/"men"/"kids") differs from its UI label
+    ("Female"/"Male"/"Kids"), so that one needs the reverse map.
+    """
+    if entity_key == "gender":
+        return _GENDER_UI_REVERSE.get(title.strip().lower())
+    return title

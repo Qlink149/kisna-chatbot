@@ -63,6 +63,12 @@ from kisna_chatbot.processors.search_confirmation import (
     should_confirm,
     AWAITING_CORRECTION_KEY,
 )
+from kisna_chatbot.processors.filter_validation import (
+    is_filter_fix_interactive,
+    parse_filter_fix_button,
+    pop_pending_filter_fix,
+    resolve_filter_fix_value,
+)
 from kisna_chatbot.processors.shopping_wizard import (
     ANY_SLOT,
     WIZARD_CARRYOVER_KEYS as _WIZARD_CARRYOVER_KEYS,
@@ -1673,6 +1679,8 @@ class ProductSearchAgentV3(Processor):
             return True
         if _parse_pref_cat_button_postback(messages):
             return True
+        if is_filter_fix_interactive(messages):
+            return True
         if is_wizard_interactive(messages):
             return True
         if is_wizard_active(user_profile):
@@ -1749,6 +1757,11 @@ class ProductSearchAgentV3(Processor):
             return confirmed
 
         _clear_session_if_expired(user_profile)
+
+        filter_fix = parse_filter_fix_button(messages)
+        if filter_fix is not None:
+            entity_key, title = filter_fix
+            return await self._handle_filter_fix(data, phone_number, entity_key, title)
 
         # Guided shopping wizard (smart-skip funnel)
         # Typed title of a currently shown product wins over wizard restart.
@@ -3033,6 +3046,65 @@ class ProductSearchAgentV3(Processor):
         )
         return data
 
+    async def _handle_filter_fix(
+        self, data: dict, phone_number: str, entity_key: str, title: str
+    ) -> dict:
+        """Handle a filter$fix$<entity_key> tap from build_impossible_value_prompt.
+
+        Bug 4: this postback previously had no handler at all — tapping any
+        of the "here's what we do have" buttons fell through to generic
+        fallback text and left service_selected empty. Apply the corrected
+        value and re-run the search immediately, same as a normal search.
+        """
+        user_profile = data.get("user_profile", {})
+        pending = pop_pending_filter_fix(user_profile)
+        if pending is None:
+            # Stale tap (session/state lost since the validation message was
+            # sent) — ask the user to just say what they want, same wording
+            # as a lost search-recap correction.
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": "That option isn't active anymore — what are you looking for?",
+                    "_compose": "filter_fix_stale",
+                }
+            ]
+            return data
+
+        entities = dict(pending.get("entities") or {})
+        resolved = resolve_filter_fix_value(entity_key, title)
+        if not resolved:
+            logger.warning(
+                "filter$fix$ tap resolved to no value",
+                extra={"entity_key": entity_key, "title": title},
+            )
+            data["bot_response"] = [
+                {
+                    "type": "text",
+                    "text": "Sorry, I couldn't apply that — what are you looking for?",
+                    "_compose": "filter_fix_unresolved",
+                }
+            ]
+            return data
+
+        entities[entity_key] = resolved
+        logger.info(
+            "filter$fix$ tap applied",
+            extra={
+                "phone_number": phone_number,
+                "entity_key": entity_key,
+                "title": title,
+                "resolved_value": resolved,
+            },
+        )
+        return await self._execute_search(
+            data,
+            phone_number,
+            entities,
+            query_label=f"filter_fix_{entity_key}",
+            confirm=False,
+        )
+
     async def _execute_search(
         self,
         data: dict,
@@ -3053,7 +3125,7 @@ class ProductSearchAgentV3(Processor):
             build_impossible_value_prompt,
         )
 
-        impossible = build_impossible_value_prompt(entities)
+        impossible = build_impossible_value_prompt(entities, user_profile)
         if impossible:
             data["bot_response"] = impossible
             return data
