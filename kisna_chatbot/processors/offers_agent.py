@@ -165,11 +165,17 @@ def _build_offers_text(promotions: list) -> str:
 
 
 def _build_bot_response(offers_text: str) -> list:
-    return [{"type": "text", "text": offers_text}]
+    # "_compose" is what makes localize_bot_responses translate this. Without
+    # it a Hindi or Bengali customer got the whole offers table in English --
+    # localize_bot_responses only rewrites TAGGED responses, and these
+    # builders carried no tag at all. Functional tag (not a personality one):
+    # discount percentages and terms must be mirrored faithfully, never
+    # re-narrated.
+    return [{"type": "text", "text": offers_text, "_compose": "offers_list"}]
 
 
 def _build_empty_response() -> list:
-    return [{"type": "text", "text": _EMPTY_OFFERS_TEXT}]
+    return [{"type": "text", "text": _EMPTY_OFFERS_TEXT, "_compose": "offers_empty"}]
 
 
 def _clara_configured() -> bool:
@@ -180,7 +186,7 @@ def _clara_configured() -> bool:
 
 
 def _build_error_response() -> list:
-    return [{"type": "text", "text": _ERROR_TEXT}]
+    return [{"type": "text", "text": _ERROR_TEXT, "_compose": "offers_error"}]
 
 
 class OffersAgent(Processor):

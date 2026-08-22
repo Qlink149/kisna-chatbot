@@ -757,8 +757,38 @@ def start_wizard(
 
     user_profile["shopping_wizard_step"] = step
     responses = list(prepend_welcome or [])
+    note = _unsupported_material_note(entities)
+    if note:
+        responses.append(note)
     responses.append(build_step_prompt(step, collected))
     return responses
+
+
+# Deliberately NOT the search path's constant: that one ends "Here are some
+# beautiful options we do have", which is a lie in the funnel — a question
+# follows, not products. Only the factual first sentence is shared wording.
+_UNSUPPORTED_MATERIAL_FUNNEL_NOTE = (
+    "We specialise in *gold, diamond, and gemstone* jewellery — we don't carry "
+    "silver, platinum, or pearl. Let's find you something from what we do have 💎"
+)
+
+
+def _unsupported_material_note(entities: dict | None) -> dict | None:
+    """Say we don't carry silver/platinum/pearl before offering alternatives.
+
+    seed_wizard_from_entities keeps only gold/diamond/gemstone, so "Kya apke
+    pass silver ki ring milti hai kya?" entered the funnel with the material
+    silently discarded and the customer was then asked to choose between
+    Gold / Diamond / Gemstone as though they had never named silver. The
+    direct-search path has always said this; the funnel never did.
+    """
+    if not (entities or {}).get("unsupported_material"):
+        return None
+    return {
+        "type": "text",
+        "text": _UNSUPPORTED_MATERIAL_FUNNEL_NOTE,
+        "_compose": "unsupported_material",
+    }
 
 
 def build_budget_rejection_prompt() -> dict:
@@ -1053,6 +1083,43 @@ def _apply_slot(collected: dict, step: str, value: Any) -> None:
         collected["fulfillment"] = value
 
 
+def _budget_from_text(text: str) -> tuple[Any, Any] | None:
+    """Deterministic budget read. None when this message states no budget."""
+    from kisna_chatbot.processors.entity_extractor import (
+        _RANGE_INDICATOR_RE,
+        _extract_prices,
+        _snap_single_price_to_band,
+        extract_entities,
+    )
+
+    # A pincode / phone number is never a budget, whichever parser reads it.
+    if budget_rejection_reason(text):
+        return None
+
+    ents = extract_entities(text)
+    min_p = ents.get("min_price")
+    max_p = ents.get("max_price")
+    if min_p is None and max_p is None:
+        # Prefer the shared price parser (handles "15 to 35 thousand").
+        min_p, max_p = _extract_prices(text or "")
+    if min_p is not None or max_p is not None:
+        if max(p for p in (min_p, max_p) if p is not None) > MAX_REALISTIC_BUDGET:
+            return None
+        return (min_p, max_p)
+    # Bare digit fallback ("20000") — never concatenate range halves
+    # ("15 to 35 thousand" → "1535").
+    if _RANGE_INDICATOR_RE.search(text or ""):
+        return None
+    digits = re.sub(r"[^\d]", "", text or "")
+    if not digits.isdigit() or len(digits) < 3:
+        return None
+    if _looks_like_pincode(digits, text):
+        return None
+    if int(digits) > MAX_REALISTIC_BUDGET:
+        return None
+    return _snap_single_price_to_band(int(digits))
+
+
 def _parse_text_for_step(
     step: str, text: str, llm_entities: dict | None = None
 ) -> Any | None:
@@ -1079,7 +1146,22 @@ def _parse_text_for_step(
         llm_slots.get("min_price") is not None
         or llm_slots.get("max_price") is not None
     ):
-        return (llm_slots.get("min_price"), llm_slots.get("max_price"))
+        llm_min = llm_slots.get("min_price")
+        llm_max = llm_slots.get("max_price")
+        # A degenerate min == max is the LLM reading "under 50k" as an exact
+        # price. normalize_price_entities then widens that single target
+        # UPWARD, so the recap reads "between Rs 50,000 and Rs 60,000", the
+        # header prints "Rs 50,000-Rs 50,000", and every result costs more
+        # than the ceiling the customer gave. Observed on 4 of 13 live "under
+        # Nk" answers -- it varies run to run, which is why it reads as flaky.
+        # The deterministic parser gets this right every time, so it wins
+        # whenever it can read the message; the LLM stays the fallback for
+        # native script, which only it can parse.
+        if llm_min is not None and llm_min == llm_max:
+            deterministic = _budget_from_text(text)
+            if deterministic is not None:
+                return deterministic
+        return (llm_min, llm_max)
 
     if step == "category":
         ents = extract_entities(text)
@@ -1112,38 +1194,7 @@ def _parse_text_for_step(
         return None
 
     if step == "budget":
-        from kisna_chatbot.processors.entity_extractor import (
-            _RANGE_INDICATOR_RE,
-            _extract_prices,
-            _snap_single_price_to_band,
-        )
-
-        # A pincode / phone number is never a budget, whichever parser reads it.
-        if budget_rejection_reason(text):
-            return None
-
-        ents = extract_entities(text)
-        min_p = ents.get("min_price")
-        max_p = ents.get("max_price")
-        if min_p is None and max_p is None:
-            # Prefer the shared price parser (handles "15 to 35 thousand").
-            min_p, max_p = _extract_prices(text or "")
-        if min_p is not None or max_p is not None:
-            if max(p for p in (min_p, max_p) if p is not None) > MAX_REALISTIC_BUDGET:
-                return None
-            return (min_p, max_p)
-        # Bare digit fallback ("20000") — never concatenate range halves
-        # ("15 to 35 thousand" → "1535").
-        if _RANGE_INDICATOR_RE.search(text or ""):
-            return None
-        digits = re.sub(r"[^\d]", "", text or "")
-        if not digits.isdigit() or len(digits) < 3:
-            return None
-        if _looks_like_pincode(digits, text):
-            return None
-        if int(digits) > MAX_REALISTIC_BUDGET:
-            return None
-        return _snap_single_price_to_band(int(digits))
+        return _budget_from_text(text)
 
     if step == "fulfillment":
         if normalized in _FULFILLMENT_TITLE_MAP:

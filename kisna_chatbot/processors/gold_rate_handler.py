@@ -167,4 +167,7 @@ async def build_gold_rate_bot_response(app_state=None) -> list[dict]:
         logger.exception("Unexpected gold rate error")
         text = _FALLBACK
 
-    return [{"type": "text", "text": text}]
+    # Tagged so localize_bot_responses mirrors it into the user's language;
+    # untagged, a Devanagari "आज सोने का भाव क्या है?" was answered entirely in
+    # English. Functional tag: the karat figures must survive verbatim.
+    return [{"type": "text", "text": text, "_compose": "gold_rates"}]

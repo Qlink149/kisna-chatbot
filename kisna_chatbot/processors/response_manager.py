@@ -60,14 +60,58 @@ import time
 # escaped single star. Fixed once, centrally, here -- every response type
 # passes through this loop before send, so no per-prompt fix can miss a
 # future free-generation path the way a prompt-only instruction can.
+#
+# **bold** was the first and loudest case, but a long FAQ answer ("Tell me
+# everything about KMR in full detail") also shipped literal "### KMR Overview"
+# headings and "[meriroshni.kisna.com](https://meriroshni.kisna.com)" link
+# syntax, which WhatsApp renders verbatim -- brackets, parentheses and all.
+# WhatsApp supports *bold*, _italic_, ~strike~ and ```mono``` ONLY.
 _MARKDOWN_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_MARKDOWN_UNDERSCORE_BOLD_RE = re.compile(r"__(.+?)__")
+# Heading -> bold on its own line. Applied per-line, so a "#" mid-sentence
+# (or a hex colour) is left alone.
+_MARKDOWN_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$")
+# [label](url) -> "label: url". WhatsApp auto-links a bare URL, so this drops
+# the literal punctuation while keeping the destination tappable.
+_MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\(\s*<?([^)\s]+)>?\s*\)")
+_MARKDOWN_AUTOLINK_RE = re.compile(r"<(https?://[^>\s]+)>")
+# Leading "-" / "*" / "+" bullet -> "•". MUST run after the bold rules, or a
+# line starting "**Note**" is mistaken for a bullet.
+_MARKDOWN_BULLET_RE = re.compile(r"^(\s*)[-*+]\s+(?=\S)")
+_MARKDOWN_FENCE_RE = re.compile(r"^\s*```[^\n]*$")
 
 
 def _fix_whatsapp_markdown(text: str) -> str:
-    """Rewrite standard Markdown **bold** into WhatsApp's single-asterisk bold."""
-    if not text or "**" not in text:
+    """Rewrite Markdown into what WhatsApp actually renders."""
+    if not text:
         return text
-    return _MARKDOWN_BOLD_RE.sub(r"*\1*", text)
+
+    text = _MARKDOWN_BOLD_RE.sub(r"*\1*", text)
+    text = _MARKDOWN_UNDERSCORE_BOLD_RE.sub(r"*\1*", text)
+    text = _MARKDOWN_LINK_RE.sub(
+        lambda m: (
+            m.group(2)
+            if m.group(1).strip().rstrip("/").endswith(
+                m.group(2).split("//")[-1].rstrip("/")
+            )
+            else f"{m.group(1)}: {m.group(2)}"
+        ),
+        text,
+    )
+    text = _MARKDOWN_AUTOLINK_RE.sub(r"\1", text)
+
+    lines = []
+    for line in text.split("\n"):
+        if _MARKDOWN_FENCE_RE.match(line):
+            continue
+        heading = _MARKDOWN_HEADING_RE.match(line)
+        if heading:
+            title = heading.group(1).strip()
+            # Don't double-wrap a heading the bold rule already starred.
+            lines.append(title if title.startswith("*") else f"*{title}*")
+            continue
+        lines.append(_MARKDOWN_BULLET_RE.sub(r"\1• ", line))
+    return "\n".join(lines)
 
 
 def _sanitize_response_text(response: dict) -> dict:

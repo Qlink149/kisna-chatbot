@@ -1138,6 +1138,35 @@ _SCRIPT_LANG_RANGES: tuple[tuple[re.Pattern, frozenset[str], str], ...] = (
 )
 
 
+# Positive evidence that Latin-script text is actually romanized Indic.
+# Deliberately excludes tokens that are also ordinary English words ("me",
+# "main", "ho", "hi", "to", "so", "the") — a false positive here answers an
+# English customer in Hinglish, which is the bug this exists to prevent.
+_ROMANIZED_INDIC_RE = re.compile(
+    r"\b("
+    # Hindi / Hinglish
+    r"mujhe|mereko|mera|meri|mere|kya|kyu|kyun|kaise|kaisa|kaisi|kitna|kitne|kitni|"
+    r"chahiye|chaiye|chahiy|dikhao|dikhaiye|dikha|batao|bataye|bataiye|"
+    r"karna|karni|krna|karo|kro|kar|nahi|nahin|nai|koi|kuch|thoda|zyada|jyada|"
+    r"sasta|mehnga|bhai|yaar|aap|aapka|aapki|apka|apki|apke|hain|hoga|hogi|"
+    r"raha|rahi|rahe|wala|wali|waale|sona|sone|soni|anguthi|angoothi|"
+    r"achha|acha|accha|theek|thik|haan|kripya|dhoond|milega|milegi|"
+    r"paas|pass|liye|walo|hazaar|hajar|lakh|paisa|paise|"
+    # Gujarati romanized
+    r"tamari|tamne|tame|joie|joiye|che|chhe|mane|maare|shu|"
+    # Marathi romanized
+    r"mala|havi|hava|ahe|aahe|dakhva|kuthe|"
+    # Bengali romanized
+    r"ami|amake|amar|dekhan|dekhao|chai|kothay|"
+    # Punjabi romanized
+    r"mainu|tuhada|tuhanu|chahida|dikhao|"
+    # Tamil / Telugu romanized
+    r"enakku|venum|kaattu|naaku|kavali|chupinchu"
+    r")\b",
+    re.I,
+)
+
+
 def resolve_reply_language(language: str | None, user_text: str) -> str:
     """Language identity from the LLM; SCRIPT from the user's actual characters.
 
@@ -1158,7 +1187,15 @@ def resolve_reply_language(language: str | None, user_text: str) -> str:
         if script_re.search(text):
             return base if base in valid_bases else default_base
     if base in _INDIC_LANGS:
-        return f"{base}-Latn"
+        # Latin characters alone do not make a message romanized Indic. The
+        # classifier labelled the plain English sentence "I need a ring" as
+        # Hindi, and trusting that answered an all-English customer with
+        # "Ye kis ke liye hai?" — and, because the label persists, every reply
+        # after it too. Require actual romanized-Indic words before mirroring
+        # into Hinglish; English is the safe default when they are absent.
+        if _ROMANIZED_INDIC_RE.search(text):
+            return f"{base}-Latn"
+        return "en"
     return lang
 
 
@@ -1211,6 +1248,56 @@ def detect_language_override(text: str) -> str | None:
     return None
 
 
+# Filler and bare values that prove nothing about the customer's language.
+# Anything containing Indic characters is excluded up front: that DOES prove a
+# script, however short the message is.
+_LOW_SIGNAL_ALWAYS_RE = re.compile(
+    r"^[\W\d]*$"  # digits / punctuation / emoji only ("50000", "?", "😍")
+    r"|^\s*(?:yes|no|ok|okay|yeah|yup|sure|hi|hii+|hey|hello|thanks|ty)\b",
+    re.I,
+)
+
+
+def _is_low_language_signal(user_text: str) -> bool:
+    """True when this message is too thin to justify changing reply language.
+
+    The test is "is this an ANSWER rather than prose", not "is this short".
+    Length alone is wrong: "Return krna hai" is three words and unmistakably
+    romanized Hindi, while "Ready to ship" is three words of our own button
+    label and says nothing about the speaker.
+    """
+    text = (user_text or "").strip()
+    if not text:
+        return True
+    if _INDIC_SCRIPT_RE.search(text):
+        return False
+    if _LOW_SIGNAL_ALWAYS_RE.search(text):
+        return True
+
+    from kisna_chatbot.processors.shopping_wizard import (
+        _ANY_ANSWER_RE,
+        _FULFILLMENT_TITLE_MAP,
+        _GENDER_TITLE_MAP,
+        _MATERIAL_TITLE_MAP,
+    )
+
+    normalized = " ".join(text.lower().split()).strip("*.!?, ")
+    if (
+        normalized in _GENDER_TITLE_MAP
+        or normalized in _MATERIAL_TITLE_MAP
+        or normalized in _FULFILLMENT_TITLE_MAP
+    ):
+        return True
+    words = text.split()
+    # "under 50k", "Under 10k ?", "15-35k" — a budget, not a language.
+    if len(words) <= 3 and any(ch.isdigit() for ch in text):
+        return True
+    # "anyone", "koi bhi" — a decline, not a language.
+    if len(words) <= 2 and _ANY_ANSWER_RE.search(text):
+        return True
+    return False
+
+
 def _store_language(
     user_profile: dict, language: str | None, user_text: str = ""
 ) -> None:
@@ -1230,10 +1317,19 @@ def _store_language(
     if override:
         user_profile["language"] = override
         return
+    stored = user_profile.get("language")
+    if stored and _is_low_language_signal(user_text):
+        # "under 50k", "Female", "Gold" carry almost no language evidence, but
+        # the classifier still has to emit SOME label. Acting on it flipped
+        # settled conversations: an all-English session answered "under 50k"
+        # with "Aap aaj kya dhoond rahe hain?" and stayed Hinglish for the rest
+        # of the chat (9/9 live), and a Gujarati-script customer who typed one
+        # English word was demoted to romanized Gujarati. A slot answer is not
+        # a language change; keep what the conversation already established.
+        return
     if language:
         user_profile["language"] = resolve_reply_language(language, user_text)
         return
-    stored = user_profile.get("language")
     if stored and user_text:
         user_profile["language"] = resolve_reply_language(stored, user_text)
 

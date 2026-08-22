@@ -27,11 +27,10 @@ def _create_provider(provider: ProviderName, model: str | None = None):
     return create_openai_chat_provider(model)
 
 
-def get_chat_provider(agent: AgentName):
-    """Return chat provider for agent."""
+def get_chat_provider(agent: AgentName, model: str | None = None):
+    """Return chat provider for agent, optionally pinned to a specific model."""
     primary_name = resolve_provider(agent)
-    model = resolve_model(primary_name)
-    return _create_provider(primary_name, model)
+    return _create_provider(primary_name, model or resolve_model(primary_name))
 
 
 async def complete_chat(
@@ -44,13 +43,18 @@ async def complete_chat(
     max_output_tokens: int | None = None,
     phone_number: str | None = None,
     client_id: str | None = None,
+    model: str | None = None,
 ) -> str:
     """
     Run a chat completion for the given agent using configured provider(s).
 
+    ``model`` pins this ONE call to a specific model, leaving every other
+    caller of the same agent untouched. reply_composer uses it to route
+    low-resource Indic translation to a stronger model than the default.
+
     Returns assistant message text.
     """
-    provider = get_chat_provider(agent)
+    provider = get_chat_provider(agent, model=model)
     request = CompletionRequest(
         agent=agent,
         agent_display_name=agent_display_name or agent.value,

@@ -591,18 +591,34 @@ _SINGLE_TARGET_HINT_RE = re.compile(
     re.I,
 )
 
+# A number followed by a unit is a MEASUREMENT, not rupees. "Show me rings
+# under 10 carats" was read as a Rs 10 budget and answered "No pieces found
+# under Rs 10 right now". Guards the patterns that can capture a bare number;
+# the '₹' and '/-' patterns below carry their own currency marker already.
+# The leading (?![\d.]) is load-bearing: without it the engine simply
+# backtracks the number to a shorter prefix -- "under 10 carats" matched "1",
+# left "0 carats" unexamined, and produced a Rs 1 budget instead of no budget.
+_NON_PRICE_UNIT_GUARD = (
+    r"(?![\d.])"
+    r"(?!\s*(?:carats?|cts?|kts?|karats?|grams?|gms?|mm|cm|"
+    r"inch(?:es)?|days?|weeks?|months?|years?|pcs?|pieces?)\b)"
+)
+
 _EXPLICIT_MAX_PATTERNS = [
     re.compile(
         r"(?:under|below|upto|up to|max|maximum|within|less than|kam|se kam)\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
+        r"₹?\s*([\d,]+(?:\.\d+)?)" + _NON_PRICE_UNIT_GUARD
+        + r"(?:\s*(k|lakh|lac|hazaar)\b)?",
         re.I,
     ),
     re.compile(
-        r"₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?\s*(?:tak|se kam|ke andar|ke neeche)",
+        r"₹?\s*([\d,]+(?:\.\d+)?)" + _NON_PRICE_UNIT_GUARD
+        + r"(?:\s*(k|lakh|lac|hazaar)\b)?\s*(?:tak|se kam|ke andar|ke neeche)",
         re.I,
     ),
     re.compile(
-        r"within\s*(?:my\s*)?budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)(?:\s*(k|lakh|lac|hazaar)\b)?",
+        r"within\s*(?:my\s*)?budget\s*(?:of\s*)?₹?\s*([\d,]+(?:\.\d+)?)"
+        + _NON_PRICE_UNIT_GUARD + r"(?:\s*(k|lakh|lac|hazaar)\b)?",
         re.I,
     ),
     re.compile(
@@ -954,7 +970,7 @@ def supplement_semantic_entities_from_query(
 
     if not out.get("material_type"):
         material = _match_synonym(normalized, _MATERIAL_SYNONYMS)
-        if material:
+        if material and not _is_bare_material_negation(normalized, material):
             out["material_type"] = material
 
     return out
@@ -1572,8 +1588,57 @@ def _extract_pincode(text: str) -> str | None:
     return m.group(1) if m else None
 
 
+# English puts the negator before ("not in gold"), Hindi/Hinglish after
+# ("gold nahi chahiye"), so both sides of the material mention are checked.
+_MATERIAL_NEGATOR_BEFORE_RE = re.compile(
+    r"\b(?:not|no|non|without|except|other than|besides|apart from|avoid|"
+    r"don'?t\s+want|dont\s+want|bina)\b",
+    re.I,
+)
+_MATERIAL_NEGATOR_AFTER_RE = re.compile(r"\b(?:nahi+n?|mat|nako|nathi)\b", re.I)
+
+
+def _materials_named(text: str) -> set[str]:
+    """Every material the message mentions, however it is phrased."""
+    found: set[str] = set()
+    for material, synonyms in _MATERIAL_SYNONYMS.items():
+        for synonym in synonyms:
+            if _synonym_in_text(text, synonym):
+                found.add(material)
+                break
+    return found
+
+
+def _is_bare_material_negation(text: str, material: str | None) -> bool:
+    """True for "just not gold" — a refusal that names no alternative.
+
+    The extractor is a keyword matcher, so "I am looking for something which is
+    not in gold" came back as material_type=gold: the exact metal the customer
+    ruled out. When another material IS named ("a diamond ring not gold") that
+    one is the answer and this must not fire — which is why it is limited to
+    the bare case. Extracting nothing lets the wizard ask normally.
+    """
+    if not text or not material:
+        return False
+    if len(_materials_named(text)) > 1:
+        return False
+    for synonym in _MATERIAL_SYNONYMS.get(material, [material]):
+        match = _synonym_pattern(synonym).search(text)
+        if not match:
+            continue
+        before = text[max(0, match.start() - 30) : match.start()]
+        after = text[match.end() : match.end() + 20]
+        if _MATERIAL_NEGATOR_BEFORE_RE.search(before) or (
+            _MATERIAL_NEGATOR_AFTER_RE.search(after)
+        ):
+            return True
+    return False
+
+
 def _extract_material_type(text: str) -> tuple[str | None, bool]:
     material = _match_synonym(text, _MATERIAL_SYNONYMS)
+    if _is_bare_material_negation(text, material):
+        return None, False
     unsupported = material in _CLARA_UNSUPPORTED_MATERIALS if material else False
     return material, unsupported
 

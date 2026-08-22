@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from kisna_chatbot.ai.config import resolve_compose_model, resolve_max_tokens
 from kisna_chatbot.ai.factory import complete_chat
 from kisna_chatbot.ai.types import AgentName
 from kisna_chatbot.utils.logger_config import logger
@@ -81,11 +82,112 @@ def _needs_native_script(lang: str) -> bool:
     return lang in _LANGUAGE_LABELS and not lang.endswith("-Latn")
 
 
+# Per-script ranges, so "is this the RIGHT script" can be asked rather than the
+# far weaker "is this SOME Indic script". _INDIC_SCRIPT_RE above spans
+# U+0900-U+0D7F, i.e. Devanagari through Malayalam, so a Telugu reply with
+# Devanagari spliced into it, or a Gujarati reply carrying Malayalam, sailed
+# through the echo check untouched. Both were observed live.
+_SCRIPT_RANGES: dict[str, tuple[int, int]] = {
+    "hi": (0x0900, 0x097F),
+    "mr": (0x0900, 0x097F),
+    "bn": (0x0980, 0x09FF),
+    "as": (0x0980, 0x09FF),
+    "pa": (0x0A00, 0x0A7F),
+    "gu": (0x0A80, 0x0AFF),
+    "or": (0x0B00, 0x0B7F),
+    "ta": (0x0B80, 0x0BFF),
+    "te": (0x0C00, 0x0C7F),
+    "kn": (0x0C80, 0x0CFF),
+    "ml": (0x0D00, 0x0D7F),
+}
+# Scripts a reply must never contain, whatever the target language.
+_FOREIGN_SCRIPT_RANGES: tuple[tuple[int, int], ...] = (
+    (0x0600, 0x06FF),  # Arabic
+    (0x0750, 0x077F),  # Arabic Supplement
+    (0x4E00, 0x9FFF),  # CJK
+    (0x3040, 0x30FF),  # Kana
+    (0x0400, 0x04FF),  # Cyrillic
+    (0x0E00, 0x0E7F),  # Thai
+)
+
+
+def _script_violations(lang: str, rewritten: str) -> list[str]:
+    """Characters from a script this language must not contain.
+
+    Latin, digits, punctuation and emoji are always allowed -- prices, URLs,
+    SKUs and product names are meant to survive untranslated.
+    """
+    text = rewritten or ""
+    if not text:
+        return []
+    target = _SCRIPT_RANGES.get(lang.split("-")[0])
+    bad: set[str] = set()
+    for ch in text:
+        cp = ord(ch)
+        # Danda / double danda and the zero-width joiners are shared across
+        # Indic scripts — Bengali and Gurmukhi both end sentences with "।".
+        # Flagging them as foreign made clean replies look contaminated.
+        if cp in (0x0964, 0x0965, 0x200C, 0x200D):
+            continue
+        for lo, hi in _FOREIGN_SCRIPT_RANGES:
+            if lo <= cp <= hi:
+                bad.add(ch)
+        # Any Indic block other than the target one.
+        if 0x0900 <= cp <= 0x0D7F and target and not (target[0] <= cp <= target[1]):
+            bad.add(ch)
+    return sorted(bad)
+
+
 def _is_native_script_echo(lang: str, rewritten: str) -> bool:
     """True when a native-script language came back with no Indic characters."""
     if not _needs_native_script(lang):
         return False
     return not bool(_INDIC_SCRIPT_RE.search(rewritten or ""))
+
+
+def _is_unusable_rewrite(lang: str, rewritten: str) -> bool:
+    """Reject a rewrite that echoed English or mixed in a foreign script."""
+    if _is_native_script_echo(lang, rewritten):
+        return True
+    if _needs_native_script(lang) and _script_violations(lang, rewritten):
+        return True
+    return False
+
+
+# Phrases the user must be able to type back to us verbatim. Translating them
+# silently breaks the flow they trigger -- observed live: the return-policy
+# answer's closing CTA came back translated in one run and left in English in
+# another, so it was never dependable either way.
+_PINNED_PHRASES = ("I want to return my order",)
+
+# Some copy names metals in BOTH a positive and a negative clause, and getting
+# one of them wrong inverts the meaning. Live: the "we don't carry silver"
+# note came back as "hum sone, platinum, ya moti nahi rakhte" -- telling the
+# customer KISNA does not sell GOLD. Keeping the metal nouns in English is
+# unambiguous for Indian readers and removes the failure mode entirely.
+_PINNED_WORDS_BY_TEMPLATE: dict[str, tuple[str, ...]] = {
+    "unsupported_material": (
+        "gold",
+        "diamond",
+        "gemstone",
+        "silver",
+        "platinum",
+        "pearl",
+    ),
+}
+
+
+def _compose_token_budget(text: str) -> int:
+    """Scale the output budget to the source length.
+
+    Native scripts tokenise far less efficiently than English, so a long FAQ
+    answer needs headroom the old flat 400 did not always give. A flat 1024 is
+    the wrong answer too: on a reasoning-capable model the spare budget is
+    spent thinking, and mean compose latency tripled to 4.6s on strings barely
+    60 characters long. (Truncation was tested and is NOT the cause of the
+    mistranslations this rewrite fixes — the headroom is insurance only.)
+    """
+    return max(400, min(resolve_max_tokens(AgentName.GENERAL), len(text or "") // 2 + 300))
 
 
 def _compose_instruction(label: str, *, strict: bool = False) -> str:
@@ -110,6 +212,22 @@ def _compose_instruction(label: str, *, strict: bool = False) -> str:
         "never माल or similar slang. "
         "Use EXACTLY the language AND script requested — if Latin/romanized is "
         "requested, do not output native script, and vice versa. "
+        # *asterisks* are WhatsApp bold markers. Models were reading them as the
+        # "proper product titles" the rule above protects, and leaving *anyone*
+        # / *no specific budget* in English inside an otherwise translated
+        # sentence — naming a word the slot parser will then never accept.
+        "FORMATTING: *asterisks* are WhatsApp bold markers, NOT product names. "
+        "Translate the words INSIDE them and keep the asterisks. "
+        # The mistranslations that actually reached customers were all in this
+        # small closed set: rings became bangles / emerald pearls / a garland,
+        # and gold became silver.
+        "JEWELLERY WORDS: always use the natural everyday word in the target "
+        "language for ring, earring, necklace, chain, pendant, bangle, "
+        "bracelet, mangalsutra and nose pin. NEVER swap one item for another "
+        "(a ring is not a bangle, not a pearl) and NEVER change the metal or "
+        "stone (gold stays gold, never silver; diamond stays diamond). "
+        "Write ONLY in the requested script — never mix in characters from "
+        "another language's script. "
         "Output only the rewritten message — no quotes or explanation."
     )
     if strict:
@@ -151,16 +269,38 @@ async def compose(
         return _CACHE[cache_key]
 
     label = _language_label(lang)
+    pinned = [p for p in _PINNED_PHRASES if p in text]
+    instruction_extra = ""
+    if pinned:
+        quoted = " and ".join(f'"{p}"' for p in pinned)
+        instruction_extra = (
+            f" Keep {quoted} EXACTLY as-is in English — it is a phrase the "
+            "customer must type back to us verbatim, not prose."
+        )
+    pinned_words = [
+        w for w in _PINNED_WORDS_BY_TEMPLATE.get(template_key, ()) if w in text.lower()
+    ]
+    if pinned_words:
+        instruction_extra += (
+            " Leave these words in English exactly as written: "
+            + ", ".join(pinned_words)
+            + ". Do NOT translate or substitute them — this sentence says which "
+            "metals we do and do not sell, and swapping one inverts its meaning."
+        )
     user_msg = f"Rewrite this message in {label}:\n\n{text}"
+    # Low-resource Indic translation goes to a stronger model; everything else
+    # stays on the agent's normal one. See ai/config.resolve_compose_model.
+    compose_model = resolve_compose_model(lang)
 
     async def _rewrite(instruction: str) -> str:
         rewritten = await complete_chat(
             agent=AgentName.GENERAL,
-            instruction=instruction,
+            instruction=instruction + instruction_extra,
             messages=[{"role": "user", "content": user_msg}],
-            max_output_tokens=400,
+            max_output_tokens=_compose_token_budget(text),
             phone_number=phone_number,
             client_id=client_id,
+            model=compose_model,
         )
         return (rewritten or "").strip()
 
@@ -168,14 +308,34 @@ async def compose(
         result = await _rewrite(_compose_instruction(label))
         if not result:
             result = text
-        if _is_native_script_echo(lang, result):
+        if _is_unusable_rewrite(lang, result):
             retry = await _rewrite(_compose_instruction(label, strict=True))
-            if retry and not _is_native_script_echo(lang, retry):
+            if retry and not _is_unusable_rewrite(lang, retry):
                 result = retry
             else:
                 logger.warning(
-                    "reply_composer echo — using English",
-                    extra={"template_key": template_key, "language": lang},
+                    "reply_composer unusable rewrite — using English",
+                    extra={
+                        "template_key": template_key,
+                        "language": lang,
+                        "model": compose_model,
+                        "foreign_chars": "".join(_script_violations(lang, retry or result))[:20],
+                    },
+                )
+                return text
+        if pinned or pinned_words:
+            # A pinned phrase that did not survive makes the reply actively
+            # misleading: it tells the customer to send words that trigger
+            # nothing, or claims we don't sell the metal we do. English is the
+            # safer answer.
+            lowered = result.lower()
+            missing = [p for p in pinned if p not in result]
+            missing += [w for w in pinned_words if w not in lowered]
+            if missing:
+                logger.warning(
+                    "reply_composer dropped a pinned phrase — using English",
+                    extra={"template_key": template_key, "language": lang,
+                           "missing": missing[:2]},
                 )
                 return text
         if len(_CACHE) < 2000:
@@ -240,6 +400,12 @@ async def narrate(
         "messages to propose products. For a greeting, stay warm and open-ended "
         "(e.g. 'what can I help you find today?') — never name a product."
     )
+    if _needs_native_script(lang):
+        instruction += (
+            " Write ONLY in the requested script — never mix in characters or "
+            "words from another language. Use the natural everyday word for "
+            "'jewellery' in that language."
+        )
     ctx = f"Customer said: {user_message}\n" if user_message else ""
     user_msg = f"{ctx}Convey this: {intent_text}"
     try:
@@ -250,8 +416,35 @@ async def narrate(
             max_output_tokens=200,
             phone_number=phone_number,
             client_id=client_id,
+            # Greetings and acks are the FIRST thing a customer reads, and the
+            # default model mangles them in low-resource languages — a Marathi
+            # greeting came back as "wheat sinus assistant". Same routing as
+            # compose(); without it this path silently kept the old quality.
+            model=resolve_compose_model(lang),
         )
-        return (out or intent_text).strip() or intent_text
+        text = (out or intent_text).strip() or intent_text
+        if _needs_native_script(lang) and _script_violations(lang, text):
+            # One resample before giving up. Falling straight back to English
+            # leaves a greeting in English glued to a native-script prompt on
+            # the very next line, which reads worse than either alone.
+            retry = await complete_chat(
+                agent=AgentName.GENERAL,
+                instruction=instruction,
+                messages=[{"role": "user", "content": user_msg}],
+                max_output_tokens=200,
+                phone_number=phone_number,
+                client_id=client_id,
+                model=resolve_compose_model(lang),
+            )
+            retry = (retry or "").strip()
+            if retry and not _script_violations(lang, retry):
+                return retry
+            logger.warning(
+                "reply_composer.narrate mixed scripts — using original",
+                extra={"language": lang},
+            )
+            return intent_text
+        return text
     except Exception as exc:
         logger.warning(
             "reply_composer.narrate failed — using original",
