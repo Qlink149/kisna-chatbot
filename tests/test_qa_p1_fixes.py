@@ -447,3 +447,89 @@ class OpeningBudgetDeclineTests(unittest.TestCase):
         )
         self.assertNotEqual(seeded.get("budget"), ANY_SLOT)
         self.assertEqual(seeded.get("max_price"), 50000)
+
+
+class MultilingualRobustnessTests(unittest.TestCase):
+    """Audit of the session's fixes for languages nobody enumerated.
+
+    Several fixes shipped as Latin (or Latin+Devanagari) word lists, which is
+    the failure mode this codebase keeps rediscovering: the list covers the
+    languages someone thought of and silently breaks for the rest.
+    """
+
+    def test_a_stated_ceiling_survives_in_any_script(self):
+        """The band-snap heuristic must not fire on text it cannot read.
+
+        An Odia customer asking for rings UNDER Rs 20,000 got
+        min=20000/max=30000: the model had read the ceiling correctly and a
+        Latin-only heuristic overwrote it into a FLOOR. Direction words can
+        only ever list known languages; deferring generalises to all of them.
+        """
+        from kisna_chatbot.processors.entity_extractor import normalize_price_entities
+
+        for label, query in (
+            ("odia", "୨୦ ହଜାରରୁ କମ୍ ମୂଲ୍ୟର ମୁଦି"),
+            ("assamese", "২০ হাজাৰতকৈ কম"),
+            ("malayalam", "20000 രൂപയ്ക്ക് താഴെ"),
+            ("kannada", "20000 ಒಳಗೆ"),
+        ):
+            out = normalize_price_entities(query, {"max_price": 20000})
+            self.assertIsNone(out.get("min_price"), label)
+            self.assertEqual(out.get("max_price"), 20000, label)
+
+    def test_the_latin_band_heuristic_still_applies_to_latin(self):
+        from kisna_chatbot.processors.entity_extractor import normalize_price_entities
+
+        for query, entities in (
+            ("50k ka ring", {"max_price": 50000}),
+            ("price 50000", {"max_price": 50000}),
+            # Mixed script still bands: the Hinglish cue is readable.
+            ("मुझे 50k ka ring chahiye", {"max_price": 50000}),
+        ):
+            out = normalize_price_entities(query, dict(entities))
+            self.assertIsNotNone(out.get("min_price"), query)
+            self.assertNotEqual(out.get("min_price"), out.get("max_price"), query)
+
+    def test_budget_decline_mid_funnel_uses_the_llm_not_the_phrase_list(self):
+        """_ANY_ANSWER_RE is Latin+Devanagari and misses Dravidian declines.
+
+        The LLM field existed but was only wired into seeding, so the funnel
+        re-asked a budget a Tamil customer had already waved away.
+        """
+        from kisna_chatbot.processors.shopping_wizard import (
+            ANY_SLOT,
+            _parse_text_for_step,
+        )
+
+        for label, query in (
+            ("tamil", "பட்ஜெட் ஏதும் இல்லை"),
+            ("telugu", "బడ్జెట్ ఏమీ లేదు"),
+            ("kannada", "ಬಜೆಟ್ ಏನೂ ಇಲ್ಲ"),
+            ("malayalam", "ബജറ്റ് ഒന്നുമില്ല"),
+        ):
+            self.assertEqual(
+                _parse_text_for_step("budget", query, {"budget": "any"}),
+                ANY_SLOT,
+                label,
+            )
+
+    def test_a_real_amount_is_never_read_as_a_decline(self):
+        from kisna_chatbot.processors.shopping_wizard import (
+            ANY_SLOT,
+            _parse_text_for_step,
+        )
+
+        result = _parse_text_for_step(
+            "budget", "under 50k", {"min_price": 50000, "max_price": 50000}
+        )
+        self.assertNotEqual(result, ANY_SLOT)
+        self.assertEqual(result, (None, 50000.0))
+
+    def test_the_any_marker_reaches_the_collected_slots(self):
+        # _apply_slot only understood a (min, max) tuple, so the marker
+        # returned above was dropped and the step asked again.
+        from kisna_chatbot.processors.shopping_wizard import ANY_SLOT, _apply_slot
+
+        collected: dict = {}
+        _apply_slot(collected, "budget", ANY_SLOT)
+        self.assertEqual(collected.get("budget"), ANY_SLOT)

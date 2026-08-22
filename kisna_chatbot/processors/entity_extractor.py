@@ -1075,6 +1075,19 @@ def normalize_price_entities(
     if text and (_MAX_DIRECTION_RE.search(text) or _MIN_DIRECTION_RE.search(text)):
         return out
 
+    # Everything below is a HEURISTIC for Latin/Hinglish idiom -- widening a
+    # single stated amount ("50k ka ring") into a browsing band. It has no way
+    # to read a script it does not know, and applying it anyway is how an Odia
+    # customer asking for rings UNDER Rs 20,000 got min=20000/max=30000: the
+    # LLM had read the ceiling correctly and this overwrote it.
+    #
+    # The direction words above can only ever cover the languages someone
+    # thought to list. This cannot, so it defers instead: when the message is
+    # in a script we cannot parse and offers no Latin single-target cue, the
+    # model's min/max stands. Guessing is worse than trusting it.
+    if text and _INDIC_SCRIPT_RE.search(text) and not _SINGLE_TARGET_HINT_RE.search(text):
+        return out
+
     try:
         min_f = float(min_p) if min_p is not None else None
         max_f = float(max_p) if max_p is not None else None
@@ -1600,7 +1613,28 @@ _MATERIAL_NEGATOR_BEFORE_RE = re.compile(
     r"don'?t\s+want|dont\s+want|bina)\b",
     re.I,
 )
-_MATERIAL_NEGATOR_AFTER_RE = re.compile(r"\b(?:nahi+n?|mat|nako|nathi)\b", re.I)
+# Verb-final languages put the negator AFTER the noun ("सोना ... नहीं",
+# "தங்கம் வேண்டாம்"). No \b on the native alternatives: Python's \w excludes
+# Indic combining marks, so a trailing boundary silently never fires.
+#
+# Listing these is deliberate and is NOT the mistake made with kinship terms or
+# budget phrasings. Negation is a CLOSED class -- one or two particles per
+# language, and the set is finite -- whereas those were open classes that no
+# list could ever cover. This is a safety net behind the model, which handles
+# English, Hinglish and Gujarati correctly but keeps emitting the refused metal
+# for Hindi, Tamil, Marathi and Bengali however the rule is phrased.
+_MATERIAL_NEGATOR_AFTER_RE = re.compile(
+    r"\b(?:nahi+n?|mat|nako|nathi)\b"
+    r"|नहीं|नहि|नको|ना\b"  # Hindi / Marathi
+    r"|નથી|નહીં"  # Gujarati
+    r"|வேண்டாம்|இல்லை"  # Tamil
+    r"|వద్దు|లేదు"  # Telugu
+    r"|চাই\s*না|নয়|না\b"  # Bengali
+    r"|ਨਹੀਂ"  # Punjabi
+    r"|ಬೇಡ|ಇಲ್ಲ"  # Kannada
+    r"|വേണ്ട|ഇല്ല",  # Malayalam
+    re.I,
+)
 
 
 def _materials_named(text: str) -> set[str]:

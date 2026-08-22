@@ -1118,7 +1118,12 @@ def _apply_slot(collected: dict, step: str, value: Any) -> None:
     elif step == "material" and value:
         collected["material_type"] = value
     elif step == "budget":
-        if isinstance(value, tuple) and len(value) == 2:
+        if value == ANY_SLOT:
+            # "no preference", however the customer phrased it. Without this
+            # branch the marker returned by _parse_text_for_step is silently
+            # dropped and the step is asked again.
+            collected["budget"] = ANY_SLOT
+        elif isinstance(value, tuple) and len(value) == 2:
             collected["min_price"] = value[0]
             collected["max_price"] = value[1]
     elif step == "fulfillment" and value:
@@ -1184,6 +1189,13 @@ def _parse_text_for_step(
         return llm_slots["gender"]
     if step == "fulfillment" and llm_slots.get("fulfillment"):
         return llm_slots["fulfillment"]
+    if step == "budget" and llm_slots.get("budget") == ANY_SLOT:
+        # The model says the customer declined, in whatever language they said
+        # it. _ANY_ANSWER_RE below is Latin + Devanagari only and misses Tamil,
+        # Telugu, Kannada and Malayalam declines outright, so without this the
+        # funnel re-asks a budget they already waved away.
+        return ANY_SLOT
+
     if step == "budget" and (
         llm_slots.get("min_price") is not None
         or llm_slots.get("max_price") is not None
