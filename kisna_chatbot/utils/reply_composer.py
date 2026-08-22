@@ -413,7 +413,12 @@ async def narrate(
             agent=AgentName.GENERAL,
             instruction=instruction,
             messages=[{"role": "user", "content": user_msg}],
-            max_output_tokens=200,
+            # A flat 200 starved the routed model: it spent the budget
+            # reasoning and returned an EMPTY string, so `out or
+            # intent_text` handed the customer the whole English intro
+            # as their first message -- 38% of native-script greetings
+            # live. compose() never had this: it already scales.
+            max_output_tokens=_compose_token_budget(intent_text),
             phone_number=phone_number,
             client_id=client_id,
             # Greetings and acks are the FIRST thing a customer reads, and the
@@ -423,7 +428,12 @@ async def narrate(
             model=resolve_compose_model(lang),
         )
         text = (out or intent_text).strip() or intent_text
-        if _needs_native_script(lang) and _script_violations(lang, text):
+        # Empty output falls back to the English source, which the purity
+        # check happily accepts -- English contains no FOREIGN script. Ask
+        # the echo question too, as _is_unusable_rewrite does for compose().
+        if _needs_native_script(lang) and (
+            _script_violations(lang, text) or _is_native_script_echo(lang, text)
+        ):
             # One resample before giving up. Falling straight back to English
             # leaves a greeting in English glued to a native-script prompt on
             # the very next line, which reads worse than either alone.
@@ -431,13 +441,16 @@ async def narrate(
                 agent=AgentName.GENERAL,
                 instruction=instruction,
                 messages=[{"role": "user", "content": user_msg}],
-                max_output_tokens=200,
+                max_output_tokens=_compose_token_budget(intent_text),
                 phone_number=phone_number,
                 client_id=client_id,
                 model=resolve_compose_model(lang),
             )
             retry = (retry or "").strip()
-            if retry and not _script_violations(lang, retry):
+            if retry and not (
+                _script_violations(lang, retry)
+                or _is_native_script_echo(lang, retry)
+            ):
                 return retry
             logger.warning(
                 "reply_composer.narrate mixed scripts — using original",

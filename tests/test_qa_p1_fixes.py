@@ -533,3 +533,52 @@ class MultilingualRobustnessTests(unittest.TestCase):
         collected: dict = {}
         _apply_slot(collected, "budget", ANY_SLOT)
         self.assertEqual(collected.get("budget"), ANY_SLOT)
+
+
+class QARegressionPassTests(unittest.TestCase):
+    """Found by the regression QA pass on HEAD 7a975e4."""
+
+    def test_budget_any_survives_merge_search_entities(self):
+        """The LLM-primary field must reach the wizard on the SEARCH path.
+
+        merge_search_entities rebuilds the entity dict from a hardcoded key
+        list that had no "budget", so the field was dropped between
+        combine_search_entities and start_wizard. Every non-Latin-script
+        customer was re-asked a budget they had already declined; English only
+        worked because the deterministic phrase regex caught it, i.e. the
+        LLM-primary path was not actually doing the work.
+        """
+        from kisna_chatbot.processors.entity_extractor import merge_search_entities
+
+        merged = merge_search_entities(
+            {},
+            {"category": "ring", "material_type": "diamond", "budget": "any"},
+            "எனக்கு வைர மோதிரம் வேண்டும்",
+        )
+        self.assertEqual(merged.get("budget"), "any")
+
+    def test_narrate_rejects_an_english_echo(self):
+        """An empty model reply fell back to the English source.
+
+        narrate() only checked for a FOREIGN script, which an all-English
+        string passes, so 38% of native-script customers got the entire
+        English KIA intro as their first message. compose() was already
+        protected by the echo check; narrate now asks the same question.
+        """
+        from kisna_chatbot.utils.reply_composer import (
+            _is_native_script_echo,
+            _script_violations,
+        )
+
+        english = "Hi! I am KIA, your trusted jewellery assistant."
+        # The old guard alone: clean, because English has no foreign script.
+        self.assertFalse(_script_violations("ta", english))
+        # The echo check is what catches it.
+        self.assertTrue(_is_native_script_echo("ta", english))
+        self.assertFalse(_is_native_script_echo("ta", "வணக்கம்! நான் கியா"))
+
+    def test_narrate_budget_is_scaled_not_flat(self):
+        # A flat 200 starved the routed reasoning model into empty output.
+        from kisna_chatbot.utils.reply_composer import _compose_token_budget
+
+        self.assertGreaterEqual(_compose_token_budget("short"), 400)

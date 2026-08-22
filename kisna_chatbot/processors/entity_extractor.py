@@ -2129,6 +2129,14 @@ def merge_search_entities(
         "unsupported_material": new.get("unsupported_material", False),
         "min_price": new.get("min_price"),
         "max_price": new.get("max_price"),
+        # "the customer explicitly said price does not matter" -- a decline has
+        # no numeric form, so min/max cannot carry it. Omitting it here dropped
+        # the field between combine_search_entities and start_wizard, so the
+        # funnel re-asked a budget every non-Latin-script customer had already
+        # waved away. English only kept working because the deterministic
+        # phrase regex happened to catch it -- i.e. the LLM-primary path was
+        # not actually doing the work.
+        "budget": new.get("budget"),
         "title": new.get("title"),
         "city": new.get("city"),
         "pincode": new.get("pincode"),
