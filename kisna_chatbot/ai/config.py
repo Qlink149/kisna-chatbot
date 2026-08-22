@@ -28,6 +28,12 @@ DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 # Do NOT point this at a reasoning model without re-checking: gpt-5-mini
 # returned EMPTY output 12/12 under this call shape, its budget consumed by
 # reasoning tokens.
+# Cost, measured rather than assumed (rates confirmed 2026-07-30:
+# $0.20/M input, $1.20/M output, $0.02/M cache reads). A short canned line
+# costs ~457 in + ~161 out = $0.00029, i.e. 0.03 cents; a long FAQ answer
+# ~0.08 cents. 10,000 translated replies a month is under $3. compose()
+# also caches by (lang, exact text) and canned copy repeats constantly, so
+# most calls never reach the API. Cost is not a reason to move off this.
 DEFAULT_COMPOSE_WEAK_MODEL = "gpt-5.6-luna"
 # Membership is decided per language by measurement, not by script family.
 # Gujarati: the default rendered "gold rings" as "golden nation" / "gold map".
