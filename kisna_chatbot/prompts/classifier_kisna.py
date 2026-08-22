@@ -697,6 +697,8 @@ budget:
   This is how you say "they answered the budget question with no preference";
   null means they simply did not mention money. Never "any" just because no
   amount appears.
+  budget is a SEPARATE field from min_price/max_price, not an alternative:
+  a decline means min_price=null AND max_price=null AND budget="any".
   A stated amount or range fills min_price/max_price and leaves budget null.
 
 fulfillment (shipping / availability — CURRENT message only):

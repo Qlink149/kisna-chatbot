@@ -540,9 +540,20 @@ def seed_wizard_from_entities(
         # gender bug happened.
         seeded["budget"] = ANY_SLOT
     elif query and _ANY_ANSWER_RE.search(query) and _names_budget(query):
-        # Deterministic fallback for an LLM outage only. Latin/Devanagari
-        # phrasings just happen to be the ones a regex can reach; do NOT grow
-        # it to chase more languages.
+        # Deterministic fallback. Two jobs, and neither is "read more
+        # languages" -- do NOT grow this list to chase those; that is the
+        # failure the budget field above exists to end.
+        #
+        # 1. An LLM outage.
+        # 2. One genuine parsing ambiguity the model cannot be prompted out
+        #    of: in "14kt diamond rings OF any price FOR MEN", the phrase sits
+        #    mid-noun-phrase, grammatically parallel to "of 14kt", so the model
+        #    reads it as another product attribute rather than a budget
+        #    statement (0/5 live, systematic). Ablation showed it needs all
+        #    three together -- a karat, "of any price", and a trailing
+        #    audience; "at any price" (a fixed idiom) and the same words at the
+        #    start or end of the sentence are all read correctly. That reading
+        #    is defensible English, and forcing it risks the opposite error.
         seeded["budget"] = ANY_SLOT
 
     fulfillment = ents.get("fulfillment")
