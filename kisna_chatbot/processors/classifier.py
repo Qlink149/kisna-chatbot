@@ -276,6 +276,10 @@ _VIDEO_CALL_RE = re.compile(
 # is Latin-only, so these messages must ALWAYS reach the LLM classifier — otherwise
 # a sticky session silently reuses stale filters (e.g. Gujarati "ring" continued a
 # necklace search).
+from kisna_chatbot.utils.script_detect import (  # noqa: E402
+    has_non_latin_letters,
+)
+
 _INDIC_SCRIPT_RE = re.compile(r"[ऀ-ൿ]")
 
 # Savings-plan / scheme queries (KMR = Kisna Meri Roshni) answered from the KB,
@@ -1372,7 +1376,8 @@ def _is_low_language_signal(user_text: str) -> bool:
     text = (user_text or "").strip()
     if not text:
         return True
-    if _INDIC_SCRIPT_RE.search(text):
+    # Any non-Latin script, not just Indic — see utils/script_detect.
+    if has_non_latin_letters(text):
         return False
     if _LOW_SIGNAL_ALWAYS_RE.search(text):
         return True
@@ -2487,7 +2492,10 @@ class Classifier(Processor):
         # Latin-only, so "मुझे एजेंट से बात करनी है" mid-wizard matched nothing
         # and the funnel re-asked the same question forever. The LLM decides
         # escape-vs-slot-answer in process() (_llm_intent_escapes_sticky).
-        has_indic = bool(_INDIC_SCRIPT_RE.search(user_query))
+        # Named has_indic historically; the question is really whether the
+        # Latin-only escape regexes below could have read this at all, so
+        # it covers Arabic/Urdu too. Urdu escapes were looping the funnel.
+        has_indic = has_non_latin_letters(user_query)
 
         if user_profile.get("shopping_wizard_active"):
             if _sticky_wait_escape_intent(user_query):
@@ -2753,7 +2761,7 @@ class Classifier(Processor):
                             },
                         )
                         # Fall through to ack / override / LLM
-                    elif _INDIC_SCRIPT_RE.search(raw_query):
+                    elif has_non_latin_letters(raw_query):
                         # Native script — every escape regex above is Latin-only,
                         # so "silence" here is not evidence the user stayed in
                         # the flow. Let the LLM classify, then decide (below).

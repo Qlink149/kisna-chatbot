@@ -46,6 +46,11 @@ _OCCASION_TAG_TERMS: dict[str, tuple[str, ...]] = {
 
 # Any Indic script (Devanagari … Malayalam). Latin-only regex is meaningless on
 # these; when present we trust the LLM instead of gating with regex.
+from kisna_chatbot.utils.script_detect import (  # noqa: E402
+    has_letters,
+    has_non_latin_letters,
+)
+
 _INDIC_SCRIPT_RE = re.compile(r"[ऀ-ൿ]")
 
 # Comparative price words, Latin script ONLY, and consulted ONLY when the LLM
@@ -74,7 +79,7 @@ _LOWER_PRICE_WORDS_RE = re.compile(
 
 def _latin_price_direction(text: str) -> str | None:
     """Comparative price direction from romanized text, or None to stay silent."""
-    if not text or _INDIC_SCRIPT_RE.search(text):
+    if not text or has_non_latin_letters(text):
         return None
     # A stated number is a real budget, not a relative nudge -- leave those to
     # min/max extraction rather than shifting the band twice.
@@ -1135,7 +1140,11 @@ def normalize_price_entities(
     # thought to list. This cannot, so it defers instead: when the message is
     # in a script we cannot parse and offers no Latin single-target cue, the
     # model's min/max stands. Guessing is worse than trusting it.
-    if text and _INDIC_SCRIPT_RE.search(text) and not _SINGLE_TARGET_HINT_RE.search(text):
+    if (
+        text
+        and has_non_latin_letters(text)
+        and not _SINGLE_TARGET_HINT_RE.search(text)
+    ):
         return out
 
     try:
@@ -2089,7 +2098,10 @@ def apply_llm_evidence_gate(query: str, llm_entities: dict) -> dict:
     # even when the Latin evidence gate is skipped for Indic text.
     if out.get("gender") and is_ambiguous_audience(text):
         out["gender"] = None
-    if _INDIC_SCRIPT_RE.search(text):
+    # Non-Latin rather than Indic: the same reasoning applies to every
+    # script the Latin regex cannot read, and hardcoding one range made
+    # this silently wrong the day Urdu was added. See utils/script_detect.
+    if has_non_latin_letters(text):
         return out
     regex_quick = extract_entities(text) if text.strip() else {}
 
@@ -2452,11 +2464,14 @@ def is_unrecognizable_input(text: str) -> bool:
     if _PRICE_HINT_RE.search(normalized):
         return False
 
-    # Real letters — Latin OR Indic script (Devanagari/Gujarati/…) — mean this is
-    # genuine language, not gibberish. Without the Indic check, native-script
-    # product queries ("मुझे अंगूठी चाहिए") were flagged as spam and rerouted to
-    # the GeneralAgent, which then handed off to a live agent.
-    if re.search(r"[a-zA-Z]", normalized) or _INDIC_SCRIPT_RE.search(normalized):
+    # Real letters in ANY script mean this is genuine language, not gibberish.
+    # This was written as "Latin OR Indic" after native-script product queries
+    # ("मुझे अंगूठी चाहिए") were flagged as spam and rerouted to the GeneralAgent
+    # — and then Urdu, being Arabic script, hit the exact same bug: a perfectly
+    # clear "خواتین کے لیے سونے کی انگوٹھیاں دکھائیں" was treated as keyboard
+    # mash. Asking whether the characters are LETTERS closes it for good;
+    # keyboard mash and repeated characters are caught by the checks above.
+    if has_letters(normalized):
         return False
 
     return len(normalized) >= 4

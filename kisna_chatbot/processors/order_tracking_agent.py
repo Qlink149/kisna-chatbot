@@ -123,6 +123,7 @@ def _build_generic_tracking_response(tracking_url: str) -> list:
             "type": "cta_url",
             "text": "Click below to track your order in real-time. 🚚",
             "display_text": "Track Your Order",
+            "_compose": "order_tracking_cta",
             "url": tracking_url,
         },
     ]

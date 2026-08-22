@@ -14,6 +14,7 @@ to record what it understood.
 import asyncio
 import os
 import unittest
+from unittest import mock
 
 import pytest
 
@@ -593,3 +594,117 @@ class SecondaryIntentTests(unittest.TestCase):
         data = {"secondary_intent": "offers"}
         asyncio.run(append_secondary_answer(data))
         self.assertNotIn("bot_response", data)
+
+
+class NonLatinScriptTests(unittest.TestCase):
+    """Seven places encoded "non-Latin means Indic" as a U+0900-U+0D7F range.
+
+    That held while every supported language was Latin or Indic. Urdu is Arabic
+    script, so adding it made all seven wrong at once, and severely: an Urdu
+    product search was classified as SPAM, the evidence gate deleted the metal
+    and audience the model had read correctly, and every composed Urdu reply
+    was rejected as an echo and fell back to English.
+
+    These pin the predicate, not the seven call sites -- the point is that the
+    NEXT language added cannot recreate this.
+    """
+
+    URDU = "خواتین کے لیے سونے کی انگوٹھیاں دکھائیں"
+    HINDI = "महिलाओं के लिए सोने की अंगूठियां दिखाओ"
+
+    def test_every_supported_script_counts_as_non_latin(self):
+        from kisna_chatbot.utils.script_detect import has_non_latin_letters
+
+        for label, text in (
+            ("hi/mr", "अंगूठी"), ("bn/as", "আংটি"), ("pa", "ਮੁੰਦਰੀ"),
+            ("gu", "વીંટી"), ("or", "ଅଙ୍ଗୁଠି"), ("ta", "மோதிரம்"),
+            ("te", "ఉంగరం"), ("kn", "ಉಂಗುರ"), ("ml", "മോതിരം"),
+            ("ur", "انگوٹھی"),
+        ):
+            self.assertTrue(has_non_latin_letters(text), label)
+
+    def test_latin_digits_and_emoji_are_not(self):
+        from kisna_chatbot.utils.script_detect import has_non_latin_letters
+
+        for text in ("show me gold rings", "50000", "😍", "", "?!.", "15-35k"):
+            self.assertFalse(has_non_latin_letters(text), repr(text))
+
+    def test_real_language_in_any_script_is_not_gibberish(self):
+        from kisna_chatbot.processors.entity_extractor import is_unrecognizable_input
+
+        for label, text in (("urdu", self.URDU), ("hindi", self.HINDI),
+                            ("english", "show me gold rings")):
+            self.assertFalse(is_unrecognizable_input(text), label)
+
+    def test_the_evidence_gate_treats_urdu_like_hindi(self):
+        """It stripped material_type and gender from Urdu while keeping them
+        for Hindi -- the Latin regex overriding what the model read."""
+        from kisna_chatbot.processors.entity_extractor import apply_llm_evidence_gate
+
+        llm = {"category": "ring", "material_type": "gold", "gender": "women"}
+        for text in (self.URDU, self.HINDI):
+            out = apply_llm_evidence_gate(text, dict(llm))
+            self.assertEqual(out.get("material_type"), "gold", text[:20])
+            self.assertEqual(out.get("gender"), "women", text[:20])
+
+    def test_a_reply_in_its_own_script_is_not_an_echo(self):
+        from kisna_chatbot.utils.reply_composer import (
+            _is_native_script_echo,
+            _is_unusable_rewrite,
+        )
+
+        for lang, text in (("ur", "ہم 7 دن کی واپسی کی پالیسی پیش کرتے ہیں۔"),
+                           ("hi", "हम 7 दिन की वापसी नीति देते हैं।"),
+                           ("ta", "நாங்கள் 7 நாள் கொள்கை வழங்குகிறோம்.")):
+            self.assertFalse(_is_native_script_echo(lang, text), lang)
+            self.assertFalse(_is_unusable_rewrite(lang, text), lang)
+
+    def test_a_reply_in_the_wrong_script_is_still_an_echo(self):
+        """Narrowing the check must not disable it."""
+        from kisna_chatbot.utils.reply_composer import _is_native_script_echo
+
+        self.assertTrue(_is_native_script_echo("ur", "हम 7 दिन की वापसी नीति देते हैं।"))
+        self.assertTrue(_is_native_script_echo("ta", "ہم واپسی کی پالیسی پیش کرتے ہیں۔"))
+        self.assertTrue(_is_native_script_echo("hi", "We offer a 7-day return window."))
+
+
+class LocalisedCtaTests(unittest.TestCase):
+    """cta_url carries prose in "text" just like a plain message, but was
+    skipped by the localiser -- so an Urdu customer was told "Click below to
+    track your order" in English."""
+
+    def test_a_tagged_cta_is_localised(self):
+        from kisna_chatbot.utils import reply_composer
+
+        item = {"type": "cta_url", "text": "Click below to track your order.",
+                "display_text": "Track Your Order", "url": "https://x",
+                "_compose": "order_tracking_cta"}
+        data = {"bot_response": [item], "user_profile": {"language": "hi"},
+                "messages": {}}
+
+        async def fake_compose(template_key, text, **kw):
+            return "TRANSLATED"
+
+        with mock.patch.object(reply_composer, "compose", fake_compose):
+            asyncio.run(reply_composer.localize_bot_responses(data))
+        self.assertEqual(item["text"], "TRANSLATED")
+        # Button labels stay English: WhatsApp caps them at 20 characters.
+        self.assertEqual(item["display_text"], "Track Your Order")
+
+    def test_the_tracking_cta_is_tagged(self):
+        from kisna_chatbot.processors.order_tracking_agent import (
+            _build_generic_tracking_response,
+        )
+
+        responses = _build_generic_tracking_response("https://kisna.com/track")
+        self.assertEqual(responses[0].get("_compose"), "order_tracking_cta")
+
+    def test_support_messages_are_tagged(self):
+        """Both handoff branches reached non-English customers in English."""
+        import inspect
+
+        from kisna_chatbot.processors import support_handler
+
+        src = inspect.getsource(support_handler)
+        self.assertIn('"_compose": "support_offline"', src)
+        self.assertIn('"_compose": "support_handoff"', src)

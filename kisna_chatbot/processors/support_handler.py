@@ -95,7 +95,15 @@ def build_expert_support_bot_response(
         user_profile["live_agent_requested_at"] = int(time.time())
         user_profile["live_agent_required"] = True
         _notify_admins(customer_name, phone_number)
-        return [{"type": "text", "text": KIA_HANDOFF_MESSAGE}]
+        # Same reason as the offline branch below: untagged text is never
+        # localised, so this reached every non-English customer in English.
+        return [
+            {
+                "type": "text",
+                "text": KIA_HANDOFF_MESSAGE,
+                "_compose": "support_handoff",
+            }
+        ]
 
     if status["status"] == "closed_holiday":
         holiday = status.get("holiday", "a holiday")
@@ -121,7 +129,14 @@ def build_expert_support_bot_response(
     )
 
     user_profile["service_selected"] = SL.CALLBACK.value
-    responses: list[dict] = [{"type": "text", "text": offline_text}]
+    # Tagged so localize_bot_responses mirrors it into the customer's
+    # language. Untagged messages are skipped outright, so a Marathi
+    # customer asking for a human was told "Our team is currently offline"
+    # in English -- the one moment in the conversation they most need to
+    # understand the answer.
+    responses: list[dict] = [
+        {"type": "text", "text": offline_text, "_compose": "support_offline"}
+    ]
     if get_callback_flow_id():
         responses.append(build_callback_flow_bot_response())
     else:

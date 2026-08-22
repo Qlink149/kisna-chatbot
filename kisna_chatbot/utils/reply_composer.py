@@ -153,10 +153,20 @@ def _script_violations(lang: str, rewritten: str) -> list[str]:
 
 
 def _is_native_script_echo(lang: str, rewritten: str) -> bool:
-    """True when a native-script language came back with no Indic characters."""
+    """True when a native-script language came back without its OWN script.
+
+    Asks about the TARGET language's script rather than "any Indic". The old
+    form rejected every correct Urdu rewrite -- Arabic is not in the Indic
+    range -- so Urdu customers were answered in English no matter what the
+    model produced. Checking the language's own block is both narrower and
+    correct: a Tamil reply written in Devanagari is an echo too.
+    """
     if not _needs_native_script(lang):
         return False
-    return not bool(_INDIC_SCRIPT_RE.search(rewritten or ""))
+    target = _SCRIPT_RANGES.get(lang.split("-")[0])
+    if not target:
+        return False
+    return not any(target[0] <= ord(ch) <= target[1] for ch in (rewritten or ""))
 
 
 def _is_unusable_rewrite(lang: str, rewritten: str) -> bool:
@@ -554,7 +564,11 @@ async def localize_bot_responses(data: dict) -> None:
         if item.get("type") == "quickreply":
             await _localize_quick_reply(item, language, data)
             continue
-        if item.get("type") != "text" or not item.get("text"):
+        # cta_url carries its prose in "text" exactly as a plain message
+        # does, and was skipped here -- so a tagged CTA stayed English. Its
+        # display_text is deliberately NOT translated: WhatsApp caps button
+        # labels at 20 characters and several languages would overflow it.
+        if item.get("type") not in ("text", "cta_url") or not item.get("text"):
             continue
         if template_key in _PERSONALITY_TAGS:
             item["text"] = await narrate(
