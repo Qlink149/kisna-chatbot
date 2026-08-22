@@ -48,6 +48,45 @@ _OCCASION_TAG_TERMS: dict[str, tuple[str, ...]] = {
 # these; when present we trust the LLM instead of gating with regex.
 _INDIC_SCRIPT_RE = re.compile(r"[ऀ-ൿ]")
 
+# Comparative price words, Latin script ONLY, and consulted ONLY when the LLM
+# returned no price_direction of its own. This is deliberately the inverse of
+# the usual word-list trap: the model reads native script correctly and this
+# never overrides it. Measured on gpt-4o-mini, 2 runs each --
+#   "और महंगे दिखाओ" / the Tamil and Gujarati equivalents -> direction set  OK
+#   "aur premium wale dikhao" / "show me more premium ones" /
+#   "aur mehnga dikhao" / "show me cheaper ones"          -> action="more"  BAD
+# i.e. it fails exactly on romanized comparatives, where the pagination wording
+# ("aur ... dikhao", "show me more ...") wins over the price word. Telling the
+# prompt the two fields are mutually exclusive was tried first and made it
+# worse -- it began emitting BOTH, and lost "thoda sasta" on one run -- so the
+# rule lives here, behind the model rather than in front of it.
+_HIGHER_PRICE_WORDS_RE = re.compile(
+    r"(?:premium|mehng|mahang|mehang|costly|costlier|expensive|pricier|"
+    r"pricey|upmarket|luxur|high\s*(?:er)?\s*(?:price|budget|range))",
+    re.I,
+)
+_LOWER_PRICE_WORDS_RE = re.compile(
+    r"(?:sasta|sasti|sastu|saste|cheap|cheaper|affordable|economical|"
+    r"budget\s*friendly|low\s*(?:er)?\s*(?:price|budget|range))",
+    re.I,
+)
+
+
+def _latin_price_direction(text: str) -> str | None:
+    """Comparative price direction from romanized text, or None to stay silent."""
+    if not text or _INDIC_SCRIPT_RE.search(text):
+        return None
+    # A stated number is a real budget, not a relative nudge -- leave those to
+    # min/max extraction rather than shifting the band twice.
+    if re.search(r"\d", text):
+        return None
+    higher = bool(_HIGHER_PRICE_WORDS_RE.search(text))
+    lower = bool(_LOWER_PRICE_WORDS_RE.search(text))
+    if higher == lower:  # neither, or a contradictory both -- abstain
+        return None
+    return "higher" if higher else "lower"
+
+
 _CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "ring": [
         "ring",
@@ -839,6 +878,7 @@ _REGEX_FILL_FIELDS = (
     "max_price",
     "pincode",
     "city",
+    "state",
     # collection is matched deterministically against the live Clara
     # collections list (_matched_collection_label never returns a false
     # positive), but the LLM consistently misses one-word collection names
@@ -870,6 +910,9 @@ _LLM_ONLY_FIELDS = (
 _SEMANTIC_MERGE_FIELDS = (
     "category",
     "material_type",
+    # Sits beside material_type on purpose: a refusal belongs to the message
+    # that made it, so a later turn must not inherit a stale exclusion.
+    "excluded_material",
     "metal_colour",
     "categories",
     "multi_category",
@@ -2125,6 +2168,11 @@ def merge_search_entities(
         "multi_category": new.get("multi_category", False),
         "secondary_category": new.get("secondary_category"),
         "material_type": new.get("material_type"),
+        # The metal the customer ruled out. Same reason budget is listed below:
+        # this whitelist is the choke point where a field the LLM filled in
+        # silently disappears, and a refusal that vanishes means we search for
+        # exactly the metal they said no to.
+        "excluded_material": new.get("excluded_material"),
         "unsupported_category": new.get("unsupported_category", False),
         "unsupported_material": new.get("unsupported_material", False),
         "min_price": new.get("min_price"),
@@ -2139,6 +2187,7 @@ def merge_search_entities(
         "budget": new.get("budget"),
         "title": new.get("title"),
         "city": new.get("city"),
+        "state": new.get("state"),
         "pincode": new.get("pincode"),
         "karat": new.get("karat"),
         "metal_colour": new.get("metal_colour"),
@@ -2618,6 +2667,17 @@ async def extract_entities_with_llm(
         )
         parsed = _parse_entity_json(raw)
         sanitized = _sanitize_llm_entities(parsed)
+        # Behind the model, never in front of it: only fills the field when
+        # the LLM left it empty, and only for romanized text (see
+        # _latin_price_direction). Without this, "aur premium wale dikhao"
+        # reached the pagination gate as a bare action="more" and the
+        # customer asking for pricier pieces got the next, cheaper page.
+        if sanitized and not sanitized.get("price_direction"):
+            direction = _latin_price_direction(user_query)
+            if direction:
+                sanitized["price_direction"] = direction
+                # A direction is a refinement, so it is not pagination.
+                sanitized["action"] = None
         logger.debug(
             "entity_extractor: LLM extraction complete",
             extra={"query": user_query, "entities": sanitized},

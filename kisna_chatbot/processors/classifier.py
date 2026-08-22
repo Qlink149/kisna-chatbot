@@ -734,6 +734,12 @@ _LLM_ENTITY_MATERIALS = frozenset(
         "diamond",
         "silver",
         "platinum",
+        # Kept even though Clara stocks none of these: dropping them here would
+        # scrub the material to null and the funnel would then ask "gold,
+        # diamond or gemstone?" as though the customer had never named silver.
+        # _CLARA_UNSUPPORTED_MATERIALS is what turns them into an honest
+        # "we don't carry that", and it can only fire on a value that survives.
+        "pearl",
         "white_gold",
         "rose_gold",
         "gemstone",
@@ -821,7 +827,27 @@ def _sanitize_llm_entities(entities: dict) -> dict:
         material = material if material in _LLM_ENTITY_MATERIALS else None
     else:
         material = None
+
+    # The metal the customer RULED OUT. Before this field existed the model had
+    # nowhere to record a refusal, so it fell back on the mapping table and
+    # emitted the refused metal: "मुझे सोने की नहीं, अंगूठी दिखाओ" came back as
+    # material_type="gold" in 6 of 6 Indic languages, while English was fine.
+    # Same shape as budget="any" — an unrepresentable concept is one the model
+    # cannot report, and no amount of "NEVER emit X" wording fixes that.
+    excluded = _coerce_null(raw.get("excluded_material"))
+    if isinstance(excluded, str):
+        excluded = excluded.strip().lower()
+        if excluded in ("rose_gold", "white_gold"):
+            excluded = "gold"
+        excluded = excluded if excluded in _LLM_ENTITY_MATERIALS else None
+    else:
+        excluded = None
+    # A metal cannot be both wanted and refused. Trust the refusal: the failure
+    # this field exists to fix is the model naming a refused metal as wanted.
+    if excluded is not None and material == excluded:
+        material = None
     out["material_type"] = material
+    out["excluded_material"] = excluded
 
     if isinstance(metal_colour, str):
         metal_colour = metal_colour.strip().lower()
@@ -855,6 +881,18 @@ def _sanitize_llm_entities(entities: dict) -> dict:
     out["collection"] = (
         collection.strip() if isinstance(collection, str) and collection.strip() else None
     )
+
+    # Store-lookup location, in English whatever script was typed. The store
+    # locator used to read a 121-entry Latin city list and nothing else, so
+    # "मुंबई में आपका स्टोर है क्या?" was answered with "share your pincode"
+    # even though Kisna has four Mumbai branches. States had no support at all.
+    for _place in ("city", "state"):
+        _val = _coerce_null(raw.get(_place))
+        out[_place] = (
+            _val.strip()[:60]
+            if isinstance(_val, str) and _val.strip()
+            else None
+        )
 
     gender = _coerce_null(raw.get("gender"))
     if isinstance(gender, str):
@@ -943,6 +981,11 @@ def _sanitize_llm_entities(entities: dict) -> dict:
     else:
         direction = None
     out["price_direction"] = direction
+    if direction is not None:
+        # A stated direction is a refinement of the search, not a request for
+        # the next page of it. The model sometimes emits both; the pagination
+        # gate reads action, so leaving them both set is a coin flip.
+        out["action"] = None
 
     # "any" = the customer EXPLICITLY said price does not matter, which null
     # cannot express (null also means "never mentioned money"). Without this
@@ -967,6 +1010,22 @@ def _sanitize_llm_entities(entities: dict) -> dict:
         except (TypeError, ValueError):
             ref = None
     out["product_reference"] = ref
+
+    # What they want to KNOW about that piece, as opposed to which piece they
+    # mean. Without it, product_reference was the only signal and every
+    # question about a shown product -- "iska price kya hai?" -- re-printed
+    # the card the customer was already looking at. Tightening the
+    # product_reference rule instead was tried and regressed Hindi into a
+    # fresh search, so the two facts are reported separately now.
+    # A flag, NOT the question text. Asking the model to echo the question
+    # back was tried first and it mangled Gujarati -- "કેટલી કિંમત છે?" came
+    # back as an unrelated sentence, and the answerer then answered that.
+    # We already hold the customer's message verbatim, so the model only has
+    # to judge whether it IS a question.
+    question = _coerce_null(raw.get("product_question"))
+    if isinstance(question, str):
+        question = question.strip().lower() not in ("", "false", "null", "no", "0")
+    out["product_question"] = bool(question)
 
     return out
 

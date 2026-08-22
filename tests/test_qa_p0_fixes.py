@@ -20,7 +20,9 @@ P0-3  Order tracking echoed a garbage id scraped out of ordinary words --
 
 import os
 import re
+import asyncio
 import unittest
+from unittest import mock
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -40,9 +42,7 @@ from kisna_chatbot.processors.entity_extractor import (  # noqa: E402
 from kisna_chatbot.processors.order_tracking_agent import (  # noqa: E402
     _extract_order_id_from_text,
 )
-from kisna_chatbot.processors.product_search_agent_v3 import (  # noqa: E402
-    _confirm_refinement_merge,
-)
+from kisna_chatbot.processors import product_search_agent_v3  # noqa: E402
 from kisna_chatbot.processors.shopping_wizard import (  # noqa: E402
     _ESCAPE_RE,
     _SHOW_ME_RE,
@@ -228,12 +228,32 @@ class ConfirmationRefinementTests(unittest.TestCase):
 
     "show me something in evil eye" -> recap -> "under 20k" used to throw the
     recap away, collection included, and restart the conversation.
+
+    The helper is LLM-primary now, so these stub the extractor rather than
+    hitting the network: the point under test is the MERGE policy, not whether
+    gpt-4o-mini reads a given sentence.
     """
 
     PENDING = {"entities": {"collection": "evil eye", "category": None}}
 
+    @staticmethod
+    def _merge(pending, text, stated=None, classified="product_search"):
+        data = {"classified_category": classified}
+
+        async def fake_extract(**_kwargs):
+            return dict(stated or {})
+
+        with mock.patch.object(
+            product_search_agent_v3, "extract_entities_with_llm", fake_extract
+        ):
+            return asyncio.run(
+                product_search_agent_v3._confirm_refinement_merge(
+                    data, pending, text
+                )
+            )
+
     def test_budget_refines_instead_of_replacing(self):
-        merged = _confirm_refinement_merge(self.PENDING, "under 20k")
+        merged = self._merge(self.PENDING, "under 20k", {"max_price": 20000})
         self.assertIsNotNone(merged)
         self.assertEqual(merged.get("collection"), "evil eye")
         self.assertEqual(merged.get("max_price"), 20000)
@@ -246,16 +266,50 @@ class ConfirmationRefinementTests(unittest.TestCase):
                 "max_price": 30000,
             }
         }
-        merged = _confirm_refinement_merge(pending, "under 20k")
+        merged = self._merge(pending, "under 20k", {"max_price": 20000})
         self.assertEqual(merged.get("max_price"), 20000)
         self.assertIsNone(merged.get("min_price"))
 
     def test_a_different_product_is_not_a_refinement(self):
-        self.assertIsNone(_confirm_refinement_merge(self.PENDING, "show me necklaces"))
+        merged = self._merge(
+            self.PENDING, "show me necklaces", {"category": "necklace"}
+        )
+        self.assertIsNone(merged)
 
-    def test_an_unrelated_message_is_not_a_refinement(self):
-        for text in ("do you have a store in Mumbai", "hi", ""):
-            self.assertIsNone(_confirm_refinement_merge(self.PENDING, text), text)
+    def test_a_non_shopping_route_still_escapes(self):
+        """The classifier's route is what vetoes an escape now."""
+        for text, route in (
+            ("do you have a store in Mumbai", "store_info"),
+            ("where is my order", "order_tracking"),
+            ("hi", "greeting"),
+        ):
+            self.assertIsNone(self._merge(self.PENDING, text, {}, route), text)
+        self.assertIsNone(self._merge(self.PENDING, "", {}))
+
+    def test_an_unreadable_refinement_keeps_the_search(self):
+        """D1: the whole point -- a recap survives what we cannot parse.
+
+        "show me cheaper ones" came back as a bare action="more" with no slot
+        value in it, so the old regex-only merge returned None and the entire
+        search was thrown away in favour of a greeting.
+        """
+        merged = self._merge(self.PENDING, "show me cheaper ones", {"action": "more"})
+        self.assertIsNotNone(merged)
+        self.assertEqual(merged.get("collection"), "evil eye")
+
+    def test_price_direction_shifts_the_recapped_band(self):
+        pending = {"entities": {"category": "ring", "max_price": 50000}}
+        merged = self._merge(
+            pending, "thoda sasta dikhao", {"price_direction": "lower"}
+        )
+        self.assertEqual(merged.get("category"), "ring")
+        self.assertLess(merged.get("max_price"), 50000)
+
+        merged_up = self._merge(
+            pending, "aur premium wale dikhao", {"price_direction": "higher"}
+        )
+        self.assertEqual(merged_up.get("min_price"), 65000)
+        self.assertIsNone(merged_up.get("max_price"))
 
 
 if __name__ == "__main__":

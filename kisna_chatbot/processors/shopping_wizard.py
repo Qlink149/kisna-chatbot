@@ -1306,7 +1306,10 @@ def advance_wizard(
         ("escape", None) — user bailed; clear and fall through
         ("reask", [bot_responses]) — invalid answer; re-prompt
     """
-    from kisna_chatbot.processors.entity_extractor import extract_entities
+    from kisna_chatbot.processors.entity_extractor import (
+        _CLARA_UNSUPPORTED_MATERIALS,
+        extract_entities,
+    )
     from kisna_chatbot.utils.rakhi_season import is_rakhi_query
 
     collected = _wizard_data(user_profile)
@@ -1342,6 +1345,9 @@ def advance_wizard(
     ):
         clear_wizard_state(user_profile)
         return "escape", None
+
+    # Set on the free-text path below; the button path shares the exit.
+    unsupported_note: dict | None = None
 
     # Interactive answers
     parsed = parse_wizard_button(messages) or parse_wizard_list(messages)
@@ -1380,6 +1386,19 @@ def advance_wizard(
         # native-script answers land in the right slot.
         ents = {**extract_entities(text or ""), **_llm_slot_values(llm_entities)}
         update_wizard_explicit(user_profile, {**ents, **(llm_entities or {})})
+        # Did THIS message name a metal we don't stock? The LLM is the
+        # primary reader -- it is the only one that parses native script,
+        # so "चांदी की" / "பிளாட்டினம்" are seen here too, not just "silver".
+        # Scoped to this message on purpose: reading it off `collected`
+        # would re-emit the note on every later turn of the funnel.
+        named_material = (llm_entities or {}).get("material_type") or ents.get(
+            "material_type"
+        )
+        unsupported_note = (
+            _unsupported_material_note({"unsupported_material": True})
+            if named_material in _CLARA_UNSUPPORTED_MATERIALS
+            else None
+        )
         before = dict(collected)
         seeded = seed_wizard_from_entities(ents, query=text)
         for k, v in seeded.items():
@@ -1407,11 +1426,23 @@ def advance_wizard(
             collected["min_price"] = ents.get("min_price")
             collected["max_price"] = ents.get("max_price")
             collected.pop("budget", None)
+        if unsupported_note and step == "material":
+            # "silver" is a real answer to "what type of ring?" -- it is just
+            # one we cannot fulfil. Accepting it silently sent the customer
+            # down the funnel to the budget question and on to results that
+            # were never silver; re-asking without the note looped them on the
+            # same screen with no idea why. Say why, then re-ask.
+            collected.pop("material_type", None)
+            user_profile["shopping_wizard_data"] = collected
+            user_profile["shopping_wizard_step"] = step
+            return "reask", [unsupported_note, build_step_prompt(step, collected)]
         if value is None and collected == before and step:
             # Nothing parsed — re-ask
             user_profile["shopping_wizard_step"] = step
             if step == "budget" and budget_rejection_reason(text):
                 return "reask", [build_budget_rejection_prompt()]
+            if unsupported_note:
+                return "reask", [unsupported_note, build_step_prompt(step, collected)]
             return "reask", [build_step_prompt(step, collected)]
     else:
         if step:
@@ -1425,7 +1456,10 @@ def advance_wizard(
         return "complete", None
 
     user_profile["shopping_wizard_step"] = next_step
-    return "prompt", [build_step_prompt(next_step, collected)]
+    prompt = build_step_prompt(next_step, collected)
+    if unsupported_note:
+        return "prompt", [unsupported_note, prompt]
+    return "prompt", [prompt]
 
 
 def should_start_wizard(entities: dict | None, *, confidence: float = 1.0) -> bool:

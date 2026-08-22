@@ -17,10 +17,20 @@ from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.session_state import start_store_lookup
 
 _MAX_NEAREST_BY_LOCATION = 5
+# One WhatsApp message is sent per store, so an unbounded list is a wall of
+# cards. A state can hold many branches (Rajasthan has 5, and the biggest
+# states more) -- show a handful and point at the full locator for the rest.
+_MAX_STORES_SHOWN = 5
 _PINCODE_ONLY_RE = re.compile(r"^\s*([1-9]\d{5})\s*$")
 
+# Names both facts a branch answers -- address AND timings -- because store
+# hours genuinely differ per branch (10:30am-9pm in Ahmedabad, 10am-10pm in
+# Chennai), so "what time do you open?" HAS no single answer. Asking only
+# for a pincode read as a non-sequitur to anyone who had asked about time.
+# Accepting a city as well is honest now -- the LLM resolves one in any script.
 _ASK_PINCODE_TEXT = (
-    "Please share your 6-digit pincode and I'll find the nearest KISNA store."
+    "Sure! Share your city or 6-digit pincode and I'll give you that "
+    "KISNA store's address and timings."
 )
 _LOCATION_PINCODE_FALLBACK = (
     "Thanks for sharing your location! To find the nearest "
@@ -90,6 +100,86 @@ def _store_city(store: dict) -> str:
     return str(city_raw or "").strip()
 
 
+def _store_state(store: dict) -> str:
+    """The store's REAL state, from address.state.name.
+
+    Same shape as _store_city and for the same reason: it is the only field
+    that reliably says where a branch actually is. "Do you have a store in
+    Gujarat?" used to be answered with "share your 6-digit pincode" because
+    nothing in the locator knew what a state was, even though every record
+    carries one and Kisna has branches in 2 of the states customers ask about
+    most.
+    """
+    addr = store.get("address")
+    if not isinstance(addr, dict):
+        return ""
+    state_raw = addr.get("state")
+    if isinstance(state_raw, dict):
+        return str(state_raw.get("name") or "").strip()
+    return str(state_raw or "").strip()
+
+
+_DAY_ORDER = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
+
+
+def _format_hhmm(value: str) -> str:
+    """'21:30' -> '9:30 pm'. Returns '' when unparseable."""
+    try:
+        hour_s, _, minute_s = str(value).partition(":")
+        hour = int(hour_s)
+        minute = int(minute_s or 0)
+    except (TypeError, ValueError):
+        return ""
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return ""
+    suffix = "am" if hour < 12 else "pm"
+    display_hour = hour % 12 or 12
+    if minute:
+        return f"{display_hour}:{minute:02d} {suffix}"
+    return f"{display_hour} {suffix}"
+
+
+def _store_hours_line(store: dict) -> str:
+    """One line of opening hours, or '' when the record does not say.
+
+    Clara returns per-day open/close on every store and nothing read it, so a
+    customer asking "what time do you open?" got a pincode prompt while the
+    answer sat in the record we had already fetched. Collapsed to a single line
+    because in practice every day carries the same times; genuinely differing
+    days fall back to naming the range that covers the week.
+    """
+    hours = store.get("storeHours")
+    if not isinstance(hours, dict):
+        return ""
+    spans: list[tuple[str, str]] = []
+    for day in _DAY_ORDER:
+        entry = hours.get(day)
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("status") or "").strip().lower() not in ("open", ""):
+            continue
+        opens = _format_hhmm(entry.get("from") or "")
+        closes = _format_hhmm(entry.get("to") or "")
+        if opens and closes:
+            spans.append((opens, closes))
+    if not spans:
+        return ""
+    if len(set(spans)) == 1:
+        opens, closes = spans[0]
+        return f"🕑 {opens} - {closes}, all days"
+    opens = min(span[0] for span in spans)
+    closes = max(span[1] for span in spans)
+    return f"🕑 {opens} - {closes} (varies by day)"
+
+
 def _store_address_line(store: dict) -> str:
     addr = store.get("address")
     if isinstance(addr, str) and addr.strip():
@@ -117,6 +207,9 @@ def _store_map_link(store: dict) -> str:
 
 def _build_store_text(store: dict) -> str:
     lines = [f"*{_store_name(store)}*", f"📍 {_store_address_line(store)}"]
+    hours = _store_hours_line(store)
+    if hours:
+        lines.append(hours)
     phone = _store_phone(store)
     if phone:
         lines.append(f"📞 {phone}")
@@ -158,6 +251,7 @@ def _filter_cached_stores(
     *,
     pincode: str | None = None,
     city: str | None = None,
+    state: str | None = None,
 ) -> dict:
     stores = list(cached.get("stores") or [])
     if pincode:
@@ -181,6 +275,13 @@ def _filter_cached_stores(
             if isinstance(s, dict) and _store_city(s).lower() == city_l
         ]
         stores = filtered
+    elif state:
+        state_l = state.strip().lower()
+        stores = [
+            s
+            for s in stores
+            if isinstance(s, dict) and _store_state(s).lower() == state_l
+        ]
 
     stores = _exclude_ecom_stores(stores)
     return {"stores": stores, "total_count": len(stores)}
@@ -245,6 +346,38 @@ def _nearest_stores_from_cache(cached: dict, lat: float, lng: float) -> dict:
     return {"stores": stores, "total_count": len(ranked)}
 
 
+async def _location_entities(data: dict, user_message: str) -> dict:
+    """What place did the customer name? LLM first, Latin regex behind it.
+
+    extract_entities alone was the whole locator, and its city list is 121
+    Latin spellings matched with \\b -- so "मुंबई में आपका स्टोर है क्या?" found
+    nothing and the bot asked for a pincode, with four Mumbai branches in the
+    catalogue. Gujarati and Tamil failed the same way, and no script could
+    express a STATE at all. The extractor reads both in any script; the regex
+    stays as the fallback for when that call is down.
+    """
+    from kisna_chatbot.processors.entity_extractor import extract_entities_with_llm
+
+    regex_entities = extract_entities(user_message) if user_message else {}
+    merged = dict(regex_entities)
+    if not user_message.strip():
+        return merged
+    try:
+        llm_entities = await extract_entities_with_llm(
+            user_query=user_message,
+            client_id=data.get("client_id", "kisna"),
+            phone_number=data.get("phone_number"),
+        )
+    except Exception:
+        logger.warning("Store location extraction failed; regex only", exc_info=True)
+        return merged
+    for key in ("city", "state"):
+        value = (llm_entities or {}).get(key)
+        if isinstance(value, str) and value.strip():
+            merged[key] = value.strip()
+    return merged
+
+
 class AdFlowAgent(Processor):
     """Store locator via Clara API with pincode/city entity extraction."""
 
@@ -267,6 +400,7 @@ class AdFlowAgent(Processor):
         *,
         pincode: str | None = None,
         city: str | None = None,
+        state: str | None = None,
         app_state,
         use_cache_fallback: bool = False,
     ) -> dict:
@@ -275,6 +409,15 @@ class AdFlowAgent(Processor):
                 result = await get_stores(pincode=pincode)
             elif city:
                 result = await get_stores(city=city)
+            elif state:
+                # No state filter exists on the API at all (city= already has
+                # to be smuggled through name=), so this is a full scan and a
+                # client-side match on the record's own address.state.name --
+                # the same approach _full_scan_by_city settled on for cities.
+                stores = await self._full_scan_by_place(
+                    (_store_state, _store_city), state
+                )
+                return {"stores": stores, "total_count": len(stores)}
             else:
                 result = {"stores": [], "total_count": 0}
             stores = _exclude_ecom_stores(result.get("stores") or [])
@@ -295,7 +438,9 @@ class AdFlowAgent(Processor):
                     # city is genuine. Full scan + filter by the real field
                     # closes that gap; only runs on the empty case, so it
                     # doesn't add a round-trip to the common path.
-                    stores = await self._full_scan_by_city(city_l)
+                    stores = await self._full_scan_by_place(
+                        (_store_city, _store_state), city_l
+                    )
             return {"stores": stores, "total_count": len(stores)}
         except ClaraAPIError:
             raise
@@ -306,15 +451,27 @@ class AdFlowAgent(Processor):
 
         if use_cache_fallback and app_state is not None:
             cached = await get_cached_stores(app_state)
-            return _filter_cached_stores(cached, pincode=pincode, city=city)
+            return _filter_cached_stores(
+                cached, pincode=pincode, city=city, state=state
+            )
 
         return {"stores": [], "total_count": 0}
 
-    async def _full_scan_by_city(self, city_l: str) -> list:
+    async def _full_scan_by_place(self, fields, wanted: str) -> list:
         """Fetch every store (155 total as of 2026-08-22; 500 leaves real
-        headroom for growth) and filter by the real address.city.name field.
-        Fallback only -- the primary path (get_stores(city=...)) already
-        covers the common case in a single, smaller call."""
+        headroom for growth) and filter by its real address fields.
+        ``fields`` is a tuple of _store_city / _store_state, tried in order.
+
+        For cities the scan is a fallback -- get_stores(city=...) covers the
+        common case in a single, smaller call. For states it is the ONLY path,
+        because the API has no state filter to ask.
+
+        Trying both fields off ONE fetch is what lets a state named in the
+        city slot still resolve. The extractor puts "Gujarat" in state when the
+        customer writes English but in city when they write "गुजरात", and
+        rather than police that with a list of state names, the store data
+        itself settles it: whatever the customer said, it either matches a real
+        city or a real state or neither."""
         try:
             # pageNo must be passed explicitly alongside pageSize -- Clara
             # silently ignores pageSize on its own and falls back to its
@@ -324,7 +481,12 @@ class AdFlowAgent(Processor):
             logger.warning("Full store scan failed", exc_info=True)
             return []
         stores = _exclude_ecom_stores(result.get("stores") or [])
-        return [s for s in stores if _store_city(s).lower() == city_l]
+        needle = wanted.strip().lower()
+        for field in fields:
+            matched = [s for s in stores if field(s).lower() == needle]
+            if matched:
+                return matched
+        return []
 
     async def process(self, data: dict) -> dict:
         phone_number = data["phone_number"]
@@ -372,6 +534,7 @@ class AdFlowAgent(Processor):
 
         pincode: str | None = None
         city: str | None = None
+        state: str | None = None
 
         try:
             if user_profile.get("awaiting_store_pincode"):
@@ -431,10 +594,11 @@ class AdFlowAgent(Processor):
                 if m:
                     pincode = m.group(1)
                 else:
-                    entities = extract_entities(user_message)
+                    entities = await _location_entities(data, user_message)
                     pincode = entities.get("pincode")
                     city = entities.get("city")
-                if not pincode and not city:
+                    state = entities.get("state")
+                if not pincode and not city and not state:
                     # FIX 5: show escape tip from 2nd failed attempt onwards
                     attempts = user_profile.get("store_pincode_attempts", 0) + 1
                     user_profile["store_pincode_attempts"] = attempts
@@ -449,11 +613,12 @@ class AdFlowAgent(Processor):
                     user_profile["awaiting_store_pincode"] = True
                     return data
             else:
-                entities = extract_entities(user_message) if user_message else {}
+                entities = await _location_entities(data, user_message)
                 pincode = entities.get("pincode")
                 city = entities.get("city")
+                state = entities.get("state")
 
-                if not pincode and not city:
+                if not pincode and not city and not state:
                     start_store_lookup(user_profile)
                     data["bot_response"] = [
                         {
@@ -470,6 +635,7 @@ class AdFlowAgent(Processor):
                     "phone_number": phone_number,
                     "pincode": pincode,
                     "city": city,
+                    "state": state,
                 },
             )
 
@@ -477,6 +643,7 @@ class AdFlowAgent(Processor):
                 result = await self._fetch_stores(
                     pincode=pincode,
                     city=city,
+                    state=state,
                     app_state=app_state,
                 )
             except ClaraAPIError as e:
@@ -488,6 +655,7 @@ class AdFlowAgent(Processor):
                     result = await self._fetch_stores(
                         pincode=pincode,
                         city=city,
+                        state=state,
                         app_state=app_state,
                         use_cache_fallback=True,
                     )
@@ -502,6 +670,7 @@ class AdFlowAgent(Processor):
                 result = await self._fetch_stores(
                     pincode=pincode,
                     city=city,
+                    state=state,
                     app_state=app_state,
                     use_cache_fallback=True,
                 )
@@ -515,7 +684,20 @@ class AdFlowAgent(Processor):
                 data["bot_response"] = [{"type": "text", "text": _zero_results_message()}]
                 return data
 
-            data["bot_response"] = _build_store_responses(stores)
+            responses = _build_store_responses(stores[:_MAX_STORES_SHOWN])
+            if len(stores) > _MAX_STORES_SHOWN:
+                responses.append(
+                    {
+                        "type": "text",
+                        "text": (
+                            f"...and {len(stores) - _MAX_STORES_SHOWN} more "
+                            "KISNA stores there.\n"
+                            f"See them all: {_store_locator_url()}"
+                        ),
+                        "_compose": "store_more",
+                    }
+                )
+            data["bot_response"] = responses
             user_profile["awaiting_store_pincode"] = False
             user_profile["service_selected"] = ""
             user_profile["store_pincode_attempts"] = 0

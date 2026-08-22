@@ -257,11 +257,12 @@ bare "gold", "help", "kuch dikhao", "1 lakh" alone, "accha sa kuch".
   "language": "<en|hi|hi-Latn|ta|te|mr|bn|gu|kn|...>",
   "entities": {
     "product_reference": <number of the shown product the user means, or null>,
+    "product_question": <true if they are ASKING something ABOUT that product, else false>,
     "action": "<more|null>"
   }
 }
 
-These are the ONLY two entity fields. Never output category, material_type, min_price,
+These are the ONLY three entity fields. Never output category, material_type, min_price,
 max_price, title, karat, metal_colour, size, collection, gender, fulfillment, occasion,
 style or price_direction — a separate extractor owns them.
 
@@ -271,6 +272,17 @@ naming a new category. Return the 1-based NUMBER: "the second one"/"doosra"/"ब
 → 2, "pehla"/"first" → 1, "the gold one"/"sone wali" → the gold item's number, "the
 cheapest one" as a pick → the lowest-priced item's number. null if nothing is shown,
 the reference is ambiguous, or they named a new search.
+
+product_question — true when the customer is ASKING SOMETHING about a product
+rather than asking to SEE it. product_reference says WHICH piece; this says
+whether they want a FACT about it or the card itself. Do NOT repeat their
+words back — just answer true or false.
+  true:  "iska price kya hai?" · "isme kitne carat ka diamond hai" ·
+  "इसकी कीमत क्या है?" · "is it available in 18KT?" · "delivery kitne din mein" ·
+  "કેટલી કિંમત છે?" · "chain included hai?"
+  false: "show me the second one" · "doosra wala dikhao" · "बीच वाला" ·
+  "pehla" · "aur dikhao" — these want to SEE a piece, not learn a fact about
+  it. false whenever nothing is shown and nothing was viewed.
 
 action — "more" ONLY for pure pagination of the SAME search with NO new subject:
 "aur dikhao", "show more", "next", "kuch aur", "koi aur", "aur options", "और दिखाओ",
@@ -518,8 +530,9 @@ lost.
   "category": "ring|earring|necklace|pendant|pendant_set|necklace_set|
                bracelet|bangle|mangalsutra|mangalsutra_bracelet|
                anklet|nose_ring|maang_tikka|chain|null",
-  "material_type": "gold|diamond|silver|platinum|
+  "material_type": "gold|diamond|silver|platinum|pearl|
                     rose_gold|white_gold|gemstone|null",
+  "excluded_material": "<same values — the material the customer RULED OUT, or null>",
   "min_price": <integer INR or null>,
   "max_price": <integer INR or null>,
   "budget": "any|null",
@@ -528,6 +541,8 @@ lost.
   "metal_colour": "yellow|white|rose|null",
   "size": <integer 7-22 or null>,
   "collection": "<free-text collection name if user named one, else null>",
+  "city": "<Indian city named for a STORE lookup, in ENGLISH, else null>",
+  "state": "<Indian state named for a STORE lookup, in ENGLISH, else null>",
   "gender": "women|men|kids|null",
   "fulfillment": "ready|mto|any|null",
   "occasion": "wedding|engagement|anniversary|birthday|
@@ -573,6 +588,12 @@ category (REQUIRED when type word in message):
     हार/नेकलेस/નેકલેસ → necklace | चेन/ચેન → chain | कंगन/चूड़ी/બંગડી → bangle
     ब्रेसलेट/બ્રેસલેટ → bracelet | मंगलसूत्र/મંગળસૂત્ર → mangalsutra
     पेंडेंट/लॉकेट/લોકેટ → pendant | पायल/પાયલ → anklet | नथ/नोज़ पिन → nose_ring
+    GURMUKHI (Punjabi) — these are the everyday words, not transliterations:
+    ਮੁੰਦਰੀ/ਮੁੰਦਰੀਆਂ/ਅੰਗੂਠੀ → ring (ਮੁੰਦਰੀ is a RING — NEVER earring or bangle)
+    ਵਾਲੀਆਂ/ਝੁਮਕੇ/ਕੰਨਾਂ ਦੇ → earring | ਹਾਰ/ਨੈਕਲੇਸ → necklace | ਚੇਨ → chain
+    ਚੂੜੀ/ਚੂੜੀਆਂ/ਕੰਗਣ → bangle | ਕੜਾ/ਬਰੇਸਲੈੱਟ → bracelet
+    ਮੰਗਲਸੂਤਰ → mangalsutra | ਪੈਂਡੈਂਟ/ਲਾਕਟ → pendant
+    ਪਾਜ਼ੇਬ/ਝਾਂਜਰ → anklet | ਨੱਥ/ਕੋਕਾ → nose_ring
 
 material_type:
   gold/sona/sone ka → gold
@@ -581,18 +602,36 @@ material_type:
   white gold → white_gold  (ALSO set metal_colour=white)
   yellow gold → gold  (ALSO set metal_colour=yellow)
   gemstone/ruby/emerald/sapphire/panna → gemstone
+  pearl/moti/mothi → pearl. A pearl is NOT a gemstone — we do not carry pearl
+  and saying "gemstone" makes the bot accept an order it cannot fulfil, so
+  emit pearl and let the caller say we don't stock it.
   NATIVE SCRIPT (map identically — a material word ALONE is still a material
   in any script, and comes back null ONLY if it is negated, see below):
     सोना/सोने/सोने की/सोने का/सोनं/સોનું/સોના/સોનાની/સોનાનું → gold
     हीरा/हीरे/हीरे की/हीरे का/डायमंड/હીરા/હીરાની/હીરાનું/ડાયમંડ → diamond
     चांदी/ચાંદી → silver | प्लैटिनम/પ્લેટિનમ → platinum
     रत्न/जेमस्टोन/माणिक/पन्ना/नीलम/રત્ન/માણેક/પન્ના → gemstone
-  NEGATION OVERRIDES the mapping above, in every language: नहीं/नको/નથી/
-  வேண்டாம்/nahi/not/without next to a metal means the customer RULED IT OUT.
-  Emit the metal they DO want ("diamond ring, not gold" → diamond), or null if
-  they named none. NEVER emit a refused metal.
+    मोती/મોતી/মুক্তা/முத்து/ముత్యం/ಮುತ್ತು/ਮੋਤੀ → pearl
+  NEGATION, in every language: नहीं/नको/नाही/નહીં/નથી/চাই না/না/வேண்டாம்/
+  ਨਹੀਂ/వద్దు/ಬೇಡ/nahi/not/without/no next to a metal means the customer RULED
+  IT OUT. Record it — do not just stay silent about it:
+    excluded_material = the metal they refused
+    material_type     = the metal they DO want, or null if they named none
+  Work the sentence out one clause at a time; a refused metal is NEVER the
+  material_type, no matter how the mapping table above reads it.
+    "मुझे सोने की नहीं, अंगूठी दिखाओ"   → material_type=null,  excluded_material=gold
+    "diamond ring, not gold"          → material_type=diamond, excluded_material=gold
+    "मुझे सोने की अंगूठी चाहिए, हीरे की नहीं" → material_type=gold, excluded_material=diamond
+    "மோதிரம் காட்டுங்கள்"               → material_type=null,  excluded_material=null
+  excluded_material is null unless a metal was actually refused in THIS message.
     गुलाबी सोना/रोज़ गोल्ड/રોઝ ગોલ્ડ → rose_gold (ALSO metal_colour=rose)
     सफेद सोना/व्हाइट गोल्ड/વ્હાઇટ ગોલ્ડ → white_gold (ALSO metal_colour=white)
+
+city / state — ONLY for finding a physical Kisna store, never a product filter.
+Answer in ENGLISH whatever script was typed (मुंबई/મુંબઈ/மும்பை → "Mumbai",
+गुजरात/ગુજરાત → state "Gujarat"), using the common spelling: Bombay → Mumbai,
+Calcutta → Kolkata, Bengaluru → Bangalore. A CITY goes in city, a STATE in
+state. Both null unless the message is about a shop/store/showroom location.
 
 metal_colour (set separately when colour is mentioned):
   rose/pink → rose

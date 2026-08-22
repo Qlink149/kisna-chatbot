@@ -12,6 +12,56 @@ actual mechanism, then plan fixes. Do not trust this document's suspected
 causes — several earlier diagnoses in this project turned out to be wrong, and
 the wrong ones are flagged so you don't repeat them.
 
+
+---
+
+## STATUS — resolved 2026-08-22
+
+Every defect below was reproduced live before being touched, and the fixes are
+verified live, multilingually. **Suite: 1247 passing** (was 1215).
+
+| | Defect | Outcome |
+|---|---|---|
+| D1 | Refinement during the confirmation card destroys the search | **Fixed.** The recap now survives by default; only a message naming a different product replaces it. |
+| D2 | "aur premium wale dikhao" returns cheaper items | **Fixed.** Plus a second bug this doc missed: "show me the second one" paginated instead of opening item #2. |
+| D3 | A product question after a LIST re-prints the card | **Fixed** via a new `product_question` routing field. |
+| D4 | Bare negation selects the refused metal | **Fixed** via a new `excluded_material` field. 6/6 Indic languages. |
+| D5a | Unsupported metal at the material step is ignored | **Fixed.** Also: `pearl` was being *accepted* and advanced the funnel. |
+| D5b | Pearl never flagged | **Fixed.** `pearl` was missing from the material enum. |
+| D6 | Store lookup: a STATE gets a pincode prompt | **Fixed** — and it was wider than documented: native-script *cities* failed too. |
+| D7 | Punjabi `ਮੁੰਦਰੀ` read as earring | **Fixed** (Gurmukhi category words added). Telugu half **did not reproduce**, 5/5 correct — dropped. |
+| D8 | Hours questions get a pincode prompt | **Fixed.** `storeHours` was in every record and read by nothing. |
+| D9 | Zero-result message quotes an unused filter | **Reframed.** The prefix was truthful; the real defect was three stacked preambles. Fixed. |
+| D10 | Translation quality on long text | Open — model-bound, not code. Cost is settled (~$3/month). |
+| D11 | Multi-intent silently halved | Open — deferred. |
+| D12 | KB email / offers percentages | **Fixed** (offers now defer to the offers flow; `ecom@` for returns, `support@` for general). Cold start still open. |
+
+**Four things this document got wrong**, corrected by live testing:
+
+1. **D2**: it claims the entity extractor returns `price_direction="higher"`.
+   It does not — `aur premium wale dikhao`, `aur mehnga dikhao` and
+   `show me more premium ones` all returned `action="more"` with no direction.
+   Native script *did* work. So it was an extractor failure on romanized text,
+   not a classifier-contract wiring gap.
+2. **D6**: "the city path is solid" is true only in Latin script. `मुंबई`,
+   `સુરત` and `சென்னை` all got the pincode prompt.
+3. **D7**: Telugu `పిన్ని` returned `gender: women` 5/5. Does not reproduce.
+4. **D5b**: English `pearl ring dikhao` *was* flagged — by the regex, not the
+   LLM. Only native script failed.
+
+**Two scaffolding traps** that cost a cycle each, for whoever tests next:
+
+- Build product fixtures with **more than 2 results**. `gold rings for women
+  under 50000 ready to ship` returns exactly 2, so every pagination test hits
+  "You have seen all 2 results!" and proves nothing. `under 200000` returns 12.
+- Reaching the confirmation card needs **all five slots named** (category,
+  material, gender, budget, fulfillment). Fewer slots enter the wizard instead,
+  which is a different code path — that is why this document's Hindi and Tamil
+  D1 claims are wrong.
+
+The sections below are the ORIGINAL report, kept for the reproduction steps and
+the transcripts. Read the table above first.
+
 ---
 
 ## 0. READ THIS FIRST — the principle that decides most of these fixes

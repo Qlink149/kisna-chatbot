@@ -41,7 +41,8 @@ KISNA_KNOWLEDGE_BASE = """\
 - Return shipping: a flat ₹100 charge applies to resizing, exchange, and refund shipments sent back to Kisna.
 - Partial returns: allowed per individual item, but each returned product must be returned in full, including all components.
 - Ring doesn't fit: check the size guide before ordering; if it still doesn't fit, send it back for resizing/exchange.
-- Track a return: via chat support or by emailing support@kisna.com.
+- Track a return: via chat support or by emailing ecom@kisna.com (returns and
+  exchanges are handled by ecom@; support@ is for general queries).
 
 ## EXCHANGE POLICY (authoritative — /buyback-and-exchange-policy)
 - Applies to products sold in India, available for the lifetime of the product, but only 7+ days after purchase date, subject to Quality Assurance review (item must be free of tampering, damage, alteration, or resizing — otherwise rejected).
@@ -162,7 +163,12 @@ KISNA_KNOWLEDGE_BASE = """\
 - Careers: apply online at https://www.kisna.com/careers-and-job-opportunities (upload CV on the page), or email hr@kisna.com. The bot has NO list of open positions and cannot check application status or help with a specific role — only share the careers page + hr@kisna.com, then stop. Never imply you can assist further with jobs.
 
 ## PROMOTIONS (time-sensitive — may change; do NOT quote as permanent)
-- Recently advertised: up to 75% off diamond making charges, up to 50% off gold.
+- Making-charge discounts run on a slab table by jewellery price, and the
+  live table is built by the offers flow. NEVER quote a percentage here:
+  the figures previously written on this line (75% diamond / 50% gold)
+  had drifted from what the offers flow actually serves (up to 100%
+  diamond), so the bot contradicted itself depending on which path
+  answered. The offers flow is the single source of truth.
 - For current live offers, always direct the customer to the View Offers menu rather than quoting these percentages.
 
 ## ACCOUNT

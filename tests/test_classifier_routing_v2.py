@@ -1,5 +1,6 @@
 """Routing upgrades for the text-first classifier: video_call, scheme/KMR, gold rate."""
 
+import asyncio
 import os
 import unittest
 from unittest.mock import patch
@@ -873,7 +874,7 @@ class ReferenceCompareRepairTests(unittest.TestCase):
             "user_profile": {"last_search_products": self._SHOWN},
             "llm_extracted_entities": {"product_reference": 2},
         }
-        result = _handle_product_reference(data)
+        result = asyncio.run(_handle_product_reference(data))
         self.assertIsNotNone(result)
         self.assertIn("Harini", str(result["bot_response"]))
         # opening it marks it as viewed
@@ -888,7 +889,7 @@ class ReferenceCompareRepairTests(unittest.TestCase):
             "user_profile": {"last_search_products": self._SHOWN},
             "llm_extracted_entities": {"product_reference": 9},
         }
-        self.assertIsNone(_handle_product_reference(data))
+        self.assertIsNone(asyncio.run(_handle_product_reference(data)))
 
     def test_compare_is_grounded_and_factual(self):
         from kisna_chatbot.processors.product_search_agent_v3 import _handle_compare

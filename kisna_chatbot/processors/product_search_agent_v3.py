@@ -501,13 +501,47 @@ _CONFIRM_REFINEMENT_SLOTS = (
 )
 
 
-def _confirm_refinement_merge(pending: dict, text: str | None) -> dict | None:
-    """Merge a narrowing reply into a pending recap, or None if it is a new ask.
+def _shift_pending_band(entities: dict, direction: str) -> dict:
+    """Move a pending recap's price band up or down for "show me cheaper/pricier".
 
-    Uses the deterministic extractor on purpose: it is free (this runs on every
-    non-yes/no turn during a confirmation) and budgets are exactly what it reads
-    best. A native-script refinement it cannot read simply falls through to the
-    previous behaviour — no regression, just no rescue.
+    The search has not run yet during a confirmation, so there is no
+    last_search_filters for _entities_for_price_direction to anchor on. The
+    recap's own band is the anchor instead; same factor, so the two paths shift
+    by the same amount.
+    """
+    out = dict(entities)
+    min_p = out.get("min_price")
+    max_p = out.get("max_price")
+    if direction == "lower":
+        anchor = max_p or min_p
+        if not anchor:
+            return out
+        out["min_price"] = None
+        out["max_price"] = max(int(anchor * _PRICE_DIRECTION_FACTOR), 2000)
+    else:
+        anchor = min_p or max_p
+        if not anchor:
+            return out
+        out["min_price"] = int(anchor * (2 - _PRICE_DIRECTION_FACTOR))
+        out["max_price"] = None
+    return out
+
+
+async def _confirm_refinement_merge(
+    data: dict, pending: dict, text: str | None
+) -> dict | None:
+    """Narrow a pending recap, or None when the message is genuinely a new ask.
+
+    The default used to be the other way round: anything the Latin regex could
+    not read as a slot value threw the whole recap away and restarted with a
+    greeting, so "show me cheaper ones" after "gold rings for women under 50k
+    ready to ship" lost category, material, gender, budget and fulfillment in
+    one turn. The recap now SURVIVES by default and only a message naming a
+    different product replaces it.
+
+    Entities come from the LLM first, exactly as the correction branch below
+    already does -- it is the only reader that parses native script, and this
+    helper reading Latin-only was the whole defect.
     """
     if not (text or "").strip():
         return None
@@ -515,12 +549,36 @@ def _confirm_refinement_merge(pending: dict, text: str | None) -> dict | None:
     if not entities:
         return None
 
-    stated = extract_entities(text)
+    # A genuine escape must still escape. The classifier has already decided
+    # this message is not a shopping turn, so do not absorb a store lookup or
+    # an order query into the pending search.
+    classified = data.get("classified_category") or ""
+    if classified and classified not in (
+        "product_search",
+        "product_info",
+        "compare",
+        "repair",
+    ):
+        return None
+
+    stated = await _current_message_entities(data, text)
+    regex_stated = extract_entities(text)
+    if not stated:
+        stated = regex_stated
+
+    # Naming a different subject is a NEW request, not a narrowing of this
+    # one. This veto is what keeps the inverted default safe, so it reads
+    # BOTH extractors: they miss different things and a veto that fires too
+    # eagerly merely restores the old "treat it as a new search" behaviour,
+    # while one that misses swallows a genuine request. Measured:
+    #   'show me necklaces' -> LLM category=None (action='more'), regex=necklace
+    #   'नेकलेस दिखाओ'        -> LLM category=necklace,            regex=None
     for key in ("category", "collection", "title"):
-        value = stated.get(key)
-        if value is not None and value != entities.get(key):
-            return None
-    if stated.get("categories"):
+        for source in (stated, regex_stated):
+            value = source.get(key)
+            if value is not None and value != entities.get(key):
+                return None
+    if stated.get("categories") or regex_stated.get("categories"):
         return None
 
     refinement = {
@@ -528,8 +586,6 @@ def _confirm_refinement_merge(pending: dict, text: str | None) -> dict | None:
         for key in _CONFIRM_REFINEMENT_SLOTS
         if stated.get(key) is not None
     }
-    if not refinement:
-        return None
     # A price refinement replaces the old band outright rather than merging one
     # half of it ("under 20k" after "10k-30k" must not keep min=10000).
     if "min_price" in refinement or "max_price" in refinement:
@@ -538,24 +594,87 @@ def _confirm_refinement_merge(pending: dict, text: str | None) -> dict | None:
         refinement.pop("min_price", None)
         refinement.pop("max_price", None)
     entities.update(refinement)
+
+    # "thoda sasta dikhao" / "aur premium wale dikhao" against the recap.
+    direction = stated.get("price_direction")
+    if direction in ("lower", "higher"):
+        entities = _shift_pending_band(entities, direction)
+
     return entities
 
 
-def _handle_product_reference(data: dict) -> dict | None:
-    """Open the shown product the LLM resolved (1-based product_reference).
+async def _handle_product_reference(data: dict, query: str = "") -> dict | None:
+    """Act on the shown product the LLM resolved (1-based product_reference).
 
     The LLM matches "the second one" / "बीच वाला" / "the gold one" against the
-    numbered shown list and returns its index — this just opens that product.
+    numbered shown list and returns its index. It also says, separately,
+    whether the customer was ASKING something about that piece
+    (product_question) rather than asking to see it.
+
+    Both facts are used. Opening the card on the strength of the index alone
+    answered "iska price kya hai?" with the very card the customer was already
+    looking at, and left "isme kitne carat ka diamond hai" unanswered while
+    showing 14KT -- the GOLD purity -- as if it were the diamond carat weight.
     """
     user_profile = data.get("user_profile", {})
     entities = data.get("llm_extracted_entities") or {}
     ref = entities.get("product_reference")
-    if not ref:
-        return None
     shown = user_profile.get("last_search_products") or []
-    if not (1 <= ref <= len(shown)):
+    product = None
+    if isinstance(ref, int) and 1 <= ref <= len(shown):
+        product = shown[ref - 1]
+    elif entities.get("product_question"):
+        # "isme kitne carat ka diamond hai" is a question about a specific
+        # piece, but the classifier resolves the index unreliably on the
+        # longer phrasings -- measured returning 2 on one run and null on the
+        # next for the same sentence. When it says a question was asked and
+        # only one piece can be meant, answer about that piece rather than
+        # dropping the turn into a fresh search.
+        product = user_profile.get("last_viewed_product") or (
+            shown[0] if len(shown) == 1 else None
+        )
+    if not product:
         return None
-    return _open_shown_product(data, shown[ref - 1])
+
+    # The flag says it IS a question; the question itself is the message the
+    # customer actually typed, not a model paraphrase of it.
+    if entities.get("product_question") and (query or "").strip():
+        answered = await _answer_referenced_product(data, product, query)
+        if answered is not None:
+            return answered
+    return _open_shown_product(data, product)
+
+
+async def _answer_referenced_product(
+    data: dict, product: dict, question: str
+) -> dict | None:
+    """Answer a question about one shown product, or None to fall back.
+
+    Falling back to the card is deliberate: an unanswerable question is better
+    served by the card than by nothing at all.
+    """
+    from kisna_chatbot.processors.product_details_agent import (
+        _answer_product_question,
+        _save_last_viewed_product,
+    )
+
+    user_profile = data.get("user_profile", {})
+    answer = await _answer_product_question(
+        question,
+        product,
+        phone_number=data.get("phone_number"),
+        client_id=data.get("client_id", "kisna"),
+    )
+    if not answer:
+        return None
+    # The piece they asked about is now the one in focus, so a follow-up
+    # ("aur iska size?") resolves against it.
+    _save_last_viewed_product(user_profile, product)
+    data["bot_response"] = [
+        {"type": "text", "text": answer, "_compose": "product_info"}
+    ]
+    data["classified_category"] = "product_info"
+    return data
 
 
 def _normalize_product_title_query(text: str) -> str:
@@ -870,6 +989,7 @@ def _empty_entities() -> dict:
     return {
         "category": None,
         "material_type": None,
+        "excluded_material": None,
         "min_price": None,
         "max_price": None,
         "budget": None,
@@ -1042,6 +1162,17 @@ def _is_show_more_request(query: str, data: dict) -> bool:
     # wale" to it explicitly -- and the branch that acts on it lives 265 lines
     # further down, so the answer was discarded unread.
     if llm_entities.get("price_direction") in ("lower", "higher"):
+        return False
+    # Naming a SHOWN product is a pick, not pagination -- same rule again.
+    # "show me the second one" comes back as {action:'more',
+    # product_reference:2} because it reads as show-more to the classifier,
+    # so this gate fired and answered "You have seen all 2 results!" while
+    # the LLM had already resolved which piece the customer meant. Only
+    # honour a reference that actually points into the shown list, so a
+    # stale index cannot strand a genuine "aur dikhao".
+    ref = llm_entities.get("product_reference")
+    shown = user_profile.get("last_search_products") or []
+    if isinstance(ref, int) and 1 <= ref <= len(shown):
         return False
     if _names_new_search_subject(query):
         return False
@@ -2154,7 +2285,7 @@ class ProductSearchAgentV3(Processor):
 
         # Reference pick ("the second one", "बीच वाला") — the LLM resolved it to
         # a shown-product index; open that product.
-        ref_result = _handle_product_reference(data)
+        ref_result = await _handle_product_reference(data, query)
         if ref_result is not None:
             return ref_result
 
@@ -2746,7 +2877,7 @@ class ProductSearchAgentV3(Processor):
             # land here and THROW THE RECAP AWAY (collection included), so the
             # user got "What are you looking for today?" and lost the whole
             # search. Narrowing the pending search keeps it.
-            refined = _confirm_refinement_merge(pending, text)
+            refined = await _confirm_refinement_merge(data, pending, text)
             if refined is not None:
                 clear_confirm_state(user_profile)
                 user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
@@ -3712,7 +3843,13 @@ class ProductSearchAgentV3(Processor):
                     if occasion_prefix and occasion_prefix in prefix_parts:
                         prefix_parts.remove(occasion_prefix)
                     prefix_parts.append(fallback_note)
-                    intro_relaxed = True
+                    # NOT intro_relaxed: this note already says what was
+                    # relaxed and by how much ("No pieces found above
+                    # ₹100,000 right now -- here are our closest picks"),
+                    # so adding the generic "Couldn't find an exact match"
+                    # line on top stacked three preambles in front of one
+                    # set of results. Keep the specific one.
+                    intro_relaxed = False
                 break
 
         prefix_note = "\n".join(prefix_parts) if prefix_parts else None

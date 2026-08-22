@@ -18,7 +18,12 @@ from kisna_chatbot.prompts.classifier_kisna import (
     kisna_entity_extractor,
 )
 
-MAX_CLASSIFIER_INTENT_TOKENS = 6000
+# Raised from 6000 for product_question: the classifier now reports WHETHER
+# a message asks something about a shown product, separately from WHICH
+# product it means. Without that second fact, product_reference was the
+# only signal and "iska price kya hai?" re-printed the card the customer
+# was already looking at.
+MAX_CLASSIFIER_INTENT_TOKENS = 6400
 # Raised from 6500 so the gender rule could state a PRINCIPLE ("kinship words
 # are lexically gendered — read the word") instead of a closed list of terms.
 # The list was the bug: "chachi" was not on it, so the model followed the
@@ -32,7 +37,19 @@ MAX_CLASSIFIER_INTENT_TOKENS = 6000
 # behaviour the model was getting wrong, and this number is a style guard,
 # not the real limit -- at 7300 est the extractor is ~8470 real tokens,
 # leaving ~3500 under the 12000 ceiling, which the test below asserts.
-MAX_ENTITY_EXTRACTOR_TOKENS = 7300
+# Raised again (7300 -> 7700) for excluded_material, pearl, the Gurmukhi
+# category words and store city/state. Each is a measured correctness fix:
+#   excluded_material -- "मुझे सोने की नहीं" returned material_type="gold"
+#     in 6 of 6 Indic languages, because the model had nowhere to record a
+#     refusal and fell back on the mapping table.
+#   pearl -- absent from the enum, so the model said gemstone and the
+#     funnel accepted an order for something Clara does not stock.
+#   Gurmukhi -- ਮੁੰਦਰੀ (ring) came back as bangle/earring, unstably.
+#   city/state -- the store locator read a 121-entry Latin city list and
+#     nothing else, so "मुंबई में आपका स्टोर है क्या?" got a pincode prompt.
+# Correctness wins over this number; the request-ceiling test below is the
+# limit that actually matters, and it still leaves ~3200 tokens spare.
+MAX_ENTITY_EXTRACTOR_TOKENS = 7700
 
 # Conservative request-size ceiling. The prompt plus context and user message
 # must fit inside this to avoid request-too-large errors.
