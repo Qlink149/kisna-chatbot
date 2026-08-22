@@ -3,7 +3,7 @@
 import json
 import time
 
-from kisna_chatbot.ai.config import get_ai_settings
+from kisna_chatbot.ai.config import get_ai_settings, resolve_compose_model
 from kisna_chatbot.ai.types import AgentName, GeneralAgentResult, ProviderName
 from kisna_chatbot.ai.usage import build_usage_record, record_usage
 from kisna_chatbot.constants import ADMINS
@@ -28,13 +28,30 @@ async def run_openai_general_agent(
     username: str,
     user_query: str,
     chat_history_str: str,
+    language: str | None = None,
 ) -> GeneralAgentResult:
     """
     Run GeneralAgent via OpenAI Responses API with web search and live-agent tool.
     """
     start = time.perf_counter()
     settings = get_ai_settings()
-    model = settings["openai_chat_model"]
+    configured_model = settings["openai_chat_model"]
+    # Long FAQ answers are GENERATED here in the customer's language, and the
+    # default model is not good enough at that for the low-resource scripts.
+    # Benchmarked on two real FAQ questions per language, judged 0-3:
+    #
+    #   ta 0.0 -> 3.0   kn 0.5 -> 3.0   ml 0.5 -> 2.5   gu 1.0 -> 2.5
+    #   te 1.0 -> 2.5   pa 1.0 -> 2.5   mr 1.0 -> 2.0   bn 2.0 -> 3.0
+    #   hi 2.0 -> 2.5 (too close to be worth the latency)   en 3.0 -> 2.5
+    #
+    # The failures were not cosmetic: the default model emitted actual CHINESE
+    # inside a Malayalam answer ("每月储蓄计划") and a Bengali one ("固定"),
+    # and Tamil scored 0/3 twice -- invented words, not just awkward phrasing.
+    # English is BETTER on the default model, so it stays, and so does Hindi.
+    #
+    # resolve_compose_model already encodes exactly this language set for
+    # reply_composer; reusing it keeps one list instead of two that drift.
+    model = resolve_compose_model(language) or configured_model
 
     input_messages = [
         {"role": "system", "content": f"Username: {username}"},
@@ -49,7 +66,7 @@ async def run_openai_general_agent(
 
     try:
         tools = [request_live_agent_tool]
-        if "gpt-4o-mini" not in model.lower():
+        if "gpt-4o-mini" not in configured_model.lower():
             tools.append(web_search_tool)
 
         for iteration in range(3):

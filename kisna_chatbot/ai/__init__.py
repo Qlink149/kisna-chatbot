@@ -40,6 +40,7 @@ async def run_general_agent(
     username: str,
     user_query: str,
     chat_history_str: str,
+    language: str | None = None,
 ):
     """Run GeneralAgent on OpenAI Responses."""
     return await run_openai_general_agent(
@@ -48,4 +49,5 @@ async def run_general_agent(
         username=username,
         user_query=user_query,
         chat_history_str=chat_history_str,
+        language=language,
     )

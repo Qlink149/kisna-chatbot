@@ -159,6 +159,10 @@ class GeneralAgent(Processor):
                 username=username,
                 user_query=user_query,
                 chat_history_str=chat_history_str,
+                # The reply language the classifier settled on. Only the
+                # low-resource scripts are routed away from the default model;
+                # English, Hindi and every romanized variant are unaffected.
+                language=(data.get("user_profile") or {}).get("language"),
             )
 
             logger.info(
