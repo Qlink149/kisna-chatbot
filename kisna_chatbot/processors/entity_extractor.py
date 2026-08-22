@@ -1455,6 +1455,17 @@ _NEVER_INHERIT_FIELDS = frozenset({
     "occasion",
     "style",
 })
+# collection stays in this default-exclude set on purpose (test-locked:
+# test_collection_not_inherited_on_refinement) -- when a search already HAS
+# a category, a collection riding along is a narrow modifier like karat/
+# colour and must not survive a refinement ("show me them in gold" after a
+# Tanishta-collection ring search must drop Tanishta the same way it drops
+# karat). But a collection-ONLY browse ("show me something in evil eye", no
+# category at all) is a different shape: collection IS the primary
+# criterion there, the same role category normally plays, so it needs the
+# same survival category gets. That narrower case is handled explicitly
+# below (search for "prior had no category") rather than by exempting
+# collection from this shared exclusion set wholesale.
 
 _COLOUR_EVIDENCE_RE = re.compile(
     r"\b(yellow|white|rose|pink|rosegold|rose\s*gold|white\s*gold|yellow\s*gold)\b",
@@ -1803,6 +1814,21 @@ def merge_search_entities(
     ):
         return merged
 
+    # Naming a category with no PRIOR category to compare against means the
+    # prior turn was a collection-only browse ("show me something in evil
+    # eye", no category yet) -- the category guard above never fires (it
+    # requires prior.get("category")), so without this a follow-up like
+    # "rings" would silently drop the collection instead of narrowing
+    # inside it. Only when the new message doesn't already name its own
+    # (different) collection.
+    if (
+        new_has_category
+        and not prior.get("category")
+        and prior.get("collection")
+        and not merged.get("collection")
+    ):
+        merged["collection"] = prior.get("collection")
+
     # Audience / availability / material switch with no new product type —
     # keep sticky slots (category, budget, the other filters).
     audience_or_fulfillment_only = (
@@ -1864,6 +1890,21 @@ def merge_search_entities(
                 merged["min_price"] = prior.get("min_price")
             if prior.get("max_price") is not None:
                 merged["max_price"] = prior.get("max_price")
+
+        # collection is in _NEVER_INHERIT_FIELDS (skipped by the loop above)
+        # for the normal case: a collection riding along on a category
+        # search is a narrow modifier, same as karat/colour, and must not
+        # survive a refinement (test_collection_not_inherited_on_refinement).
+        # But when the PRIOR search had no category at all, collection WAS
+        # the category -- "show me something in evil eye" -> "under 20k"
+        # must not silently drop back to the whole catalogue the way karat
+        # correctly would.
+        if (
+            not merged.get("collection")
+            and prior.get("collection")
+            and not prior.get("category")
+        ):
+            merged["collection"] = prior.get("collection")
 
     elif (
         not price_only_new_search

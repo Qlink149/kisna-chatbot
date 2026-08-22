@@ -141,6 +141,7 @@ def _is_price_only_refinement(
     has_prior_context = bool(
         prior.get("category")
         or prior.get("material_type")
+        or prior.get("collection")
         or prior_rakhi_title(prior)
     )
     if not has_prior_context:
@@ -611,6 +612,23 @@ def _entities_all_none(entities: dict) -> bool:
     if entities.get("multi_category") or entities.get("categories"):
         return False
     return all(entities.get(key) is None for key in _ENTITY_KEYS)
+
+
+def _collection_browse_skips_wizard(entities: dict) -> bool:
+    """A named, resolvable collection with no category is itself enough to
+    search directly -- "show me something in evil eye" shouldn't have to
+    answer "what are you looking for" first when the API happily returns a
+    mixed-category spread for collectionId alone (verified: 34 products,
+    rings/pendants/bracelets mixed, for Evil Eye Collection).
+    """
+    if entities.get("category") or entities.get("categories"):
+        return False
+    collection = entities.get("collection")
+    if not collection:
+        return False
+    from kisna_chatbot.integrations.clara_filters import get_collection_id
+
+    return bool(get_collection_id(str(collection)))
 
 
 def _handle_product_info_followup(data: dict, query: str) -> dict | None:
@@ -1799,9 +1817,16 @@ class ProductSearchAgentV3(Processor):
             return await self._handle_filter_fix(data, phone_number, entity_key, title)
 
         # Guided shopping wizard (smart-skip funnel)
-        # Typed title of a currently shown product wins over wizard restart.
+        # Typed title of a currently shown product wins over wizard restart --
+        # but ONLY when there's no active wizard step already claiming this
+        # turn. A short, in-vocabulary slot answer ("gold" for material) can
+        # collide with a shown product's title as a plain substring ("Emine
+        # Evil Eye Gold Ring") once real products from an earlier browse are
+        # sitting in last_search_products -- confirmed live, this silently
+        # opened a product card and cleared an in-progress wizard instead of
+        # accepting "gold" as the material answer it's currently asking for.
         title_query = _extract_search_query(messages)
-        if title_query:
+        if title_query and not is_wizard_active(user_profile):
             titled = _handle_typed_product_title(data, title_query)
             if titled is not None:
                 return titled
@@ -2099,8 +2124,17 @@ class ProductSearchAgentV3(Processor):
             search_entities = {
                 **prior_clean,
                 "title": prior_rakhi_title(prior_raw),
-                "collection": None,  # never inherit
             }
+            # collection is excluded from prior_clean by _NEVER_INHERIT_FIELDS
+            # (a collection riding along on a category search is a narrow
+            # modifier, same as karat/colour -- must not survive "under 20k"
+            # the way test_collection_not_inherited_on_refinement locks in).
+            # But when there's no prior category, collection WAS the search's
+            # only anchor -- "show me something in evil eye" -> "under 20k"
+            # must stay scoped to Evil Eye, matching merge_search_entities's
+            # identical carve-out for the same shape.
+            if not prior_raw.get("category") and prior_raw.get("collection"):
+                search_entities["collection"] = prior_raw.get("collection")
             new_min = price_entities.get("min_price")
             new_max = price_entities.get("max_price")
             if new_min is not None:
@@ -2236,6 +2270,25 @@ class ProductSearchAgentV3(Processor):
 
         extracted = combine_search_entities(llm_entities, structured_fields)
 
+        # extract_structured_fields deliberately never provides collection
+        # (architecture boundary, test_regex_never_provides_semantic_entities
+        # -- semantic fields are LLM-only, since that's where homograph
+        # ambiguity lives). But collection matching isn't a semantic guess:
+        # _matched_collection_label is a deterministic lookup against the
+        # live Clara collections list, the same kind of validated check as
+        # pincode/city. Live-confirmed the LLM reliably catches distinctive
+        # multi-word names ("Evil Eye") but consistently misses one-word
+        # ones ("noor", "echo", "vachan") -- no collection, no title,
+        # nothing downstream to recover from. LLM value still wins if set.
+        if not extracted.get("collection"):
+            from kisna_chatbot.processors.entity_extractor import (
+                _matched_collection_label,
+            )
+
+            matched_collection = _matched_collection_label(query)
+            if matched_collection:
+                extracted["collection"] = matched_collection
+
         # "any" is the LLM saying the user refused an availability or has no
         # preference — that is the absence of a filter, not one to send.
         if extracted.get("fulfillment") == "any":
@@ -2301,7 +2354,18 @@ class ProductSearchAgentV3(Processor):
             k: v
             for k, v in last_filters.items()
             if k not in _NEVER_INHERIT_FIELDS and v is not None  # FIX 4: exclude None values
-        } or None
+        }
+        # collection is excluded above by _NEVER_INHERIT_FIELDS (a narrow
+        # modifier riding on a category search must not outlive a refinement
+        # -- test_collection_not_inherited_on_refinement). But when the
+        # prior search had no category at all, collection WAS the anchor
+        # ("show me something in evil eye"); merge_search_entities has its
+        # own matching logic for this shape, but only if it can actually see
+        # the value -- restore it here so that logic isn't fed a dict this
+        # same exclusion already stripped it from.
+        if not last_filters.get("category") and last_filters.get("collection"):
+            prior["collection"] = last_filters.get("collection")
+        prior = prior or None
         entities = merge_search_entities(prior, extracted, query)
         entities = inherit_rakhi_title(entities, last_filters)
         entities = finalize_search_entities(
@@ -2366,6 +2430,7 @@ class ProductSearchAgentV3(Processor):
             data.get("classified_category") == "product_search"
             and should_start_wizard(entities)
             and not _BROWSE_ALL_RE.search(query)
+            and not _collection_browse_skips_wizard(entities)
         ):
             return await self._maybe_start_shopping_wizard(
                 data, phone_number, entities, query=query

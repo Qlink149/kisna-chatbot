@@ -3,6 +3,7 @@
 import json
 import os
 import unittest
+from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -234,6 +235,43 @@ class ClaraFixtureTests(unittest.TestCase):
         merged = merge_search_entities(prior, new, "show me them in gold")
         self.assertIsNone(merged["collection"])
 
+    def test_collection_anchored_browse_survives_price_refinement(self):
+        # "show me something in evil eye" has NO category -- collection IS
+        # the search's anchor here, the same role category normally plays,
+        # so a price refinement must not silently drop back to the whole
+        # catalogue the way the category-anchored case above correctly does.
+        # (A BARE "under 20k" with no refinement framing takes a separate
+        # fast path in product_search_agent_v3.py -- _is_price_only_refinement
+        # -- fixed and live-verified separately; this covers the phrasing
+        # that reaches merge_search_entities's own refinement_only branch,
+        # matching the sibling karat/title tests' style above.)
+        prior = {"collection": "evil eye"}
+        new = {"category": None, "material_type": None, "collection": None,
+               "title": None, "max_price": 20000.0}
+        merged = merge_search_entities(prior, new, "I want them under 20k")
+        self.assertEqual(merged["collection"], "evil eye")
+        self.assertEqual(merged["max_price"], 20000.0)
+
+    def test_collection_anchored_browse_survives_category_narrowing(self):
+        # "rings" as a follow-up to a collection-only browse narrows INSIDE
+        # the collection, not a fresh unrelated ring search -- the
+        # category-change guard doesn't protect this (there's no prior
+        # category to compare against), so this needs its own carve-out.
+        prior = {"collection": "evil eye"}
+        new = {"category": "ring", "material_type": None, "collection": None,
+               "title": None}
+        merged = merge_search_entities(prior, new, "rings")
+        self.assertEqual(merged["collection"], "evil eye")
+        self.assertEqual(merged["category"], "ring")
+
+    def test_collection_anchored_browse_drops_on_different_collection(self):
+        # Restating a DIFFERENT collection must win, not merge oddly.
+        prior = {"collection": "evil eye"}
+        new = {"category": None, "material_type": None, "collection": "noor",
+               "title": None}
+        merged = merge_search_entities(prior, new, "show me noor collection instead")
+        self.assertEqual(merged["collection"], "noor")
+
     def test_karat_not_inherited_on_refinement(self):
         """karat from a previous search must not carry into a new category query."""
         prior = {"category": "earring", "karat": "14KT", "material_type": "gold"}
@@ -363,6 +401,139 @@ class ClaraFixtureTests(unittest.TestCase):
             body = json.load(f)
         stores = body["data"]["data"]
         self.assertTrue(len(stores) > 0)
+
+
+class CollectionOnlyBrowseTests(unittest.TestCase):
+    """"show me something in evil eye" should search directly, not funnel
+    through "what are you looking for" -- the API happily returns a mixed-
+    category spread for collectionId alone (live-confirmed: 34 products,
+    rings/pendants/bracelets mixed, for Evil Eye Collection)."""
+
+    def test_skips_wizard_when_collection_resolves_and_no_category(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _collection_browse_skips_wizard,
+        )
+
+        with patch(
+            "kisna_chatbot.integrations.clara_filters.get_collection_id",
+            return_value="fake-collection-id",
+        ):
+            self.assertTrue(
+                _collection_browse_skips_wizard({"collection": "evil eye"})
+            )
+
+    def test_does_not_skip_when_category_already_known(self):
+        # A collection AND a category together is a normal, fully-specified
+        # search -- the funnel logic for missing gender/material/budget
+        # still applies exactly as before.
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _collection_browse_skips_wizard,
+        )
+
+        with patch(
+            "kisna_chatbot.integrations.clara_filters.get_collection_id",
+            return_value="fake-collection-id",
+        ):
+            self.assertFalse(
+                _collection_browse_skips_wizard(
+                    {"collection": "evil eye", "category": "ring"}
+                )
+            )
+
+    def test_does_not_skip_when_collection_unresolvable(self):
+        # A guessed name that isn't a real Clara collection must still ask
+        # -- never skip the funnel on an unvalidated string.
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _collection_browse_skips_wizard,
+        )
+
+        with patch(
+            "kisna_chatbot.integrations.clara_filters.get_collection_id",
+            return_value=None,
+        ):
+            self.assertFalse(
+                _collection_browse_skips_wizard({"collection": "not a real name"})
+            )
+
+    def test_does_not_skip_when_no_collection_at_all(self):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _collection_browse_skips_wizard,
+        )
+
+        self.assertFalse(_collection_browse_skips_wizard({}))
+
+
+class TypedProductTitleWizardPriorityTests(unittest.TestCase):
+    """A shown product's title can collide with a short, valid wizard slot
+    answer as a plain substring ("gold" inside "Emine Evil Eye Gold Ring").
+    Live-confirmed: this silently opened the product card and cleared an
+    in-progress wizard instead of accepting "gold" as the material answer
+    it was currently asking for. An active wizard step must own the turn."""
+
+    def test_shown_product_title_still_matches_when_wizard_inactive(self):
+        # Confirms the collision is real and the matcher itself is
+        # unchanged: without an active wizard, typing "gold" against a
+        # shown "...Gold Ring" title correctly opens that product -- this
+        # is the case _handle_typed_product_title exists for.
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _handle_typed_product_title,
+        )
+
+        data = {
+            "user_profile": {
+                "last_search_products": [
+                    {"title": "Emine Evil Eye Gold Ring", "id": "p1"}
+                ],
+            }
+        }
+        result = _handle_typed_product_title(data, "gold")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.get("classified_category"), "product_info")
+
+    def test_process_keeps_wizard_owning_gold_despite_matching_shown_title(self):
+        # The actual regression: process() used to run
+        # _handle_typed_product_title BEFORE checking wizard state at all,
+        # so "gold" at the material step matched the shown product's title
+        # substring, opened that product, and cleared the wizard --
+        # confirmed live. The is_wizard_active guard in process() must keep
+        # an active wizard step owning this turn.
+        import asyncio
+
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            ProductSearchAgentV3,
+        )
+
+        user_profile = {
+            "shopping_wizard_active": True,
+            "shopping_wizard_step": "material",
+            "shopping_wizard_data": {"category": "ring", "gender": "men"},
+            "last_search_products": [
+                {"title": "Emine Evil Eye Gold Ring", "id": "p1"}
+            ],
+        }
+        data = {
+            "phone_number": "919999999996",
+            "client_id": "kisna",
+            "user_profile": user_profile,
+            "messages": {"text": {"body": "gold"}},
+        }
+
+        async def _run():
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3._current_message_entities",
+                new_callable=AsyncMock,
+                return_value={"material_type": "gold"},
+            ):
+                return await ProductSearchAgentV3().process(data)
+
+        asyncio.run(_run())
+
+        self.assertNotEqual(data.get("classified_category"), "product_info")
+        self.assertEqual(
+            user_profile.get("shopping_wizard_data", {}).get("material_type"),
+            "gold",
+        )
+        self.assertTrue(user_profile.get("shopping_wizard_active"))
 
 
 if __name__ == "__main__":
