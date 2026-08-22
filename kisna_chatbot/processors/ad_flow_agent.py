@@ -287,6 +287,15 @@ class AdFlowAgent(Processor):
                 # branch is never shown as if it were nearby.
                 city_l = city.strip().lower()
                 stores = [s for s in stores if _store_city(s).lower() == city_l]
+                if not stores:
+                    # The name= search is a substring match against each
+                    # store's own name/address text -- a real branch whose
+                    # name never repeats its city (confirmed live: Belgaum,
+                    # Delhi-NCR, Mysore) is invisible to it even though the
+                    # city is genuine. Full scan + filter by the real field
+                    # closes that gap; only runs on the empty case, so it
+                    # doesn't add a round-trip to the common path.
+                    stores = await self._full_scan_by_city(city_l)
             return {"stores": stores, "total_count": len(stores)}
         except ClaraAPIError:
             raise
@@ -300,6 +309,22 @@ class AdFlowAgent(Processor):
             return _filter_cached_stores(cached, pincode=pincode, city=city)
 
         return {"stores": [], "total_count": 0}
+
+    async def _full_scan_by_city(self, city_l: str) -> list:
+        """Fetch every store (155 total as of 2026-08-22; 500 leaves real
+        headroom for growth) and filter by the real address.city.name field.
+        Fallback only -- the primary path (get_stores(city=...)) already
+        covers the common case in a single, smaller call."""
+        try:
+            # pageNo must be passed explicitly alongside pageSize -- Clara
+            # silently ignores pageSize on its own and falls back to its
+            # default page (10 results), confirmed live.
+            result = await get_stores(page_no=1, page_size=500)
+        except Exception:
+            logger.warning("Full store scan failed", exc_info=True)
+            return []
+        stores = _exclude_ecom_stores(result.get("stores") or [])
+        return [s for s in stores if _store_city(s).lower() == city_l]
 
     async def process(self, data: dict) -> dict:
         phone_number = data["phone_number"]

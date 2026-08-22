@@ -17,10 +17,20 @@ which worked. Root cause traced to two separate bugs:
    "Agrasen Chowk - Bilaspur", and name=Patna returned 7 Visakhapatnam
    stores alongside the 3 real Patna ones. Fixed by filtering results
    against the store's own real address.city.name field.
+
+3. The same name= search also has false negatives: a real store whose
+   own name/address text never repeats its city (Belgaum, Delhi-NCR,
+   Mysore, confirmed against a full 99-city sweep) is invisible to it.
+   Closed by falling back to a full store scan + real-field filter when
+   the primary search comes back empty for a recognized city -- which
+   itself needed pageNo passed explicitly alongside pageSize, since Clara
+   silently ignores pageSize on its own and returns its default 10-result
+   page regardless (confirmed live).
 """
 
 import os
 import unittest
+from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -136,6 +146,67 @@ class CityFalsePositiveFilterTests(unittest.TestCase):
         result = _filter_cached_stores(cached, city="Delhi-NCR")
         self.assertEqual(len(result["stores"]), 1)
         self.assertEqual(result["stores"][0]["name"], "Y")
+
+
+class FullScanFallbackTests(unittest.TestCase):
+    """A real city whose store never repeats the city name in its own
+    name/address text (Belgaum, Delhi-NCR, Mysore) gets nothing from the
+    primary name= search. _fetch_stores must fall back to a full scan
+    rather than reporting zero stores for a city Kisna genuinely covers."""
+
+    def test_full_scan_used_when_primary_search_is_empty(self):
+        import asyncio
+
+        from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
+
+        belgaum_store = {
+            "name": "Shashtri Nagar - Belagavi - Karnataka",
+            "address": {"city": {"name": "Belgaum"}},
+        }
+
+        async def _run():
+            agent = AdFlowAgent()
+            with patch(
+                "kisna_chatbot.processors.ad_flow_agent.get_stores",
+                new_callable=AsyncMock,
+            ) as mocked:
+                # First call: the primary name= search, empty (the real
+                # failure mode). Second call: the full scan fallback.
+                mocked.side_effect = [
+                    {"stores": [], "total_count": 0},
+                    {"stores": [belgaum_store], "total_count": 1},
+                ]
+                result = await agent._fetch_stores(city="Belgaum", app_state=None)
+            self.assertEqual(mocked.call_count, 2)
+            self.assertEqual(mocked.call_args_list[1].kwargs.get("page_no"), 1)
+            self.assertEqual(mocked.call_args_list[1].kwargs.get("page_size"), 500)
+            return result
+
+        result = asyncio.run(_run())
+        self.assertEqual(len(result["stores"]), 1)
+        self.assertIn("Belagavi", result["stores"][0]["name"])
+
+    def test_full_scan_not_used_when_primary_search_already_found_something(self):
+        import asyncio
+
+        from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
+
+        async def _run():
+            agent = AdFlowAgent()
+            with patch(
+                "kisna_chatbot.processors.ad_flow_agent.get_stores",
+                new_callable=AsyncMock,
+                return_value={
+                    "stores": [
+                        {"name": "MG Road - Agra", "address": {"city": {"name": "Agra"}}}
+                    ],
+                    "total_count": 1,
+                },
+            ) as mocked:
+                await agent._fetch_stores(city="Agra", app_state=None)
+            self.assertEqual(mocked.call_count, 1)
+
+        asyncio.run(_run())
 
 
 if __name__ == "__main__":
