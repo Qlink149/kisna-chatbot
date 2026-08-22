@@ -853,6 +853,7 @@ def _empty_entities() -> dict:
         "material_type": None,
         "min_price": None,
         "max_price": None,
+        "budget": None,
         "title": None,
         "city": None,
         "pincode": None,

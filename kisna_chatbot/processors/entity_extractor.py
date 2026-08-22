@@ -845,6 +845,11 @@ _REGEX_FILL_FIELDS = (
 )
 
 _LLM_ONLY_FIELDS = (
+    # Only the LLM can read "price koi baat nahi" or its Tamil equivalent; the
+    # regex below is a deterministic FALLBACK for an LLM outage, not the
+    # primary reader. Do not grow that regex to cover more languages -- that is
+    # the failure this field exists to end.
+    "budget",
     "title",
     "occasion",
     "style",

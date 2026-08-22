@@ -519,6 +519,7 @@ lost.
                     rose_gold|white_gold|gemstone|null",
   "min_price": <integer INR or null>,
   "max_price": <integer INR or null>,
+  "budget": "any|null",
   "title": "<product/collection name or null>",
   "karat": "9KT|14KT|18KT|24KT|null",
   "metal_colour": "yellow|white|rose|null",
@@ -687,6 +688,16 @@ gender:
   under 15k" → gender=null. Set gender only if a cue above is ALSO present
   ("...I am a male" → men).
   CURRENT wins: after a women search, "I want it for men" → gender=men (not null).
+
+budget:
+  "any" ONLY when the user EXPLICITLY says price does not matter — in any
+  language. "any price", "no specific budget", "price no bar", "koi budget
+  nahi", "कोई बजट नहीं". A price phrase attached to the product still counts:
+  "rings OF any price", "rings AT any price", "of any budget" → budget=any.
+  This is how you say "they answered the budget question with no preference";
+  null means they simply did not mention money. Never "any" just because no
+  amount appears.
+  A stated amount or range fills min_price/max_price and leaves budget null.
 
 fulfillment (shipping / availability — CURRENT message only):
   ready to ship / ready-to-ship / ready stock / in stock / immediate dispatch /

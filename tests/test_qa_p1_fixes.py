@@ -376,6 +376,66 @@ class OpeningBudgetDeclineTests(unittest.TestCase):
         self.assertIsNone(seeded.get("budget"))
         self.assertEqual(get_next_step(seeded), "budget")
 
+    def test_more_ways_of_declining_a_budget_up_front(self):
+        from kisna_chatbot.processors.shopping_wizard import (
+            ANY_SLOT,
+            seed_wizard_from_entities,
+        )
+
+        for query in (
+            "14kt diamond rings of any price for men made to order",
+            "14kt diamond rings at any price for men",
+            "diamond rings for men, price no bar",
+            "rings dikhao, price ki koi limit nahi",
+        ):
+            seeded = seed_wizard_from_entities({"category": "ring"}, query=query)
+            self.assertEqual(seeded.get("budget"), ANY_SLOT, query)
+
+    def test_a_stated_range_is_never_read_as_a_decline(self):
+        from kisna_chatbot.processors.shopping_wizard import _ANY_ANSWER_RE
+
+        for query in ("under 50k", "around 50k", "15-35k", "1 lakh tak"):
+            self.assertIsNone(_ANY_ANSWER_RE.search(query), query)
+
+    def test_llm_budget_any_is_the_primary_signal(self):
+        """The LLM says it; the phrase list is only an outage fallback.
+
+        A budget decline has no numeric form, and null cannot distinguish
+        "said any price" from "never mentioned money" -- so the contract now
+        carries budget="any", the same way it has always carried
+        fulfillment="any". Live, the model returns it for Hindi, Tamil, Telugu,
+        Bengali, Gujarati, Marathi and Kannada, none of which a phrase list
+        reaches.
+        """
+        from kisna_chatbot.processors.shopping_wizard import (
+            ANY_SLOT,
+            seed_wizard_from_entities,
+        )
+
+        seeded = seed_wizard_from_entities(
+            {"category": "ring", "budget": "any"},
+            query="ตัวอย่าง no phrase list could match this",
+        )
+        self.assertEqual(seeded.get("budget"), ANY_SLOT)
+
+    def test_llm_budget_field_survives_sanitisation(self):
+        from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+        self.assertEqual(_sanitize_llm_entities({"budget": "any"})["budget"], "any")
+        self.assertIsNone(_sanitize_llm_entities({"budget": "nonsense"})["budget"])
+        self.assertIsNone(_sanitize_llm_entities({})["budget"])
+
+    def test_llm_fulfillment_any_is_no_longer_discarded(self):
+        # The contract always allowed "any" here; _llm_slot_values dropped it,
+        # so "either is fine" in any language re-asked the question.
+        from kisna_chatbot.processors.shopping_wizard import (
+            ANY_SLOT,
+            _llm_slot_values,
+        )
+
+        self.assertEqual(_llm_slot_values({"fulfillment": "any"})["fulfillment"], ANY_SLOT)
+        self.assertEqual(_llm_slot_values({"fulfillment": "mto"})["fulfillment"], "mto")
+
     def test_a_real_budget_is_not_treated_as_a_decline(self):
         from kisna_chatbot.processors.shopping_wizard import (
             ANY_SLOT,

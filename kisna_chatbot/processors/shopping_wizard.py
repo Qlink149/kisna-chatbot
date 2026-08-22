@@ -235,7 +235,8 @@ _ANY_ANSWER_STEPS = ("gender", "material", "budget", "fulfillment")
 _ANY_ANSWER_RE = re.compile(
     r"\b(skip|anyone|anybody|any\s*one|any|either|whatever|flexible|"
     r"doesn'?t\s+matter|dont\s+matter|no\s+preference|no\s+specific|"
-    r"no\s+budget|no\s+limit|not\s+decided|not\s+sure|"
+    r"no\s+budget|no\s+limit|no\s+bar|not\s+decided|not\s+sure|"
+    r"limit\s+nahi|koi\s+limit|price\s+koi|"
     r"koi\s+bhi|kuch\s+bhi|jo\s+bhi|kisi\s+ke\s+liye\s+bhi|"
     r"budget\s+nahi|decide\s+nahi)\b"
     # Devanagari (Hindi/Marathi) equivalents. No \b here on purpose: Python's
@@ -418,9 +419,16 @@ def _llm_slot_values(llm_entities: dict | None) -> dict:
     fulfillment = ents.get("fulfillment")
     if fulfillment in ("ready", "mto"):
         out["fulfillment"] = fulfillment
+    elif fulfillment == "any":
+        # The contract has always allowed "any" here and this dropped it, so
+        # "either is fine" in any language was thrown away and the wizard asked
+        # the availability question again.
+        out["fulfillment"] = ANY_SLOT
     if ents.get("min_price") is not None or ents.get("max_price") is not None:
         out["min_price"] = ents.get("min_price")
         out["max_price"] = ents.get("max_price")
+    elif ents.get("budget") == "any":
+        out["budget"] = ANY_SLOT
     return out
 
 
@@ -521,12 +529,20 @@ def seed_wizard_from_entities(
     if ents.get("min_price") is not None or ents.get("max_price") is not None:
         seeded["min_price"] = ents.get("min_price")
         seeded["max_price"] = ents.get("max_price")
+    elif ents.get("budget") == ANY_SLOT or ents.get("budget") == "any":
+        # A budget DECLINED in the opening message is not a number, so the
+        # branch above never sees it and the funnel asked for a budget the
+        # customer had just given -- in its own prompt's words.
+        #
+        # LLM-PRIMARY: this reads "any price", "koi budget nahi", "কোনো বাজেট
+        # নেই" and every other phrasing, because the model understands the
+        # sentence. A phrase list cannot -- that is exactly how the kinship
+        # gender bug happened.
+        seeded["budget"] = ANY_SLOT
     elif query and _ANY_ANSWER_RE.search(query) and _names_budget(query):
-        # A budget DECLINED in the opening message ("...any price", "no
-        # specific budget") is not a number, so the price branch above never
-        # sees it and the funnel asked for a budget the customer had just
-        # given -- suggesting, in its own prompt, the very words they used.
-        # advance_wizard already handles this mid-funnel; seeding did not.
+        # Deterministic fallback for an LLM outage only. Latin/Devanagari
+        # phrasings just happen to be the ones a regex can reach; do NOT grow
+        # it to chase more languages.
         seeded["budget"] = ANY_SLOT
 
     fulfillment = ents.get("fulfillment")

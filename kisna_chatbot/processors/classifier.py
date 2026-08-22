@@ -944,6 +944,18 @@ def _sanitize_llm_entities(entities: dict) -> dict:
         direction = None
     out["price_direction"] = direction
 
+    # "any" = the customer EXPLICITLY said price does not matter, which null
+    # cannot express (null also means "never mentioned money"). Without this
+    # the only way to notice a decline was to match phrases, which cannot
+    # work across the nine languages this bot answers in.
+    budget = _coerce_null(raw.get("budget"))
+    if isinstance(budget, str):
+        budget = budget.strip().lower()
+        budget = budget if budget == "any" else None
+    else:
+        budget = None
+    out["budget"] = budget
+
     # 1-based index of a shown product the user is referring to ("the 2nd one",
     # "the gold one", "बीच वाला"). Resolved by the LLM against the shown list;
     # validated to a small positive int here.
