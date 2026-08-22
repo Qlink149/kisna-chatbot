@@ -316,25 +316,152 @@ _HINDI_NUMBER_PHRASES: list[tuple[str, str]] = [
     ("nau hazaar", "9000"),
 ]
 
-_CITIES = [
-    "mumbai",
-    "delhi",
-    "bangalore",
-    "bengaluru",
-    "chennai",
-    "hyderabad",
-    "kolkata",
-    "pune",
-    "ahmedabad",
-    "jaipur",
-    "surat",
-    "lucknow",
-    "nagpur",
-    "indore",
-    "bhopal",
-    "kochi",
-    "chandigarh",
-]
+# Maps a recognized user-typed city term (lowercase) to the exact city name
+# Kisna's own /stores API uses in address.city.name -- confirmed live via
+# GET /api/v1/clara/stores?pageSize=200 on 2026-08-22 (99 distinct cities
+# with an active store, out of 155 total stores). The store-lookup path
+# (ad_flow_agent.py, the only consumer of this map) filters live results
+# against this same real field, so the two must agree on spelling/casing.
+#
+# Root cause this replaces: the old 17-entry list only covered major
+# metros, so any other real city (Udaipur, Patna, Agra, Bareilly, ...)
+# fell through to "please share your pincode" even though Kisna has a
+# store there -- confirmed against a real tester's session where every
+# one of those cities failed by name but succeeded once the matching
+# pincode was given instead.
+#
+# A few recognized terms intentionally have NO matching store today
+# (goa, mangalore, surat, nagpur, kochi) -- kept here so the bot still
+# tries a real lookup instead of reflexively asking for a pincode; the
+# honest "no stores found, browse all locations" reply still fires
+# correctly since the post-filter finds nothing to return.
+_CITY_NAME_MAP: dict[str, str] = {
+    "agartala": "Agartala",
+    "agra": "Agra",
+    "ahmedabad": "Ahmedabad",
+    "ambikapur": "Ambikapur",
+    "ayodhya": "Ayodhya",
+    "azamgarh": "Azamgarh",
+    "ballia": "Ballia",
+    "bangalore": "Bangalore",
+    "bengaluru": "Bangalore",
+    "bardhaman": "Bardhaman",
+    "bareilly": "Bareilly",
+    "bathinda": "Bathinda",
+    "begusarai": "Begusarai",
+    "belgaum": "Belgaum",
+    "bhilai": "Bhilai",
+    "bhopal": "Bhopal",
+    "bhubaneswar": "Bhubaneswar",
+    "bikaner": "Bikaner",
+    "bilaspur": "Bilaspur",
+    "bokaro": "Bokaro",
+    "bongaigaon": "Bongaigaon",
+    "brahmapur": "Brahmapur",
+    "budaun": "Budaun",
+    "buxar": "Buxar",
+    "chandigarh": "Chandigarh",
+    "chapra": "Chapra",
+    "chennai": "Chennai",
+    "madras": "Chennai",
+    "cuttack": "Cuttack",
+    "darbhanga": "Darbhanga",
+    "dehradun": "Dehradun",
+    "delhi": "Delhi-NCR",
+    "delhi-ncr": "Delhi-NCR",
+    "new delhi": "Delhi-NCR",
+    "deoghar": "Deoghar",
+    "dhanbad": "Dhanbad",
+    "dumka": "Dumka",
+    "etawah": "Etawah",
+    "farrukhabad": "Farrukhabad",
+    "fatehpur": "Fatehpur",
+    "gandhi nagar": "Gandhi Nagar",
+    "gandhinagar": "Gandhi Nagar",
+    "gaya": "Gaya",
+    "giridh": "Giridh",
+    "gondia": "Gondia",
+    "gorakhpur": "Gorakhpur",
+    "gurugram": "Gurugram",
+    "gurgaon": "Gurugram",
+    "guwahati": "Guwahati",
+    "gwalior": "Gwalior",
+    "haldwani": "Haldwani",
+    "hisar": "Hisar",
+    "hyderabad": "Hyderabad",
+    "imphal": "Imphal",
+    "indore": "Indore",
+    "jaipur": "Jaipur",
+    "jajpur": "Jajpur",
+    "jalandhar": "Jalandhar",
+    "jamshedpur": "Jamshedpur",
+    "jehanabad": "Jehanabad",
+    "jodhpur": "Jodhpur",
+    "jorhat": "Jorhat",
+    "kaithal": "Kaithal",
+    "kanchrapara": "Kanchrapara",
+    "kanpur": "Kanpur",
+    "karimnagar": "Karimnagar",
+    "karnal": "Karnal",
+    "katni": "Katni",
+    "kolkata": "Kolkata",
+    "calcutta": "Kolkata",
+    "kullu": "Kullu",
+    "kushinagar": "Kushinagar",
+    "lakhimpur": "Lakhimpur",
+    "lalitpur": "Lalitpur",
+    "lucknow": "Lucknow",
+    "ludhiana": "Ludhiana",
+    "madhubani": "Madhubani",
+    "madurai": "Madurai",
+    "malda": "Malda",
+    "mau": "Mau",
+    "meerut": "Meerut",
+    "moradabad": "Moradabad",
+    "mumbai": "Mumbai",
+    "bombay": "Mumbai",
+    "muzaffarpur": "Muzaffarpur",
+    "mysore": "Mysore",
+    "mysuru": "Mysore",
+    "orai": "Orai",
+    "panipat": "Panipat",
+    "pathankot": "Pathankot",
+    "patna": "Patna",
+    "prayagraj": "Prayagraj",
+    "allahabad": "Prayagraj",
+    "pune": "Pune",
+    "raebareli": "Raebareli",
+    "raigarh": "Raigarh",
+    "raipur": "Raipur",
+    "sasaram": "Sasaram",
+    "siliguri": "Siliguri",
+    "sitamarhi": "Sitamarhi",
+    "siwan": "Siwan",
+    "sri ganganagar": "Sri Ganganagar",
+    "srikakulam": "Srikakulam",
+    "trichy": "Trichy",
+    "tiruchirappalli": "Trichy",
+    "udaipur": "Udaipur",
+    "vijayawada": "Vijayawada",
+    "visakhapatnam": "Visakhapatnam",
+    "vizag": "Visakhapatnam",
+    "yamuna nagar": "Yamuna Nagar",
+    "zirakpur": "Zirakpur",
+    # Recognized but no store today (see docstring above) -- kept so the
+    # bot still attempts a real lookup and gives an honest zero-results
+    # reply instead of reflexively asking for a pincode.
+    "goa": "Goa",
+    "panaji": "Goa",
+    "panji": "Goa",
+    "mangalore": "Mangalore",
+    "mangaluru": "Mangalore",
+    "surat": "Surat",
+    "nagpur": "Nagpur",
+    "kochi": "Kochi",
+    "cochin": "Kochi",
+}
+
+_CITIES = frozenset(_CITY_NAME_MAP)
 
 _MULTI_CAT_SEP_RE = re.compile(
     r"\b(aur|and|or|ya|bhi|also|&|\+)\b",
@@ -1384,10 +1511,19 @@ def _extract_title(text: str, original_text: str) -> str | None:
     return None
 
 
+_CITY_TERMS_BY_LENGTH = sorted(_CITY_NAME_MAP, key=len, reverse=True)
+
+
 def _extract_city(text: str) -> str | None:
-    for city in _CITIES:
-        if re.search(rf"\b{re.escape(city)}\b", text):
-            return city.title() if city != "bengaluru" else "Bengaluru"
+    """Return the real Kisna store city name (address.city.name) a term in
+    ``text`` resolves to, or None. Longest term first so a specific match
+    ("sri ganganagar") is never shadowed by a shorter one contained in it.
+    Case-insensitive: this used to only work when the caller had already
+    lowercased ``text`` (extract_entities does; a bare call on raw,
+    capitalized user text like "Mumbai" did not match at all)."""
+    for term in _CITY_TERMS_BY_LENGTH:
+        if re.search(rf"\b{re.escape(term)}\b", text, re.I):
+            return _CITY_NAME_MAP[term]
     return None
 
 

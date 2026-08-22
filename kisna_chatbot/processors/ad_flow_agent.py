@@ -70,6 +70,26 @@ def _store_name(store: dict) -> str:
     return (store.get("name") or store.get("title") or "KISNA Store").strip()
 
 
+def _store_city(store: dict) -> str:
+    """The store's REAL city, from address.city.name -- the only reliable
+    field for this. get_stores(city=...) has to reuse the API's `name`
+    query param (there is no dedicated city filter -- confirmed live,
+    ?city=X returns 400 Bad Request), which does a broad text search that
+    is NOT scoped to the city: it produces both false positives ("Agra"
+    matched "Agrasen Chowk - Bilaspur", "Patna" pulled in 7 Visakhapatnam
+    stores alongside the 3 real Patna ones) and false negatives (a store
+    whose own name never repeats its city). Filtering the results down to
+    this field before showing them to the user is what actually makes a
+    city search trustworthy."""
+    addr = store.get("address")
+    if not isinstance(addr, dict):
+        return ""
+    city_raw = addr.get("city")
+    if isinstance(city_raw, dict):
+        return str(city_raw.get("name") or "").strip()
+    return str(city_raw or "").strip()
+
+
 def _store_address_line(store: dict) -> str:
     addr = store.get("address")
     if isinstance(addr, str) and addr.strip():
@@ -150,15 +170,15 @@ def _filter_cached_stores(
                 filtered.append(s)
         stores = filtered
     elif city:
-        city_l = city.lower()
+        # Real city field, not a name/address substring match -- same
+        # false-positive risk as the live path (see _store_city docstring),
+        # and this fallback runs precisely when the live API is unhealthy,
+        # so it can least afford to show the wrong branch.
+        city_l = city.strip().lower()
         filtered = [
             s
             for s in stores
-            if isinstance(s, dict)
-            and (
-                city_l in _store_name(s).lower()
-                or city_l in _store_address_line(s).lower()
-            )
+            if isinstance(s, dict) and _store_city(s).lower() == city_l
         ]
         stores = filtered
 
@@ -258,6 +278,15 @@ class AdFlowAgent(Processor):
             else:
                 result = {"stores": [], "total_count": 0}
             stores = _exclude_ecom_stores(result.get("stores") or [])
+            if city:
+                # get_stores(city=...) has no real city filter to call --
+                # it searches Clara's `name` param instead (city= itself
+                # 400s), a broad text match that pulls in wrong-city stores
+                # (see _store_city docstring). Keep only stores whose OWN
+                # address.city actually is the requested city so a wrong
+                # branch is never shown as if it were nearby.
+                city_l = city.strip().lower()
+                stores = [s for s in stores if _store_city(s).lower() == city_l]
             return {"stores": stores, "total_count": len(stores)}
         except ClaraAPIError:
             raise
