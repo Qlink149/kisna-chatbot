@@ -772,5 +772,61 @@ class WizardCategoryIdNormalizationTests(unittest.TestCase):
             self.assertIsNone(result)
 
 
+class HindiAnyAnswerTests(unittest.TestCase):
+    r"""Regression: "कोई specific budget नहीं है।" at the budget step re-asked
+    the same question forever. The LLM extractor put the "no preference"
+    signal in the wrong field (fulfillment, not budget) for this exact
+    phrasing, and _ANY_ANSWER_RE -- the wizard's own direct-match fallback
+    -- was Latin-only, so it never saw the Devanagari script at all.
+
+    _ANY_ANSWER_RE also has its own micro-bug locked in here: a plain \b
+    after "नहीं" silently never matches, because Python's \w does not
+    include the trailing Devanagari combining mark (ं, anusvara) that word
+    genuinely ends in -- confirmed live before this fix. No \b on the
+    Devanagari alternatives is intentional, not an oversight.
+    """
+
+    def test_matches_the_reported_phrase(self):
+        from kisna_chatbot.processors.shopping_wizard import _ANY_ANSWER_RE
+
+        self.assertTrue(_ANY_ANSWER_RE.search("कोई specific budget नहीं है।"))
+
+    def test_matches_common_variants(self):
+        from kisna_chatbot.processors.shopping_wizard import _ANY_ANSWER_RE
+
+        for text in ("बजट नहीं है", "जो भी हो", "कुछ भी चलेगा", "कोई भी"):
+            self.assertTrue(_ANY_ANSWER_RE.search(text), text)
+
+    def test_does_not_false_positive_on_ordinary_requests(self):
+        from kisna_chatbot.processors.shopping_wizard import _ANY_ANSWER_RE
+
+        for text in ("सोने की अंगूठी चाहिए", "रोज गोल्ड चाहिए", "हार दिखाओ"):
+            self.assertFalse(_ANY_ANSWER_RE.search(text), text)
+
+    def test_advance_wizard_applies_any_slot_for_the_reported_phrase(self):
+        from kisna_chatbot.processors.shopping_wizard import advance_wizard
+
+        user_profile = {
+            "shopping_wizard_active": True,
+            "shopping_wizard_step": "budget",
+            "shopping_wizard_data": {
+                "category": "ring",
+                "material_type": "gold",
+                "gender": "any",
+            },
+        }
+        status, _responses = advance_wizard(
+            user_profile,
+            {"text": {"body": "कोई specific budget नहीं है।"}},
+            text="कोई specific budget नहीं है।",
+            # The LLM extractor's own real-world misrouting for this exact
+            # phrase: "no preference" landed on fulfillment, not budget.
+            llm_entities={"fulfillment": "any"},
+        )
+        self.assertIn(status, ("prompt", "complete"))
+        self.assertEqual(user_profile["shopping_wizard_data"].get("budget"), "any")
+        self.assertNotEqual(user_profile.get("shopping_wizard_step"), "budget")
+
+
 if __name__ == "__main__":
     unittest.main()

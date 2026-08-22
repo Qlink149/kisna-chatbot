@@ -214,7 +214,19 @@ _ANY_ANSWER_RE = re.compile(
     r"doesn'?t\s+matter|dont\s+matter|no\s+preference|no\s+specific|"
     r"no\s+budget|no\s+limit|not\s+decided|not\s+sure|"
     r"koi\s+bhi|kuch\s+bhi|jo\s+bhi|kisi\s+ke\s+liye\s+bhi|"
-    r"budget\s+nahi|decide\s+nahi)\b",
+    r"budget\s+nahi|decide\s+nahi)\b"
+    # Devanagari (Hindi/Marathi) equivalents. No \b here on purpose: Python's
+    # \w classification excludes some Devanagari combining marks (e.g. ं,
+    # anusvara), so a trailing \b silently fails to match words that end in
+    # one -- confirmed live, "\bनहीं\b" alone does not match "नहीं" in
+    # "...budget नहीं है।" even with clear whitespace on both sides. This
+    # regex only runs when the wizard is ALREADY on an _ANY_ANSWER_STEPS
+    # question, so the wider, boundary-free "कोई ... नहीं" gap match is
+    # safe here (the reply is answering THAT question, not free text) --
+    # unlike the romanized side above, which needs exact phrases since it
+    # also runs as a general escape check.
+    r"|कोई.{0,20}नहीं|जो\s*भी|कुछ\s*भी|कोई\s*भी|"
+    r"पक्का\s*नहीं|तय\s*नहीं|बजट\s*नहीं|कोई\s*(खास|विशेष)",
     re.I,
 )
 
