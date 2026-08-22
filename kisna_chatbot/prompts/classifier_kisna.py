@@ -292,7 +292,11 @@ search, not more. "dikhao"/"show" alone is NOT pagination. null in every other c
 
 language — detect the LANGUAGE, not the script:
   en · hi (Devanagari) · hi-Latn (Hinglish) · gu · mr · ta · te · bn · kn · ml ·
-  pa (Punjabi/Gurmukhi) · or · as
+  pa (Punjabi/Gurmukhi) · or · as · ur (Urdu/Nastaliq-Arabic script)
+Urdu is the only one NOT in an Indic script: Nastaliq/Arabic (اردو، آرڈر،
+واپس) is "ur", never "hi". Roman Urdu reads much like Hinglish; when the
+message is in LATIN letters use hi-Latn unless the words are distinctly
+Urdu.
 Each script maps to ONE code — never answer with a neighbouring language's code
 because it looks similar. Gurmukhi (ਸੋਨੇ) is "pa", NOT "gu". Malayalam (സ്വർണ്ണം)
 is "ml", NOT "kn". If you truly cannot tell, use "en" rather than guessing wrong:

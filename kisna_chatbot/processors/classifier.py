@@ -1179,8 +1179,12 @@ def _parse_rating_reply(text: str) -> int | None:
     return _RATING_WORD_MAP.get(normalized)
 
 
+# Languages whose speakers commonly type in Latin script too, so a Latin
+# message must not be answered in the native script. Urdu belongs here despite
+# not being Indic: roman Urdu is as common as Hinglish and reads almost the
+# same, and answering it in Nastaliq would be the same defect.
 _INDIC_LANGS = frozenset(
-    {"hi", "gu", "mr", "ta", "te", "bn", "kn", "ml", "pa", "or"}
+    {"hi", "gu", "mr", "ta", "te", "bn", "kn", "ml", "pa", "or", "ur"}
 )
 
 # _INDIC_SCRIPT_RE (Devanagari-through-Malayalam, U+0900-U+0D7F) only answers
@@ -1206,6 +1210,10 @@ _SCRIPT_LANG_RANGES: tuple[tuple[re.Pattern, frozenset[str], str], ...] = (
     (re.compile(r"[ఀ-౿]"), frozenset({"te"}), "te"),  # Telugu
     (re.compile(r"[ಀ-೿]"), frozenset({"kn"}), "kn"),  # Kannada
     (re.compile(r"[ഀ-ൿ]"), frozenset({"ml"}), "ml"),  # Malayalam
+    # Arabic script. Not Indic, but the same rule applies: the block a message
+    # is written in vetoes an incompatible label, so Urdu typed in Nastaliq is
+    # never answered in Hindi just because the model guessed "hi".
+    (re.compile(r"[\u0600-\u06FF]"), frozenset({"ur"}), "ur"),
 )
 
 
@@ -1283,6 +1291,7 @@ _LANGUAGE_NAME_TO_CODE = {
     "kannada": "kn",
     "malayalam": "ml",
     "punjabi": "pa",
+    "urdu": "ur",
 }
 
 # "talk to me in English only please", "sirf English mein baat karo",

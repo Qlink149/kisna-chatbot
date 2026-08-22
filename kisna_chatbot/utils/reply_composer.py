@@ -30,6 +30,9 @@ _LANGUAGE_LABELS = {
     "pa": "Punjabi (Gurmukhi script)",
     "or": "Odia (Odia script)",
     "as": "Assamese (Bengali-Assamese script)",
+    # Urdu is the one supported language NOT written in an Indic script. Every
+    # script rule below had to learn about Arabic for it -- see _SCRIPT_RANGES.
+    "ur": "Urdu (Nastaliq/Arabic script)",
 }
 
 
@@ -99,6 +102,10 @@ _SCRIPT_RANGES: dict[str, tuple[int, int]] = {
     "te": (0x0C00, 0x0C7F),
     "kn": (0x0C80, 0x0CFF),
     "ml": (0x0D00, 0x0D7F),
+    # Urdu-specific letters (ٹ U+0679, ڈ U+0688, ڑ U+0691, ک U+06A9, گ U+06AF,
+    # ں U+06BA, ہ U+06C1, ی U+06CC, ے U+06D2) all sit inside this one block, so
+    # a single range covers the alphabet -- Arabic Supplement is not needed.
+    "ur": (0x0600, 0x06FF),
 }
 # Scripts a reply must never contain, whatever the target language.
 _FOREIGN_SCRIPT_RANGES: tuple[tuple[int, int], ...] = (
@@ -128,6 +135,13 @@ def _script_violations(lang: str, rewritten: str) -> list[str]:
         # Indic scripts — Bengali and Gurmukhi both end sentences with "।".
         # Flagging them as foreign made clean replies look contaminated.
         if cp in (0x0964, 0x0965, 0x200C, 0x200D):
+            continue
+        # A language's OWN script is never foreign to it. This has to come
+        # before the loop below because Arabic is IN that list -- it is foreign
+        # to every Indic language, but it is exactly what Urdu must be written
+        # in. Without this guard the composer flags a perfect Urdu reply as
+        # entirely contaminated and falls back to English.
+        if target and target[0] <= cp <= target[1]:
             continue
         for lo, hi in _FOREIGN_SCRIPT_RANGES:
             if lo <= cp <= hi:

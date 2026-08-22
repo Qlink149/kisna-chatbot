@@ -40,8 +40,13 @@ DEFAULT_COMPOSE_WEAK_MODEL = "gpt-5.6-luna"
 # Marathi: it left "रिंग्स" untranslated and produced "सोने च्या" (broken
 # genitive) where the stronger model gives "सोन्याच्या अंगठ्यांच्या", 2/2.
 # Hindi is genuinely good on the default and ~0.5s faster, so it stays off.
+# Urdu measured separately on the general agent (3 FAQ questions, judged 0-3):
+# gpt-4o-mini 2.0 vs 2.7 -- consistently better, never worse, though a milder
+# gap than Tamil's 0.0 -> 3.0. Its errors were grammatical (pronoun doubling
+# "ہم ہماری", gender disagreement "جن کے دو اقسام") rather than invented words.
+# Routed on that evidence, together with the script support Urdu needed anyway.
 COMPOSE_WEAK_LANGUAGES = frozenset(
-    {"ta", "te", "bn", "pa", "kn", "ml", "or", "as", "gu", "mr"}
+    {"ta", "te", "bn", "pa", "kn", "ml", "or", "as", "gu", "mr", "ur"}
 )
 
 MAX_OUTPUT_TOKENS_CLASSIFIER = 512

@@ -348,3 +348,71 @@ class GeneralAgentModelRoutingTests(unittest.TestCase):
 
         src = inspect.getsource(openai_responses.run_openai_general_agent)
         self.assertIn('"gpt-4o-mini" not in configured_model.lower()', src)
+
+
+class UrduSupportTests(unittest.TestCase):
+    """Urdu is the one supported language NOT in an Indic script, so every
+    script rule had to learn about Arabic before it could be routed anywhere.
+
+    The trap these pin: _FOREIGN_SCRIPT_RANGES lists Arabic as a script a reply
+    must NEVER contain -- true for every Indic language, and exactly wrong for
+    Urdu. Routing Urdu without this would make the composer flag its own
+    correct Urdu as entirely contaminated and fall back to English.
+    """
+
+    URDU = "ہم 7 دن کی واپسی کی پالیسی پیش کرتے ہیں۔ پروڈکٹ غیر استعمال شدہ ہونا چاہیے۔"
+    HINDI = "हम 7 दिन की वापसी नीति प्रदान करते हैं।"
+
+    def test_urdu_script_is_not_foreign_to_urdu(self):
+        from kisna_chatbot.utils.reply_composer import _script_violations
+
+        self.assertEqual(_script_violations("ur", self.URDU), [])
+
+    def test_arabic_is_still_foreign_to_every_indic_language(self):
+        """The guard must be narrowed for Urdu only, not removed."""
+        from kisna_chatbot.utils.reply_composer import _script_violations
+
+        for lang in ("hi", "ta", "gu", "bn", "pa", "kn", "ml", "mr", "te"):
+            self.assertTrue(_script_violations(lang, self.URDU), lang)
+
+    def test_devanagari_is_foreign_to_urdu(self):
+        from kisna_chatbot.utils.reply_composer import _script_violations
+
+        self.assertTrue(_script_violations("ur", self.HINDI))
+
+    def test_urdu_requires_native_script_but_roman_urdu_does_not(self):
+        from kisna_chatbot.utils.reply_composer import _needs_native_script
+
+        self.assertTrue(_needs_native_script("ur"))
+        self.assertFalse(_needs_native_script("ur-Latn"))
+
+    def test_urdu_has_a_label_so_it_is_never_nearest_matched(self):
+        """An unlisted language falls back to the nearest listed one -- that is
+        how a Gurmukhi message once got answered in Gujarati."""
+        from kisna_chatbot.utils.reply_composer import _LANGUAGE_LABELS, _language_label
+
+        self.assertIn("ur", _LANGUAGE_LABELS)
+        self.assertIn("Urdu", _language_label("ur"))
+        self.assertIn("romanized", _language_label("ur-Latn"))
+
+    def test_routing(self):
+        from kisna_chatbot.ai.config import resolve_compose_model
+
+        self.assertEqual(resolve_compose_model("ur"), "gpt-5.6-luna")
+        self.assertIsNone(resolve_compose_model("ur-Latn"))
+
+    def test_the_script_typed_overrides_a_wrong_label(self):
+        from kisna_chatbot.processors.classifier import resolve_reply_language
+
+        # Nastaliq mislabelled as Hindi is corrected by what was actually typed
+        self.assertEqual(resolve_reply_language("hi", self.URDU), "ur")
+        # ...and the reverse
+        self.assertEqual(resolve_reply_language("ur", self.HINDI), "hi")
+
+    def test_latin_script_is_never_answered_in_nastaliq(self):
+        from kisna_chatbot.processors.classifier import resolve_reply_language
+
+        self.assertEqual(
+            resolve_reply_language("ur", "mujhe angoothi chahiye"), "ur-Latn"
+        )
+        self.assertEqual(resolve_reply_language("ur", "I want a ring"), "en")
