@@ -78,6 +78,11 @@ work — they are product_search, never human_handoff.
 
 **video_call** — Request for a video call / consultation / video shopping. ≥0.9.
 
+**unsubscribe** — asking to STOP receiving messages: "unsubscribe", "stop",
+"remove my number", "don't message me again", "mujhe message mat bhejo",
+and the same in any language. NOT "stop showing me gold ones" (that is a
+search refinement) and NOT order cancellation (that is human_handoff).
+
 **gold_rate** — Today's gold price as a metal ("aaj ka rate", "sone ka bhav",
 "22kt ka rate"). NOT product prices.
 
@@ -317,6 +322,9 @@ message is in LATIN letters use hi-Latn unless the words are distinctly
 Urdu.
 Each script maps to ONE code — never answer with a neighbouring language's code
 because it looks similar. Gurmukhi (ਸੋਨੇ) is "pa", NOT "gu". Malayalam (സ്വർണ്ണം)
+ASSAMESE shares Bengali's script but is a different language: the letter ৰ
+(instead of র) and words like আপোনাৰ / মই / কৰিব mean "as", NOT "bn".
+Bengali uses আপনার / আমি / করবে.
 is "ml", NOT "kn". If you truly cannot tell, use "en" rather than guessing wrong:
 a wrong code makes the bot reply in a language the user does not read.
 Gujarati is "gu" in ANY script; marker words che/chho/tamara/tame/kem/su/mate/joie
@@ -667,6 +675,11 @@ karat: extract 9KT/14KT/18KT/24KT if mentioned (Clara catalogue karats only).
 price (ALWAYS extract when budget words present — integers in INR):
   "under X" / "below X" / "X tak" / "upto X" → max_price=X only (no band)
   "above X" / "over X" / "more than X" / "X se zyada" → min_price=X only
+  A BUDGET stated with no comparison word is a CEILING, never an exact price:
+    "my budget is 250000" / "budget 2.5 lakh" / "मेरा बजट 250000 है" /
+    "મારું બજેટ 250000 ઽે" → max_price=250000, min_price=null.
+    NEVER min_price=max_price — that returns only pieces priced to the exact
+    rupee, i.e. nothing. Someone naming a budget can spend UP TO it.
   "X to Y" / "X-Y" / "between X and Y" / "X se Y tak" →
     min_price=X, max_price=Y (keep as given)
     Suffix (k/lakh) on ONE side distributes to BOTH:

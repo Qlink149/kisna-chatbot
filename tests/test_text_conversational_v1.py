@@ -182,8 +182,13 @@ class ReplyComposerTests(unittest.TestCase):
                 second = await rc.compose("search_confirm", english, language="gu")
             self.assertEqual(first, english)
             self.assertEqual(second, english)
-            # Miss is not cached — each compose retries once (2 calls × 2).
-            self.assertEqual(mocked.call_count, 4)
+            # A miss is still not cached, which is what this guards.
+            # 3 calls per compose now, not 2: the strict retry, then a
+            # second opinion on the OTHER model before giving up to
+            # English. That third attempt is what rescues Hindi (whose
+            # model translates pinned metal names) and Odia (whose model
+            # returns an empty rewrite) — both of which shipped English.
+            self.assertEqual(mocked.call_count, 6)
 
         asyncio.run(_run())
 

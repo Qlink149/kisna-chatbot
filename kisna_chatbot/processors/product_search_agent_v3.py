@@ -58,6 +58,7 @@ from kisna_chatbot.processors.search_confirmation import (
     is_confirm_enabled,
     is_confirm_interactive,
     parse_confirm_reply,
+    parse_confirm_reply_async,
     pop_pending_search,
     set_pending_search,
     should_confirm,
@@ -860,6 +861,7 @@ async def _handle_product_info_followup(data: dict, query: str) -> dict | None:
                     "media_type": "image",
                     "url": url,
                     "caption": format_product_image_caption(cheapest),
+                    "_compose": "product_card",
                 }
             )
         bot_response.append(
@@ -1797,6 +1799,7 @@ def build_product_image_with_cta_message(product: dict) -> dict | None:
         "type": "image_with_cta",
         "url": url,
         "caption": format_product_image_caption(product),
+        "_compose": "product_card",
         "cta_url": build_product_url(product),
         "cta_title": "Buy on KISNA",
     }
@@ -1813,6 +1816,7 @@ def build_product_media_message(product: dict) -> dict | None:
         "media_type": "image",
         "url": url,
         "caption": format_product_image_caption(product),
+        "_compose": "product_card",
     }
 
 
@@ -2872,7 +2876,13 @@ class ProductSearchAgentV3(Processor):
         pending = get_pending_search(user_profile)
         messages = data.get("messages", {})
         text = _extract_search_query(messages)
-        answer = parse_confirm_reply(messages, text)
+        answer = await parse_confirm_reply_async(
+            messages,
+            text,
+            recap=(pending or {}).get("query_label") or "",
+            client_id=data.get("client_id", "kisna"),
+            phone_number=phone_number,
+        )
 
         if not pending:
             if is_confirm_interactive(messages) and answer in ("yes", "no"):

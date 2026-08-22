@@ -238,6 +238,18 @@ def _compose_token_budget(text: str) -> int:
     return max(400, min(resolve_max_tokens(AgentName.GENERAL), len(text or "") // 2 + 300))
 
 
+# Distinguishes "caller passed no model" from "caller passed None on purpose"
+# (None means: use the agent's default model).
+_UNSET = "\x00unset"
+
+
+def resolve_compose_model_fallback(lang: str) -> str | None:
+    """The model to try when the configured one has just failed."""
+    from kisna_chatbot.ai.config import get_ai_settings
+
+    return get_ai_settings()["compose_weak_model"] or None
+
+
 def _compose_instruction(label: str, *, strict: bool = False) -> str:
     """Faithful rewrite prompt. ``strict`` is the one-shot echo retry."""
     instruction = (
@@ -296,6 +308,7 @@ async def compose(
     name: str | None = None,
     phone_number: str | None = None,
     client_id: str | None = None,
+    pin: tuple[str, ...] = (),
 ) -> str:
     """
     Mirror canned English text into the user's language.
@@ -317,7 +330,15 @@ async def compose(
         return _CACHE[cache_key]
 
     label = _language_label(lang)
+    # `pin` carries values only the CALLER knows are verbatim -- product
+    # names, chiefly. The static list cannot hold those, and the rewrite
+    # instruction alone does not hold them: gpt-4o-mini turned "Divine Evil
+    # Eye Gold Earring" into "देवदूत बुरा आंख सोने का कानफूल", which the
+    # customer cannot match to the card, the website or their order. Pinned
+    # values that do not survive make the whole rewrite fall back to
+    # English -- the safe failure, and one the model retry below can rescue.
     pinned = [p for p in _PINNED_PHRASES if p in text]
+    pinned += [p for p in pin if p and p in text]
     instruction_extra = ""
     if pinned:
         quoted = " and ".join(f'"{p}"' for p in pinned)
@@ -340,7 +361,7 @@ async def compose(
     # stays on the agent's normal one. See ai/config.resolve_compose_model.
     compose_model = resolve_compose_model(lang)
 
-    async def _rewrite(instruction: str) -> str:
+    async def _rewrite(instruction: str, model: str | None = _UNSET) -> str:
         rewritten = await complete_chat(
             agent=AgentName.GENERAL,
             instruction=instruction + instruction_extra,
@@ -348,9 +369,30 @@ async def compose(
             max_output_tokens=_compose_token_budget(text),
             phone_number=phone_number,
             client_id=client_id,
-            model=compose_model,
+            model=compose_model if model is _UNSET else model,
         )
         return (rewritten or "").strip()
+
+    async def _second_opinion() -> str:
+        """The same rewrite on the OTHER model.
+
+        Two different failures land here and neither is the model being asked
+        to do something impossible — the other model does it fine:
+          * the default model TRANSLATES pinned metal names, so the gate that
+            stops "we don't carry silver" inverting into "we don't carry gold"
+            rejects the whole rewrite and English ships (Hindi, 5/5);
+          * the stronger model returns an EMPTY rewrite for some strings, so
+            the echo check fires and English ships (Odia).
+        Trying the other one before giving up costs a single call on a path
+        that was already about to fail.
+        """
+        other = None if compose_model else resolve_compose_model_fallback(lang)
+        if other == compose_model:
+            return ""
+        try:
+            return await _rewrite(_compose_instruction(label), other)
+        except Exception:
+            return ""
 
     try:
         result = await _rewrite(_compose_instruction(label))
@@ -361,16 +403,22 @@ async def compose(
             if retry and not _is_unusable_rewrite(lang, retry):
                 result = retry
             else:
-                logger.warning(
+                second = await _second_opinion()
+                if second and not _is_unusable_rewrite(lang, second):
+                    result = second
+                else:
+                    logger.warning(
                     "reply_composer unusable rewrite — using English",
-                    extra={
-                        "template_key": template_key,
-                        "language": lang,
-                        "model": compose_model,
-                        "foreign_chars": "".join(_script_violations(lang, retry or result))[:20],
-                    },
-                )
-                return text
+                        extra={
+                            "template_key": template_key,
+                            "language": lang,
+                            "model": compose_model,
+                            "foreign_chars": "".join(
+                                _script_violations(lang, retry or result)
+                            )[:20],
+                        },
+                    )
+                    return text
         if pinned or pinned_words:
             # A pinned phrase that did not survive makes the reply actively
             # misleading: it tells the customer to send words that trigger
@@ -380,12 +428,21 @@ async def compose(
             missing = [p for p in pinned if p not in result]
             missing += [w for w in pinned_words if w not in lowered]
             if missing:
-                logger.warning(
-                    "reply_composer dropped a pinned phrase — using English",
-                    extra={"template_key": template_key, "language": lang,
-                           "missing": missing[:2]},
-                )
-                return text
+                second = await _second_opinion()
+                lowered_second = (second or "").lower()
+                still_missing = [p for p in pinned if p not in (second or "")]
+                still_missing += [w for w in pinned_words if w not in lowered_second]
+                if second and not still_missing and not _is_unusable_rewrite(
+                    lang, second
+                ):
+                    result = second
+                else:
+                    logger.warning(
+                        "reply_composer dropped a pinned phrase — using English",
+                        extra={"template_key": template_key, "language": lang,
+                               "missing": missing[:2]},
+                    )
+                    return text
         result = _match_source_emphasis(text, result)
         if len(_CACHE) < 2000:
             _CACHE[cache_key] = result
@@ -537,6 +594,18 @@ async def _localize_quick_reply(item: dict, language: str, data: dict) -> None:
     )
 
 
+def _bold_titles(text: str) -> tuple[str, ...]:
+    """The *bolded* segments of a product card — its product names.
+
+    A card is data plus prose: the name and the rupee figure must survive
+    untouched, everything else should read in the customer's language. The
+    names are the only part the composer cannot be told about in advance.
+    """
+    return tuple(
+        t.strip() for t in re.findall(r"\*([^*\n]{3,80})\*", text or "") if t.strip()
+    )
+
+
 async def localize_bot_responses(data: dict) -> None:
     """
     Rewrite tagged text responses in-place before sending.
@@ -577,6 +646,26 @@ async def localize_bot_responses(data: dict) -> None:
         # does, and was skipped here -- so a tagged CTA stayed English. Its
         # display_text is deliberately NOT translated: WhatsApp caps button
         # labels at 20 characters and several languages would overflow it.
+        # Product cards are media/image_with_cta items whose prose lives in
+        # "caption", not "text" — so the single most-seen message in the whole
+        # product ("Price may vary as per current gold rate", "Shipping in 7
+        # days") reached every non-English customer in English. The title and
+        # the rupee figure are protected by the "keep prices and proper product
+        # titles EXACTLY unchanged" clause already in _compose_instruction.
+        if item.get("caption") and item.get("type") in (
+            "media",
+            "image_with_cta",
+        ):
+            if language != "en":
+                item["caption"] = await compose(
+                    template_key,
+                    item["caption"],
+                    language=language,
+                    phone_number=data.get("phone_number"),
+                    client_id=data.get("client_id"),
+                    pin=_bold_titles(item["caption"]),
+                )
+            continue
         if item.get("type") not in ("text", "cta_url", "flow") or not item.get("text"):
             continue
         if template_key in _PERSONALITY_TAGS:

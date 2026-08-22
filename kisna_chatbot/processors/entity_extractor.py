@@ -1694,6 +1694,21 @@ def _extract_city(text: str) -> str | None:
 
 
 def _extract_pincode(text: str) -> str | None:
+    """A 6-digit number, unless the sentence is plainly about money.
+
+    Indian pincodes and six-figure rupee amounts are the same shape, and
+    a jewellery budget is routinely six figures — so "under 250000" set
+    pincode='250000'. That polluted last_search_filters and is one routing
+    change away from sending a shopper to the store locator.
+
+    A price cue in the message is decisive: nobody writes "under" or
+    "budget" before a postal code. A BARE six-digit number stays a
+    pincode, which is what customers actually send to the store lookup.
+    """
+    if not text:
+        return None
+    if _PRICE_HINT_RE.search(text):
+        return None
     m = _PINCODE_RE.search(text)
     return m.group(1) if m else None
 
@@ -2526,7 +2541,15 @@ def extract_entities(text: str) -> dict[str, Any]:
         "title": _extract_title(title_normalized, title_text),
         "collection": _extract_collection(title_normalized, title_text),
         "city": _extract_city(normalized),
-        "pincode": _extract_pincode(text),
+        # A number already read as a PRICE is not also a pincode. The
+        # _PRICE_HINT_RE guard inside _extract_pincode is Latin-only, so
+        # "मेरा बजट 250000 है" still came back as a pincode. Whether a
+        # price was found is language-agnostic, so it decides here.
+        "pincode": (
+            None
+            if (min_price is not None or max_price is not None)
+            else _extract_pincode(text)
+        ),
     }
 
 
@@ -2637,6 +2660,13 @@ def combine_search_entities(
     for key, val in llm.items():
         if val is not None and key not in merged:
             merged[key] = val
+
+    # Same rule as in extract_entities, applied where BOTH sources are
+    # visible: the Latin regex cannot see a native-script budget, so
+    # "मेरा बजट 250000 है" arrived with the LLM's max_price AND a
+    # regex pincode of the same number.
+    if merged.get("min_price") is not None or merged.get("max_price") is not None:
+        merged["pincode"] = None
 
     category = merged.get("category")
     material = merged.get("material_type")

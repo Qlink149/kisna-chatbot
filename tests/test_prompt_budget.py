@@ -28,7 +28,12 @@ from kisna_chatbot.prompts.classifier_kisna import (
 # customer said: rule 26 used to instruct the model to answer the primary
 # request and trust that "the user will ask the rest next". Measured live,
 # the second request was dropped with no acknowledgement in 6 of 6 languages.
-MAX_CLASSIFIER_INTENT_TOKENS = 6700
+# Raised (6700 -> 6800) for the unsubscribe intent and the Assamese/Bengali
+# disambiguation. Opt-out was an exact `== "stop"` match, so every other
+# phrasing and every non-English equivalent was ignored — a compliance
+# problem. Assamese shares Bengali's script, so without a marker rule the
+# model labels it "bn" and Assamese customers are answered in Bengali.
+MAX_CLASSIFIER_INTENT_TOKENS = 6800
 # Raised from 6500 so the gender rule could state a PRINCIPLE ("kinship words
 # are lexically gendered — read the word") instead of a closed list of terms.
 # The list was the bug: "chachi" was not on it, so the model followed the

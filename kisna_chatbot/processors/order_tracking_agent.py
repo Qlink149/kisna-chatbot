@@ -112,6 +112,7 @@ def _build_tracking_response(order_id: str, tracking_url: str) -> list:
                 "in real-time. 🚚"
             ),
             "display_text": "Track Your Order",
+            "_compose": "order_tracking_cta",
             "url": tracking_url,
         },
     ]
@@ -143,7 +144,7 @@ def build_track_order_bot_response(
 
 
 def _build_error_response(text: str) -> list:
-    return [{"type": "text", "text": text}]
+    return [{"type": "text", "text": text, "_compose": "system_error"}]
 
 
 class OrderTrackingAgent(Processor):

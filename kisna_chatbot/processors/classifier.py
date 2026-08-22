@@ -941,6 +941,11 @@ def _sanitize_llm_entities(entities: dict) -> dict:
         fulfillment = None
     out["fulfillment"] = fulfillment
 
+    # A budget is a CEILING, and min == max returns only pieces priced to
+    # the exact rupee -- in practice nothing. The model emits it for every
+    # "my budget is X" phrasing in every language tested (5/5), and telling
+    # it not to did not hold, so the shape is corrected here where it is
+    # language-agnostic. Nobody shops for a piece costing exactly 250000.
     for price_key in ("min_price", "max_price"):
         val = _coerce_null(raw.get(price_key))
         if val is not None:
@@ -950,6 +955,12 @@ def _sanitize_llm_entities(entities: dict) -> dict:
                 out[price_key] = None
         else:
             out[price_key] = None
+
+    if (
+        out.get("min_price") is not None
+        and out["min_price"] == out.get("max_price")
+    ):
+        out["min_price"] = None
 
     title = _coerce_null(raw.get("title"))
     out["title"] = title.strip() if isinstance(title, str) and title.strip() else None
@@ -1166,6 +1177,42 @@ def _parse_classifier_json(raw: str) -> dict:
     }
 
 
+# The telecom opt-out conventions. Kept as an exact-match fast path because
+# honouring an opt-out must NEVER depend on a model call succeeding -- but it is
+# only the fast path now: anything phrased differently, or in any other
+# language, is read by the classifier as the `unsubscribe` intent.
+#
+# This was `== "stop"` alone, so "unsubscribe", "please remove my number",
+# "stop sending me messages" and every non-English equivalent were ignored and
+# answered with jewellery suggestions. That is a compliance problem, not a UX
+# one.
+_OPTOUT_KEYWORDS = frozenset(
+    {"stop", "stop all", "unsubscribe", "opt out", "optout", "unsub"}
+)
+
+
+def _is_optout_keyword(query: str) -> bool:
+    """Whole-message match only.
+
+    Substring matching would unsubscribe someone who said "stop showing me the
+    gold ones", which is far worse than missing a phrasing the LLM will catch.
+    """
+    normalized = re.sub(r"[^a-z ]+", "", (query or "").strip().lower()).strip()
+    return normalized in _OPTOUT_KEYWORDS
+
+
+def _unsubscribe(data: dict) -> dict:
+    data["classified_category"] = "unsubscribe"
+    data["bot_response"] = [
+        {
+            "type": "text",
+            "text": "You've been successfully unsubscribed.",
+            "_compose": "unsubscribe_ack",
+        }
+    ]
+    return data
+
+
 def _is_obvious_reset(query: str) -> bool:
     return bool(
         re.search(r"^\s*(hi|hello|menu|back|cancel|namaste)\s*$", query, re.I)
@@ -1231,7 +1278,10 @@ _SCRIPT_LANG_RANGES: tuple[tuple[re.Pattern, frozenset[str], str], ...] = (
     (re.compile(r"[ऀ-ॿ]"), frozenset({"hi", "mr"}), "hi"),  # Devanagari
     (re.compile(r"[઀-૿]"), frozenset({"gu"}), "gu"),  # Gujarati
     (re.compile(r"[਀-੿]"), frozenset({"pa"}), "pa"),  # Gurmukhi
-    (re.compile(r"[ঀ-৿]"), frozenset({"bn"}), "bn"),  # Bengali
+    # Assamese uses the Bengali block. Listing only "bn" overrode a correct
+    # "as" label on EVERY turn, so Assamese could never be answered in
+    # Assamese — same shape as Devanagari's {"hi","mr"} below.
+    (re.compile(r"[ঀ-৿]"), frozenset({"bn", "as"}), "bn"),  # Bengali / Assamese
     (re.compile(r"[଀-୿]"), frozenset({"or"}), "or"),  # Odia
     (re.compile(r"[஀-௿]"), frozenset({"ta"}), "ta"),  # Tamil
     (re.compile(r"[ఀ-౿]"), frozenset({"te"}), "te"),  # Telugu
@@ -1406,6 +1456,30 @@ def _is_low_language_signal(user_text: str) -> bool:
     return False
 
 
+# Two languages sharing one script: no script check can separate them, so the
+# per-turn LLM label alone decides, and a short refinement flips the whole
+# conversation. Live: a Marathi search answered correctly, then "थोडं स्वस्त
+# दाखवा" came back in Hindi and stayed there; and an Assamese customer was
+# answered in Bengali. Every other language is protected by the script veto in
+# _SCRIPT_LANG_RANGES — these two pairs are the only ones that cannot be.
+_SAME_SCRIPT_SIBLINGS = {"hi": "mr", "mr": "hi", "bn": "as", "as": "bn"}
+
+# A genuine language switch is a sentence; a slot answer or a refinement is a
+# few words. Past this length we believe the label.
+_SIBLING_STICKY_MAX_WORDS = 6
+
+
+def _is_sibling_flip(stored: str | None, resolved: str, user_text: str) -> bool:
+    """True when a SHORT message would flip between two same-script languages."""
+    if not stored:
+        return False
+    stored_base = stored.split("-")[0]
+    resolved_base = (resolved or "").split("-")[0]
+    if _SAME_SCRIPT_SIBLINGS.get(stored_base) != resolved_base:
+        return False
+    return len((user_text or "").split()) <= _SIBLING_STICKY_MAX_WORDS
+
+
 def _store_language(
     user_profile: dict, language: str | None, user_text: str = ""
 ) -> None:
@@ -1436,7 +1510,13 @@ def _store_language(
         # a language change; keep what the conversation already established.
         return
     if language:
-        user_profile["language"] = resolve_reply_language(language, user_text)
+        resolved = resolve_reply_language(language, user_text)
+        if _is_sibling_flip(stored, resolved, user_text):
+            # Keep what the conversation established, but still let the SCRIPT
+            # follow the current message (native vs romanized).
+            user_profile["language"] = resolve_reply_language(stored, user_text)
+            return
+        user_profile["language"] = resolved
         return
     if stored and user_text:
         user_profile["language"] = resolve_reply_language(stored, user_text)
@@ -2627,15 +2707,8 @@ class Classifier(Processor):
                         f"Their clarification: {clarified}"
                     )
 
-                if raw_query.strip().lower() == "stop":
-                    data["bot_response"] = [
-                        {
-                            "type": "text",
-                            "text": "You've been successfully unsubscribed.",
-                            "_compose": "unsubscribe_ack",
-                        }
-                    ]
-                    return data
+                if _is_optout_keyword(raw_query):
+                    return _unsubscribe(data)
 
                 if raw_query.lower() == "hi from ads":
                     user_profile["service_selected"] = ServiceList.AD_FLOW.value
@@ -2864,6 +2937,13 @@ class Classifier(Processor):
                 # for on this one.
                 data["secondary_intent"] = parsed.get("secondary_intent")
                 _store_language(user_profile, parsed.get("language"), raw_query)
+                # Any language, any phrasing — the keyword fast path above only
+                # covers the telecom conventions. Checked AFTER the language is
+                # stored: the ack is composed from user_profile["language"], so
+                # returning before that told a Hindi customer "You've been
+                # successfully unsubscribed" in English.
+                if intent == "unsubscribe":
+                    return _unsubscribe(data)
                 override = _programmatic_intent_override(raw_query)
                 if override:
                     intent, confidence = override

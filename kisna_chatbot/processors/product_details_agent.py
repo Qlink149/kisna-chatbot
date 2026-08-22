@@ -137,6 +137,10 @@ async def _answer_product_question(
         "If the answer is not among the facts, say plainly that you do not "
         "have that detail and name what you do have. NEVER "
         "guess or invent a number. "
+        "The product NAME is a proper noun: copy it EXACTLY as given, in "
+        "English. Never translate or transliterate it. It is how the "
+        "customer finds the piece on the card, on kisna.com and in their "
+        "order — a renamed product is a wrong answer, not a style choice. "
         "The karat figure is the GOLD purity (14KT/18KT). It is NOT a diamond "
         "carat weight -- if asked about diamond carats, say you do not have it."
     )

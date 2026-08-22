@@ -267,6 +267,104 @@ def parse_confirm_reply(messages: dict, text: str | None = None) -> str | None:
     return None
 
 
+# Deliberately tiny and separate, in the same shape as the escape gate in
+# classifier.py: it answers ONE question, so it works in every language rather
+# than in the languages someone remembered to list.
+#
+# WHY IT EXISTS. _YES_TEXT_RE below is Latin-only and matches 0 of 12 native
+# affirmatives -- हाँ, होय, હા, ஆம், అవును, হ্যাঁ, ಹೌದು, അതെ, ਹਾਂ, ହଁ, جی ہاں,
+# হয়. parse_confirm_reply returned None for all of them, the turn re-classified
+# as action="more", and the recap re-rendered -- forever. A customer typing in
+# their own script could not complete a search at all; only tapping the button
+# escaped. Adding twelve more words would have left the thirteenth language
+# broken, which is the failure this codebase keeps rediscovering.
+_CONFIRM_GATE_PROMPT = """A jewellery shop's WhatsApp bot read a search back to the
+customer and asked "Does this sound correct?".
+
+WHAT WAS READ BACK:
+{recap}
+
+Decide what the customer's reply is doing. Answer with exactly one word:
+
+yes      - they agree / approve / want to proceed, in ANY language or script
+           ("haan", "हाँ", "होय", "ஆம்", "ಹೌದು", "جی ہاں", "ok", "go ahead",
+           "correct", "that's right", a thumbs-up)
+no       - they disagree, or want to change something about it
+neither  - it is not an answer to that question at all: a different product, a
+           store, an order, a return, a price question, a greeting
+
+If it could be either yes or no, answer "neither" — a wrong guess sends the
+customer a search they did not ask for.
+Reply with the single word only. No punctuation, no explanation."""
+
+
+async def confirm_reply_gate(
+    user_message: str,
+    recap: str,
+    *,
+    client_id: str = "kisna",
+    phone_number: str | None = None,
+) -> str | None:
+    """"yes" / "no" / None. None means undecided — the caller keeps its own verdict.
+
+    Never makes an outage worse than no gate: any failure returns None and the
+    turn behaves exactly as it did before this existed.
+    """
+    from kisna_chatbot.ai.factory import complete_chat
+    from kisna_chatbot.ai.types import AgentName
+    from kisna_chatbot.utils.logger_config import logger
+
+    try:
+        raw = await complete_chat(
+            agent=AgentName.CLASSIFIER,
+            agent_display_name="Confirm Gate",
+            instruction=_CONFIRM_GATE_PROMPT.format(recap=recap or "(the search)"),
+            messages=[{"role": "user", "content": user_message}],
+            max_output_tokens=8,
+            phone_number=phone_number,
+            client_id=client_id,
+        )
+    except Exception:
+        logger.warning(
+            "Confirm gate unavailable — keeping the regex verdict",
+            extra={"phone_number": phone_number},
+            exc_info=True,
+        )
+        return None
+    verdict = (raw or "").strip().strip(".\"'").lower()
+    if verdict.startswith("yes"):
+        return "yes"
+    if verdict.startswith("no"):
+        return "no"
+    return None
+
+
+async def parse_confirm_reply_async(
+    messages: dict,
+    text: str | None = None,
+    *,
+    recap: str = "",
+    client_id: str = "kisna",
+    phone_number: str | None = None,
+) -> str | None:
+    """parse_confirm_reply, with an LLM gate behind it for non-Latin replies.
+
+    The Latin regex stays the fast path and costs nothing. The gate only fires
+    when the regex found nothing AND the message is in a script it cannot read,
+    so English and romanized traffic are unaffected.
+    """
+    from kisna_chatbot.utils.script_detect import has_non_latin_letters
+
+    verdict = parse_confirm_reply(messages, text)
+    if verdict is not None:
+        return verdict
+    if not (text or "").strip() or not has_non_latin_letters(text):
+        return None
+    return await confirm_reply_gate(
+        text, recap, client_id=client_id, phone_number=phone_number
+    )
+
+
 def set_pending_search(
     user_profile: dict,
     entities: dict,

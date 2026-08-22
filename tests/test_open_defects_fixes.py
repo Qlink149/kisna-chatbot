@@ -817,3 +817,180 @@ class FlowAndCtaLocalisationTests(unittest.TestCase):
         self.assertTrue(body_lines)
         for ln in body_lines:
             self.assertIn('.get(', ln)
+
+class ConfirmYesTests(unittest.TestCase):
+    """P0: typing "yes" in any Indic script looped the confirmation card forever.
+
+    _YES_TEXT_RE is Latin-only and matches 0 of 12 native affirmatives, so
+    parse_confirm_reply returned None, the turn re-classified as action="more",
+    and the recap re-rendered — indefinitely. Only tapping the button escaped.
+    """
+
+    NATIVE_YES = ("हाँ", "होय", "હા", "ஆம்", "అవును", "হ্যাঁ",
+                  "ಹೌದು", "അതെ", "ਹਾਂ", "ହଁ", "جی ہاں", "হয়")
+
+    def test_the_latin_regex_still_cannot_read_them(self):
+        """Documents WHY the gate exists — if this ever fails, revisit the gate."""
+        from kisna_chatbot.processors.search_confirmation import _YES_TEXT_RE
+
+        for word in self.NATIVE_YES:
+            self.assertIsNone(_YES_TEXT_RE.match(word), word)
+
+    def test_latin_fast_path_needs_no_llm(self):
+        """English and romanized must never pay for a model call."""
+        from kisna_chatbot.processors import search_confirmation as sc
+
+        async def explode(*a, **kw):  # pragma: no cover - must not run
+            raise AssertionError("the gate was called for Latin text")
+
+        with mock.patch.object(sc, "confirm_reply_gate", explode):
+            for text, expected in (("yes", "yes"), ("haan", "yes"),
+                                   ("no", "no"), ("nahi", "no")):
+                got = asyncio.run(sc.parse_confirm_reply_async({}, text))
+                self.assertEqual(got, expected, text)
+
+    def test_native_script_consults_the_gate(self):
+        from kisna_chatbot.processors import search_confirmation as sc
+
+        async def fake_gate(*a, **kw):
+            return "yes"
+
+        with mock.patch.object(sc, "confirm_reply_gate", fake_gate):
+            for word in self.NATIVE_YES:
+                self.assertEqual(
+                    asyncio.run(sc.parse_confirm_reply_async({}, word)), "yes", word
+                )
+
+    def test_an_undecided_gate_changes_nothing(self):
+        """A gate outage must never be worse than no gate."""
+        from kisna_chatbot.processors import search_confirmation as sc
+
+        async def fake_gate(*a, **kw):
+            return None
+
+        with mock.patch.object(sc, "confirm_reply_gate", fake_gate):
+            self.assertIsNone(asyncio.run(sc.parse_confirm_reply_async({}, "हाँ")))
+
+
+class OptOutTests(unittest.TestCase):
+    """Opt-out was an exact == "stop" match — a compliance problem."""
+
+    def test_the_telecom_conventions_match(self):
+        from kisna_chatbot.processors.classifier import _is_optout_keyword
+
+        for text in ("stop", "STOP", "Stop.", "unsubscribe", "opt out", "stop all"):
+            self.assertTrue(_is_optout_keyword(text), text)
+
+    def test_a_refinement_is_not_an_opt_out(self):
+        """The false positive that matters: substring matching would fire here."""
+        from kisna_chatbot.processors.classifier import _is_optout_keyword
+
+        for text in ("stop showing me gold ones", "stop the search and show rings",
+                     "I want to cancel my order", "nonstop"):
+            self.assertFalse(_is_optout_keyword(text), text)
+
+
+class BudgetCeilingTests(unittest.TestCase):
+    """A stated budget is a CEILING. min == max returns pieces priced to the
+    exact rupee — in practice nothing — and the model emitted it for every
+    "my budget is X" phrasing in every language tested."""
+
+    def test_equal_bounds_collapse_to_a_ceiling(self):
+        from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+        out = _sanitize_llm_entities({"min_price": 250000, "max_price": 250000})
+        self.assertIsNone(out["min_price"])
+        self.assertEqual(out["max_price"], 250000)
+
+    def test_a_real_range_is_untouched(self):
+        from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+        out = _sanitize_llm_entities({"min_price": 20000, "max_price": 40000})
+        self.assertEqual(out["min_price"], 20000)
+        self.assertEqual(out["max_price"], 40000)
+
+    def test_a_floor_only_search_is_untouched(self):
+        from kisna_chatbot.processors.classifier import _sanitize_llm_entities
+
+        out = _sanitize_llm_entities({"min_price": 100000, "max_price": None})
+        self.assertEqual(out["min_price"], 100000)
+
+
+class PincodeVsPriceTests(unittest.TestCase):
+    """Indian pincodes and six-figure rupee amounts are the same shape, and a
+    jewellery budget is routinely six figures."""
+
+    def test_a_price_is_not_a_pincode(self):
+        from kisna_chatbot.processors.entity_extractor import extract_entities
+
+        for text in ("under 250000", "my budget is 250000", "budget 2.5 lakh"):
+            self.assertIsNone(extract_entities(text).get("pincode"), text)
+
+    def test_a_bare_pincode_still_works(self):
+        from kisna_chatbot.processors.entity_extractor import extract_entities
+
+        for text in ("400086", "my pincode is 400086"):
+            self.assertEqual(extract_entities(text).get("pincode"), "400086", text)
+
+    def test_the_merge_drops_a_pincode_when_a_price_survived(self):
+        """The regex is Latin-only, so a native-script budget reaches the merge
+        with the LLM price AND a regex pincode of the same number."""
+        from kisna_chatbot.processors.entity_extractor import combine_search_entities
+
+        merged = combine_search_entities({"max_price": 250000}, {"pincode": "250000"})
+        self.assertIsNone(merged.get("pincode"))
+
+
+class SiblingLanguageTests(unittest.TestCase):
+    """Hindi/Marathi and Bengali/Assamese share a script, so no script check can
+    separate them and a short refinement flipped the whole conversation."""
+
+    def test_a_short_message_does_not_flip_between_siblings(self):
+        from kisna_chatbot.processors.classifier import _is_sibling_flip
+
+        self.assertTrue(_is_sibling_flip("mr", "hi", "थोडं स्वस्त दाखवा"))
+        self.assertTrue(_is_sibling_flip("as", "bn", "কম দামৰ দেখুৱাওক"))
+
+    def test_a_full_sentence_is_believed(self):
+        from kisna_chatbot.processors.classifier import _is_sibling_flip
+
+        self.assertFalse(_is_sibling_flip("mr", "hi", " ".join(["शब्द"] * 12)))
+
+    def test_unrelated_languages_are_never_sticky(self):
+        from kisna_chatbot.processors.classifier import _is_sibling_flip
+
+        self.assertFalse(_is_sibling_flip("ta", "hi", "short"))
+        self.assertFalse(_is_sibling_flip("en", "hi", "short"))
+        self.assertFalse(_is_sibling_flip(None, "hi", "short"))
+
+
+class ProductCardLocalisationTests(unittest.TestCase):
+    """The card is data plus prose. The prose must translate; the product NAME
+    and the price must not — a renamed product is unfindable on the card, on
+    kisna.com and in the customer's order."""
+
+    CAPTION = ("*Hexa Lineage Gold Earring*\n₹30,904\n"
+               "Price may vary as per current gold rate.\n🚚 Shipping in 6 days")
+
+    def test_titles_are_extracted_for_pinning(self):
+        from kisna_chatbot.utils.reply_composer import _bold_titles
+
+        self.assertEqual(_bold_titles(self.CAPTION), ("Hexa Lineage Gold Earring",))
+
+    def test_a_caption_is_localised_with_the_title_pinned(self):
+        from kisna_chatbot.utils import reply_composer
+
+        item = {"type": "media", "media_type": "image", "url": "u",
+                "caption": self.CAPTION, "_compose": "product_card"}
+        data = {"bot_response": [item], "user_profile": {"language": "hi"},
+                "messages": {}}
+        seen = {}
+
+        async def fake_compose(template_key, text, **kw):
+            seen.update(kw)
+            return "TRANSLATED"
+
+        with mock.patch.object(reply_composer, "compose", fake_compose):
+            asyncio.run(reply_composer.localize_bot_responses(data))
+        self.assertEqual(item["caption"], "TRANSLATED")
+        self.assertIn("Hexa Lineage Gold Earring", seen.get("pin", ()))
