@@ -666,13 +666,22 @@ style:
 
 gender:
   ONLY emit women|men|kids|null — never female/male/her/him as the value.
-  for her/wife/ladies/lady/girlfriend/gf/mummy/mom/mother/maa/behen/sister/
-  beti/daughter/female/aunty/aunt/didi/naniji/dadi → women
-  for him/men's/husband/boyfriend/bf/papa/dad/daddy/father/bhai/brother/beta/
-  son (adult)/gents/male/uncle/fufa/mama → men
-  for kids/children/baby/bacche → kids
+  If the recipient is named by a RELATIONSHIP term, emit the gender that term
+  carries — IN ANY LANGUAGE. Indian kinship words are lexically gendered, so
+  READ the word; do not match it against a list. The masculine and feminine
+  forms of one relation differ only by ending: chacha/chachi, mama/mami,
+  dada/dadi, jija/jiji, tau/tai, devar/devrani.
+    women: wife, girlfriend, mother, sister, daughter, grandmother, bhabhi,
+      saas, nanad, and ANY aunt-word in any Indian language — aunty, chachi,
+      kaki, mami, mausi/masi, bua, phupi, atya, athai, pinni, pisi, chithi.
+    men: husband, boyfriend, father, brother, son, grandfather, jija/jiju,
+      sasur, and ANY uncle-word — uncle, chacha, tau, mama, fufa, mesa.
+    kids: kids, children, baby, bacche — ONLY these explicit child words.
+      beta/beti mean son/daughter and are men/women, not kids.
+  A kinship word not listed here is still gendered — use its gender.
+  NEVER infer gender from a personal NAME ("for Priya", "for Rahul") → null.
   AMBIGUOUS → null (do NOT guess): parents/parent/friend/friends/family/couple/
-  someone/"gift for them" with no clear him/her cue.
+  cousin/sibling/in-laws/someone/"gift for them" with no clear him/her cue.
   SELF-REFERENTIAL → ALWAYS null: myself/self/khud/mere liye. Carries NO
   gender signal — never invent one from jewellery type. "chain for myself,
   under 15k" → gender=null. Set gender only if a cue above is ALSO present

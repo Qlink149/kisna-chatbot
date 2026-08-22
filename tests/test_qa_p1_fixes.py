@@ -290,3 +290,100 @@ class TranslationTaggingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KinshipGenderTests(unittest.TestCase):
+    """Gender must come from the WORD, not from a hand-maintained list.
+
+    "Show me a diamond ring of 14 KT, around 50k, Make to order for my chachi"
+    was answered "diamond rings for men". Two hardcoded lists caused it: the
+    prompt enumerated allowed kinship terms and told the model not to guess
+    outside them, and _gender_evidenced then discarded anything the model DID
+    emit that its own regex did not recognise. "chachi" was on neither list.
+
+    A list cannot cover kinship across nine languages (kaki, atya, athai,
+    pinni, pisi, mausi, phupi, chithi...), so the guard now asks a structural
+    question -- does this message name a recipient at all -- instead of a
+    lexical one. Its real job was only ever to stop the classifier inheriting
+    a gender from chat history.
+    """
+
+    def test_a_named_recipient_counts_as_evidence(self):
+        from kisna_chatbot.processors.entity_extractor import _names_a_recipient
+
+        for text in (
+            "I need a ring for my chachi",
+            "I need a ring for my athai",
+            "meri bua ke liye ring chahiye",
+            "મારે મારી ફોઈ માટે વીંટી જોઈએ છે",
+        ):
+            self.assertTrue(_names_a_recipient(text), text)
+
+    def test_a_message_naming_nobody_is_not_evidence(self):
+        from kisna_chatbot.processors.entity_extractor import _names_a_recipient
+
+        # These are the hallucination cases the guard exists for: after a
+        # women's search the classifier would happily carry gender forward.
+        for text in ("under 20k", "show me necklaces", "aur dikhao", "gold"):
+            self.assertFalse(_names_a_recipient(text), text)
+
+    def test_ambiguous_recipients_never_count(self):
+        from kisna_chatbot.processors.entity_extractor import is_ambiguous_audience
+
+        # Named, but the word carries no gender -- the wizard must still ask.
+        for text in (
+            "a ring for my parents",
+            "a ring for my cousin",
+            "a ring for my sibling",
+            "a ring for my in-laws",
+            "a ring for a friend",
+        ):
+            self.assertTrue(is_ambiguous_audience(text), text)
+
+
+class OpeningBudgetDeclineTests(unittest.TestCase):
+    """A budget declined in the FIRST message must be recorded.
+
+    "Show me a diamond ring of 14 KT, any price..." still asked "What's your
+    budget?" -- the decline is not a number, so the price branch never saw it.
+    advance_wizard handled this mid-funnel; seed_wizard_from_entities did not.
+    """
+
+    def test_opening_decline_marks_budget_answered(self):
+        from kisna_chatbot.processors.shopping_wizard import (
+            ANY_SLOT,
+            seed_wizard_from_entities,
+        )
+
+        for query in (
+            "Show me a diamond ring of 14 KT, any price",
+            "show me rings, no specific budget",
+            "rings dikhao, koi budget nahi",
+        ):
+            seeded = seed_wizard_from_entities({"category": "ring"}, query=query)
+            self.assertEqual(seeded.get("budget"), ANY_SLOT, query)
+
+    def test_a_query_with_no_budget_still_asks(self):
+        from kisna_chatbot.processors.shopping_wizard import (
+            get_next_step,
+            seed_wizard_from_entities,
+        )
+
+        seeded = seed_wizard_from_entities(
+            {"category": "ring", "gender": "women", "material_type": "diamond"},
+            query="show me diamond rings for women",
+        )
+        self.assertIsNone(seeded.get("budget"))
+        self.assertEqual(get_next_step(seeded), "budget")
+
+    def test_a_real_budget_is_not_treated_as_a_decline(self):
+        from kisna_chatbot.processors.shopping_wizard import (
+            ANY_SLOT,
+            seed_wizard_from_entities,
+        )
+
+        seeded = seed_wizard_from_entities(
+            {"category": "ring", "max_price": 50000}, query="rings under 50k"
+        )
+        self.assertNotEqual(seeded.get("budget"), ANY_SLOT)
+        self.assertEqual(seeded.get("max_price"), 50000)

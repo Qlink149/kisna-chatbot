@@ -1866,10 +1866,42 @@ def _gender_evidenced(query: str, gender: str | None) -> bool:
     return False
 
 
+# "for my chachi", "meri bua ke liye", "મારી ફોઈ માટે" — the message NAMES a
+# recipient, whoever they are.
+_RECIPIENT_PHRASE_RE = re.compile(
+    r"\bfor\s+(?:my|our|his|her|the)?\s*[^\s,.!?]{2,}"
+    r"|\b(?:mere|meri|mera|apne|apni)\s+[^\s,.!?]{2,}"
+    r"|[^\s,.!?]{2,}\s+(?:ke|ki)\s+liye"
+    r"|માટે|साठी|साठी|के\s*लिए|கு\s|కోసం|ਲਈ|জন্য",
+    re.I,
+)
+
+
+def _names_a_recipient(query: str) -> bool:
+    """True when this message points at a person to buy for.
+
+    The lexical lists above cannot cover kinship across nine languages --
+    "chachi", "mausi", "athai" and "pinni" are all unambiguously feminine and
+    none of them were listed, so a correct LLM answer was thrown away and the
+    bot asked "Who is it for?" about a word that already said so.
+
+    The guard's real job is narrower than its list implies: stop the classifier
+    inheriting a gender from chat history when the CURRENT message says nothing
+    about a recipient ("under 20k" after a women's search). That question is
+    structural, so ask it structurally -- if the message names a recipient at
+    all, trust the model's reading of that word.
+    """
+    return bool(_RECIPIENT_PHRASE_RE.search(query or ""))
+
+
 # Audience words that mean "ask Who is it for?" — never invent women/men.
 _AMBIGUOUS_AUDIENCE_RE = re.compile(
     r"\b("
     r"parents|parent|friends?|family|couple|someone|"
+    # A cousin / sibling / in-law has no gender in the word itself. These are
+    # listed because the recipient-phrase path trusts the model on any named
+    # recipient, and without them "for my cousin" came back as men.
+    r"cousins?|siblings?|in.?laws?|"
     r"gift\s+for\s+them|for\s+them"
     r")\b",
     re.I,
@@ -1960,7 +1992,16 @@ def apply_llm_evidence_gate(query: str, llm_entities: dict) -> dict:
     if out.get("style") and not _style_evidenced(text, out.get("style")):
         out["style"] = None
 
-    if out.get("gender") and not _gender_evidenced(text, out.get("gender")):
+    if (
+        out.get("gender")
+        and not _gender_evidenced(text, out.get("gender"))
+        # A named recipient is evidence even when the word is not on the list
+        # above -- but an AMBIGUOUS one ("for my parents", "for a friend") is
+        # exactly what the wizard must ask about, so it never counts.
+        and not (
+            _names_a_recipient(text) and not is_ambiguous_audience(text)
+        )
+    ):
         out["gender"] = None
 
     if out.get("collection") and not _collection_evidenced(text, out.get("collection")):

@@ -521,6 +521,13 @@ def seed_wizard_from_entities(
     if ents.get("min_price") is not None or ents.get("max_price") is not None:
         seeded["min_price"] = ents.get("min_price")
         seeded["max_price"] = ents.get("max_price")
+    elif query and _ANY_ANSWER_RE.search(query) and _names_budget(query):
+        # A budget DECLINED in the opening message ("...any price", "no
+        # specific budget") is not a number, so the price branch above never
+        # sees it and the funnel asked for a budget the customer had just
+        # given -- suggesting, in its own prompt, the very words they used.
+        # advance_wizard already handles this mid-funnel; seeding did not.
+        seeded["budget"] = ANY_SLOT
 
     fulfillment = ents.get("fulfillment")
     if fulfillment in ("ready", "mto"):
@@ -547,6 +554,14 @@ _ANY_ANSWER_SLOT_WORDS = (
         ),
     ),
 )
+
+
+def _names_budget(text: str) -> bool:
+    """True when the message explicitly says 'budget'/'price' (any language)."""
+    for slot, pattern in _ANY_ANSWER_SLOT_WORDS:
+        if slot == "budget" and pattern.search(text or ""):
+            return True
+    return False
 
 
 def _any_answer_target_step(text: str, step: str) -> str:
