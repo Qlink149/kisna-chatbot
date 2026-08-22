@@ -77,6 +77,38 @@ def _price_phrase(entities: dict) -> str | None:
     return None
 
 
+def _metal_phrase(entities: dict) -> str | None:
+    """Karat/colour/material as one natural phrase: '18kt rose gold',
+    'white gold', '14kt diamond', or plain 'gold'/'diamond'/'gemstone'.
+
+    karat and metal_colour are both real, resolvable filters (Clara IDs, not
+    guesses) that used to reach the search silently -- the user had no way
+    to see "18kt" or "rose gold" was applied before results came back.
+    """
+    karat = entities.get("karat")
+    colour = entities.get("metal_colour")
+    material = entities.get("material_type")
+    bits: list[str] = []
+    if karat:
+        bits.append(str(karat).lower())
+    if colour:
+        bits.append(str(colour).lower())
+        bits.append("gold")
+    elif material:
+        bits.append(str(material).replace("_", " "))
+    return " ".join(bits) if bits else None
+
+
+def _collection_phrase(entities: dict) -> str | None:
+    collection = entities.get("collection")
+    if not collection:
+        return None
+    label = str(collection).strip().title()
+    if not label.lower().endswith("collection"):
+        label = f"{label} Collection"
+    return f"in {label}"
+
+
 def _category_phrase(entities: dict) -> str | None:
     from kisna_chatbot.processors.product_search_agent_v3 import (
         _humanize_category_label,
@@ -98,9 +130,9 @@ def build_search_recap(entities: dict) -> str:
     entities = entities or {}
     parts: list[str] = []
 
-    material = entities.get("material_type")
-    if material:
-        parts.append(str(material).replace("_", " "))
+    metal = _metal_phrase(entities)
+    if metal:
+        parts.append(metal)
 
     category = _category_phrase(entities)
     if not category:
@@ -112,6 +144,10 @@ def build_search_recap(entities: dict) -> str:
     gender = _GENDER_LABELS.get(str(entities.get("gender") or "").lower())
     if gender:
         parts.append(gender)
+
+    collection = _collection_phrase(entities)
+    if collection:
+        parts.append(collection)
 
     price = _price_phrase(entities)
     if price:
@@ -134,7 +170,15 @@ def should_confirm(entities: dict) -> bool:
         return True
     return any(
         entities.get(key) is not None
-        for key in ("material_type", "gender", "min_price", "max_price")
+        for key in (
+            "material_type",
+            "gender",
+            "min_price",
+            "max_price",
+            "karat",
+            "metal_colour",
+            "collection",
+        )
     )
 
 

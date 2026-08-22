@@ -2667,7 +2667,10 @@ class ProductSearchAgentV3(Processor):
             **entities_from_wizard(collected, explicit),
         }
         # Wizard no longer asks occasion — skip bridal/title injection from empty occasion
-        summary = build_wizard_summary(collected)
+        # entities (not collected) so karat/metal_colour/collection — set via
+        # explicit, invisible to collected alone — reach this summary line
+        # the same way they already reach the confirmation recap before it.
+        summary = build_wizard_summary(entities)
 
         return await self._execute_search(
             data,

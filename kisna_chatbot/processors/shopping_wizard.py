@@ -763,17 +763,32 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
 
 
 def build_wizard_summary(collected: dict) -> str:
-    """Final intro before product cards."""
+    """Final intro before product cards.
+
+    ``collected`` should be the merged entities dict (entities_from_wizard
+    output, or equivalent) so karat / metal_colour / collection -- explicit
+    fields the confirmation recap already shows -- don't silently vanish
+    from this line right after the user confirmed them.
+    """
+    from kisna_chatbot.processors.search_confirmation import (
+        _collection_phrase,
+        _metal_phrase,
+    )
+
     parts: list[str] = []
     material = collected.get("material_type")
-    if material and material != ANY_SLOT:
-        parts.append(str(material))
+    metal = _metal_phrase(collected) if material != ANY_SLOT else None
+    if metal:
+        parts.append(metal)
     category = collected.get("category")
     if category:
         label = category if str(category).endswith("s") else f"{category}s"
         if label == "mangalsutras":
             label = "mangalsutra"
         parts.append(label.replace("_", " "))
+    collection = _collection_phrase(collected)
+    if collection:
+        parts.append(collection)
     max_p = collected.get("max_price")
     min_p = collected.get("min_price")
     if max_p is not None and (min_p is None or float(min_p) == 0):

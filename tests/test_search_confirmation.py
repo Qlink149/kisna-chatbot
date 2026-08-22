@@ -130,6 +130,47 @@ class RecapWordingTests(unittest.TestCase):
         )
         self.assertIn("rings", prompt["text"])
 
+    def test_karat_and_colour_now_surface_in_recap(self):
+        # Regression: karat/metal_colour were real, resolved Clara filters
+        # that reached the search silently -- the confirmation never told
+        # the user "18kt" or "rose gold" was actually applied.
+        recap = build_search_recap(
+            {
+                "category": "ring",
+                "material_type": "gold",
+                "karat": "18KT",
+                "metal_colour": "rose",
+            }
+        )
+        self.assertEqual(recap, "18kt rose gold rings")
+
+    def test_karat_without_colour(self):
+        recap = build_search_recap({"category": "chain", "karat": "14KT"})
+        self.assertEqual(recap, "14kt chains")
+
+    def test_karat_with_non_gold_material_keeps_material(self):
+        # karat can coexist with a diamond/gemstone piece (the setting's
+        # purity) -- must not silently become "gold" instead of "diamond".
+        recap = build_search_recap(
+            {"category": "ring", "karat": "14KT", "material_type": "diamond"}
+        )
+        self.assertEqual(recap, "14kt diamond rings")
+
+    def test_collection_now_surfaces_in_recap(self):
+        recap = build_search_recap(
+            {"category": "ring", "gender": "men", "collection": "evil eye"}
+        )
+        self.assertEqual(recap, "rings for men in Evil Eye Collection")
+
+    def test_collection_already_titled_not_doubled(self):
+        recap = build_search_recap({"category": "ring", "collection": "Noor Collection"})
+        self.assertEqual(recap, "rings in Noor Collection")
+
+    def test_karat_colour_collection_alone_now_worth_confirming(self):
+        self.assertTrue(should_confirm({"karat": "18KT"}))
+        self.assertTrue(should_confirm({"metal_colour": "rose"}))
+        self.assertTrue(should_confirm({"collection": "noor"}))
+
 
 class ParseConfirmReplyTests(unittest.TestCase):
     def test_button_titles(self):
@@ -502,6 +543,77 @@ class WizardConfirmTests(ConfirmEnabledMixin, unittest.TestCase):
         self.assertIn("for women", reply["text"])
         self.assertIn("ready to ship", reply["text"])
         self.assertTrue(has_pending_search(profile))
+
+    def test_karat_colour_collection_survive_confirmation_and_summary(self):
+        # Regression: shopping_wizard_explicit (karat/metal_colour/collection)
+        # reached the confirmation recap but build_wizard_summary only ever
+        # saw `collected` (slot data), not `explicit` -- so the very next
+        # message after the user confirmed "18kt rose gold ... in Evil Eye
+        # Collection" silently dropped all three and said "gold rings".
+        profile = {
+            "service_selected": SL.PRODUCT_SEARCH.value,
+            "shopping_wizard_active": True,
+            "shopping_wizard_step": "fulfillment",
+            "shopping_wizard_data": {
+                "category": "ring",
+                "gender": "men",
+                "material_type": "gold",
+                "min_price": None,
+                "max_price": None,
+                "budget": "any",
+            },
+            "shopping_wizard_explicit": {
+                "karat": "18KT",
+                "metal_colour": "rose",
+                "collection": "evil eye",
+            },
+        }
+
+        async def _confirm():
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "interactive": {
+                        "type": "button_reply",
+                        "button_reply": {
+                            "id": json.dumps({"msgid": "wizard$fulfillment"}),
+                            "title": "Ready to ship",
+                        },
+                    }
+                },
+                "user_profile": profile,
+            }
+            with patch(
+                "kisna_chatbot.processors.product_search_agent_v3.search_products",
+                new_callable=AsyncMock,
+                return_value={"products": _PRODUCTS, "total_count": 1, "page": 1},
+            ):
+                return await ProductSearchAgentV3().process(data)
+
+        wizard_data_snapshot = dict(profile["shopping_wizard_data"])
+        wizard_explicit_snapshot = dict(profile["shopping_wizard_explicit"])
+
+        confirm_result = asyncio.run(_confirm())
+        recap_text = confirm_result["bot_response"][0]["text"]
+        self.assertIn("18kt rose gold", recap_text)
+        self.assertIn("Evil Eye Collection", recap_text)
+
+        # The pending_search entities set() by the confirmation step above
+        # are exactly what _complete_shopping_wizard merges via
+        # entities_from_wizard() and hands to build_wizard_summary() once
+        # the user accepts -- unit-test that exact call shape directly
+        # rather than the full multi-strategy search ladder (whose mock
+        # doesn't emulate per-strategy result counts, so it isn't a
+        # meaningful way to isolate this specific message-building bug).
+        from kisna_chatbot.processors.shopping_wizard import (
+            entities_from_wizard,
+            build_wizard_summary,
+        )
+
+        entities = entities_from_wizard(wizard_data_snapshot, wizard_explicit_snapshot)
+        summary_text = build_wizard_summary(entities)
+        self.assertIn("18kt rose gold", summary_text)
+        self.assertIn("Evil Eye Collection", summary_text)
 
 
 if __name__ == "__main__":
