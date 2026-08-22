@@ -100,6 +100,26 @@ def _store_city(store: dict) -> str:
     return str(city_raw or "").strip()
 
 
+def _place_matches(actual: str, wanted: str) -> bool:
+    """Compare a store's own city/state against what the customer named.
+
+    Exact equality failed on compound names: the catalogue's only Delhi entry
+    is "Delhi-NCR", so a correct city="Delhi" matched nothing and the customer
+    was asked for a pincode instead. Compare the parts either side of the
+    separator rather than loosening to a substring match, which would let
+    "Agra" match "Agrasen Chowk" — the false positive _store_city exists to
+    prevent.
+    """
+    a = (actual or "").strip().lower()
+    w = (wanted or "").strip().lower()
+    if not a or not w:
+        return False
+    if a == w:
+        return True
+    parts = {seg.strip() for seg in re.split(r"[-/,]", a) if seg.strip()}
+    return w in parts
+
+
 def _store_state(store: dict) -> str:
     """The store's REAL state, from address.state.name.
 
@@ -272,7 +292,7 @@ def _filter_cached_stores(
         filtered = [
             s
             for s in stores
-            if isinstance(s, dict) and _store_city(s).lower() == city_l
+            if isinstance(s, dict) and _place_matches(_store_city(s), city_l)
         ]
         stores = filtered
     elif state:
@@ -280,7 +300,7 @@ def _filter_cached_stores(
         stores = [
             s
             for s in stores
-            if isinstance(s, dict) and _store_state(s).lower() == state_l
+            if isinstance(s, dict) and _place_matches(_store_state(s), state_l)
         ]
 
     stores = _exclude_ecom_stores(stores)
@@ -429,7 +449,7 @@ class AdFlowAgent(Processor):
                 # address.city actually is the requested city so a wrong
                 # branch is never shown as if it were nearby.
                 city_l = city.strip().lower()
-                stores = [s for s in stores if _store_city(s).lower() == city_l]
+                stores = [s for s in stores if _place_matches(_store_city(s), city_l)]
                 if not stores:
                     # The name= search is a substring match against each
                     # store's own name/address text -- a real branch whose
@@ -483,7 +503,7 @@ class AdFlowAgent(Processor):
         stores = _exclude_ecom_stores(result.get("stores") or [])
         needle = wanted.strip().lower()
         for field in fields:
-            matched = [s for s in stores if field(s).lower() == needle]
+            matched = [s for s in stores if _place_matches(field(s), needle)]
             if matched:
                 return matched
         return []
@@ -619,6 +639,12 @@ class AdFlowAgent(Processor):
                 state = entities.get("state")
 
                 if not pincode and not city and not state:
+                    previous = user_profile.get("last_store_location") or {}
+                    pincode = previous.get("pincode")
+                    city = previous.get("city")
+                    state = previous.get("state")
+
+                if not pincode and not city and not state:
                     start_store_lookup(user_profile)
                     data["bot_response"] = [
                         {
@@ -684,6 +710,15 @@ class AdFlowAgent(Processor):
                 data["bot_response"] = [{"type": "text", "text": _zero_results_message(), "_compose": "store_none_found"}]
                 return data
 
+            # Remember where we just looked. "what are the timings?" one
+            # turn after seeing Delhi stores names no location because it does
+            # not need to — and that fell into the ask-pincode branch, so the
+            # customer was asked for a city they had just given us.
+            user_profile["last_store_location"] = {
+                "city": city,
+                "state": state,
+                "pincode": pincode,
+            }
             responses = _build_store_responses(stores[:_MAX_STORES_SHOWN])
             if len(stores) > _MAX_STORES_SHOWN:
                 responses.append(

@@ -77,10 +77,36 @@ _LOWER_PRICE_WORDS_RE = re.compile(
 )
 
 
+# English price words as Indians actually write them in native script. A CLOSED
+# set of loanwords, not an attempt to cover how each language says "expensive"
+# -- the model reads its OWN words correctly ("और महंगे दिखाओ" works 3/3) and
+# fails precisely on the borrowed ones, because they look like the pagination
+# wording around them. Telling the prompt about them did not hold, so the rule
+# lives behind the model, like the Latin list above it.
+_NATIVE_LOANWORD_DIRECTION = (
+    ("प्रीमियम", "higher"), ("महंगा", "higher"), ("महंगे", "higher"),
+    ("મોંઘા", "higher"), ("મોંઘી", "higher"), ("প্রিমিয়াম", "higher"),
+    ("பிரீமியம்", "higher"), ("ప్రీమియం", "higher"), ("ಪ್ರೀಮಿಯಂ", "higher"),
+    ("سستا", "lower"), ("سستے", "lower"),
+)
+
+
+def _native_loanword_direction(text: str) -> str | None:
+    """Direction from a borrowed English price word in native script."""
+    if not text:
+        return None
+    for word, direction in _NATIVE_LOANWORD_DIRECTION:
+        if word in text:
+            return direction
+    return None
+
+
 def _latin_price_direction(text: str) -> str | None:
     """Comparative price direction from romanized text, or None to stay silent."""
-    if not text or has_non_latin_letters(text):
+    if not text:
         return None
+    if has_non_latin_letters(text):
+        return _native_loanword_direction(text)
     # A stated number is a real budget, not a relative nudge -- leave those to
     # min/max extraction rather than shifting the band twice.
     if re.search(r"\d", text):
@@ -1086,6 +1112,18 @@ def finalize_search_entities(
 ) -> dict[str, Any]:
     """Single validation gate: sanitize, normalize categories, optional conflict logging."""
     out = sanitize_search_entities(entities)
+
+    # વીંટી is a RING. The prompt says so explicitly and it holds on short
+    # messages, then loses on a full sentence with gender/budget/fulfillment
+    # attached (5/5 wrong, 0/5 when short) -- the extra filters distract from
+    # the noun. One pair, already enumerated in the prompt, so a deterministic
+    # correction here is a backstop rather than a new word list.
+    if out.get("category") == "earring" and "વીંટી" in (query or ""):
+        out["category"] = "ring"
+        if out.get("categories"):
+            out["categories"] = [
+                "ring" if c == "earring" else c for c in out["categories"]
+            ]
     if query:
         before_cat = out.get("category")
         out = supplement_semantic_entities_from_query(out, query)

@@ -118,9 +118,16 @@ class LatinPriceDirectionTests(unittest.TestCase):
         for text in ("aur dikhao", "show more", "next", "kuch aur", "more options"):
             self.assertIsNone(_latin_price_direction(text), text)
 
-    def test_native_script_abstains_so_the_llm_decides(self):
-        for text in ("और महंगे दिखाओ", "થોડું સસ્તું બતાવો", "இன்னும் விலை அதிகம்"):
+    def test_native_script_abstains_unless_it_is_a_loanword(self):
+        """The model reads its OWN words correctly, so we stay out of the
+        way there. It fails precisely on BORROWED English price words in
+        native script, because they sit inside pagination wording -- so
+        those, and only those, get a deterministic reading."""
+        for text in ("થોડું સસ્તું બતાવો", "இன்னும் விலை அதிகம்", "और दिखाओ"):
             self.assertIsNone(_latin_price_direction(text), text)
+        for text, expected in (("और प्रीमियम वाले दिखाओ", "higher"),
+                               ("મોંઘા બતાવો", "higher")):
+            self.assertEqual(_latin_price_direction(text), expected, text)
 
     def test_a_stated_number_is_a_budget_not_a_nudge(self):
         """Otherwise the band would be shifted twice for "under 30k premium"."""
@@ -994,3 +1001,77 @@ class ProductCardLocalisationTests(unittest.TestCase):
             asyncio.run(reply_composer.localize_bot_responses(data))
         self.assertEqual(item["caption"], "TRANSLATED")
         self.assertIn("Hexa Lineage Gold Earring", seen.get("pin", ()))
+
+
+class StoreLocationMemoryTests(unittest.TestCase):
+    """D1: a follow-up about the stores we just showed names no location
+    because it does not need to, and that threw the city away."""
+
+    def test_compound_city_names_match(self):
+        from kisna_chatbot.processors.ad_flow_agent import _place_matches
+
+        # The catalogue's only Delhi entry is "Delhi-NCR".
+        self.assertTrue(_place_matches("Delhi-NCR", "delhi"))
+        self.assertTrue(_place_matches("Delhi-NCR", "NCR"))
+        self.assertTrue(_place_matches("Mumbai", "mumbai"))
+
+    def test_it_is_not_a_substring_match(self):
+        """The false positive _store_city exists to prevent: "Agra" must not
+        match "Agrasen Chowk"."""
+        from kisna_chatbot.processors.ad_flow_agent import _place_matches
+
+        self.assertFalse(_place_matches("Agrasen Chowk", "agra"))
+        self.assertFalse(_place_matches("Visakhapatnam", "patna"))
+        self.assertFalse(_place_matches("", "delhi"))
+
+
+class OrderIdOwnershipTests(unittest.TestCase):
+    """D2: answering the returns prompt with an order number derailed into
+    order tracking, and the returns prompt then restarted."""
+
+    def _route(self, service, text, intent="order_tracking"):
+        from kisna_chatbot.processors.classifier import _keep_order_id_with_its_flow
+
+        return _keep_order_id_with_its_flow({"service_selected": service}, text, intent)
+
+    def test_an_id_stays_with_the_flow_that_asked(self):
+        self.assertEqual(self._route("returns_refund", "KIS12345"), "returns_refund")
+        self.assertEqual(self._route("complaint", "KIS12345"), "complaint")
+
+    def test_a_sentence_is_still_a_real_escape(self):
+        """"where is my order" mid-return genuinely leaves the flow."""
+        self.assertEqual(
+            self._route("returns_refund", "actually where is my order KIS12345 now please"),
+            "order_tracking",
+        )
+
+    def test_other_flows_are_untouched(self):
+        self.assertEqual(self._route("product_search", "KIS12345"), "order_tracking")
+        self.assertEqual(self._route("", "KIS12345"), "order_tracking")
+
+    def test_a_non_tracking_intent_is_untouched(self):
+        self.assertEqual(
+            self._route("returns_refund", "KIS12345", intent="offers"), "offers"
+        )
+
+
+class GujaratiRingTests(unittest.TestCase):
+    """D4: વીંટી is a RING. The prompt says so and it holds on short messages,
+    then loses on a full sentence with gender/budget/fulfillment attached."""
+
+    def test_a_long_sentence_still_yields_a_ring(self):
+        from kisna_chatbot.processors.entity_extractor import finalize_search_entities
+
+        out = finalize_search_entities(
+            {"category": "earring"},
+            query="મને મહિલાઓ માટે સોનાની વીંટી જોઈએ છે, 200000 થી ઓછી",
+        )
+        self.assertEqual(out.get("category"), "ring")
+
+    def test_a_real_earring_is_untouched(self):
+        from kisna_chatbot.processors.entity_extractor import finalize_search_entities
+
+        out = finalize_search_entities(
+            {"category": "earring"}, query="મને સોનાની કાનની બુટ્ટી બતાવો"
+        )
+        self.assertEqual(out.get("category"), "earring")

@@ -59,7 +59,13 @@ MAX_CLASSIFIER_INTENT_TOKENS = 6800
 #     nothing else, so "मुंबई में आपका स्टोर है क्या?" got a pincode prompt.
 # Correctness wins over this number; the request-ceiling test below is the
 # limit that actually matters, and it still leaves ~3200 tokens spare.
-MAX_ENTITY_EXTRACTOR_TOKENS = 7700
+# Raised (7700 -> 7800) for two measured misreadings: Devanagari प्रीमियम
+# read as pagination rather than a price direction, and Gujarati વીંટી read
+# as an earring in long sentences (correct in short ones).
+# HEADROOM IS NOW THIN: ~3045 tokens under the request ceiling against a
+# 3000 floor. The next addition here will fail test_entity_extractor_fits_
+# under_request_ceiling, and that is the gate working — trim, do not raise it.
+MAX_ENTITY_EXTRACTOR_TOKENS = 7800
 
 # Conservative request-size ceiling. The prompt plus context and user message
 # must fit inside this to avoid request-too-large errors.

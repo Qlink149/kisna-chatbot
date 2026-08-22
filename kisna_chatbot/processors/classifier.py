@@ -2028,6 +2028,47 @@ async def _finalize_classifier_response(data: dict) -> None:
             try_trace(data, "Result", "Sent gold rate message")
 
 
+# The flows that ASK for an order number. While one of them owns the
+# conversation, an order id is the answer to its question — not a request to
+# track that order.
+_ORDER_ID_OWNING_SERVICES = {
+    ServiceList.RETURNS_REFUND.value,
+    ServiceList.COMPLAINT.value,
+}
+
+
+def _keep_order_id_with_its_flow(
+    user_profile: dict, user_query: str, intent: str
+) -> str:
+    """Do not let order tracking steal the answer to a returns/complaint prompt.
+
+    Live: "I want to return my order" -> the returns prompt; "KIS12345" ->
+    "Order KIS12345 - click below to track your order"; and the returns prompt
+    then restarted from scratch. The customer could not complete a return by
+    text at all, in English or Hindi.
+
+    Deliberately narrow: only when one of those flows is already active, only
+    when the intent resolved to order_tracking, and only when the message is
+    essentially JUST an id. "where is my order" mid-return is still a real
+    escape and still routes to tracking.
+    """
+    if intent != "order_tracking":
+        return intent
+    if user_profile.get("service_selected") not in _ORDER_ID_OWNING_SERVICES:
+        return intent
+    from kisna_chatbot.processors.order_tracking_agent import (
+        _extract_order_id_from_text,
+    )
+
+    text = (user_query or "").strip()
+    if not _extract_order_id_from_text(text):
+        return intent
+    # A bare id, or an id with a couple of words around it — not a sentence.
+    if len(text.split()) > 4:
+        return intent
+    return user_profile["service_selected"]
+
+
 def _route_resolved_intent(
     data: dict,
     user_profile: dict,
@@ -2038,6 +2079,7 @@ def _route_resolved_intent(
     confidence: float,
 ) -> bool:
     """Route a resolved intent; return True when processing should stop."""
+    intent = _keep_order_id_with_its_flow(user_profile, user_query, intent)
     data["classified_category"] = intent
     data["classifier_confidence"] = confidence
     try:

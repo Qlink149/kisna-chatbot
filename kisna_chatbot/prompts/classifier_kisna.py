@@ -546,13 +546,15 @@ lost.
    "too costly" / "price bahut zyada" / "thoda sasta" / "mane sastu joie che"
    → price_direction="lower"
    "aur mehnga dikhao" / "premium wale" → price_direction="higher"
+   Also in NATIVE SCRIPT: प्रीमियम / महंगा / મोંઘा → higher.
    "more" + a PRICE word is a direction, not pagination: "show me more
    premium ones" / "aur premium wale dikhao" → price_direction="higher".
    Plain "aur dikhao" / "more" (no price word) → action="more".
    Superlatives about shown items ("cheapest", "sabse sasta wala kaun sa") →
    price_direction=null (that is a question, not a refinement).
    A number present → normal min/max extraction, price_direction=null.
-8. GUJARATI LOOK-ALIKES — વીંટી is RING. બુટ્ટી / કાનની બુટ્ટી is EARRING.
+8. GUJARATI LOOK-ALIKES — વીંટી is RING however LONG the sentence: extra
+   filters (gender, budget, ready-to-ship) do not change what the noun is. બુટ્ટી / કાનની બુટ્ટી is EARRING.
    Never map વીંટી to earring, even as "[material]ની વીંટી" (સોનાની વીંટી,
    હીરાની વીંટી) — the "-ની" possessive prefix does NOT make it an earring.
 
