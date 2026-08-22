@@ -627,12 +627,11 @@ async def _handle_product_reference(data: dict, query: str = "") -> dict | None:
         # "isme kitne carat ka diamond hai" is a question about a specific
         # piece, but the classifier resolves the index unreliably on the
         # longer phrasings -- measured returning 2 on one run and null on the
-        # next for the same sentence. When it says a question was asked and
-        # only one piece can be meant, answer about that piece rather than
-        # dropping the turn into a fresh search.
-        product = user_profile.get("last_viewed_product") or (
-            shown[0] if len(shown) == 1 else None
-        )
+        # next for the same sentence. Answer anyway: the piece in focus if
+        # there is one, otherwise the whole shown set. Asking "which one?"
+        # when every piece has the same honest answer is a worse reply than
+        # simply giving it.
+        product = user_profile.get("last_viewed_product") or (shown or None)
     if not product:
         return None
 
@@ -642,16 +641,21 @@ async def _handle_product_reference(data: dict, query: str = "") -> dict | None:
         answered = await _answer_referenced_product(data, product, query)
         if answered is not None:
             return answered
+    if isinstance(product, list):
+        # Several pieces and no answer: there is no single card to open, so let
+        # normal routing have the turn rather than picking one arbitrarily.
+        return None
     return _open_shown_product(data, product)
 
 
 async def _answer_referenced_product(
-    data: dict, product: dict, question: str
+    data: dict, product: dict | list[dict], question: str
 ) -> dict | None:
-    """Answer a question about one shown product, or None to fall back.
+    """Answer a question about the shown product(s), or None to fall back.
 
     Falling back to the card is deliberate: an unanswerable question is better
-    served by the card than by nothing at all.
+    served by the card than by nothing at all. A LIST means the customer
+    asked about the shown set without singling one out.
     """
     from kisna_chatbot.processors.product_details_agent import (
         _answer_product_question,
@@ -668,8 +672,10 @@ async def _answer_referenced_product(
     if not answer:
         return None
     # The piece they asked about is now the one in focus, so a follow-up
-    # ("aur iska size?") resolves against it.
-    _save_last_viewed_product(user_profile, product)
+    # ("aur iska size?") resolves against it. Only meaningful when they singled
+    # one out -- answering across the whole shown set focuses nothing.
+    if not isinstance(product, list):
+        _save_last_viewed_product(user_profile, product)
     data["bot_response"] = [
         {"type": "text", "text": answer, "_compose": "product_info"}
     ]
@@ -1017,6 +1023,11 @@ def _category_only_entities(entities: dict) -> dict:
         cat_only["secondary_category"] = entities.get("secondary_category")
     if entities.get("category"):
         cat_only["category"] = entities["category"]
+    # A refused metal is not a filter to strip. This is the LAST-DITCH
+    # strategy, so it is exactly where a widening search would otherwise
+    # hand back the one thing the customer ruled out.
+    if entities.get("excluded_material"):
+        cat_only["excluded_material"] = entities["excluded_material"]
     return cat_only
 
 

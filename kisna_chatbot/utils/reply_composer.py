@@ -191,6 +191,25 @@ _PINNED_WORDS_BY_TEMPLATE: dict[str, tuple[str, ...]] = {
 }
 
 
+def _match_source_emphasis(source: str, rewritten: str) -> str:
+    """Do not let a rewrite invent emphasis the source never had.
+
+    The wizard's material question is written without a single asterisk,
+    yet the rewrite bolded the interpolated category in Hindi, Kannada and
+    Marathi while leaving it plain in English, Tamil and Gujarati -- the
+    same prompt reading differently to different customers.
+
+    Deliberately a general rule rather than a fix to that one string: it
+    needs no per-language list, so it holds for every language we support
+    and every one we add. Copy that DOES mean to emphasise something
+    ("*no specific budget*", "*anyone*") has asterisks in the source and is
+    left alone.
+    """
+    if "*" in (source or "") or "*" not in (rewritten or ""):
+        return rewritten
+    return rewritten.replace("*", "")
+
+
 def _compose_token_budget(text: str) -> int:
     """Scale the output budget to the source length.
 
@@ -352,6 +371,7 @@ async def compose(
                            "missing": missing[:2]},
                 )
                 return text
+        result = _match_source_emphasis(text, result)
         if len(_CACHE) < 2000:
             _CACHE[cache_key] = result
         return result

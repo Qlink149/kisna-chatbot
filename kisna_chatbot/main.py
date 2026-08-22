@@ -639,6 +639,16 @@ async def process_message(
                 )
 
                 _prepend_flow_switch_ack(data)
+
+                # A second request made in the SAME message. Appended
+                # after the primary reply exists and BEFORE localisation,
+                # so the added line is translated with the rest instead of
+                # arriving in English at the end of a Tamil answer.
+                from kisna_chatbot.processors.secondary_intent import (
+                    append_secondary_answer,
+                )
+
+                await append_secondary_answer(data)
                 await localize_bot_responses(data)
                 await _persist_session(data, phone_number, pipeline_start)
                 responses_to_send = data

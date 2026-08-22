@@ -72,6 +72,9 @@ from kisna_chatbot.pipelines.inference_pipeline import (  # noqa: E402
 )
 from kisna_chatbot.pipelines.pipeline import Pipeline  # noqa: E402
 from kisna_chatbot.processors.classifier import _prepend_flow_switch_ack  # noqa: E402
+from kisna_chatbot.processors.secondary_intent import (  # noqa: E402
+    append_secondary_answer,
+)
 from kisna_chatbot.processors.response_manager import _sanitize_response_text  # noqa: E402
 from kisna_chatbot.config.clients import get_client_config  # noqa: E402
 from kisna_chatbot.database.db_utils import MAX_CHAT_HISTORY  # noqa: E402
@@ -226,6 +229,11 @@ async def _one_turn(phone: str, profile: dict, *, text=None, interactive=None) -
 
     if "bot_response" in data:
         _prepend_flow_switch_ack(data)
+        # Mirrors main.py: a second request made in the same message is
+        # answered (or acknowledged) BEFORE localisation, so the appended
+        # line is translated with the rest. Omitting it here made the
+        # harness report multi-intent as still broken after it was fixed.
+        await append_secondary_answer(data)
         await localize_bot_responses(data)
         data["bot_response"] = [_sanitize_response_text(r) for r in data["bot_response"]]
 

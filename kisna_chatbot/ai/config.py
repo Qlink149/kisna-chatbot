@@ -45,6 +45,13 @@ DEFAULT_COMPOSE_WEAK_MODEL = "gpt-5.6-luna"
 # gap than Tamil's 0.0 -> 3.0. Its errors were grammatical (pronoun doubling
 # "ہم ہماری", gender disagreement "جن کے دو اقسام") rather than invented words.
 # Routed on that evidence, together with the script support Urdu needed anyway.
+# Odia and Assamese were inherited from the composer set rather than measured on
+# this path; measured 2026-08-22, 3 FAQ questions each, judged 0-3 with the
+# order randomised: or 1.0 -> 3.0 and as 1.0 -> 3.0, 3/3 each, the stronger
+# model never worse. The default invented words in both (ସାବିତ୍ରୀଜୱେଲେରୀ,
+# মাহিংগী) and spliced the English word "allure" into an Assamese answer, so
+# the inherited routing turned out to be right. Every member of this set is
+# now measured rather than assumed.
 COMPOSE_WEAK_LANGUAGES = frozenset(
     {"ta", "te", "bn", "pa", "kn", "ml", "or", "as", "gu", "mr", "ur"}
 )

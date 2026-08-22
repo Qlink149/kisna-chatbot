@@ -54,6 +54,10 @@ product_search, NOT repair — repair is dissatisfaction, not a request for more
 **store_info** — PHYSICAL retail locations only (Kisna stores / showrooms / outlets /
 shops): city, pincode, address, directions, nearest branch, bare pincode during store
 lookup. NEVER product_search — a store is a PLACE, not a jewellery item.
+The HEAD OFFICE / corporate office / registered office is NOT a retail location →
+**general**, never store_info. We do not share that address, and the knowledge base
+explains why and offers the store locator instead; routing it here asks the customer
+for a pincode without ever answering what they asked.
 
 **order_tracking** — Existing order status or its delivery: "mera order kahan hai",
 "track order", "delivery kab hogi" about a placed order, dispatch status.
@@ -145,8 +149,9 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
     offers — offers is only discounts on purchases.
 24. Damaged/wrong item in a DELIVERED order → complaint, NOT order_tracking.
 25. Order cancellation or modification → human_handoff (bot cannot cancel).
-26. MULTI-INTENT ("gold ring dikhao aur store bhi batao") → the PRIMARY shopping action
-    (usually the first concrete request); the user will ask the rest next.
+26. MULTI-INTENT ("gold ring dikhao aur store bhi batao") → `intent` is the PRIMARY
+    shopping action (usually the first concrete request) AND `secondary_intent` is
+    the other one. Do not silently drop half of what they asked.
 27. Bare 6-digit number: store lookup in context/history → store_info; browsing or just
     asked budget → product_search; no context → store_info (pincode is more common).
 27a. A number followed by a THOUSAND-word is a BUDGET, never a place — including
@@ -255,6 +260,7 @@ bare "gold", "help", "kuch dikhao", "1 lakh" alone, "accha sa kuch".
   "intent": "<intent_name>",
   "confidence": <0.0 to 1.0>,
   "language": "<en|hi|hi-Latn|ta|te|mr|bn|gu|kn|...>",
+  "secondary_intent": "<offers|gold_rate|store_info|general|null>",
   "entities": {
     "product_reference": <number of the shown product the user means, or null>,
     "product_question": <true if they are ASKING something ABOUT that product, else false>,
@@ -262,6 +268,18 @@ bare "gold", "help", "kuch dikhao", "1 lakh" alone, "accha sa kuch".
   }
 }
 
+secondary_intent — a SECOND, separate thing asked in the SAME message, when it is one
+of offers / gold_rate / store_info / general. null in every other case, including when
+the message asks for only one thing. It must never repeat `intent`.
+  "gold ring dikhao aur store bhi batao"      → product_search + store_info
+  "सोने की अंगूठी दिखाओ और आज के ऑफर भी बताओ"  → product_search + offers
+  "what offers do you have and today's rate"  → offers + gold_rate
+  "show me gold rings"                        → product_search + null
+  "aur dikhao"                                → product_search + null
+Two filters on ONE request are not two intents: "gold rings under 50k ready to ship"
+is a single product_search. A follow-up clause about the SAME thing is not either.
+
+secondary_intent sits beside intent, NOT inside entities.
 These are the ONLY three entity fields. Never output category, material_type, min_price,
 max_price, title, karat, metal_colour, size, collection, gender, fulfillment, occasion,
 style or price_direction — a separate extractor owns them.

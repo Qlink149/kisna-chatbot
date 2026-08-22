@@ -416,3 +416,180 @@ class UrduSupportTests(unittest.TestCase):
             resolve_reply_language("ur", "mujhe angoothi chahiye"), "ur-Latn"
         )
         self.assertEqual(resolve_reply_language("ur", "I want a ring"), "en")
+
+
+class ExcludedMaterialFilterTests(unittest.TestCase):
+    """The refusal now filters results, and is NOT part of the relaxation
+    ladder: relaxing "I don't want gold" would put gold back on screen."""
+
+    PRODUCTS = [
+        {"title": "A", "materialType": "Gold"},
+        {"title": "B", "materialType": "Diamond"},
+        {"title": "C", "materialType": "gold"},
+        {"title": "D"},  # material not stated
+    ]
+
+    def _kept(self, excluded):
+        from kisna_chatbot.processors.entity_extractor import drop_excluded_material
+
+        return [p["title"] for p in drop_excluded_material(self.PRODUCTS, excluded)]
+
+    def test_the_refused_metal_is_removed_case_insensitively(self):
+        self.assertEqual(self._kept("gold"), ["B", "D"])
+
+    def test_a_record_with_no_material_is_kept(self):
+        """Silence is not evidence that it IS the refused metal."""
+        self.assertIn("D", self._kept("gold"))
+        self.assertIn("D", self._kept("diamond"))
+
+    def test_no_exclusion_changes_nothing(self):
+        self.assertEqual(self._kept(None), ["A", "B", "C", "D"])
+        self.assertEqual(self._kept(""), ["A", "B", "C", "D"])
+
+    def test_exclusion_is_not_in_the_relaxation_ladder(self):
+        """The guard that keeps a refusal from being traded away for results."""
+        from kisna_chatbot.processors.entity_extractor import (
+            _CLIENT_FILTER_KEYS,
+            _EXTRA_RELAXATION_ORDER,
+        )
+
+        self.assertNotIn("excluded_material", _EXTRA_RELAXATION_ORDER)
+        self.assertNotIn("excluded_material", _CLIENT_FILTER_KEYS)
+
+    def test_it_survives_every_return_path_of_the_extras_filter(self):
+        from kisna_chatbot.processors.entity_extractor import (
+            filter_products_by_extracted_extras,
+        )
+
+        # karat=9KT matches nothing here, so the ladder relaxes and would
+        # normally hand back the full original list -- gold included.
+        kept, _note = filter_products_by_extracted_extras(
+            self.PRODUCTS, {"excluded_material": "gold", "karat": "9KT"}
+        )
+        self.assertTrue(all(p["title"] != "A" for p in kept))
+        self.assertTrue(all(p["title"] != "C" for p in kept))
+
+
+class WizardRespectsRefusalTests(unittest.TestCase):
+    """Offering a metal the customer just ruled out reads as not listening."""
+
+    def _options(self, excluded):
+        from kisna_chatbot.processors.shopping_wizard import build_step_prompt
+
+        collected = {"category": "ring", "gender": "women"}
+        if excluded:
+            collected["excluded_material"] = excluded
+        return [o["title"] for o in build_step_prompt("material", collected)["options"]]
+
+    def test_the_refused_metal_is_not_offered(self):
+        self.assertEqual(self._options("gold"), ["Diamond", "Gemstone"])
+        self.assertEqual(self._options("diamond"), ["Gold", "Gemstone"])
+        self.assertEqual(self._options("gemstone"), ["Gold", "Diamond"])
+
+    def test_all_three_offered_when_nothing_was_refused(self):
+        self.assertEqual(self._options(None), ["Gold", "Diamond", "Gemstone"])
+
+    def test_the_refusal_is_seeded_and_carried(self):
+        from kisna_chatbot.processors.shopping_wizard import (
+            WIZARD_CARRYOVER_KEYS,
+            seed_wizard_from_entities,
+        )
+
+        seeded = seed_wizard_from_entities(
+            {"category": "ring", "excluded_material": "gold"}
+        )
+        self.assertEqual(seeded.get("excluded_material"), "gold")
+        self.assertIn("excluded_material", WIZARD_CARRYOVER_KEYS)
+
+    def test_it_is_a_constraint_not_an_answer(self):
+        """It must never fill the material slot or let the funnel skip it."""
+        from kisna_chatbot.processors.shopping_wizard import get_next_step
+
+        collected = {"category": "ring", "gender": "women",
+                     "excluded_material": "gold"}
+        self.assertEqual(get_next_step(collected), "material")
+
+
+class ComposerEmphasisTests(unittest.TestCase):
+    """A rewrite must not invent emphasis the source never had.
+
+    The wizard's material question has no asterisks, yet the rewrite bolded the
+    category in Hindi, Kannada and Marathi and not in English, Tamil or
+    Gujarati -- the same prompt reading differently to different customers.
+    """
+
+    def _match(self, source, rewritten):
+        from kisna_chatbot.utils.reply_composer import _match_source_emphasis
+
+        return _match_source_emphasis(source, rewritten)
+
+    def test_invented_emphasis_is_stripped(self):
+        self.assertEqual(
+            self._match("What type of rings are you interested in?",
+                        "आप किस प्रकार की *अंगूठियों* में रुचि रखते हैं?"),
+            "आप किस प्रकार की अंगूठियों में रुचि रखते हैं?",
+        )
+
+    def test_deliberate_emphasis_survives(self):
+        source = "What's your budget? (or say *no specific budget*)"
+        rewritten = "आपका बजट क्या है? (या कहें *कोई विशेष बजट नहीं*)"
+        self.assertEqual(self._match(source, rewritten), rewritten)
+
+    def test_a_clean_rewrite_is_untouched(self):
+        self.assertEqual(self._match("plain source", "सादा अनुवाद"), "सादा अनुवाद")
+
+    def test_empty_inputs_do_not_crash(self):
+        self.assertEqual(self._match("", ""), "")
+        self.assertEqual(self._match("a", ""), "")
+
+
+class SecondaryIntentTests(unittest.TestCase):
+    """A second request in the same message is no longer dropped in silence."""
+
+    def _parse(self, primary, secondary):
+        import json
+
+        from kisna_chatbot.processors.classifier import _parse_classifier_json
+
+        return _parse_classifier_json(
+            json.dumps({"intent": primary, "confidence": 0.9,
+                        "language": "en", "secondary_intent": secondary,
+                        "entities": {}})
+        )["secondary_intent"]
+
+    def test_the_supported_secondaries_survive(self):
+        for value in ("offers", "gold_rate", "store_info", "general"):
+            self.assertEqual(self._parse("product_search", value), value)
+
+    def test_a_flow_starting_intent_is_refused(self):
+        """order_tracking needs an id, returns needs a reason, complaint needs
+        a conversation -- none can be bolted onto another turn."""
+        for value in ("order_tracking", "returns_refund", "complaint",
+                      "human_handoff", "video_call", "callback"):
+            self.assertIsNone(self._parse("product_search", value), value)
+
+    def test_naming_the_same_intent_twice_is_not_two_requests(self):
+        self.assertIsNone(self._parse("offers", "offers"))
+
+    def test_absent_by_default(self):
+        self.assertIsNone(self._parse("product_search", None))
+        self.assertIsNone(self._parse("product_search", ""))
+
+    def test_the_appender_leaves_a_single_intent_turn_alone(self):
+        from kisna_chatbot.processors.secondary_intent import append_secondary_answer
+
+        original = [{"type": "text", "text": "Here are some rings"}]
+        data = {"bot_response": list(original), "secondary_intent": None}
+        asyncio.run(append_secondary_answer(data))
+        self.assertEqual(data["bot_response"], original)
+
+    def test_the_appender_never_invents_a_reply(self):
+        """It runs after the primary; with no primary there is nothing to
+        add to, and inventing one would answer the wrong half."""
+        from kisna_chatbot.processors.secondary_intent import (
+            append_secondary_answer,
+        )
+
+        data = {"secondary_intent": "offers"}
+        asyncio.run(append_secondary_answer(data))
+        self.assertNotIn("bot_response", data)

@@ -23,7 +23,12 @@ from kisna_chatbot.prompts.classifier_kisna import (
 # product it means. Without that second fact, product_reference was the
 # only signal and "iska price kya hai?" re-printed the card the customer
 # was already looking at.
-MAX_CLASSIFIER_INTENT_TOKENS = 6400
+# Raised again (6400 -> 6700) for secondary_intent and the head-office rule.
+# secondary_intent ends a documented decision to drop half of what the
+# customer said: rule 26 used to instruct the model to answer the primary
+# request and trust that "the user will ask the rest next". Measured live,
+# the second request was dropped with no acknowledgement in 6 of 6 languages.
+MAX_CLASSIFIER_INTENT_TOKENS = 6700
 # Raised from 6500 so the gender rule could state a PRINCIPLE ("kinship words
 # are lexically gendered — read the word") instead of a closed list of terms.
 # The list was the bug: "chachi" was not on it, so the model followed the

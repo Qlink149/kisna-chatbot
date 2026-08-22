@@ -3317,6 +3317,44 @@ def _filter_products_by_active_extras(
     return filtered
 
 
+def _product_material(product: dict) -> str:
+    """The product's own material, lowercased. '' when the record omits it."""
+    if not isinstance(product, dict):
+        return ""
+    raw = product.get("materialType") or product.get("material") or ""
+    return str(raw).strip().lower()
+
+
+def drop_excluded_material(
+    products: list[dict], excluded: str | None
+) -> list[dict]:
+    """Remove pieces made of the metal the customer ruled out.
+
+    Clara has no exclusion parameter -- entities_to_api_params can only ask for
+    a material, never against one -- so a refusal can only be honoured here.
+
+    Deliberately NOT part of the extras relaxation ladder below. That ladder
+    drops filters one by one when too few products match, which is right for a
+    preference ("18KT would be nice") and completely wrong for a refusal:
+    relaxing "I don't want gold" puts gold back on screen, which is the exact
+    thing the customer said no to. A refusal is honoured or the result set is
+    empty; it is never traded away for a fuller list.
+
+    A record with no material stated is kept: silence is not evidence that it
+    is the refused metal, and dropping unknowns would hide good stock.
+    """
+    if not excluded:
+        return list(products)
+    wanted_out = str(excluded).strip().lower()
+    if not wanted_out:
+        return list(products)
+    return [
+        p
+        for p in products
+        if _product_material(p) != wanted_out
+    ]
+
+
 def filter_products_by_extracted_extras(
     products: list[dict], entities: dict
 ) -> tuple[list[dict], str | None]:
@@ -3334,6 +3372,17 @@ def filter_products_by_extracted_extras(
         return [], None
 
     entities = enrich_entities_for_client_filter(entities)
+
+    # Applied FIRST and to the whole list, so every return path below -- strict,
+    # relaxed, and the give-up path that surfaces `original` untouched -- is
+    # already free of the refused metal. Filtering later would let the relaxed
+    # paths hand it back.
+    excluded = entities.get("excluded_material")
+    if excluded:
+        products = drop_excluded_material(products, excluded)
+        if not products:
+            return [], None
+
     if not _has_extra_filters(entities):
         return list(products), None
 

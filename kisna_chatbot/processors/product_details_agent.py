@@ -81,26 +81,61 @@ def _product_facts(product: dict) -> str:
     return "\n".join(facts)
 
 
+# A reply covering several pieces still has to fit a WhatsApp message.
+_MAX_PRODUCTS_ANSWERED = 3
+
+
 async def _answer_product_question(
-    question: str, product: dict, *, phone_number: str | None, client_id: str
+    question: str,
+    product: dict | list[dict],
+    *,
+    phone_number: str | None,
+    client_id: str,
 ) -> str | None:
-    """Answer a question about the viewed product, or None to fall back.
+    """Answer a question about the viewed product(s), or None to fall back.
 
     Replaces re-printing the product card. "iska price kya hai?" used to come
     back as the same card the customer was already looking at, and "isme kitne
     carat ka diamond hai" never routed here at all. The model reads the
     question in any language; the facts are enumerated so it cannot invent one.
+
+    Accepts a LIST when the customer asked about a shown set without singling
+    one out. Answering across all of them beats asking which they meant: with
+    two rings on screen, "isme kitne carat ka diamond hai" has the same honest
+    answer for both, and a question is a worse reply than the answer.
     """
     from kisna_chatbot.ai.factory import complete_chat
     from kisna_chatbot.ai.types import AgentName
 
+    products = product if isinstance(product, list) else [product]
+    products = [p for p in products if isinstance(p, dict)][:_MAX_PRODUCTS_ANSWERED]
+    if not products:
+        return None
+
+    if len(products) == 1:
+        subject = (
+            "A KISNA jewellery customer is asking about ONE product they are "
+            "looking at."
+        )
+        facts_block = _product_facts(products[0])
+    else:
+        subject = (
+            f"A KISNA jewellery customer is asking about the {len(products)} "
+            "products currently shown to them, without singling one out. "
+            "Answer for ALL of them. Name each piece so it is clear which is "
+            "which, and if the answer is the same for every one, say so once "
+            "rather than repeating it."
+        )
+        facts_block = "\n\n".join(
+            f"PRODUCT {i}:\n{_product_facts(p)}" for i, p in enumerate(products, 1)
+        )
+
     instruction = (
-        "A KISNA jewellery customer is asking about ONE product they are "
-        "looking at. Answer their question using ONLY the facts listed, in "
-        "their own language, in 1-2 short WhatsApp lines. Bold is a SINGLE "
+        f"{subject} Answer their question using ONLY the facts listed, in "
+        "their own language, in 1-4 short WhatsApp lines. Bold is a SINGLE "
         "asterisk. "
         "If the answer is not among the facts, say plainly that you do not "
-        "have that detail for this piece and name what you do have. NEVER "
+        "have that detail and name what you do have. NEVER "
         "guess or invent a number. "
         "The karat figure is the GOLD purity (14KT/18KT). It is NOT a diamond "
         "carat weight -- if asked about diamond carats, say you do not have it."
@@ -112,13 +147,10 @@ async def _answer_product_question(
             messages=[
                 {
                     "role": "user",
-                    "content": (
-                        f"FACTS:\n{_product_facts(product)}\n\n"
-                        f"QUESTION: {question}"
-                    ),
+                    "content": f"FACTS:\n{facts_block}\n\nQUESTION: {question}",
                 }
             ],
-            max_output_tokens=300,
+            max_output_tokens=300 if len(products) == 1 else 500,
             phone_number=phone_number,
             client_id=client_id,
         )

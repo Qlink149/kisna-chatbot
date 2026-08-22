@@ -1104,6 +1104,14 @@ def _store_llm_entities(data: dict, user_profile: dict, entities: dict) -> None:
     data["llm_extracted_entities"] = stored
 
 
+# Intents that can be answered or acknowledged as a SECOND request without
+# starting a flow of their own. order_tracking, returns_refund and complaint
+# are deliberately absent: each needs its own conversation.
+_SECONDARY_INTENTS = frozenset(
+    {"offers", "gold_rate", "store_info", "general"}
+)
+
+
 def _parse_classifier_json(raw: str) -> dict:
     text = (raw or "").strip()
     if text.startswith("```"):
@@ -1131,10 +1139,25 @@ def _parse_classifier_json(raw: str) -> dict:
     except (TypeError, ValueError):
         pass
 
+    # A SECOND thing asked in the same message. Restricted to intents that
+    # can be answered or acknowledged without starting a flow -- anything
+    # that needs an order id, a return reason or a complaint cannot be
+    # bolted onto another turn, so it is not offered as a choice.
+    secondary = parsed.get("secondary_intent")
+    if isinstance(secondary, str):
+        secondary = secondary.strip().lower()
+        secondary = secondary if secondary in _SECONDARY_INTENTS else None
+    else:
+        secondary = None
+    # Naming the same intent twice is not two requests.
+    if secondary == intent:
+        secondary = None
+
     return {
         "intent": intent,
         "confidence": confidence,
         "entities": entities,
+        "secondary_intent": secondary,
         "language": sanitize_classifier_language(parsed.get("language")),
     }
 
@@ -2827,6 +2850,10 @@ class Classifier(Processor):
                 parsed = _parse_classifier_json(classifier_response)
                 intent = parsed["intent"] or "general"
                 confidence = parsed["confidence"]
+                # Set unconditionally, including to None: a stale secondary
+                # from an earlier turn would append an answer nobody asked
+                # for on this one.
+                data["secondary_intent"] = parsed.get("secondary_intent")
                 _store_language(user_profile, parsed.get("language"), raw_query)
                 override = _programmatic_intent_override(raw_query)
                 if override:

@@ -155,6 +155,10 @@ WIZARD_CARRYOVER_KEYS = (
     "category",
     "min_price",
     "max_price",
+    # Not a slot the funnel fills -- a constraint it must respect. Without it,
+    # someone who opened with "I don't want gold" was then offered Gold as one
+    # of three buttons on the very next screen.
+    "excluded_material",
 )
 
 
@@ -526,6 +530,13 @@ def seed_wizard_from_entities(
     if material in ("gold", "diamond", "gemstone"):
         seeded["material_type"] = material
 
+    # A metal the customer ruled out. Carried as a constraint, never as an
+    # answer: it narrows what the material step may offer and survives into the
+    # search, but it never fills the slot or lets the funnel skip the question.
+    excluded = ents.get("excluded_material")
+    if excluded in ("gold", "diamond", "gemstone"):
+        seeded["excluded_material"] = excluded
+
     if ents.get("min_price") is not None or ents.get("max_price") is not None:
         seeded["min_price"] = ents.get("min_price")
         seeded["max_price"] = ents.get("max_price")
@@ -893,6 +904,14 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
             "_compose": "wizard_gender",
         }
     if step == "material":
+        # Offering a metal the customer has just ruled out reads as not having
+        # listened. Only ever removes one of the three, so at least two remain.
+        refused = str((collected or {}).get("excluded_material") or "").lower()
+        options = [
+            {"title": title}
+            for title in ("Gold", "Diamond", "Gemstone")
+            if title.lower() != refused
+        ]
         return {
             "type": "quickreply",
             "text": (
@@ -900,11 +919,7 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
                 "are you interested in?"
             ),
             "caption": "",
-            "options": [
-                {"title": "Gold"},
-                {"title": "Diamond"},
-                {"title": "Gemstone"},
-            ],
+            "options": options,
             "msgid": "wizard$material",
             "_compose": "wizard_material",
         }
@@ -1002,6 +1017,9 @@ def entities_from_wizard(collected: dict, explicit: dict | None = None) -> dict:
     entities = {
         "category": collected.get("category"),
         "material_type": _filter("material_type"),
+        # Survives the funnel so the client-side filter can still honour it when
+        # the customer answers the material question with "koi bhi".
+        "excluded_material": collected.get("excluded_material"),
         "min_price": collected.get("min_price"),
         "max_price": collected.get("max_price"),
         "gender": _filter("gender"),
