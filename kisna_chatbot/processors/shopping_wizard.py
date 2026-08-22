@@ -535,6 +535,34 @@ def seed_wizard_from_entities(
     return seeded
 
 
+# Words that name a slot outright, so a decline can be routed to the slot the
+# user MEANT rather than whichever question happens to be on screen.
+_ANY_ANSWER_SLOT_WORDS = (
+    (
+        "budget",
+        re.compile(
+            r"budget|price|bajet|बजट|बजेट|कीमत|दाम|બજેટ|કિંમત|"
+            r"বাজেট|দাম|బడ్జెట్|பட்ஜெட்|ಬಜೆಟ್|ബജറ്റ്",
+            re.I,
+        ),
+    ),
+)
+
+
+def _any_answer_target_step(text: str, step: str) -> str:
+    """The slot the user declined -- the one they NAMED, not the one we asked.
+
+    "no specific budget" typed at the material step used to set
+    material_type = any, because the decline was applied to the question on
+    screen. The user named their budget; that is the slot to mark, and the
+    material question still needs asking.
+    """
+    for slot, pattern in _ANY_ANSWER_SLOT_WORDS:
+        if pattern.search(text or ""):
+            return slot
+    return step
+
+
 def _apply_any_slot(collected: dict, step: str) -> None:
     """Mark a step as answered with "no preference"."""
     if step == "gender":
@@ -1172,7 +1200,7 @@ def advance_wizard(
     # answer — check first so the user is not thrown out of a half-filled
     # funnel for declining to pick.
     if text and step in _ANY_ANSWER_STEPS and _ANY_ANSWER_RE.search(text):
-        _apply_any_slot(collected, step)
+        _apply_any_slot(collected, _any_answer_target_step(text, step))
         user_profile["shopping_wizard_data"] = collected
         next_step = get_next_step(collected)
         if next_step is None:

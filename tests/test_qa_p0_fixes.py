@@ -47,6 +47,7 @@ from kisna_chatbot.processors.shopping_wizard import (  # noqa: E402
     _ESCAPE_RE,
     _SHOW_ME_RE,
     WIZARD_CARRYOVER_KEYS,
+    _any_answer_target_step,
     _names_new_product,
 )
 
@@ -185,6 +186,41 @@ class WizardCarryoverTests(unittest.TestCase):
     def test_other_escape_words_are_untouched(self):
         for text in ("skip", "koi bhi", "browse all", "doesn't matter"):
             self.assertIsNotNone(_ESCAPE_RE.search(text), text)
+
+
+class DeclineTargetsTheNamedSlotTests(unittest.TestCase):
+    """A decline marks the slot the user NAMED, not the one on screen.
+
+    "no specific budget" typed at the material step set material_type = any --
+    the user said nothing about metal, and the budget they did speak to went
+    unrecorded.
+    """
+
+    def test_named_budget_decline_marks_budget_from_any_step(self):
+        for text in (
+            "no specific budget",
+            "koi specific budget nahi hai",
+            "*koi specific budget nahi*",
+            "no budget",
+            "budget nahi",
+            "कोई specific budget नहीं है।",
+            "मेरा कोई बजट नहीं है",
+        ):
+            self.assertEqual(_any_answer_target_step(text, "material"), "budget", text)
+            self.assertEqual(_any_answer_target_step(text, "gender"), "budget", text)
+
+    def test_unnamed_decline_still_answers_the_current_step(self):
+        for text, step in (
+            ("anyone", "gender"),
+            ("either is fine", "fulfillment"),
+            ("koi bhi", "gender"),
+            ("whatever", "material"),
+            ("doesn't matter", "material"),
+        ):
+            self.assertEqual(_any_answer_target_step(text, step), step, text)
+
+    def test_budget_step_itself_is_unchanged(self):
+        self.assertEqual(_any_answer_target_step("no specific budget", "budget"), "budget")
 
 
 class ConfirmationRefinementTests(unittest.TestCase):
