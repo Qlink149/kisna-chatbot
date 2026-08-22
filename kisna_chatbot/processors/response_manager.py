@@ -48,7 +48,35 @@ from kisna_chatbot.utils.whatsapp_window import is_window_open
 from kisna_chatbot.whatsapp_functions.send_kisna_welcome_template import (
     send_kisna_welcome_template,
 )
+import re
 import time
+
+# The LLM (GeneralAgent especially, but any free-generation path can do it)
+# frequently reaches for standard Markdown **bold** despite prompt
+# instructions -- confirmed live, 5/6 runs of one KB query used it, never
+# the same message twice. WhatsApp's own bold syntax is a SINGLE asterisk
+# pair (*bold*); a double pair renders as literal, visible asterisks (the
+# reported bug) because WhatsApp's parser doesn't special-case "**" as an
+# escaped single star. Fixed once, centrally, here -- every response type
+# passes through this loop before send, so no per-prompt fix can miss a
+# future free-generation path the way a prompt-only instruction can.
+_MARKDOWN_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+
+
+def _fix_whatsapp_markdown(text: str) -> str:
+    """Rewrite standard Markdown **bold** into WhatsApp's single-asterisk bold."""
+    if not text or "**" not in text:
+        return text
+    return _MARKDOWN_BOLD_RE.sub(r"*\1*", text)
+
+
+def _sanitize_response_text(response: dict) -> dict:
+    """Fix Markdown emphasis in every user-visible text field of one response."""
+    for key in ("text", "caption"):
+        value = response.get(key)
+        if isinstance(value, str):
+            response[key] = _fix_whatsapp_markdown(value)
+    return response
 
 
 class ResponseManager:
@@ -102,6 +130,7 @@ class ResponseManager:
 
         for response in bot_responses:
             outbound_rate_limiter.wait_if_needed(phone_number)
+            response = _sanitize_response_text(response)
             response_type = response.get("type")
             handler = self._handlers.get(response_type)
 
