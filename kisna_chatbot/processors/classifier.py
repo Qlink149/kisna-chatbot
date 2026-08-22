@@ -1418,7 +1418,10 @@ Decide what the user's next message is doing. Reply with exactly one word:
 
 answer       - it responds to the pending question (including "any", "you
                decide", "doesn't matter", "skip", a bare number, a bare
-               material or category word, or an answer in any language/script)
+               material or category word, or an answer in any language/script).
+               ALSO "answer" when it gives a budget, audience, metal or
+               availability we have not asked for YET — the user is volunteering
+               a detail about the SAME item, not starting over.
 new_request  - it is about something else: a shop/store location, an order,
                a return or refund, a complaint, an offer or discount, the gold
                rate, a policy or brand question, asking for a person, a

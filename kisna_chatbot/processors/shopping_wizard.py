@@ -130,9 +130,32 @@ def is_fulfillment_slot_answer(text: str | None) -> bool:
     return normalized in _FULFILLMENT_TITLE_MAP
 
 
-# Slots a user picks by BUTTON TAP. They appear in no message text, so an
-# escape that clears the wizard loses them unless they are handed forward.
-WIZARD_CARRYOVER_KEYS = ("gender", "material_type", "fulfillment")
+# Everything the funnel has collected so far. An escape tears the wizard down
+# (clear_wizard_state), so anything not handed forward here is GONE.
+#
+# This used to be only the three button-tapped slots, which meant an off-step
+# message wiped the category the user had just given: "Do you have rings" ->
+# "Under 10k ?" came back as "What are you looking for today?" with
+# shopping_wizard_data = {max_price: 10000} and no category. Gender survived and
+# category did not, purely because gender was on this list.
+#
+# Safe to widen because BOTH consumers apply carryover as a FALLBACK, never an
+# override -- product_search_agent_v3 only fills keys where the new message left
+# `entities[k] is None`. A genuine new product ("show me necklaces") still wins,
+# because that message supplies its own category.
+#
+# collection/title are deliberately absent: seed_wizard_from_entities never
+# stores them, so they would be dead keys. A collection anchored search is held
+# in the pending-confirmation state instead, and is preserved there
+# (product_search_agent_v3._confirm_refinement_merge).
+WIZARD_CARRYOVER_KEYS = (
+    "gender",
+    "material_type",
+    "fulfillment",
+    "category",
+    "min_price",
+    "max_price",
+)
 
 
 def filter_wizard_carryover(
@@ -231,10 +254,30 @@ _ANY_ANSWER_RE = re.compile(
 )
 
 _ESCAPE_RE = re.compile(
-    r"\b(skip|just\s+show|show\s+me|browse\s+all|any\s+will\s+do|"
+    r"\b(skip|browse\s+all|any\s+will\s+do|"
     r"doesn't\s+matter|dont\s+matter|koi\s+bhi|kuch\s+bhi)\b",
     re.I,
 )
+
+# "show me" was in _ESCAPE_RE, which made ANY answer containing it tear the
+# funnel down: at the material step "show me gold ones" threw away the category
+# and restarted from "What are you looking for today?". It only means "leave"
+# when it asks for a DIFFERENT product -- otherwise it is just how people phrase
+# an answer.
+_SHOW_ME_RE = re.compile(r"\b(just\s+show|show\s+me)\b", re.I)
+
+
+def _names_new_product(text: str) -> bool:
+    """True when the message asks for a product other than the one in progress."""
+    from kisna_chatbot.processors.entity_extractor import (
+        _matched_collection_label,
+        extract_entities,
+    )
+
+    ents = extract_entities(text or "")
+    if ents.get("category") or ents.get("categories") or ents.get("title"):
+        return True
+    return bool(_matched_collection_label(text or ""))
 
 _WIZARD_MSGID_PREFIX = "wizard$"
 
@@ -1138,7 +1181,10 @@ def advance_wizard(
         user_profile["shopping_wizard_step"] = next_step
         return "prompt", [build_step_prompt(next_step, collected)]
 
-    if text and _ESCAPE_RE.search(text):
+    if text and (
+        _ESCAPE_RE.search(text)
+        or (_SHOW_ME_RE.search(text) and _names_new_product(text))
+    ):
         clear_wizard_state(user_profile)
         return "escape", None
 

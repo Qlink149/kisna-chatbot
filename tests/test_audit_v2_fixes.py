@@ -238,16 +238,36 @@ def test_button_tapped_slots_are_carried_for_this_turn():
         }
     }
     _stash_wizard_carryover(data, profile)
-    # category comes from the new message; gender/material came from buttons.
-    assert data["_wizard_carryover"] == {"gender": "women", "material_type": "gold"}
+    # Everything collected so far is handed forward, category included.
+    #
+    # This used to carry only the button-tapped slots, on the assumption that
+    # "category comes from the new message". That assumption is false for any
+    # off-step message: real session, "Do you have rings" -> "Under 10k ?"
+    # restarted at "What are you looking for today?" with
+    # shopping_wizard_data = {max_price: 10000} and no category, because gender
+    # was on the carryover list and category was not. Carryover is applied as a
+    # FALLBACK only (product_search_agent_v3 fills keys the new message left
+    # None), so a message that does name a category still wins.
+    assert data["_wizard_carryover"] == {
+        "category": "ring",
+        "gender": "women",
+        "material_type": "gold",
+    }
 
 
-def test_carryover_is_absent_without_tapped_slots():
+def test_carryover_is_absent_when_nothing_was_collected():
     data = {}
-    _stash_wizard_carryover(data, {"shopping_wizard_data": {"category": "ring"}})
+    _stash_wizard_carryover(data, {"shopping_wizard_data": {}})
     assert "_wizard_carryover" not in data
     _stash_wizard_carryover(data, {})
     assert "_wizard_carryover" not in data
+
+
+def test_carryover_keeps_a_category_the_new_message_does_not_state():
+    # The P0 case: the funnel knows the category, the escaping message does not.
+    data = {}
+    _stash_wizard_carryover(data, {"shopping_wizard_data": {"category": "ring"}})
+    assert data["_wizard_carryover"] == {"category": "ring"}
 
 
 def test_carryover_never_persists_on_the_profile():
@@ -281,7 +301,11 @@ def test_escape_stashes_carryover_and_clears_wizard():
     ):
         result = asyncio.run(Classifier().process(data))
     assert not result["user_profile"].get("shopping_wizard_active")
-    assert result["_wizard_carryover"] == {"gender": "women", "material_type": "gold"}
+    assert result["_wizard_carryover"] == {
+        "category": "ring",
+        "gender": "women",
+        "material_type": "gold",
+    }
 
 
 # ── #4 competitor comparison is no longer a hard override ─────────────────

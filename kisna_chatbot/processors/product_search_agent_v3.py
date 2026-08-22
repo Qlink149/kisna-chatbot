@@ -487,6 +487,60 @@ async def _current_message_entities(data: dict, text: str | None) -> dict:
     return dict(data.get("llm_extracted_entities") or {})
 
 
+# Slots that NARROW a pending recap instead of replacing it. Naming a different
+# category / collection / title is a new request; adding a budget or an audience
+# to the search we just read back is not.
+_CONFIRM_REFINEMENT_SLOTS = (
+    "min_price",
+    "max_price",
+    "gender",
+    "material_type",
+    "karat",
+    "metal_colour",
+    "fulfillment",
+)
+
+
+def _confirm_refinement_merge(pending: dict, text: str | None) -> dict | None:
+    """Merge a narrowing reply into a pending recap, or None if it is a new ask.
+
+    Uses the deterministic extractor on purpose: it is free (this runs on every
+    non-yes/no turn during a confirmation) and budgets are exactly what it reads
+    best. A native-script refinement it cannot read simply falls through to the
+    previous behaviour — no regression, just no rescue.
+    """
+    if not (text or "").strip():
+        return None
+    entities = dict(pending.get("entities") or {})
+    if not entities:
+        return None
+
+    stated = extract_entities(text)
+    for key in ("category", "collection", "title"):
+        value = stated.get(key)
+        if value is not None and value != entities.get(key):
+            return None
+    if stated.get("categories"):
+        return None
+
+    refinement = {
+        key: stated[key]
+        for key in _CONFIRM_REFINEMENT_SLOTS
+        if stated.get(key) is not None
+    }
+    if not refinement:
+        return None
+    # A price refinement replaces the old band outright rather than merging one
+    # half of it ("under 20k" after "10k-30k" must not keep min=10000).
+    if "min_price" in refinement or "max_price" in refinement:
+        entities["min_price"] = stated.get("min_price")
+        entities["max_price"] = stated.get("max_price")
+        refinement.pop("min_price", None)
+        refinement.pop("max_price", None)
+    entities.update(refinement)
+    return entities
+
+
 def _handle_product_reference(data: dict) -> dict | None:
     """Open the shown product the LLM resolved (1-based product_reference).
 
@@ -2656,8 +2710,33 @@ class ProductSearchAgentV3(Processor):
             return data
 
         if not is_awaiting_correction(user_profile):
-            # Not an answer at all — a fresh request. Drop the recap and let
-            # normal routing handle the new message.
+            # A refinement of what we just read back is not a fresh request.
+            # "show me something in evil eye" -> recap -> "under 20k" used to
+            # land here and THROW THE RECAP AWAY (collection included), so the
+            # user got "What are you looking for today?" and lost the whole
+            # search. Narrowing the pending search keeps it.
+            refined = _confirm_refinement_merge(pending, text)
+            if refined is not None:
+                clear_confirm_state(user_profile)
+                user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                logger.info(
+                    "Search confirmation refined",
+                    extra={
+                        "phone_number": phone_number,
+                        "query": pending.get("query_label"),
+                    },
+                )
+                return await self._execute_search(
+                    data,
+                    phone_number,
+                    {**_empty_entities(), **refined},
+                    query_label=pending.get("query_label") or "refinement",
+                    occasion_prefix=pending.get("occasion_prefix"),
+                    response_mode=pending.get("response_mode"),
+                    exclude_product_id=pending.get("exclude_product_id"),
+                )
+            # Genuinely something else. Drop the recap and let normal routing
+            # handle the new message.
             clear_confirm_state(user_profile)
             return None
 

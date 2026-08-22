@@ -36,27 +36,53 @@ def _is_track_button(interactive: dict) -> bool:
     return _parse_track_button_id(raw_id) is not None
 
 
+# An order id ALWAYS carries digits. The previous keyword pattern
+# (?:order|track)\s*(?:id|#|:)?\s*([A-Za-z0-9-]+) made the label optional, so it
+# matched the words "order"/"track" themselves -- including inside "ordered" and
+# "tracking", which have no word boundary before the tail -- and captured the
+# next word whatever it was. Real replies read "Order *my*", "Order *ing*" and,
+# for "track order KIS12345", "Order *order*"; the same junk was then used to
+# build the tracking URL. Each pattern below therefore requires a digit-bearing
+# token, and they run strictest-first so an explicit id always beats a guess.
+_ORDER_ID_HASH_RE = re.compile(r"#\s*([A-Za-z0-9][A-Za-z0-9-]{1,})")
+_ORDER_ID_LABELLED_RE = re.compile(
+    r"(?:order|track(?:ing)?)\s*(?:id|no\.?|number|#|:)+\s*"
+    r"([A-Za-z0-9][A-Za-z0-9-]{2,})",
+    re.IGNORECASE,
+)
+_ORDER_ID_SKU_RE = re.compile(r"\b([A-Za-z]{2,}-?\d{3,}[A-Za-z0-9-]*)\b")
+# Bare digits need to be long enough not to catch "3 years ago" / "2 rings".
+_ORDER_ID_NUMERIC_RE = re.compile(r"\b(\d{4,})\b")
+
+
+def _looks_like_order_id(candidate: str | None) -> bool:
+    """Reject ordinary words ("my", "ing", "ed") captured next to a keyword."""
+    if not candidate or len(candidate) < 3:
+        return False
+    return any(ch.isdigit() for ch in candidate)
+
+
 def _extract_order_id_from_text(text: str) -> str | None:
-    """Extract order ID from user message using simple patterns."""
+    """Extract an order ID, or None when the user did not supply one.
+
+    None is the correct answer for "track my order" -- the caller falls back to
+    _build_generic_tracking_response, which asks nothing and just sends the
+    tracking CTA.
+    """
     text = (text or "").strip()
     if not text:
         return None
 
-    match = re.search(r"#([A-Za-z0-9-]+)", text)
-    if match:
-        return match.group(1)
-
-    match = re.search(
-        r"(?:order|track)\s*(?:id|#|:)?\s*([A-Za-z0-9-]+)",
-        text,
-        re.IGNORECASE,
-    )
-    if match:
-        return match.group(1)
-
-    match = re.search(r"\b([A-Z]{2,}\d{3,}[A-Za-z0-9-]*)\b", text)
-    if match:
-        return match.group(1)
+    for pattern in (
+        _ORDER_ID_HASH_RE,
+        _ORDER_ID_LABELLED_RE,
+        _ORDER_ID_SKU_RE,
+        _ORDER_ID_NUMERIC_RE,
+    ):
+        for match in pattern.finditer(text):
+            candidate = match.group(1)
+            if _looks_like_order_id(candidate):
+                return candidate
 
     return None
 

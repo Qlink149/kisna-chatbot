@@ -526,14 +526,54 @@ _AROUND_PATTERNS = [
 ]
 
 # Hard ceiling / floor direction words (do NOT apply ±10% single-price band).
+#
+# The native-script alternatives below are deliberately NOT wrapped in \b.
+# Python's \w (and therefore \b) does not classify Indic combining marks as word
+# characters, so r"\bसे कम\b" fails to match "से कम" even with clear whitespace
+# around it -- the same trap already documented on shopping_wizard._ANY_ANSWER_RE.
+# Several of these are also grammatical suffixes that attach directly to the
+# number (Tamil "க்குள்"), where a leading boundary could never match anyway.
+#
+# Without these, a ceiling stated in any non-Latin script fell through
+# normalize_price_entities' early return, was treated as a "single stated
+# target", and came back as a FLOOR: "under 20,000" in Marathi produced
+# min=20000/max=30000 and the customer was shown pieces they had excluded.
+_MAX_DIRECTION_LATIN = (
+    r"under|below|upto|up to|within|tak|se kam|ke andar|ke neeche|less than|max|maximum"
+)
+_MAX_DIRECTION_NATIVE = (
+    r"से\s*कम|के\s*अंदर|से\s*नीचे|तक"  # Hindi
+    r"|पेक्षा\s*कमी|च्या\s*आत|पर्यंत"  # Marathi
+    r"|થી\s*ઓછ\w*|ની\s*અંદર|સુધી"  # Gujarati
+    r"|ਤੋਂ\s*ਘੱਟ|ਦੇ\s*ਅੰਦਰ|ਤੱਕ"  # Punjabi
+    r"|থেকে\s*কম|কম|মধ্যে|নিচে"  # Bengali
+    r"|కంటే\s*తక్కువ|లోపు"  # Telugu
+    # Tamil "within" is a case suffix that inflects with the stem
+    # (ஆயிரத்திற்குள், ரூபாய்க்குள்), so anchor on the invariant tail only.
+    r"|குள்|குறைவாக|கீழ்"  # Tamil
+    r"|ಕಡಿಮೆ|ಒಳಗೆ"  # Kannada
+    r"|താഴെ|കുറവ"  # Malayalam
+)
 _MAX_DIRECTION_RE = re.compile(
-    r"\b(under|below|upto|up to|within|tak|se kam|ke andar|ke neeche|less than|max|maximum)\b",
-    re.I,
+    rf"\b({_MAX_DIRECTION_LATIN})\b|(?:{_MAX_DIRECTION_NATIVE})", re.I
 )
 
+_MIN_DIRECTION_LATIN = (
+    r"above|over|more than|minimum|min|at\s*least|atleast|se\s*zyada|se\s*upar|ke\s*upar"
+)
+_MIN_DIRECTION_NATIVE = (
+    r"से\s*ज़?्यादा|से\s*अधिक|से\s*ऊपर"  # Hindi (with and without nukta)
+    r"|पेक्षा\s*जास्त|च्या\s*वर"  # Marathi
+    r"|થી\s*વધ\w*"  # Gujarati
+    r"|ਤੋਂ\s*ਵੱਧ|ਤੋਂ\s*ਜ਼ਿਆਦਾ"  # Punjabi
+    r"|থেকে\s*বেশি|বেশি|উপরে"  # Bengali
+    r"|కంటే\s*ఎక్కువ|పైన"  # Telugu
+    r"|மேல்|மேற்பட்ட|அதிகமான"  # Tamil (suffix inflects — see max note above)
+    r"|ಹೆಚ್ಚು|ಮೇಲೆ"  # Kannada
+    r"|കൂടുതൽ|മുകളിൽ"  # Malayalam
+)
 _MIN_DIRECTION_RE = re.compile(
-    r"\b(above|over|more than|minimum|min|at\s*least|atleast|se\s*zyada|se\s*upar|ke\s*upar)\b",
-    re.I,
+    rf"\b({_MIN_DIRECTION_LATIN})\b|(?:{_MIN_DIRECTION_NATIVE})", re.I
 )
 
 # "of price 50000" / "price 50000" / "price of 50k" → ±10% band (not hard max).
