@@ -42,6 +42,96 @@ _BUY_CTA_TEXT = (
 _IMAGE_UNAVAILABLE_LINE = (
     "Image unavailable — view on kisna.com via the Buy button below."
 )
+def _product_facts(product: dict) -> str:
+    """Every fact we actually hold about one product, one per line.
+
+    The answerer below may use NOTHING else, so an attribute missing here comes
+    back as "I don't have that" instead of an invented number. Diamond carat
+    weight is deliberately absent: Clara does not return it, and the reported
+    failure was the bot implying the 14KT GOLD karat answered a question about
+    diamond carats.
+    """
+    from kisna_chatbot.utils.product_formatter import (
+        _variant_attributes_line,
+        format_price_line,
+        get_product_display_price,
+    )
+
+    bundle = get_product_price_bundle(product) or {}
+    shipping = product.get("shipping") or {}
+    facts = [f"name: {product.get('title') or 'Product'}"]
+    # Omit the price entirely rather than list a zero. A malformed record
+    # rendered as "price: Rs 0", and the answerer would then state Rs 0 to the
+    # customer with complete confidence. Absent means "say you don't have it".
+    price = get_product_display_price(product)
+    if price and price > 0:
+        facts.append(f"price: {format_price_line(product)}")
+        facts.append("price note: varies with the live gold rate")
+    attrs = _variant_attributes_line(product)
+    if attrs:
+        facts.append(f"metal / karat / colour / size: {attrs}")
+    if shipping.get("edd"):
+        facts.append(f"ships in: {shipping['edd']} days")
+    if bundle.get("sku"):
+        facts.append(f"SKU: {bundle['sku']}")
+    if product.get("withChain") == "noChain":
+        facts.append("chain: NOT included")
+    if bundle.get("promo_label"):
+        facts.append(f"offer: {bundle['promo_label']}")
+    return "\n".join(facts)
+
+
+async def _answer_product_question(
+    question: str, product: dict, *, phone_number: str | None, client_id: str
+) -> str | None:
+    """Answer a question about the viewed product, or None to fall back.
+
+    Replaces re-printing the product card. "iska price kya hai?" used to come
+    back as the same card the customer was already looking at, and "isme kitne
+    carat ka diamond hai" never routed here at all. The model reads the
+    question in any language; the facts are enumerated so it cannot invent one.
+    """
+    from kisna_chatbot.ai.factory import complete_chat
+    from kisna_chatbot.ai.types import AgentName
+
+    instruction = (
+        "A KISNA jewellery customer is asking about ONE product they are "
+        "looking at. Answer their question using ONLY the facts listed, in "
+        "their own language, in 1-2 short WhatsApp lines. Bold is a SINGLE "
+        "asterisk. "
+        "If the answer is not among the facts, say plainly that you do not "
+        "have that detail for this piece and name what you do have. NEVER "
+        "guess or invent a number. "
+        "The karat figure is the GOLD purity (14KT/18KT). It is NOT a diamond "
+        "carat weight -- if asked about diamond carats, say you do not have it."
+    )
+    try:
+        reply = await complete_chat(
+            agent=AgentName.GENERAL,
+            instruction=instruction,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"FACTS:\n{_product_facts(product)}\n\n"
+                        f"QUESTION: {question}"
+                    ),
+                }
+            ],
+            max_output_tokens=300,
+            phone_number=phone_number,
+            client_id=client_id,
+        )
+    except Exception:
+        logger.warning(
+            "product_details: question answering failed, falling back to card",
+            extra={"phone_number": phone_number},
+            exc_info=True,
+        )
+        return None
+    return (reply or "").strip() or None
+
+
 _SIZE_VARIANT_REPLY = (
     "Sizes and variants are available on the product page. "
     "Tap 'Buy on KISNA' above to select your size and place your order."
@@ -322,11 +412,16 @@ class ProductDetailsAgent(Processor):
         user_profile = data.get("user_profile", {})
         text = (messages.get("text", {}) or {}).get("body", "") or ""
         if user_profile.get("last_viewed_product") and text.strip():
-            if data.get("classified_category") == "product_info" and _SIZE_QUERY_RE.search(
-                text
-            ):
+            # The classifier already read the sentence and said this is a
+            # question about a product. Requiring a Latin keyword on top of
+            # that vetoed its correct call: "isme kitne CARAT ka diamond hai"
+            # missed _SIZE_QUERY_RE (which lists "karat", not "carat") and fell
+            # through to search, which re-printed the card. The keyword regex
+            # stays below as the fallback for when the classifier did NOT say
+            # product_info.
+            if data.get("classified_category") == "product_info":
                 return True
-            if _PRICE_AVAILABILITY_RE.search(text):
+            if _PRICE_AVAILABILITY_RE.search(text) or _SIZE_QUERY_RE.search(text):
                 return True
 
         return False
@@ -359,13 +454,28 @@ class ProductDetailsAgent(Processor):
                     .get("id", "")
                 )
             ):
-                if _PRICE_AVAILABILITY_RE.search(text_body):
+                asks_about_product = (
+                    data.get("classified_category") == "product_info"
+                    or _PRICE_AVAILABILITY_RE.search(text_body)
+                )
+                if asks_about_product:
                     product = _product_from_last_viewed(user_profile)
                     if product:
                         _save_last_viewed_product(user_profile, product)
                         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                        answer = await _answer_product_question(
+                            text_body,
+                            product,
+                            phone_number=phone_number,
+                            client_id=data.get("client_id", "kisna"),
+                        )
+                        # Falling back to the card is only for an LLM failure —
+                        # it is what the customer is already looking at.
                         data["bot_response"] = [
-                            {"type": "text", "text": format_product_buy_caption(product)}
+                            {
+                                "type": "text",
+                                "text": answer or format_product_buy_caption(product),
+                            }
                         ]
                         return data
                 if (

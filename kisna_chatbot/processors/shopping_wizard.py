@@ -845,6 +845,25 @@ def build_budget_rejection_prompt() -> dict:
     }
 
 
+def _material_step_subject(collected: dict | None) -> str:
+    """What to call the product in the material question.
+
+    By this step the funnel usually knows the category, so ask about the thing
+    itself ("What type of rings...") rather than the generic "jewellery". The
+    label is interpolated INTO the composed text, not appended after it, so it
+    gets translated with the rest of the sentence instead of sitting in English
+    inside a Tamil question.
+    """
+    category = (collected or {}).get("category")
+    if not category:
+        return "jewellery"
+    from kisna_chatbot.processors.product_search_agent_v3 import (
+        _humanize_category_label,
+    )
+
+    return _humanize_category_label(str(category).strip().lower()) or "jewellery"
+
+
 def build_step_prompt(step: str, collected: dict | None = None) -> dict:
     collected = collected or {}
     if step == "category":
@@ -876,7 +895,10 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
     if step == "material":
         return {
             "type": "quickreply",
-            "text": "What type of jewellery are you interested in?",
+            "text": (
+                f"What type of {_material_step_subject(collected)} "
+                "are you interested in?"
+            ),
             "caption": "",
             "options": [
                 {"title": "Gold"},

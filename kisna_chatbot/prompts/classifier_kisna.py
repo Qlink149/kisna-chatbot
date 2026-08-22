@@ -504,6 +504,9 @@ lost.
    "too costly" / "price bahut zyada" / "thoda sasta" / "mane sastu joie che"
    → price_direction="lower"
    "aur mehnga dikhao" / "premium wale" → price_direction="higher"
+   "more" + a PRICE word is a direction, not pagination: "show me more
+   premium ones" / "aur premium wale dikhao" → price_direction="higher".
+   Plain "aur dikhao" / "more" (no price word) → action="more".
    Superlatives about shown items ("cheapest", "sabse sasta wala kaun sa") →
    price_direction=null (that is a question, not a refinement).
    A number present → normal min/max extraction, price_direction=null.

@@ -280,12 +280,18 @@ def _profile_snapshot(profile: dict) -> dict:
         "pending_confirmation",
         "awaiting_clarification",
         "last_shown_products",
+        "last_viewed_product",
+        "last_search_products",
     )
     snap = {}
     for k in keys:
         if k in profile:
             v = profile[k]
-            if k == "last_shown_products" and isinstance(v, list):
+            if k in ("last_search_products",) and isinstance(v, list):
+                v = f"<{len(v)} products>"
+            elif k == "last_viewed_product" and isinstance(v, dict):
+                v = v.get("title") or "<product>"
+            elif k == "last_shown_products" and isinstance(v, list):
                 v = [str(p.get("title") if isinstance(p, dict) else p)[:60] for p in v][:5]
             snap[k] = copy.deepcopy(v)
     return snap

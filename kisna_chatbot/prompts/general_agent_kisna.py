@@ -15,9 +15,14 @@ _STORE_LOCATOR_URL = os.getenv("KISNA_STORE_LOCATOR_URL", "https://www.kisna.com
 _TRACK_ORDER_URL = os.getenv("KISNA_TRACK_ORDER_URL", f"https://{_KISNA_DOMAIN}/track-order")
 _CARE_URL = os.getenv("KISNA_CARE_URL", f"https://{_KISNA_DOMAIN}/care")
 
+# Deliberately ONE clause with no detachable opener. The previous version
+# began "I want to provide you with accurate information." -- a self-contained
+# pleasantry, which the model peeled off and used to open answers it then gave
+# anyway ("I want to provide you with accurate information. Prices depend
+# on..."). Nothing here reads as a general-purpose sentence, so there is
+# nothing to borrow.
 _KB_HANDOFF_LINE = (
-    "I want to provide you with accurate information. "
-    "Let me connect you with a Kisna representative."
+    "Let me connect you with a Kisna representative who can confirm this for you."
 )
 
 _KB_USAGE_INSTRUCTIONS = f"""
@@ -28,6 +33,11 @@ _KB_USAGE_INSTRUCTIONS = f"""
 - If covered in the KB → answer confidently and concisely.
 - If NOT in the KB and not a product query → do NOT invent.
   Say: "{_KB_HANDOFF_LINE}" and call request_live_agent.
+  Use that sentence ONLY when actually handing off, word for word. It is
+  never an opening line for an answer you are about to give.
+- Opening / office / support hours ("office hours", "what time do you open",
+  "kab tak khula hai", "kitne baje tak") → answer from Hours in the contact
+  details below. That IS a covered fact — never hand off for it.
 - For LIVE data (current prices, stock, specific order status,
   today's exact offers) → direct to website or the relevant menu.
 - Promotions in the KB may be outdated → for offers, point to

@@ -491,15 +491,22 @@ _SHORT_AFFIRMATION_RE = re.compile(
 )
 
 # Price patterns — order matters: range first, then around, then max, then min
+# The separator class includes the EN DASH and EM DASH, not just the ASCII
+# hyphen: the wizard's own budget prompt suggests "15–35k" with an en dash, so
+# this fallback used to misread the exact format the product recommends -- it
+# matched no range, read 35k as a single amount and band-snapped it to
+# (30000, 40000).
 _RANGE_PATTERNS = [
     re.compile(
         r"(?:between|from)\s*"
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*(?:and|to|-)\s*"
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*"
+        r"(?:and|to|[-–—])\s*"
         r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?",
         re.I,
     ),
     re.compile(
-        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*(?:to|-)\s*"
+        r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?\s*"
+        r"(?:to|[-–—])\s*"
         r"₹?\s*([\d,]+(?:\.\d+)?)\s*(k|lakh|lac|hazaar|thousand)?",
         re.I,
     ),
@@ -1464,6 +1471,34 @@ def _extract_standalone_hindi_number_max(text: str) -> float | None:
     return None
 
 
+# Amounts big enough to be money: 3+ digits, or a small number with a scale
+# word. Deliberately excludes bare "2" so "50k ka ring, 2 pieces" is one amount.
+_MONEY_AMOUNT_RE = re.compile(
+    r"[\d,]{3,}|\d+(?:\.\d+)?\s*(?:k|lakh|lac|hazaar|thousand)", re.I
+)
+
+
+def _unparsed_multi_amount(text: str) -> bool:
+    """Two amounts, no range and no direction — we cannot tell which bound.
+
+    "₹10,000 થી ₹30,000" reached a bare-currency pattern that returns the FIRST
+    amount as a ceiling, producing max=10,000 for a 10k-30k request: the
+    historic "No pieces found under ₹10,000" bug, still live in this fallback.
+    The separator "થી" is Gujarati; adding it, and its equivalent in every
+    other language, is the losing game this codebase keeps re-learning.
+
+    So decide it structurally instead: if the message carries two or more
+    amounts and neither a range nor a direction word was recognised, we do not
+    know what the user meant. Return nothing and let the LLM's value stand -- a
+    fallback that guesses wrong is worse than one that abstains.
+    """
+    if len(_MONEY_AMOUNT_RE.findall(text or "")) < 2:
+        return False
+    return not (
+        _MAX_DIRECTION_RE.search(text or "") or _MIN_DIRECTION_RE.search(text or "")
+    )
+
+
 def _extract_prices(text: str) -> tuple[float | None, float | None]:
     preprocessed = _preprocess_hindi_numbers(text)
     min_p, max_p = _extract_price_range(preprocessed)
@@ -1475,6 +1510,11 @@ def _extract_prices(text: str) -> tuple[float | None, float | None]:
     min_p = _extract_min_price(preprocessed)
     if min_p is not None:
         return min_p, None
+    # Past this point every remaining rule reads ONE amount out of the text.
+    # If there are two and we understood neither a range nor a direction,
+    # picking one is a guess.
+    if _unparsed_multi_amount(preprocessed):
+        return None, None
     max_p = _extract_explicit_max_price(preprocessed)
     if max_p is not None:
         return None, max_p

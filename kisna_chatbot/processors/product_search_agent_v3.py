@@ -685,7 +685,7 @@ def _collection_browse_skips_wizard(entities: dict) -> bool:
     return bool(get_collection_id(str(collection)))
 
 
-def _handle_product_info_followup(data: dict, query: str) -> dict | None:
+async def _handle_product_info_followup(data: dict, query: str) -> dict | None:
     """Answer product_info follow-ups from cached search/viewed products."""
     user_profile = data.get("user_profile", {})
     # Treat as a follow-up when classified product_info, OR when the message is
@@ -775,6 +775,25 @@ def _handle_product_info_followup(data: dict, query: str) -> dict | None:
             )
 
             product = _product_from_last_viewed(user_profile) or last_viewed
+            # The customer asked a QUESTION about this piece. Re-sending the
+            # card they are already looking at is not an answer -- "iska price
+            # kya hai?" came back as the same card, and "isme kitne carat ka
+            # diamond hai" was never answered at all. Answer in words, from
+            # the product's own facts, in whatever language they asked.
+            from kisna_chatbot.processors.product_details_agent import (
+                _answer_product_question,
+            )
+
+            spoken = await _answer_product_question(
+                query,
+                product,
+                phone_number=data.get("phone_number"),
+                client_id=data.get("client_id", "kisna"),
+            )
+            if spoken:
+                data["bot_response"] = [{"type": "text", "text": spoken}]
+                return data
+
             image_msg = build_product_image_with_cta_message(product)
             responses: list[dict] = []
             if image_msg:
@@ -1012,6 +1031,17 @@ def _is_show_more_request(query: str, data: dict) -> bool:
     # the Latin regex only for romanized text the LLM may have skipped.
     llm_entities = data.get("llm_extracted_entities") or {}
     if llm_entities.get("category") or llm_entities.get("material_type"):
+        return False
+    # A stated price DIRECTION is a refinement, not pagination — same rule as
+    # the category/material check above, for one more field.
+    #
+    # "aur premium wale dikhao" reads as show-more to _SHOW_MORE_RE, so this
+    # returned True and paginated the SAME band: the user asked for pricier
+    # pieces and got a cheaper page (33,353/29,966 -> 26,114/25,833). The LLM
+    # had already set price_direction="higher" -- the prompt maps "premium
+    # wale" to it explicitly -- and the branch that acts on it lives 265 lines
+    # further down, so the answer was discarded unread.
+    if llm_entities.get("price_direction") in ("lower", "higher"):
         return False
     if _names_new_search_subject(query):
         return False
@@ -2152,7 +2182,7 @@ class ProductSearchAgentV3(Processor):
             ]
             return data
 
-        followup = _handle_product_info_followup(data, query)
+        followup = await _handle_product_info_followup(data, query)
         if followup is not None:
             return followup
 

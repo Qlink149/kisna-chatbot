@@ -1,5 +1,6 @@
 """Single-price snapping to the website's price bands."""
 
+import asyncio
 import os
 import unittest
 
@@ -93,7 +94,7 @@ class TestPriceBand(unittest.TestCase):
                 ]
             },
         }
-        result = _handle_product_info_followup(data, "iska price kya hai?")
+        result = asyncio.run(_handle_product_info_followup(data, "iska price kya hai?"))
         self.assertIsNotNone(result)
         text = result["bot_response"][0]["text"]
         self.assertIn("Clara Ring", text)
@@ -117,7 +118,7 @@ class TestPriceBand(unittest.TestCase):
                 ]
             },
         }
-        result = _handle_product_info_followup(data, "iska price kya hai?")
+        result = asyncio.run(_handle_product_info_followup(data, "iska price kya hai?"))
         self.assertIsNotNone(result)
         text = result["bot_response"][0]["text"]
         self.assertIn("Estaa Necklace", text)
@@ -138,11 +139,11 @@ class TestPriceBand(unittest.TestCase):
         }
         # Names a new category → must fall through to a real search.
         self.assertIsNone(
-            _handle_product_info_followup(data, "necklaces ka price batao")
+            asyncio.run(_handle_product_info_followup(data, "necklaces ka price batao"))
         )
         # Plain search with no price-reference → not hijacked.
         self.assertIsNone(
-            _handle_product_info_followup(data, "gold rings dikhao")
+            asyncio.run(_handle_product_info_followup(data, "gold rings dikhao"))
         )
 
     def test_category_switch_not_treated_as_pagination(self):

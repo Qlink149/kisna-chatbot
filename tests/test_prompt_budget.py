@@ -27,7 +27,12 @@ MAX_CLASSIFIER_INTENT_TOKENS = 6000
 # The extractor runs CONTEXT-FREE -- no chat history, no shown products -- so
 # it needs far less headroom than the classifier; test_entity_extractor_fits_
 # under_request_ceiling below is what actually protects the request size.
-MAX_ENTITY_EXTRACTOR_TOKENS = 7000
+# Raised again (7000 -> 7300) for the negation rule and the
+# more-premium/pagination disambiguation. Both are correctness fixes for
+# behaviour the model was getting wrong, and this number is a style guard,
+# not the real limit -- at 7300 est the extractor is ~8470 real tokens,
+# leaving ~3500 under the 12000 ceiling, which the test below asserts.
+MAX_ENTITY_EXTRACTOR_TOKENS = 7300
 
 # Conservative request-size ceiling. The prompt plus context and user message
 # must fit inside this to avoid request-too-large errors.

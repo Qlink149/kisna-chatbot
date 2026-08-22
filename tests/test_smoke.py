@@ -133,7 +133,12 @@ class ProductSearchTests(unittest.TestCase):
         prompt = build_general_agent_prompt()
         self.assertIn("KIA", prompt)
         self.assertIn("Kisna Intelligent Assistant", prompt)
-        self.assertIn("I want to provide you with accurate information", prompt)
+        # The handoff line is deliberately ONE clause with no detachable
+        # opener. It used to begin "I want to provide you with accurate
+        # information." -- a self-contained pleasantry the model peeled off
+        # and reused to open answers it then gave anyway.
+        self.assertIn("Let me connect you with a Kisna representative", prompt)
+        self.assertNotIn("I want to provide you with accurate information", prompt)
         self.assertNotIn("outside my lane", prompt.lower())
         self.assertNotIn("knowledgeable friend", prompt.lower())
 
