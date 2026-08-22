@@ -207,7 +207,7 @@ class ComplaintAgent(Processor):
             if mongo_saved or issue_description or order_id:
                 data["bot_response"] = _build_confirmation(case_id)
             else:
-                data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+                data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
 
             user_profile["service_selected"] = ""
 
@@ -227,5 +227,5 @@ class ComplaintAgent(Processor):
                 "Exception occurred in ComplaintAgent",
                 extra={"phone_number": phone_number, "exception": e},
             )
-            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
             return data

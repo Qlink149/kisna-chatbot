@@ -141,6 +141,7 @@ def _build_success_response(pre_order: dict, variant_label: str = "") -> list:
             "text": "Your pre-order is reserved. Tap below to pay securely.",
             "display_text": "Pay Now",
             "url": payment_url,
+            "_compose": "preorder_reserved",
         },
     ]
 

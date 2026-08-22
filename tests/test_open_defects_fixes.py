@@ -708,3 +708,112 @@ class LocalisedCtaTests(unittest.TestCase):
         src = inspect.getsource(support_handler)
         self.assertIn('"_compose": "support_offline"', src)
         self.assertIn('"_compose": "support_handoff"', src)
+
+
+class ShownProductQuestionTests(unittest.TestCase):
+    """"do you have size 14?" after a product list RESET the conversation.
+
+    The classifier sets product_question for most phrasings but missed that
+    one, and a size with no category starts a fresh wizard — so the customer
+    was answered with "Hi! What are you looking for today?" and the whole
+    search was gone. Every other phrasing was answered correctly, which is
+    exactly why this cannot rest on the flag alone.
+    """
+
+    def _asks(self, entities, shown=1):
+        from kisna_chatbot.processors.product_search_agent_v3 import (
+            _asks_about_shown_products,
+        )
+
+        return _asks_about_shown_products({
+            "llm_extracted_entities": entities,
+            "user_profile": {"last_search_products": [{"title": "A"}] * shown},
+        })
+
+    def test_an_attribute_only_message_is_a_question(self):
+        for entities in ({"size": 14}, {"karat": "18KT"}, {"metal_colour": "rose"}):
+            self.assertTrue(self._asks(entities), entities)
+
+    def test_naming_a_product_is_still_a_new_search(self):
+        """"size 14 rings dikhao" is a search, not a question."""
+        for entities in (
+            {"size": 14, "category": "ring"},
+            {"size": 14, "material_type": "gold"},
+            {"size": 14, "collection": "evil eye"},
+            {"size": 14, "title": "Flossie"},
+        ):
+            self.assertFalse(self._asks(entities), entities)
+
+    def test_a_budget_is_a_refinement_not_a_question(self):
+        self.assertFalse(self._asks({"size": 14, "max_price": 50000}))
+        self.assertFalse(self._asks({"size": 14, "min_price": 10000}))
+
+    def test_nothing_shown_means_nothing_to_ask_about(self):
+        self.assertFalse(self._asks({"size": 14}, shown=0))
+
+    def test_no_attribute_is_not_a_question(self):
+        self.assertFalse(self._asks({}))
+        self.assertFalse(self._asks({"action": "more"}))
+
+
+class FlowAndCtaLocalisationTests(unittest.TestCase):
+    """cta_url and flow carry prose in "text" exactly as a plain message does,
+    and the localiser only ever looked at type == "text" — so the complaint,
+    callback and video-call prompts reached every customer in English."""
+
+    def _localise(self, item):
+        from kisna_chatbot.utils import reply_composer
+
+        data = {"bot_response": [item], "user_profile": {"language": "hi"},
+                "messages": {}}
+
+        async def fake_compose(template_key, text, **kw):
+            return "TRANSLATED"
+
+        with mock.patch.object(reply_composer, "compose", fake_compose):
+            asyncio.run(reply_composer.localize_bot_responses(data))
+        return item
+
+    def test_flow_bodies_are_localised(self):
+        item = self._localise({
+            "type": "flow", "flow": "callback_request",
+            "text": "Please share your details for a callback.",
+            "_compose": "callback_flow_prompt",
+        })
+        self.assertEqual(item["text"], "TRANSLATED")
+
+    def test_cta_bodies_are_localised(self):
+        item = self._localise({
+            "type": "cta_url", "text": "Click below.", "display_text": "Track",
+            "url": "https://x", "_compose": "order_tracking_cta",
+        })
+        self.assertEqual(item["text"], "TRANSLATED")
+        self.assertEqual(item["display_text"], "Track")
+
+    def test_the_three_flow_prompts_are_tagged(self):
+        from kisna_chatbot.processors import service_list
+
+        for builder in (
+            service_list.build_complaint_flow_bot_response,
+            service_list.build_callback_flow_bot_response,
+            service_list.build_video_call_flow_bot_response,
+        ):
+            self.assertIn("_compose", builder(), builder.__name__)
+
+    def test_the_cta_sender_tolerates_either_key(self):
+        """A producer passed "body" instead of "text"; a KeyError there takes
+        down the whole outbound message."""
+        import inspect
+
+        from kisna_chatbot.whatsapp_functions.cta import send_cta
+
+        # Look at the assignment itself, not the comment above it that
+        # quotes the old form.
+        body_lines = [
+            ln.strip()
+            for ln in inspect.getsource(send_cta).splitlines()
+            if '"body":' in ln and not ln.strip().startswith('#')
+        ]
+        self.assertTrue(body_lines)
+        for ln in body_lines:
+            self.assertIn('.get(', ln)

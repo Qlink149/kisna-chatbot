@@ -409,7 +409,7 @@ class CallbackAgent(Processor):
                 "Exception in CallbackAgent flow submission",
                 extra={"phone_number": phone_number, "exception": e},
             )
-            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
             return data
 
     async def _process_text_capture(self, data: dict) -> dict:
@@ -433,12 +433,12 @@ class CallbackAgent(Processor):
             if request_type == "video_call":
                 user_profile["callback_capture_step"] = 2
                 data["bot_response"] = [
-                    {"type": "text", "text": build_video_call_text_prompt(2)}
+                    {"type": "text", "text": build_video_call_text_prompt(2), "_compose": "video_call_prompt"}
                 ]
             else:
                 user_profile["callback_capture_step"] = 2
                 data["bot_response"] = [
-                    {"type": "text", "text": build_callback_text_prompt(2)}
+                    {"type": "text", "text": build_callback_text_prompt(2), "_compose": "callback_prompt"}
                 ]
             return data
 
@@ -447,7 +447,7 @@ class CallbackAgent(Processor):
             user_profile["callback_draft"] = draft
             user_profile["callback_capture_step"] = 3
             data["bot_response"] = [
-                {"type": "text", "text": build_callback_text_prompt(3)}
+                {"type": "text", "text": build_callback_text_prompt(3), "_compose": "callback_prompt"}
             ]
             return data
 
@@ -477,7 +477,7 @@ class CallbackAgent(Processor):
             user_profile["callback_draft"] = draft
             return await self._save_text_request(data, draft)
 
-        data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+        data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
         return data
 
     async def _save_text_request(self, data: dict, draft: dict) -> dict:
@@ -545,7 +545,7 @@ class CallbackAgent(Processor):
                 "Exception saving text callback request",
                 extra={"phone_number": phone_number, "exception": e},
             )
-            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
             return data
 
 

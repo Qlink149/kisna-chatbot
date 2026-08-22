@@ -33,6 +33,7 @@ class ProductSearchAgent(Processor):
                     "Tell me what you're looking for — e.g. *gold ring*, "
                     "*diamond necklace*, or *gold bangles* — and I'll find options for you."
                 ),
+                "_compose": "search_prompt",
             }
         ]
         return data

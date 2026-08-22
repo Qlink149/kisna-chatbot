@@ -566,6 +566,7 @@ async def process_message(
                                 "Sorry, we couldn't look up stores right now. "
                                 "Please try again in a moment."
                             ),
+                            "_compose": "system_error",
                         }
                     ]
                 if "bot_response" in data:

@@ -190,6 +190,11 @@ _PINNED_PHRASES = ("I want to return my order",)
 # customer KISNA does not sell GOLD. Keeping the metal nouns in English is
 # unambiguous for Indian readers and removes the failure mode entirely.
 _PINNED_WORDS_BY_TEMPLATE: dict[str, tuple[str, ...]] = {
+    # These templates name a BUTTON the customer has to find on screen.
+    # Translating the label renames a button that is still in English,
+    # so the instruction stops matching what they can actually see.
+    "product_size": ("Buy on KISNA",),
+    "product_buy_cta": ("kisna.com",),
     "unsupported_material": (
         "gold",
         "diamond",
@@ -564,11 +569,15 @@ async def localize_bot_responses(data: dict) -> None:
         if item.get("type") == "quickreply":
             await _localize_quick_reply(item, language, data)
             continue
+        # cta_url and flow both carry their prose in "text" exactly as a
+        # plain message does, and both were skipped here -- so the complaint,
+        # callback and video-call prompts reached every customer in English.
+        # (kept: the cta_url note below)
         # cta_url carries its prose in "text" exactly as a plain message
         # does, and was skipped here -- so a tagged CTA stayed English. Its
         # display_text is deliberately NOT translated: WhatsApp caps button
         # labels at 20 characters and several languages would overflow it.
-        if item.get("type") not in ("text", "cta_url") or not item.get("text"):
+        if item.get("type") not in ("text", "cta_url", "flow") or not item.get("text"):
             continue
         if template_key in _PERSONALITY_TAGS:
             item["text"] = await narrate(

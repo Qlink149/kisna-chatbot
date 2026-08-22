@@ -607,7 +607,7 @@ class AdFlowAgent(Processor):
                         else _UNPARSEABLE_STORE_TEXT
                     )
                     data["bot_response"] = [
-                        {"type": "text", "text": reprompt_text}
+                        {"type": "text", "text": reprompt_text, "_compose": "store_pincode"}
                     ]
                     # Re-arm the wait; attempts counter is preserved above.
                     user_profile["awaiting_store_pincode"] = True
@@ -681,7 +681,7 @@ class AdFlowAgent(Processor):
                 user_profile["awaiting_store_pincode"] = False
                 user_profile["service_selected"] = ""
                 user_profile["store_pincode_attempts"] = 0
-                data["bot_response"] = [{"type": "text", "text": _zero_results_message()}]
+                data["bot_response"] = [{"type": "text", "text": _zero_results_message(), "_compose": "store_none_found"}]
                 return data
 
             responses = _build_store_responses(stores[:_MAX_STORES_SHOWN])
@@ -715,5 +715,5 @@ class AdFlowAgent(Processor):
                 "AdFlowAgent error",
                 extra={"phone_number": phone_number, "error": str(e)},
             )
-            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
             return data

@@ -108,7 +108,10 @@ async def _build_secondary_response(data: dict, secondary: str) -> list[dict]:
 async def _offers_response(data: dict) -> list[dict]:
     """Current offers as one message, reusing the offers agent's own builder."""
     from kisna_chatbot.integrations.clara_api import get_promotions
-    from kisna_chatbot.processors.offers_agent import _build_offers_text
+    from kisna_chatbot.processors.offers_agent import (
+        _build_bot_response,
+        _build_offers_text,
+    )
     from kisna_chatbot.utils.clara_cache import get_cached_promotions
 
     promotions = await get_cached_promotions(data.get("app_state"))
@@ -119,4 +122,7 @@ async def _offers_response(data: dict) -> list[dict]:
     text = _build_offers_text(promotions)
     if not text:
         return []
-    return [{"type": "text", "text": text}]
+    # Reuse the offers agent's own builder rather than wrapping the text
+    # by hand: it carries the "_compose" tag, and without that the whole
+    # offers table arrived in English at the end of a Hindi reply.
+    return _build_bot_response(text)

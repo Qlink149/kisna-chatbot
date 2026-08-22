@@ -32,7 +32,11 @@ def send_cta_url(phone_number, bot_response):
     data = {
         "message": json.dumps(
             {
-                "body": bot_response["text"],
+                # Tolerate either key. This was a bare bot_response["text"],
+                # and one producer passed "body" instead — a KeyError here
+                # takes down the entire outbound message, so a mismatched
+                # field should degrade, not lose the customer's answer.
+                "body": bot_response.get("text") or bot_response.get("body") or "",
                 "type": "cta_url",
                 "display_text": bot_response["display_text"],
                 "url": bot_response["url"],

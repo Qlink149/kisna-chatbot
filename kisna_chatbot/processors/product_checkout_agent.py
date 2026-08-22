@@ -72,6 +72,7 @@ class ProductCheckoutAgent(Processor):
                     "Checkout is being set up. For now, use *Pre-Order* on a product "
                     "or tell me what you'd like to browse."
                 ),
+                "_compose": "system_notice",
             }
         ]
         return data

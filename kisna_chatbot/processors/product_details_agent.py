@@ -322,6 +322,7 @@ def _build_buy_now_response(product: dict) -> list:
             "text": _BUY_CTA_TEXT,
             "display_text": "Buy on KISNA",
             "url": build_product_url(product),
+            "_compose": "product_buy_cta",
         }
     )
 
@@ -332,6 +333,7 @@ def _build_buy_now_response(product: dict) -> list:
                 "You can ask me for *similar designs*, a *store near you*, "
                 "or keep browsing 💎"
             ),
+            "_compose": "product_next_steps",
         }
     )
     return responses
@@ -380,10 +382,10 @@ async def _retry_product_search(
 
         result = await search_products(**api_params, page_no=1, page_size=5)
     except ClaraAPIError:
-        return [{"type": "text", "text": _SEARCH_ERROR_TEXT}]
+        return [{"type": "text", "text": _SEARCH_ERROR_TEXT, "_compose": "system_error"}]
     except Exception:
         logger.exception("Product details retry search failed")
-        return [{"type": "text", "text": _SEARCH_ERROR_TEXT}]
+        return [{"type": "text", "text": _SEARCH_ERROR_TEXT, "_compose": "system_error"}]
 
     products = result.get("products") or []
     total_count = result.get("total_count", 0)
@@ -408,7 +410,7 @@ async def _retry_product_search(
     user_profile["last_search_api_total"] = total_count
 
     if not products:
-        return [{"type": "text", "text": "No matching pieces found. Try another search."}]
+        return [{"type": "text", "text": "No matching pieces found. Try another search.", "_compose": "search_empty"}]
 
     matched = None
     if product_id:
@@ -419,7 +421,7 @@ async def _retry_product_search(
         _save_last_viewed_product(user_profile, matched)
 
     search_items = _build_search_success_response(products, total_count, page, entities)
-    return [{"type": "text", "text": _RETRY_SEARCH_TEXT}, *search_items]
+    return [{"type": "text", "text": _RETRY_SEARCH_TEXT, "_compose": "search_retry"}, *search_items]
 
 
 class ProductDetailsAgent(Processor):
@@ -514,7 +516,7 @@ class ProductDetailsAgent(Processor):
                     data.get("classified_category") == "product_info"
                     and _SIZE_QUERY_RE.search(text_body)
                 ):
-                    data["bot_response"] = [{"type": "text", "text": _SIZE_VARIANT_REPLY}]
+                    data["bot_response"] = [{"type": "text", "text": _SIZE_VARIANT_REPLY, "_compose": "product_size"}]
                     return data
 
             list_product_id, list_title = _parse_product_list_selection(messages)
@@ -532,7 +534,7 @@ class ProductDetailsAgent(Processor):
                     "Could not parse product id from interactive message",
                     extra={"phone_number": phone_number},
                 )
-                data["bot_response"] = [{"type": "text", "text": _CACHE_MISS_TEXT}]
+                data["bot_response"] = [{"type": "text", "text": _CACHE_MISS_TEXT, "_compose": "system_error"}]
                 return data
 
             cached = _find_cached_product(user_profile, product_id)
@@ -560,7 +562,7 @@ class ProductDetailsAgent(Processor):
                     data["bot_response"] = retry
                     return data
 
-            data["bot_response"] = [{"type": "text", "text": _CACHE_MISS_TEXT}]
+            data["bot_response"] = [{"type": "text", "text": _CACHE_MISS_TEXT, "_compose": "system_error"}]
             return data
 
         except Exception as e:
@@ -575,6 +577,7 @@ class ProductDetailsAgent(Processor):
                         "Sorry, we couldn't load product details right now. "
                         "Please try again."
                     ),
+                    "_compose": "system_error",
                 }
             ]
             return data

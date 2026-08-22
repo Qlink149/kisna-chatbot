@@ -209,10 +209,15 @@ class GeneralAgent(Processor):
                     responses.append(
                         {
                             "type": "cta_url",
-                            "body": (
+                            # "text", not "body". send_cta_url reads
+                            # bot_response["text"] with a direct subscript, so
+                            # "body" raises KeyError and loses the whole reply.
+                            # Every other cta_url in the codebase uses "text".
+                            "text": (
                                 "Buy 24K Digital Gold securely on Kisna — "
                                 "powered by SafeGold."
                             ),
+                            "_compose": "digital_gold_cta",
                             "display_text": "Buy Digital Gold",
                             "url": DIGITAL_GOLD_URL,
                             "footer": "KISNA Diamond & Gold",
@@ -220,7 +225,7 @@ class GeneralAgent(Processor):
                     )
                 data["bot_response"] = responses
             else:
-                data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+                data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
 
             user_profile["service_selected"] = ""
             return data
@@ -230,5 +235,5 @@ class GeneralAgent(Processor):
                 "Exception occurred in GeneralAgent",
                 extra={"phone_number": phone_number, "exception": e},
             )
-            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
             return data

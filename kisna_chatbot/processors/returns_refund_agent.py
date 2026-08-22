@@ -49,5 +49,5 @@ class ReturnsRefundAgent(Processor):
                 "Failed to route return/refund complaint to form",
                 extra={"phone_number": phone_number, "exception": e},
             )
-            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
             return data

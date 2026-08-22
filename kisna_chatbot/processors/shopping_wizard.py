@@ -951,6 +951,7 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
     return {
         "type": "text",
         "text": "Tell me a bit more about what you're looking for 🙂",
+        "_compose": "wizard_more_info",
     }
 
 

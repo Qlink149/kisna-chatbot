@@ -620,10 +620,15 @@ async def _handle_product_reference(data: dict, query: str = "") -> dict | None:
     entities = data.get("llm_extracted_entities") or {}
     ref = entities.get("product_reference")
     shown = user_profile.get("last_search_products") or []
+    # Two independent signals that this is a QUESTION about a shown piece:
+    # what the model said, and what the message can structurally be. Either
+    # is enough -- the model sets the flag most of the time, and "most of
+    # the time" left the rest resetting the conversation to a greeting.
+    is_question = bool(entities.get("product_question")) or _asks_about_shown_products(data)
     product = None
     if isinstance(ref, int) and 1 <= ref <= len(shown):
         product = shown[ref - 1]
-    elif entities.get("product_question"):
+    elif is_question or _asks_about_shown_products(data):
         # "isme kitne carat ka diamond hai" is a question about a specific
         # piece, but the classifier resolves the index unreliably on the
         # longer phrasings -- measured returning 2 on one run and null on the
@@ -637,7 +642,7 @@ async def _handle_product_reference(data: dict, query: str = "") -> dict | None:
 
     # The flag says it IS a question; the question itself is the message the
     # customer actually typed, not a model paraphrase of it.
-    if entities.get("product_question") and (query or "").strip():
+    if is_question and (query or "").strip():
         answered = await _answer_referenced_product(data, product, query)
         if answered is not None:
             return answered
@@ -1145,6 +1150,41 @@ def _names_new_search_subject(query: str) -> bool:
     )
 
 
+# Attributes that describe a piece rather than name one. A message carrying
+# ONLY these, with products already on screen, is asking ABOUT what is shown.
+_SHOWN_ATTRIBUTE_KEYS = ("size", "karat", "metal_colour")
+
+
+def _asks_about_shown_products(data: dict) -> bool:
+    """True when the message can only sensibly be a question about the shown set.
+
+    "do you have size 14?" after a list came back as {size: 14} with no
+    product_question flag, and a size with no category starts a FRESH wizard --
+    so the customer was answered with "Hi! What are you looking for today?" and
+    the whole search was gone. Every other phrasing ("size 14 available hai?",
+    "what sizes are available?", the Devanagari form) got the flag and was
+    answered correctly, which is exactly why this cannot rest on the flag: the
+    model sets it most of the time, and "most of the time" resets the
+    conversation for the rest.
+
+    Naming a category, material, collection or title is still a new search --
+    "size 14 rings dikhao" is a search, not a question -- so the veto that
+    protects the confirmation recap protects this too.
+    """
+    entities = data.get("llm_extracted_entities") or {}
+    if not (data.get("user_profile", {}).get("last_search_products") or []):
+        return False
+    if not any(entities.get(key) is not None for key in _SHOWN_ATTRIBUTE_KEYS):
+        return False
+    for key in ("category", "categories", "material_type", "collection", "title"):
+        if entities.get(key):
+            return False
+    # A stated budget is a genuine refinement of the search, not a question.
+    if entities.get("min_price") is not None or entities.get("max_price") is not None:
+        return False
+    return True
+
+
 def _is_show_more_request(query: str, data: dict) -> bool:
     user_profile = data.get("user_profile", {})
     # Gap 8: If classifier explicitly routed to a non-product intent, don't hijack
@@ -1356,11 +1396,11 @@ async def _fetch_multi_category_products(
     return collected, api_total, 1, raw_sample
 
 def _build_prompt_response() -> list:
-    return [{"type": "text", "text": _PROMPT_TEXT}]
+    return [{"type": "text", "text": _PROMPT_TEXT, "_compose": "search_prompt"}]
 
 
 def _build_catalog_not_configured_response() -> list:
-    return [{"type": "text", "text": _CATALOG_NOT_CONFIGURED}]
+    return [{"type": "text", "text": _CATALOG_NOT_CONFIGURED, "_compose": "system_error"}]
 
 
 def _clara_configured() -> bool:
@@ -1740,6 +1780,7 @@ def _build_search_success_response(
                 "text": "Want to explore more? See the full collection 👇",
                 "display_text": "See Collection",
                 "url": build_catalogue_url(entities),
+                "_compose": "search_explore_more",
             }
         )
 
@@ -2166,7 +2207,7 @@ class ProductSearchAgentV3(Processor):
             if product_msgid == "product$store":
                 user_profile["service_selected"] = SL.AD_FLOW.value
                 start_store_lookup(user_profile)
-                data["bot_response"] = [{"type": "text", "text": _ASK_PINCODE_TEXT}]
+                data["bot_response"] = [{"type": "text", "text": _ASK_PINCODE_TEXT, "_compose": "store_pincode"}]
                 return data
 
             if product_msgid == "product$browse":
@@ -3107,6 +3148,7 @@ class ProductSearchAgentV3(Processor):
                         "text": (
                             "No worries! Let me show you some jewellery you might love."
                         ),
+                        "_compose": "search_fallback",
                     }
                 ]
                 if not _clara_configured():
@@ -3184,6 +3226,7 @@ class ProductSearchAgentV3(Processor):
                         "I couldn't understand that budget. Please try again, e.g. "
                         "'50000' (around ₹50,000), '15000-35000', or '50000 tak'."
                     ),
+                    "_compose": "budget_unparsed",
                 },
                 build_custom_budget_prompt(),
             ]
@@ -3299,6 +3342,7 @@ class ProductSearchAgentV3(Processor):
                 {
                     "type": "text",
                     "text": _all_results_seen_text(total),
+                    "_compose": "search_all_seen",
                 }
             ]
             return data
@@ -3338,7 +3382,7 @@ class ProductSearchAgentV3(Processor):
                     "Show More search failed",
                     extra={"phone_number": phone_number},
                 )
-                data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+                data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
                 return data
 
             raw_products = result.get("products") or []
@@ -3749,7 +3793,7 @@ class ProductSearchAgentV3(Processor):
                         "error": str(e),
                     },
                 )
-                data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+                data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
                 return data
 
             try:

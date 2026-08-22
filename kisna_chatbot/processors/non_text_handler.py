@@ -53,15 +53,15 @@ def handle_non_text_message(data: dict) -> NonTextResult:
             data["inbound_location"] = {"lat": float(lat), "lng": float(lng)}
             data["classified_category"] = "store_info"
             return "route_store"
-        data["bot_response"] = [{"type": "text", "text": _LOCATION_PINCODE_TEXT}]
+        data["bot_response"] = [{"type": "text", "text": _LOCATION_PINCODE_TEXT, "_compose": "store_pincode"}]
         user_profile["service_selected"] = SL.AD_FLOW.value
         start_store_lookup(user_profile)
         return None
 
     if msg_type == "sticker":
-        data["bot_response"] = [{"type": "text", "text": _STICKER_TEXT}]
+        data["bot_response"] = [{"type": "text", "text": _STICKER_TEXT, "_compose": "sticker_ack"}]
         return None
 
     # image, audio, video, contacts, document, unknown
-    data["bot_response"] = [{"type": "text", "text": _NON_TEXT_FALLBACK}]
+    data["bot_response"] = [{"type": "text", "text": _NON_TEXT_FALLBACK, "_compose": "non_text_fallback"}]
     return None

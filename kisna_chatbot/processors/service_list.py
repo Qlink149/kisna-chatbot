@@ -319,7 +319,7 @@ def handle_non_text_quick_reply(
 
 def build_main_menu_bot_response() -> dict:
     """Text-only help prompt used wherever the main menu list was sent."""
-    return {"type": "text", "text": _TEXT_HELP_PROMPT}
+    return {"type": "text", "text": _TEXT_HELP_PROMPT, "_compose": "help_prompt"}
 
 
 def build_acknowledgement_bot_response() -> list[dict]:
@@ -333,6 +333,7 @@ def build_complaint_flow_bot_response() -> dict:
         "type": "flow",
         "flow": "damage_complaint",
         "text": "Please provide your order details and describe the issue.",
+        "_compose": "complaint_flow_prompt",
     }
 
 
@@ -342,6 +343,7 @@ def build_callback_flow_bot_response() -> dict:
         "type": "flow",
         "flow": "callback_request",
         "text": "Please share your details for a callback.",
+        "_compose": "callback_flow_prompt",
     }
 
 
@@ -351,6 +353,7 @@ def build_video_call_flow_bot_response() -> dict:
         "type": "flow",
         "flow": "video_call_request",
         "text": "Please share your details to schedule a video call.",
+        "_compose": "video_call_flow_prompt",
     }
 
 
@@ -366,8 +369,8 @@ def _start_callback_text_capture(
     )
 
     if request_type == "video_call":
-        return [{"type": "text", "text": build_video_call_text_prompt(1)}]
-    return [{"type": "text", "text": build_callback_text_prompt(1)}]
+        return [{"type": "text", "text": build_video_call_text_prompt(1), "_compose": "video_call_prompt"}]
+    return [{"type": "text", "text": build_callback_text_prompt(1), "_compose": "callback_prompt"}]
 
 
 def _handle_help_center_selection(
@@ -521,6 +524,7 @@ def build_flow_switch_bot_response(current_service: str, new_intent: str) -> lis
         {
             "type": "text",
             "text": flow_switch_acknowledgement(current_service, new_intent),
+            "_compose": "flow_switch_ack",
         }
     ]
 
@@ -569,6 +573,7 @@ def handle_flow_switch_quick_reply(
         {
             "type": "text",
             "text": "No problem, let's continue! What else would you like to see?",
+            "_compose": "menu_continue",
         }
     ]
     if user_profile.get("service_selected") == SL.PRODUCT_SEARCH.value:
@@ -627,7 +632,7 @@ def handle_clarification_quick_reply(
             user_profile["service_selected"] = SL.AD_FLOW.value
             start_store_lookup(user_profile)
             data["classified_category"] = "store_info"
-            data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
+            data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT, "_compose": "store_pincode"}]
             return True
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
         data["classified_category"] = "product_search"
@@ -646,7 +651,7 @@ def handle_clarification_quick_reply(
         user_profile["service_selected"] = SL.AD_FLOW.value
         start_store_lookup(user_profile)
         data["classified_category"] = "store_info"
-        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
+        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT, "_compose": "store_pincode"}]
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_STORE_NO.value:
@@ -689,7 +694,7 @@ def handle_clarification_quick_reply(
         user_profile["service_selected"] = SL.AD_FLOW.value
         start_store_lookup(user_profile)
         data["classified_category"] = "store_info"
-        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
+        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT, "_compose": "store_pincode"}]
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_ASK_QUESTION.value:
@@ -762,7 +767,7 @@ def _handle_menu_selection(
     if key in ("find_store", "store_info"):
         user_profile["service_selected"] = SL.AD_FLOW.value
         start_store_lookup(user_profile)
-        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT}]
+        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT, "_compose": "store_pincode"}]
         try_trace(data, "Understood as", "Store locator (menu)")
         try_trace(data, "Action", "Asked for pincode / city")
         return
@@ -797,7 +802,7 @@ def _handle_menu_selection(
 
     if key in ("faqs_help",):
         user_profile["service_selected"] = SL.GENERAL.value
-        data["bot_response"] = [{"type": "text", "text": _FAQ_TEXT}]
+        data["bot_response"] = [{"type": "text", "text": _FAQ_TEXT, "_compose": "faq_about"}]
         try_trace(data, "Understood as", "FAQs (menu)")
         return
 
@@ -819,6 +824,7 @@ def _handle_menu_selection(
                 "Just tell me what you need — products, offers, a store, "
                 "order tracking, or help."
             ),
+            "_compose": "menu_unknown_option",
         }
     ]
 
@@ -833,6 +839,7 @@ def _handle_rating_button(button_reply: dict, data: dict, phone_number: str) -> 
         {
             "type": "text",
             "text": "Thank you for your feedback! We're glad to have helped you.",
+            "_compose": "feedback_thanks",
         }
     ]
 
@@ -1056,5 +1063,5 @@ class ServiceList(Processor):
                 "Exception occurred in ServiceList",
                 extra={"phone_number": phone_number, "exception": e},
             )
-            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR}]
+            data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
             return data

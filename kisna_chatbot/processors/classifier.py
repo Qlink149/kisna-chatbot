@@ -2632,6 +2632,7 @@ class Classifier(Processor):
                         {
                             "type": "text",
                             "text": "You've been successfully unsubscribed.",
+                            "_compose": "unsubscribe_ack",
                         }
                     ]
                     return data
