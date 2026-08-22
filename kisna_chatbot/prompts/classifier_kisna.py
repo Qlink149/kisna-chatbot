@@ -193,6 +193,11 @@ All three sit at ≥0.9 and share trigger language, so decide by the CHANNEL ask
   "video call schedule karo", "video pe dikhao"
 "connect me" alone, with no channel named → human_handoff.
 
+"talk to a human/agent/representative" (object = a PERSON) is human_handoff.
+"talk/reply/speak to me in English/Hindi/..." (object = "me", a language name
+follows) is a language instruction, never human_handoff — it's general, reply
+just switches language.
+
 ---
 
 ## NATIVE SCRIPT — CRITICAL (Devanagari, Gujarati, and other Indic scripts)
@@ -336,6 +341,9 @@ Fallback for unclear or spam/gibberish:
 "product damage ho gaya" -> complaint .95
 "galat item deliver hua" -> complaint .92
 "human se baat karo" -> human_handoff .95
+"Talk to me in English" -> general .85          (language instruction to the bot, not a person)
+"please talk in English" -> general .85
+"reply to me in Hindi" -> general .85
 "talk to a human" -> human_handoff .95
 "call me back" -> callback .95
 "video call schedule karna hai" -> video_call .95

@@ -1342,5 +1342,46 @@ class ReturnPolicyAnswerMentionsFormTrigger(unittest.TestCase):
         self.assertIn("7", text)  # the 7-day window, proving the KB was used
 
 
+@pytest.mark.live
+class LanguageInstructionNotHandoffTests(unittest.TestCase):
+    """"Talk to me in English" started a human-agent handoff instead of just
+    switching reply language. Root cause: the classifier's LIVE PERSON
+    section few-shots "talk to a human"/"talk to a representative" so
+    heavily that the model generalized "talk to [X]" to mean "wants a
+    person" even when X is "me" (the assistant itself, not a person) --
+    confirmed live, nondeterministic (0.6-0.95 conf, human_handoff roughly
+    half the time). detect_language_override already correctly reads this
+    as a language signal; the bug was purely in the ACTION taken."""
+
+    def setUp(self):
+        _load_real_openai_key()
+
+    def _classify(self, text):
+        import asyncio
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _run():
+            data = {
+                "phone_number": "919999999995",
+                "client_id": "kisna",
+                "user_profile": {},
+                "messages": {"text": {"body": text}},
+            }
+            out = await Classifier().process(data)
+            return out.get("classified_category")
+
+        return asyncio.run(_run())
+
+    def test_talk_to_me_in_language_is_not_handoff(self):
+        for text in ("Talk to me in English", "please talk in English"):
+            for _ in range(2):
+                self.assertNotEqual(self._classify(text), "human_handoff", text)
+
+    def test_talk_to_a_person_is_still_handoff(self):
+        for text in ("talk to a human", "talk to a representative"):
+            self.assertEqual(self._classify(text), "human_handoff", text)
+
+
 if __name__ == "__main__":
     unittest.main()
