@@ -2,9 +2,14 @@
 
 **Repo**: `c:\Users\pc\Desktop\clara\chatbot\kisna-chatbot`
 **Branch**: `v3-text-flow` — also what is deployed (`prod` is a fast-forward of it)
-**HEAD at handover**: `6d2580e` · **Suite: 1324 passing**, 18 skipped
+**HEAD at handover**: `bbbdd30` · **Suite: 1343 passing**, 18 skipped
 
 This replaces `OPEN_DEFECTS_HANDOFF.md`, which is now fully closed.
+
+A final 251-conversation / 410-turn regression sweep across all 13
+languages is written up in `audit/FINAL_QA_REPORT.md`. It found two
+regressions (city aliases, translated product names) and three
+pre-existing language defects; all five are fixed in `bbbdd30`.
 
 ---
 
@@ -111,6 +116,21 @@ Nothing customer-blocking is known open. In rough priority:
   locator. Excluded from scope by the product owner.
 - A **carat question with 2+ pieces shown and none opened** answers across all
   of them rather than picking one. Intentional.
+- **"story udaipur"** (a typo for "store") routes to `general` and answers
+  "are you looking for a specific piece?", 3/3. Every near-miss control
+  passes -- `stor udaipur`, `strore in udaipur`, `store in udaipur`, and
+  `story mumbai`. The extractor reads `city: "Udaipur"` correctly; the
+  classifier does not route there, and the store heuristics
+  (`classifier.py:327`) need a literal store/shop/showroom/outlet token so
+  the model alone decides. Stable-wrong for this one city.
+- **Tamil "அத்தை" on its own drops gender**, 3/4. Any category word rescues it
+  (`அத்தைக்கு ஒரு மோதிரம்` -> `women`, 2/2). Every other kinship term in every
+  other language resolves, 10/11.
+- **Intermittent compose glitches, ~1/4 each and never systematic**: Gujarati
+  offers once rendered `હીરાનું હવલાત`, Malayalam offers once leaked a Spanish
+  word, a Hindi wizard prompt once said `जुड़वां` (twins) for earrings, and
+  Bengali/Assamese cards mix Latin and native digits within one message.
+  Figures and prices were correct in every instance.
 
 ### 2.4 Deferred features
 - **Multi-intent is partial.** `offers` and `gold_rate` asked as a second
@@ -142,7 +162,9 @@ Nothing customer-blocking is known open. In rough priority:
 | `tests/test_prompt_budget.py` | Prompt drift. **Headroom is thin**: ~3045 tokens under the request ceiling against a 3000 floor. The next addition WILL fail `test_entity_extractor_fits_under_request_ceiling`. **Trim; do not raise it.** |
 | `scripts/qa_scan.py` | Language and script regressions no test covers. |
 | `kisna_chatbot/utils/script_detect.py` | "Non-Latin means Indic". Seven sites once encoded that assumption; adding Urdu broke all seven at once. Ask what a character IS, never which block it sits in. |
-| `_PINNED_PHRASES` / `pin=` in `reply_composer` | Product names, button labels and typed-back trigger phrases being translated. A renamed product is unfindable on the card, the site and the customer's order. |
+| `_PINNED_PHRASES` / `pin=` / `_pin` in `reply_composer` | Product names, button labels and typed-back trigger phrases being translated. A renamed product is unfindable on the card, the site and the customer's order. `_bold_titles` covers cards, which always bold their title; a spoken answer must declare its names with `_pin`. Do NOT pin every bold segment -- the recap bolds the material, category and budget, and those must translate. |
+| `canonical_city` in `entity_extractor` | An LLM answer in the customer's spelling ("Bengaluru", "Madras") overwriting the catalogue's own name and matching no store. |
+| `tests/test_final_qa_regressions.py` / `test_final_qa_language_fixes.py` | The five defects the final sweep found, each with its measurement in the docstring. |
 
 ---
 
