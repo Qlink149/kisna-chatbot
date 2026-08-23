@@ -1,6 +1,6 @@
 # Final end-to-end QA — Kisna WhatsApp chatbot
 
-**Branch** `v3-text-flow` (= `prod`) · **HEAD `bbbdd30`** · **Suite 1343 passing**, 18 skipped
+**Branch** `v3-text-flow` (= `prod`) · **HEAD `20dc31e`** · **Suite 1362 passing**, 18 skipped
 **Sweep**: 251 conversations / 410 turns, 8 batches, 0 exceptions, all 13 languages
 **Verdict**: the two ship-blockers found are fixed, verified live and deployed. Nothing customer-blocking is known open.
 
@@ -106,29 +106,49 @@ None is a regression. All three are the same failure the handover names in §0
 
 ---
 
-## 4. Still open
+## 4. Closed since this report was written
+
+All four of the items this section originally listed are fixed in `20dc31e`,
+each verified live. Two were not what this report said they were:
+
+- **"story udaipur"** — not the general agent. The classifier returns
+  `general` at **0.3–0.4 confidence**, under the clarification threshold, so
+  the generic card shipped. The rescue now sits only on that low-confidence
+  path and needs a near-miss of a store word AND a real store city AND no
+  jewellery word. All four typo spellings return their real branch.
+- **Tamil "அத்தை"** — adding a category word does NOT rescue it
+  (`அத்தைக்கு பரிசாக நகை` also dropped gender). The kinship lists are
+  romanized, which anchors the model to Latin; one clause saying so fixes it,
+  7/7 — but only when placed ABOVE the AMBIGUOUS rule, or it overrides that
+  rule and "for my cousin" becomes `men`.
+- **The `índice` leak** — a Latin diacritic the source does not contain is an
+  exact detector: 1 hit in 1,083 replies, and it was the bug. Wired into the
+  existing retry ladder. 48 offers/rate replies across 12 languages after:
+  0 leaks, and the one Odia English fallback A/B'd to the known intermittency
+  (2/6 with the check off, 1/6 with it on).
+- **Hindi "समय क्या है?"** — Tamil already answered this correctly from the
+  same context, so the behaviour was reachable. One KB clause; Hindi now
+  returns each branch's hours, and support hours with no store shown still
+  answer support hours.
+
+Also fixed: **numerals no longer switch to native digits** mid-message (0/48).
+
+## 4b. Still open
 
 Nothing customer-blocking. In rough priority:
 
-- **"story udaipur" routes to `general`** and answers "are you looking for a
-  specific piece?" instead of the Udaipur branch (3/3). Every near-miss
-  control passes — `stor udaipur`, `strore in udaipur`, `store in udaipur`,
-  and `story mumbai`. The extractor reads `city: "Udaipur"` correctly; the
-  classifier simply does not route there, and the store heuristics need a
-  literal `store|shop|showroom|outlet` token so the model alone decides. Not
-  attributable to a commit and stable-wrong only for this one city.
-- **Tamil "அத்தை" alone drops gender**, 3/4. Adding any category word rescues
-  it (`அத்தைக்கு ஒரு மோதிரம்` → `women`, 2/2). One term, one phrasing shape.
-- **Intermittent compose-quality glitches**, all ~1/4 and none systematic:
-  Gujarati offers rendered `હીરાનું હવલાત`; Malayalam offers leaked a Spanish
-  word (`índice`); a Hindi wizard prompt said `जुड़वां` (twins) for earrings
-  once; Bengali/Assamese cards mix Latin and native digits within one message.
-  Figures and ₹ prices were correct in every instance.
-- Carried forward unchanged: **cold start** (~60 s for the first ~6 turns after
-  a deploy), **one 43 s Telugu latency tail**, **Odia compose intermittency**,
-  **Odia/Kannada fluency**, Hindi **"समय क्या है?"** answering with support
-  hours, **head office** (excluded by the product owner), **multi-intent is
-  partial by design**, **~45 untagged responses** with recorded reasons.
+- **Telugu "నా పిన్నికి" alone returns `kids`**, 4/4 — and 4/4 on the
+  unmodified prompt, so it predates the kinship clause. Longer Telugu
+  phrasings are correct.
+- **Semantic mistranslations**, ~1/4 and non-reproducing: Gujarati
+  `હીરાનું હવલાત`, Hindi `जुड़वां` (twins) for earrings. Correct script,
+  wrong word — no mechanical signal exists and the instruction already
+  carries a rule they ignored. Model selection, not code.
+- Carried forward unchanged: **cold start** (~60 s for the first ~6 turns
+  after a deploy — explicitly deferred by the product owner), **one 43 s
+  Telugu latency tail**, **Odia compose intermittency**, **Odia/Kannada
+  fluency**, **head office** (excluded), **multi-intent partial by design**,
+  **~45 untagged responses** with recorded reasons.
 - Product-owner decisions still outstanding: the prod `KISNA_SUPPORT_EMAIL`
   value, and whether the KB carries a headline offers percentage.
 
