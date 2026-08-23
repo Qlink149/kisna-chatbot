@@ -377,6 +377,7 @@ async def _location_entities(data: dict, user_message: str) -> dict:
     stays as the fallback for when that call is down.
     """
     from kisna_chatbot.processors.entity_extractor import extract_entities_with_llm
+    from kisna_chatbot.utils.script_detect import has_non_latin_letters
 
     regex_entities = extract_entities(user_message) if user_message else {}
     merged = dict(regex_entities)
@@ -395,6 +396,28 @@ async def _location_entities(data: dict, user_message: str) -> dict:
         value = (llm_entities or {}).get(key)
         if isinstance(value, str) and value.strip():
             merged[key] = value.strip()
+
+    # One retry, and only where we are otherwise blind. Reading a place name
+    # out of native script is a single LLM call and it is not perfectly
+    # stable: "दिल्ली में स्टोर है क्या?" returned Delhi 3 times in 5, and
+    # "मुंबई में स्टोर है क्या?" 4 in 5 — so one customer in three was asked
+    # for a city they had already given. The Latin regex covers English, so
+    # this never fires there, and it never fires when a location WAS found or
+    # when the message names no place at all in Latin script.
+    if not merged.get("city") and not merged.get("state") and not merged.get("pincode"):
+        if has_non_latin_letters(user_message):
+            try:
+                retry = await extract_entities_with_llm(
+                    user_query=user_message,
+                    client_id=data.get("client_id", "kisna"),
+                    phone_number=data.get("phone_number"),
+                )
+            except Exception:
+                retry = {}
+            for key in ("city", "state"):
+                value = (retry or {}).get(key)
+                if isinstance(value, str) and value.strip():
+                    merged[key] = value.strip()
     return merged
 
 
