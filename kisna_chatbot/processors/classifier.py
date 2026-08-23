@@ -2239,6 +2239,13 @@ def _route_resolved_intent(
             )
         return True
 
+    if confidence < CLARIFICATION_CONFIDENCE_THRESHOLD and _is_misspelled_store_lookup(
+        user_query
+    ):
+        intent = "store_info"
+        data["classified_category"] = intent
+        confidence = 0.9
+
     if (
         confidence < CLARIFICATION_CONFIDENCE_THRESHOLD
         and intent
@@ -2373,6 +2380,89 @@ def _apply_store_pincode_shortcut(data: dict) -> bool:
     user_profile["service_selected"] = ServiceList.AD_FLOW.value
     data["classified_category"] = "store_info"
     return True
+
+
+_STORE_WORDS = ("store", "shop", "showroom", "outlet")
+_STORE_TYPO_TOKEN_RE = re.compile(r"[A-Za-z]{4,}")
+
+
+def _within_one_edit(word: str, target: str) -> bool:
+    """True when ONE typing slip turns word into target.
+
+    Insertion, deletion, substitution -- and transposition, which plain
+    Levenshtein scores as two edits but which is the single most common thing
+    fingers actually do: "stroe" for "store".
+    """
+    if abs(len(word) - len(target)) > 1:
+        return False
+    if word == target:
+        return True
+    if len(word) == len(target):
+        differing = [i for i, (a, b) in enumerate(zip(word, target)) if a != b]
+        if len(differing) == 1:
+            return True
+        if len(differing) == 2:
+            i, j = differing
+            return (
+                j == i + 1
+                and word[i] == target[j]
+                and word[j] == target[i]
+            )
+        return False
+    shorter, longer = (word, target) if len(word) < len(target) else (target, word)
+    i = j = 0
+    skipped = False
+    while i < len(shorter) and j < len(longer):
+        if shorter[i] == longer[j]:
+            i += 1
+            j += 1
+            continue
+        if skipped:
+            return False
+        skipped = True
+        j += 1
+    return True
+
+
+def _is_misspelled_store_lookup(user_query: str) -> bool:
+    """A store question we failed to recognise because "store" was mistyped.
+
+    Live: "story udaipur" came back intent=general at 0.3-0.4 confidence and
+    the customer got the generic "what are you looking for?" card -- with a
+    real KISNA branch in Udaipur. Every correctly-spelled variant scores
+    0.92-0.93, and "story mumbai" happens to score 0.92 too, so this is the
+    model being unsure about one particular string rather than a rule anyone
+    can write.
+
+    Two conditions, and BOTH are required. A near-miss of a store word alone
+    would fire on "tell me a story"; a city name alone would hijack a bare
+    "Udaipur" answered at some other step. Together they are specific enough
+    to be safe, and this only ever runs on the low-confidence clarification
+    path -- the one where we were about to admit we did not understand -- so
+    it cannot change any routing that already works.
+    """
+    text = (user_query or "").strip()
+    if not text or len(text.split()) > 6:
+        return False
+    lowered = text.lower()
+    # "stone" is one edit from "store", so "stone ring udaipur" would otherwise
+    # be sent to the locator instead of the catalogue. A jewellery word means
+    # they are shopping -- the same guard the deterministic store override
+    # above already applies for the same reason.
+    if _CATEGORY_WORD_RE.search(lowered):
+        return False
+    if not any(
+        _within_one_edit(token, word)
+        for token in _STORE_TYPO_TOKEN_RE.findall(lowered)
+        for word in _STORE_WORDS
+    ):
+        return False
+    from kisna_chatbot.processors.entity_extractor import _extract_city
+
+    # The deterministic resolver, deliberately: the LLM returned city=None on
+    # 2 of 3 runs for this exact input, while the city list resolves it every
+    # time.
+    return bool(_extract_city(text))
 
 
 def _should_offer_clarification(data: dict, user_query: str, user_profile: dict) -> bool:

@@ -752,7 +752,9 @@ gender:
   ONLY emit women|men|kids|null — never female/male/her/him as the value.
   If the recipient is named by a RELATIONSHIP term, emit the gender that term
   carries — IN ANY LANGUAGE. Indian kinship words are lexically gendered, so
-  READ the word; do not match it against a list. The masculine and feminine
+  READ the word; do not match it against a list. The lists below are ROMANIZED
+  only — the same words arrive in native script (அத்தை, ફોઈ, ಚಿಕ್ಕಮ್ಮ) and read
+  exactly the same way. The masculine and feminine
   forms of one relation differ only by ending: chacha/chachi, mama/mami,
   dada/dadi, jija/jiji, tau/tai, devar/devrani.
     women: wife, girlfriend, mother, sister, daughter, grandmother, bhabhi,

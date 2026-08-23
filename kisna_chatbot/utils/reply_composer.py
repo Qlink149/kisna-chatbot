@@ -169,11 +169,45 @@ def _is_native_script_echo(lang: str, rewritten: str) -> bool:
     return not any(target[0] <= ord(ch) <= target[1] for ch in (rewritten or ""))
 
 
-def _is_unusable_rewrite(lang: str, rewritten: str) -> bool:
+# Latin letters carrying a diacritic: Latin-1 Supplement plus Latin Extended-A
+# and -B. The multiplication and division signs live in the same range and
+# are not letters, so they are excluded -- a stray × is not a translation
+# failure and must not cost a retry.
+_ACCENTED_LATIN_RE = re.compile("[À-ÖØ-öø-ɏ]")
+
+
+def _has_foreign_latin_word(source: str, rewritten: str) -> bool:
+    """A rewrite that slipped into some OTHER European language.
+
+    Malayalam offers came back as "സുവർണ്ണ/ índice മൂല്യം" -- a Spanish word
+    inside otherwise correct Malayalam. The script check above cannot see it:
+    Latin is always allowed, because prices, URLs, SKUs and product names are
+    meant to survive.
+
+    The signal that IS reliable is the diacritic. Surveyed across every
+    native-script reply in the QA corpus -- 1,083 replies, 250 distinct Latin
+    words -- exactly one carried an accent, and it was this bug. KISNA's
+    English copy has none, so an accented letter the SOURCE does not contain
+    can only have come from the model reaching for another language.
+
+    Anything the source itself carries is always allowed, so a product or
+    store name with an accent in it can never trip this.
+    """
+    if not rewritten:
+        return False
+    strays = {ch for ch in _ACCENTED_LATIN_RE.findall(rewritten)}
+    if not strays:
+        return False
+    return bool(strays - set(source or ""))
+
+
+def _is_unusable_rewrite(lang: str, rewritten: str, source: str = "") -> bool:
     """Reject a rewrite that echoed English or mixed in a foreign script."""
     if _is_native_script_echo(lang, rewritten):
         return True
     if _needs_native_script(lang) and _script_violations(lang, rewritten):
+        return True
+    if _has_foreign_latin_word(source, rewritten):
         return True
     return False
 
@@ -288,6 +322,10 @@ def _compose_instruction(label: str, *, strict: bool = False) -> str:
         "stone (gold stays gold, never silver; diamond stays diamond). "
         "Write ONLY in the requested script — never mix in characters from "
         "another language's script. "
+        # Two product cards in one Bengali reply came back as "সাইজ 10" and
+        # "সাইজ ১০". Neither is wrong on its own; being both in one message is.
+        "NUMERALS: write every number with the same digits the source uses "
+        "(0-9), never a script's own digit forms. "
         "Output only the rewritten message — no quotes or explanation."
     )
     if strict:
@@ -398,13 +436,13 @@ async def compose(
         result = await _rewrite(_compose_instruction(label))
         if not result:
             result = text
-        if _is_unusable_rewrite(lang, result):
+        if _is_unusable_rewrite(lang, result, text):
             retry = await _rewrite(_compose_instruction(label, strict=True))
-            if retry and not _is_unusable_rewrite(lang, retry):
+            if retry and not _is_unusable_rewrite(lang, retry, text):
                 result = retry
             else:
                 second = await _second_opinion()
-                if second and not _is_unusable_rewrite(lang, second):
+                if second and not _is_unusable_rewrite(lang, second, text):
                     result = second
                 else:
                     logger.warning(
@@ -433,7 +471,7 @@ async def compose(
                 still_missing = [p for p in pinned if p not in (second or "")]
                 still_missing += [w for w in pinned_words if w not in lowered_second]
                 if second and not still_missing and not _is_unusable_rewrite(
-                    lang, second
+                    lang, second, text
                 ):
                     result = second
                 else:

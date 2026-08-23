@@ -38,6 +38,11 @@ _KB_USAGE_INSTRUCTIONS = f"""
 - Opening / office / support hours ("office hours", "what time do you open",
   "kab tak khula hai", "kitne baje tak") → answer from Hours in the contact
   details below. That IS a covered fact — never hand off for it.
+- EXCEPTION, and it matters: if STORE CARDS appear in the recent conversation
+  above, a question about time or hours — in ANY language, including a bare
+  "समय क्या है?" or "நேரம் என்ன?" — is asking about THOSE BRANCHES, not about
+  our support desk. Answer with each shown branch's own hours, naming the
+  branch. Support hours are the right answer only when no store was shown.
 - For LIVE data (current prices, stock, specific order status,
   today's exact offers) → direct to website or the relevant menu.
 - Promotions in the KB may be outdated → for offers, point to
