@@ -1103,6 +1103,55 @@ def has_clara_search_scope(
     return False
 
 
+_NATIVE_RING_WORDS = ("વીંટી", "ਮੁੰਦਰੀ")
+
+
+def _mentions_a_ring_word(query: str | None) -> bool:
+    """Does the message use a native word that unambiguously means RING?"""
+    text = query or ""
+    return any(word in text for word in _NATIVE_RING_WORDS)
+
+
+# "carat" as Indians write it in their own script. A number in front of one of
+# these is a WEIGHT, never rupees -- and the model reads that correctly in
+# English ("under 10 carats" -> no price, 1/1) while inventing a budget for
+# the same sentence in native script: "10 कैरेट से कम की अंगूठी है क्या?" came
+# back max_price=10000 and "...दिखाओ" max_price=100000, two different wrong
+# numbers for near-identical input, with Tamil and Gujarati failing the same
+# way. The Latin _NON_PRICE_UNIT_GUARD covers the English side already; this
+# is the same guard for the scripts it cannot see.
+_NATIVE_CARAT_WORDS = (
+    "कैरेट", "कॅरेट", "કેરેટ", "ਕੈਰੇਟ", "ক্যারেট", "ক্যাৰেট",
+    "காரட்", "కారెట్", "ಕ್ಯಾರೆಟ್", "കാരറ്റ്", "କ୍ୟାରେଟ", "کیرٹ",
+)
+# Anything that says the number really is money. If the customer names a
+# budget alongside a carat weight ("10 कैरेट, 50 हज़ार के अंदर") the price is
+# real and must survive -- only an INVENTED one is dropped.
+_NATIVE_PRICE_CUES = (
+    "₹", "रुपये", "रुपए", "हज़ार", "हजार", "लाख", "बजट",
+    "રૂપિયા", "હજાર", "લાખ", "બજેટ", "ਰੁਪਏ", "ਹਜ਼ਾਰ", "ਲੱਖ", "ਬਜਟ",
+    "টাকা", "হাজার", "লাখ", "বাজেট", "ৰূপ", "ரூபாய்", "ஆயிரம்", "லட்சம்",
+    "பட்ஜெட்", "రూపాయ", "వేల", "లక్ష", "బడ్జెట్", "ರೂಪಾಯಿ", "ಸಾವಿರ",
+    "ಲಕ್ಷ", "ಬಜೆಟ್", "രൂപ", "ആയിരം", "ലക്ഷം", "ബജറ്റ്", "ଟଙ୍କା",
+    "ହଜାର", "ଲକ୍ଷ", "روپے", "ہزار", "لاکھ",
+)
+
+
+def _carat_weight_only(query: str | None) -> bool:
+    """A carat weight in native script with nothing that says "rupees"."""
+    text = query or ""
+    if not any(word in text for word in _NATIVE_CARAT_WORDS):
+        return False
+    if any(cue in text for cue in _NATIVE_PRICE_CUES):
+        return False
+    # A four-digit number is money, not a carat weight -- nobody asks for a
+    # 50,000-carat ring. This catches the phrasings no cue word covers:
+    # "10 कैरेट की अंगूठी 50000 से कम" states a real budget in plain digits.
+    if re.search(r"\d{4,}", text):
+        return False
+    return not _PRICE_HINT_RE.search(text)
+
+
 def finalize_search_entities(
     entities: dict[str, Any],
     *,
@@ -1113,17 +1162,29 @@ def finalize_search_entities(
     """Single validation gate: sanitize, normalize categories, optional conflict logging."""
     out = sanitize_search_entities(entities)
 
-    # વીંટી is a RING. The prompt says so explicitly and it holds on short
-    # messages, then loses on a full sentence with gender/budget/fulfillment
-    # attached (5/5 wrong, 0/5 when short) -- the extra filters distract from
-    # the noun. One pair, already enumerated in the prompt, so a deterministic
-    # correction here is a backstop rather than a new word list.
-    if out.get("category") == "earring" and "વીંટી" in (query or ""):
+    # The words for RING that the model reads as "earring" once the sentence
+    # gets long. Gujarati વીંટી measured 5/5 wrong on a full sentence with
+    # gender/budget/fulfillment attached and 0/5 wrong when short; Punjabi
+    # ਮੁੰਦਰੀ/ਮੁੰਦਰੀਆਂ measured the same way, 3/3 and 0/3 -- the extra filters
+    # distract from the noun. Both are checked against a real earring control
+    # in the same language (કાનની બુટ્ટી, ਵਾਲੀਆਂ), which still reads earring.
+    # A closed set of confusable nouns, corrected behind the model, not an
+    # attempt to enumerate every language's vocabulary.
+    if out.get("category") == "earring" and _mentions_a_ring_word(query):
         out["category"] = "ring"
         if out.get("categories"):
             out["categories"] = [
                 "ring" if c == "earring" else c for c in out["categories"]
             ]
+    if _carat_weight_only(query):
+        for key in ("min_price", "max_price"):
+            if out.get(key) is not None:
+                logger.info(
+                    "Dropped an invented price from a carat-weight question",
+                    extra={"query": query, key: out.get(key)},
+                )
+                out[key] = None
+
     if query:
         before_cat = out.get("category")
         out = supplement_semantic_entities_from_query(out, query)
@@ -1729,6 +1790,17 @@ def _extract_city(text: str) -> str | None:
         if re.search(rf"\b{re.escape(term)}\b", text, re.I):
             return _CITY_NAME_MAP[term]
     return None
+
+
+def canonical_city(name: str | None) -> str | None:
+    """The catalogue's own spelling for a city name, or None if unknown.
+
+    _extract_city searches a whole sentence; this takes a value someone has
+    already isolated -- the extractor LLM's `city` -- and asks only whether
+    the map knows it. "Bengaluru" -> "Bangalore", "Madras" -> "Chennai".
+    """
+    key = (name or "").strip().lower()
+    return _CITY_NAME_MAP.get(key)
 
 
 def _extract_pincode(text: str) -> str | None:

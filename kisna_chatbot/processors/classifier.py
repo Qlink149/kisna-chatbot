@@ -1274,6 +1274,20 @@ _INDIC_LANGS = frozenset(
 # split those two — that's a genuine identity call the LLM has to make), so
 # it maps to both with "hi" as the safe default when the model's label is
 # neither.
+_BENGALI_BASES = frozenset({"bn", "as"})
+
+# Assamese and Bengali share a block but not an alphabet: Assamese writes ৰ
+# (U+09F0) and ৱ (U+09F1) where Bengali writes র and ব. Those two letters are
+# not used in Bengali orthography at all, so their presence is evidence, not a
+# guess -- measured over five real sentences each: 4/5 Assamese carry one,
+# 0/5 Bengali do. Widening the frozenset alone was not enough (c219133): the
+# block still fell back to "bn" whenever the model did not volunteer "as",
+# which was every turn, so an Assamese customer was answered in Bengali 14/14.
+# The short turn with no ৰ/ৱ ("হয়") is held by the bn/as sibling stickiness
+# further down, the same way hi/mr is.
+_ASSAMESE_ONLY_RE = re.compile(r"[\u09f0\u09f1]")
+
+
 _SCRIPT_LANG_RANGES: tuple[tuple[re.Pattern, frozenset[str], str], ...] = (
     (re.compile(r"[ऀ-ॿ]"), frozenset({"hi", "mr"}), "hi"),  # Devanagari
     (re.compile(r"[઀-૿]"), frozenset({"gu"}), "gu"),  # Gujarati
@@ -1281,7 +1295,7 @@ _SCRIPT_LANG_RANGES: tuple[tuple[re.Pattern, frozenset[str], str], ...] = (
     # Assamese uses the Bengali block. Listing only "bn" overrode a correct
     # "as" label on EVERY turn, so Assamese could never be answered in
     # Assamese — same shape as Devanagari's {"hi","mr"} below.
-    (re.compile(r"[ঀ-৿]"), frozenset({"bn", "as"}), "bn"),  # Bengali / Assamese
+    (re.compile(r"[ঀ-৿]"), _BENGALI_BASES, "bn"),  # Bengali / Assamese
     (re.compile(r"[଀-୿]"), frozenset({"or"}), "or"),  # Odia
     (re.compile(r"[஀-௿]"), frozenset({"ta"}), "ta"),  # Tamil
     (re.compile(r"[ఀ-౿]"), frozenset({"te"}), "te"),  # Telugu
@@ -1341,6 +1355,10 @@ def resolve_reply_language(language: str | None, user_text: str) -> str:
     text = user_text or ""
     for script_re, valid_bases, default_base in _SCRIPT_LANG_RANGES:
         if script_re.search(text):
+            # Letters Bengali does not have settle the pair outright — the
+            # same authority the block itself carries, one level finer.
+            if valid_bases is _BENGALI_BASES and _ASSAMESE_ONLY_RE.search(text):
+                return "as"
             return base if base in valid_bases else default_base
     if base in _INDIC_LANGS:
         # Latin characters alone do not make a message romanized Indic. The

@@ -629,6 +629,14 @@ async def localize_bot_responses(data: dict) -> None:
         if not isinstance(item, dict):
             continue
         template_key = item.pop("_compose", None)
+        # Values only the BUILDER knows must survive the rewrite -- product
+        # names, chiefly. _bold_titles recovers them from a product card
+        # because a card always bolds its title; a spoken answer does not, so
+        # "Waida Ring" came back to a Hindi customer as "Waida अंगूठी" and
+        # "Jhanvi Ring" as "झानवी अंगूठी" -- a name that matches nothing on
+        # kisna.com, on the card, or in their order. Popped unconditionally:
+        # an untagged item must not ship this key to WhatsApp.
+        pins = tuple(item.pop("_pin", ()) or ())
         if not template_key:
             continue
         # Quick replies carry their prompt in "text" plus button titles. They
@@ -663,7 +671,7 @@ async def localize_bot_responses(data: dict) -> None:
                     language=language,
                     phone_number=data.get("phone_number"),
                     client_id=data.get("client_id"),
-                    pin=_bold_titles(item["caption"]),
+                    pin=_bold_titles(item["caption"]) + pins,
                 )
             continue
         if item.get("type") not in ("text", "cta_url", "flow") or not item.get("text"):
@@ -683,4 +691,5 @@ async def localize_bot_responses(data: dict) -> None:
                 language=language,
                 phone_number=data.get("phone_number"),
                 client_id=data.get("client_id"),
+                pin=pins,
             )

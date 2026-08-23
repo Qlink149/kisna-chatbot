@@ -376,7 +376,10 @@ async def _location_entities(data: dict, user_message: str) -> dict:
     express a STATE at all. The extractor reads both in any script; the regex
     stays as the fallback for when that call is down.
     """
-    from kisna_chatbot.processors.entity_extractor import extract_entities_with_llm
+    from kisna_chatbot.processors.entity_extractor import (
+        canonical_city,
+        extract_entities_with_llm,
+    )
     from kisna_chatbot.utils.script_detect import has_non_latin_letters
 
     regex_entities = extract_entities(user_message) if user_message else {}
@@ -394,8 +397,27 @@ async def _location_entities(data: dict, user_message: str) -> dict:
         return merged
     for key in ("city", "state"):
         value = (llm_entities or {}).get(key)
-        if isinstance(value, str) and value.strip():
-            merged[key] = value.strip()
+        if not (isinstance(value, str) and value.strip()):
+            continue
+        value = value.strip()
+        if key == "city":
+            # The model answers with the CUSTOMER's spelling -- "Bengaluru",
+            # "Madras", "Mysuru", "Gurgaon" -- while the catalogue records
+            # "Bangalore", "Chennai", "Mysore", "Gurugram". _CITY_NAME_MAP
+            # already pairs every one of those, and the regex layer above had
+            # already resolved them; this merge overwrote the canonical name
+            # with the surface form, so "any store in bengaluru?" answered
+            # "No KISNA stores found near you" with four branches in the city.
+            # Canonicalise the model's answer through the same map; where it
+            # names a city the map does not know, keep what the regex resolved
+            # rather than a raw spelling nothing will match.
+            canonical = canonical_city(value)
+            if canonical is None:
+                if regex_entities.get(key):
+                    continue
+            else:
+                value = canonical
+        merged[key] = value
 
     # One retry, and only where we are otherwise blind. Reading a place name
     # out of native script is a single LLM call and it is not perfectly
@@ -417,7 +439,10 @@ async def _location_entities(data: dict, user_message: str) -> dict:
             for key in ("city", "state"):
                 value = (retry or {}).get(key)
                 if isinstance(value, str) and value.strip():
-                    merged[key] = value.strip()
+                    value = value.strip()
+                    if key == "city":
+                        value = canonical_city(value) or value
+                    merged[key] = value
     return merged
 
 

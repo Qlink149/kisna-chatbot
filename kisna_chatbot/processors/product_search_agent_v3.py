@@ -683,10 +683,31 @@ async def _answer_referenced_product(
     if not isinstance(product, list):
         _save_last_viewed_product(user_profile, product)
     data["bot_response"] = [
-        {"type": "text", "text": answer, "_compose": "product_info"}
+        {
+            "type": "text",
+            "text": answer,
+            "_compose": "product_info",
+            "_pin": _title_pins(product),
+        }
     ]
     data["classified_category"] = "product_info"
     return data
+
+
+def _title_pins(product: "dict | list[dict] | None") -> tuple[str, ...]:
+    """The product names a reply mentions, for the composer to keep verbatim.
+
+    A product name is an identifier: it is how the customer finds the piece on
+    the card, on kisna.com and in their order. Translating it is a factual
+    error, not a style choice.
+    """
+    items = product if isinstance(product, list) else [product]
+    names = (
+        (p.get("title") or p.get("name") or "").strip()
+        for p in items
+        if isinstance(p, dict)
+    )
+    return tuple(n for n in names if n)
 
 
 def _normalize_product_title_query(text: str) -> str:
@@ -894,6 +915,7 @@ async def _handle_product_info_followup(data: dict, query: str) -> dict | None:
                     "product page. Tap 'Buy on KISNA' to see all options."
                 ),
                 "_compose": "product_info",
+                "_pin": (chain_note,),
             }
         ]
         return data
@@ -955,7 +977,12 @@ async def _handle_product_info_followup(data: dict, query: str) -> dict | None:
                     + "\n\nWant a closer look at any of them? Just tell me the name 💍"
                 )
                 data["bot_response"] = [
-                    {"type": "text", "text": text, "_compose": "product_info"}
+                    {
+                        "type": "text",
+                        "text": text,
+                        "_compose": "product_info",
+                        "_pin": _title_pins(last_search[:5]),
+                    }
                 ]
                 return data
 
