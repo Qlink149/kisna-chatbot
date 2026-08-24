@@ -71,7 +71,10 @@ from kisna_chatbot.pipelines.inference_pipeline import (  # noqa: E402
     ServiceList,
 )
 from kisna_chatbot.pipelines.pipeline import Pipeline  # noqa: E402
-from kisna_chatbot.processors.classifier import _prepend_flow_switch_ack  # noqa: E402
+from kisna_chatbot.processors.classifier import (  # noqa: E402
+    _prepend_flow_switch_ack,
+    _restore_wizard_after_safe_detour,
+)
 from kisna_chatbot.processors.secondary_intent import (  # noqa: E402
     append_secondary_answer,
 )
@@ -229,6 +232,7 @@ async def _one_turn(phone: str, profile: dict, *, text=None, interactive=None) -
 
     if "bot_response" in data:
         _prepend_flow_switch_ack(data)
+        _restore_wizard_after_safe_detour(data)
         # Mirrors main.py: a second request made in the same message is
         # answered (or acknowledged) BEFORE localisation, so the appended
         # line is translated with the rest. Omitting it here made the

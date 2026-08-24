@@ -1791,6 +1791,24 @@ def _release_sticky_wait(
     """
     if user_profile.get("shopping_wizard_active"):
         _stash_wizard_carryover(data, user_profile)
+        # Snapshot before the wipe below. Whether this survives the turn is
+        # decided later, once the actual intent is known -- see
+        # _restore_wizard_after_safe_detour. At THIS point all we know is the
+        # message doesn't answer the wizard's own question; it could still
+        # turn out to be a self-contained detour (offers/gold_rate/store_info/
+        # general) rather than a real abandonment.
+        data["_wizard_detour_snapshot"] = {
+            key: user_profile[key] for key in _WIZARD_STICKY_KEYS if key in user_profile
+        }
+        # The wizard belongs exclusively to product_search -- it is only ever
+        # started there (shopping_wizard.py). The detour turn hands
+        # service_selected to whichever pipeline answers it (ad_flow,
+        # general, ...) and does not always hand it back, so pipeline
+        # dispatch for the NEXT turn has nothing to route a button tap to
+        # unless this comes back too.
+        data["_wizard_detour_snapshot"]["service_selected"] = (
+            ServiceList.PRODUCT_SEARCH.value
+        )
 
     extra_entities: dict[str, Any] = {}
     if user_profile.pop("_price_direction_hint", None):
@@ -2085,6 +2103,54 @@ def _keep_order_id_with_its_flow(
     if len(text.split()) > 4:
         return intent
     return user_profile["service_selected"]
+
+
+# Keys _release_sticky_wait snapshots and _restore_wizard_after_safe_detour
+# puts back — the same four clear_wizard_state (shopping_wizard.py) drops.
+_WIZARD_STICKY_KEYS = (
+    "shopping_wizard_active",
+    "shopping_wizard_step",
+    "shopping_wizard_data",
+    "shopping_wizard_explicit",
+)
+
+
+def _restore_wizard_after_safe_detour(data: dict) -> None:
+    """Give the wizard its progress back after answering a self-contained detour.
+
+    Live: "show me gold rings" -> [Female] tap deferred -> a standalone
+    "what's today's gold rate?" (or a store/offers/FAQ question, asked with no
+    priming at all) answered correctly, but silently wiped shopping_wizard_data
+    -- category=ring, material_type=gold, gone. The next [Female] tap then
+    either restarted the wizard from empty, or once, with no active flow left
+    to interpret it against, got routed to human_handoff outright.
+
+    _release_sticky_wait has to tear the wizard down the moment a message
+    doesn't answer the wizard's OWN pending question -- at that point nothing
+    has classified the message yet, so it cannot know if this is a real
+    abandonment or an answerable detour. offers/gold_rate/store_info/general
+    are exactly the intents _SECONDARY_INTENTS already names as answerable
+    without starting a new flow (see secondary_intent.py for the same-message
+    case) -- so once the real intent is known, restore what was snapshotted.
+
+    Called from main.py AFTER this turn's reply already exists, deliberately:
+    restoring the flag any earlier would run into GeneralAgent's own "wizard
+    active -> hand back to product search" guard and swallow the very FAQ
+    answer the customer just asked for. This turn's agent runs exactly as it
+    does today; only the NEXT turn sees the wizard is still there.
+    """
+    snapshot = data.pop("_wizard_detour_snapshot", None)
+    if not snapshot:
+        return
+    if data.get("classified_category") not in _SECONDARY_INTENTS:
+        return
+    user_profile = data.get("user_profile")
+    if not isinstance(user_profile, dict):
+        return
+    # service_selected rides along too -- pipeline dispatch for the NEXT turn
+    # needs it back at "product_search" or a button tap has nowhere to go.
+    for key, value in snapshot.items():
+        user_profile[key] = value
 
 
 def _route_resolved_intent(

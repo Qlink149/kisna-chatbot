@@ -685,9 +685,16 @@ async def process_message(
                 # the real response exists.
                 from kisna_chatbot.processors.classifier import (
                     _prepend_flow_switch_ack,
+                    _restore_wizard_after_safe_detour,
                 )
 
                 _prepend_flow_switch_ack(data)
+
+                # A standalone detour (offers/gold_rate/store_info/general)
+                # answered while the shopping wizard was collecting slots —
+                # give it its progress back now that the detour's own reply
+                # already exists, so the answer above was never affected.
+                _restore_wizard_after_safe_detour(data)
 
                 # A second request made in the SAME message. Appended
                 # after the primary reply exists and BEFORE localisation,
