@@ -6,6 +6,10 @@ from datetime import datetime, timedelta, timezone
 from kisna_chatbot.config.gupshup import get_callback_flow_id, get_videocall_flow_id
 from kisna_chatbot.constants import ADMINS
 from kisna_chatbot.database.collections import callback_requests
+from kisna_chatbot.integrations.clara_events import (
+    build_support_request_event,
+    enqueue_event as enqueue_clara_event,
+)
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger
@@ -289,6 +293,57 @@ def _build_request_doc(
     return doc
 
 
+async def _persist_and_notify(
+    *,
+    request_id: str,
+    client_id: str,
+    phone_number: str,
+    customer_name: str,
+    mobile: str,
+    reason: str | None,
+    preferred_time: str,
+    preferred_date: str,
+    request_type: str,
+) -> None:
+    """
+    Save the request, alert admins, and push the event to the client backend.
+
+    Shared by the flow and text paths so the two cannot drift. Callers must
+    pass the *resolved* slot -- the outbound contract states preferred_date /
+    preferred_time are the final booked slot, not what the customer asked for.
+    """
+    doc = _build_request_doc(
+        request_id=request_id,
+        client_id=client_id,
+        phone_number=phone_number,
+        customer_name=customer_name,
+        mobile=mobile,
+        reason=reason,
+        preferred_time=preferred_time,
+        preferred_date=preferred_date,
+        request_type=request_type,
+    )
+    callback_requests.insert_one(doc)
+
+    _notify_admins(customer_name, phone_number, request_id, request_type, mobile)
+
+    await enqueue_clara_event(
+        build_support_request_event(
+            request_id=request_id,
+            client_id=client_id,
+            phone_number=phone_number,
+            customer_name=customer_name,
+            mobile=mobile,
+            request_type=request_type,
+            reason=doc.get("reason"),
+            preferred_date=doc.get("preferred_date"),
+            preferred_time=doc.get("preferred_time"),
+            preferred_time_label=doc.get("preferred_time_label"),
+            occurred_at_epoch=doc.get("created_at"),
+        )
+    )
+
+
 class CallbackAgent(Processor):
     """Processor for callback and video-call WhatsApp flow submissions."""
 
@@ -358,26 +413,16 @@ class CallbackAgent(Processor):
                 "VC" if request_type == "video_call" else "CB"
             )
 
-            callback_requests.insert_one(
-                _build_request_doc(
-                    request_id=request_id,
-                    client_id=client_id,
-                    phone_number=phone_number,
-                    customer_name=customer_name,
-                    mobile=mobile,
-                    reason=reason,
-                    preferred_time=preferred_time,
-                    preferred_date=preferred_date,
-                    request_type=request_type,
-                )
-            )
-
-            _notify_admins(
-                customer_name,
-                phone_number,
-                request_id,
-                request_type,
-                mobile,
+            await _persist_and_notify(
+                request_id=request_id,
+                client_id=client_id,
+                phone_number=phone_number,
+                customer_name=customer_name,
+                mobile=mobile,
+                reason=reason,
+                preferred_time=preferred_time,
+                preferred_date=preferred_date,
+                request_type=request_type,
             )
 
             data["bot_response"] = _build_confirmation(
@@ -509,25 +554,16 @@ class CallbackAgent(Processor):
             request_id = generate_request_id(
                 "VC" if request_type == "video_call" else "CB"
             )
-            callback_requests.insert_one(
-                _build_request_doc(
-                    request_id=request_id,
-                    client_id=client_id,
-                    phone_number=phone_number,
-                    customer_name=customer_name,
-                    mobile=mobile,
-                    reason=draft.get("reason"),
-                    preferred_time=preferred_time,
-                    preferred_date=preferred_date,
-                    request_type=request_type,
-                )
-            )
-            _notify_admins(
-                customer_name,
-                phone_number,
-                request_id,
-                request_type,
-                mobile,
+            await _persist_and_notify(
+                request_id=request_id,
+                client_id=client_id,
+                phone_number=phone_number,
+                customer_name=customer_name,
+                mobile=mobile,
+                reason=draft.get("reason"),
+                preferred_time=preferred_time,
+                preferred_date=preferred_date,
+                request_type=request_type,
             )
             data["bot_response"] = _build_confirmation(
                 request_id,

@@ -10,6 +10,9 @@ from kisna_chatbot.routes.system_sub_routes import auth as auth_router
 from kisna_chatbot.routes.system_sub_routes import chat_history as chat_history_router
 from kisna_chatbot.routes.system_sub_routes import conversation as conversation_module
 from kisna_chatbot.routes.system_sub_routes import callbacks as callbacks_router
+from kisna_chatbot.routes.system_sub_routes import (
+    clara_events as clara_events_router,
+)
 from kisna_chatbot.routes.system_sub_routes import damage as damage_router
 from kisna_chatbot.routes.system_sub_routes import dashboard as dashboard_router
 from kisna_chatbot.routes.system_sub_routes import message_trace as message_trace_router
@@ -33,6 +36,8 @@ router.include_router(
 router.include_router(damage_router.router, dependencies=[Depends(verify_token)])
 
 router.include_router(callbacks_router.router, dependencies=[Depends(verify_token)])
+
+router.include_router(clara_events_router.router, dependencies=[Depends(verify_token)])
 
 router.include_router(
     message_trace_router.router, dependencies=[Depends(verify_token)]

@@ -3,10 +3,15 @@ import time
 
 from kisna_chatbot.config.gupshup import get_damage_complaint_flow_id
 from kisna_chatbot.database.collections import complaints
+from kisna_chatbot.integrations.clara_events import (
+    build_complaint_event,
+    enqueue_event as enqueue_clara_event,
+)
 from kisna_chatbot.integrations.crm_adapter import CRMAdapter, CRMError
 from kisna_chatbot.models.enums import FLowId, FlowId
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.request_ids import generate_request_id
 
 
 def _complaint_flow_ids() -> frozenset[str]:
@@ -178,18 +183,25 @@ class ComplaintAgent(Processor):
             finally:
                 await crm.aclose()
 
+            # Complaints have no id of their own; VTiger's case_id is often
+            # empty. Mint a stable one so the outbound event is idempotent and
+            # support has something to search on.
+            request_id = generate_request_id("CMP")
+            created_at = int(time.time())
+
             mongo_saved = False
             try:
                 complaints.insert_one(
                     {
                         "client_id": client_id,
+                        "request_id": request_id,
                         "phone_number": phone_number,
                         "order_id": order_id,
                         "issue": issue_description,
                         "type": complaint_type,
                         "case_id": case_id,
                         "customer_name": customer_name,
-                        "created_at": int(time.time()),
+                        "created_at": created_at,
                         "status": "registered" if case_id else "crm_pending",
                     }
                 )
@@ -202,6 +214,20 @@ class ComplaintAgent(Processor):
                         "order_id": order_id,
                         "error": str(e),
                     },
+                )
+
+            if mongo_saved:
+                await enqueue_clara_event(
+                    build_complaint_event(
+                        event_id=request_id,
+                        client_id=client_id,
+                        phone_number=phone_number,
+                        customer_name=customer_name,
+                        order_id=order_id,
+                        complaint_type=complaint_type,
+                        issue_description=issue_description,
+                        occurred_at_epoch=created_at,
+                    )
                 )
 
             if mongo_saved or issue_description or order_id:
@@ -217,6 +243,7 @@ class ComplaintAgent(Processor):
                     "phone_number": phone_number,
                     "order_id": order_id,
                     "case_id": case_id,
+                    "request_id": request_id,
                     "mongo_saved": mongo_saved,
                 },
             )

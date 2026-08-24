@@ -11,6 +11,8 @@ ai_usage_logs = db["ai_usage_logs"]
 processed_inbound_messages = db["processed_inbound_messages"]
 chat_messages = db["chat_messages"]
 message_traces = db["message_traces"]
+# Outbox for the real-time event push to the Clara backend (-> Salesforce).
+clara_events = db["clara_events"]
 
 COLLECTIONS = (
     users,
@@ -22,4 +24,5 @@ COLLECTIONS = (
     processed_inbound_messages,
     chat_messages,
     message_traces,
+    clara_events,
 )

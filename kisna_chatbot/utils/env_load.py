@@ -6,6 +6,7 @@ before running the app so load_dotenv() can read it.
 """
 
 import os
+import sys
 
 from dotenv import load_dotenv
 
@@ -13,7 +14,14 @@ load_dotenv()
 
 
 def _log_warning(message: str) -> None:
-    from kisna_chatbot.utils.logger_config import logger
+    try:
+        from kisna_chatbot.utils.logger_config import logger
+    except ImportError:
+        # constants -> env_load -> logger_config -> constants is circular while
+        # constants is still initialising. A warning must never be able to
+        # crash startup, so degrade to stderr.
+        print(f"[env_validation] {message}", file=sys.stderr)
+        return
 
     logger.warning(message, extra={"event": "env_validation"})
 
@@ -34,6 +42,7 @@ OPTIONAL_FEATURE_VARS = (
     "KISNA_VTIGER_BASE",
     "KISNA_VTIGER_TOKEN",
     "GUPSHUP_WEBHOOK_SECRET",
+    "KISNA_CLARA_EVENTS_ENABLED",
 )
 
 GUPSHUP_REQUIRED_KEYS = (
@@ -121,6 +130,12 @@ def _warn_optional_features() -> None:
         _log_warning(
             "KISNA_VTIGER_BASE/TOKEN not set — complaint tickets will save to "
             "MongoDB only, VTiger sync disabled"
+        )
+    if "KISNA_CLARA_EVENTS_ENABLED" in missing:
+        _log_warning(
+            "KISNA_CLARA_EVENTS_ENABLED not set — complaint / callback / "
+            "video-call events will NOT be pushed to the Clara backend "
+            "(Salesforce sync disabled). Records still save to MongoDB."
         )
     if "GUPSHUP_WEBHOOK_SECRET" in missing:
         _log_warning(

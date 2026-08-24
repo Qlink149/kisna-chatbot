@@ -4,7 +4,7 @@ import hmac
 import json
 import os
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
@@ -106,6 +106,9 @@ def mark_inbound_processed(
         return False
 
 
+CLARA_EVENTS_SWEEP_SECONDS = int(os.getenv("KISNA_CLARA_EVENTS_SWEEP_SECONDS", "300"))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Validate Gupshup configuration on application startup."""
@@ -155,6 +158,22 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to create chat_messages / message_traces indexes")
 
+    # The unique event_id is what makes the outbound event push idempotent.
+    try:
+        from kisna_chatbot.database.collections import clara_events
+
+        clara_events.create_index(
+            [("event_id", ASCENDING)],
+            unique=True,
+            name="uniq_clara_event_id",
+        )
+        clara_events.create_index(
+            [("status", ASCENDING), ("next_attempt_at", ASCENDING)],
+            name="clara_events_status_next_attempt",
+        )
+    except Exception:
+        logger.exception("Failed to create clara_events indexes")
+
     from kisna_chatbot.database.database import ping_database
 
     try:
@@ -177,7 +196,36 @@ async def lifespan(app: FastAPI):
             logger.exception("Clara filters cache warm failed")
 
     asyncio.create_task(_warm_filters_background())
-    yield
+
+    # Retry loop for the outbound event outbox. Safe as a single loop because
+    # the Dockerfile pins --workers 1.
+    from kisna_chatbot.integrations.clara_events import (
+        is_enabled as clara_events_enabled,
+        sweep_pending as sweep_clara_events,
+    )
+
+    sweep_task: asyncio.Task | None = None
+    if clara_events_enabled():
+
+        async def _sweep_clara_events() -> None:
+            while True:
+                await asyncio.sleep(CLARA_EVENTS_SWEEP_SECONDS)
+                try:
+                    await sweep_clara_events()
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception("Clara events sweep failed")
+
+        sweep_task = asyncio.create_task(_sweep_clara_events())
+
+    try:
+        yield
+    finally:
+        if sweep_task is not None:
+            sweep_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await sweep_task
 
 
 app = FastAPI(

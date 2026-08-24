@@ -14,6 +14,7 @@ from kisna_chatbot.database.collections import (
 )
 from kisna_chatbot.utils.format_chathistory import format_chat_history, trim_chat_history
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.request_ids import generate_request_id
 from kisna_chatbot.utils.session_state import mongo_unset_for_missing_session_keys
 
 MAX_CHAT_HISTORY = int(os.getenv("CHAT_HISTORY_MAX_LENGTH", "50"))
@@ -335,11 +336,13 @@ def save_complaint(
     client_id: str = "kisna",
     order_id: str = "",
     customer_name: str = "",
+    request_id: str = "",
 ) -> None:
     """Insert a complaint record into the complaints collection."""
     try:
         doc = {
             "client_id": client_id,
+            "request_id": request_id or generate_request_id("CMP"),
             "phone_number": phone_number,
             "order_id": order_id,
             "issue": issue,
