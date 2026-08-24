@@ -675,7 +675,9 @@ karat: extract 9KT/14KT/18KT/24KT if mentioned (Clara catalogue karats only).
   "22k"/"22 karat" is NOT a product karat → karat=null (still material_type=gold).
 
 price (ALWAYS extract when budget words present — integers in INR):
-  "under X" / "below X" / "X tak" / "upto X" → max_price=X only (no band)
+  "under X" / "below X" / "X tak" / "upto X" / "X kami" (Marathi: under) →
+  max_price=X only, never a range. "25k kami" → max_price=25000, min_price=null
+  — NOT min=20000/max=30000, "kami" states a ceiling, not a band around X.
   "above X" / "over X" / "more than X" / "X se zyada" → min_price=X only
   A BUDGET stated with no comparison word is a CEILING, never an exact price:
     "my budget is 250000" / "budget 2.5 lakh" / "मेरा बजट 250000 है" /
@@ -693,13 +695,10 @@ price (ALWAYS extract when budget words present — integers in INR):
     "X ka" → min_price=X, max_price=X
     Example: 50000 → min_price=50000, max_price=50000
     NEVER compute a range yourself — the system widens it deterministically.
-  "50k" alone with under/below → max_price=50000
-  "above 50k" / "over 50k" → min_price=50000
   Amounts: "50k" → 50000, "1 lakh" → 100000, "1.5 lakh" → 150000
   lakh/lac/lacs/lakhs all mean lakh. "1 crore" → 10000000.
   Comma/currency formats: "₹50,000" → 50000, "Rs. 25,000" → 25000
-  "das hazaar" → 10000, "paanch hazaar" → 5000, "50 hazaar" → 50000
-  "30 hazaar" → 30000, "bees hazaar" → 20000
+  "das hazaar" → 10000
   THOUSAND-WORD SPELLINGS are all the same: hazaar / hazar / hajar / hazzar /
   bazaar / bazar. "20 bazaar k aas pass" → min 20000, max 20000 — "bazaar" next
   to a number is a misspelt "hazaar", never a marketplace.
@@ -708,7 +707,7 @@ price (ALWAYS extract when budget words present — integers in INR):
   "X se upar" / "X se zyada" / "minimum X" / "at least X" → min_price=X
   NATIVE SCRIPT (extract identically): हज़ार/हजार/હજાર=thousand, लाख/લાખ=lakh.
   Devanagari/Gujarati digits are digits (५०=50, ૪૦=40, १०=10, ૧૦,૦૦૦=10000).
-  Direction words: "से ज़्यादा"/"થી વધુ"=above→min_price · "से कम"/"થી ઓછું"/"થી ઓછી"=under→max_price.
+  Direction words: "से ज़्यादा"/"થી વધુ"=above→min_price · "से कम"/"થી ઓછું"/"થી ઓછી"/"पेक्षा कमी"=under→max_price.
   RANGE: "X से Y के बीच" / "X થી Y ની વચ્ચે" = between X and Y → min_price=X, max_price=Y.
   "૧૦,૦૦૦ થી ૩૦,૦૦૦ ની વચ્ચે" → min_price=10000, max_price=30000.
   "१०,००० से ३०,००० के बीच" → min_price=10000, max_price=30000.

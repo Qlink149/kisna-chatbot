@@ -1857,6 +1857,19 @@ async def _check_universal_escape(
     override = _programmatic_intent_override(normalized)
     regex_hint = override[0] if override else _sticky_wait_escape_intent(normalized)
 
+    # 0. An explicit language-switch request is never the answer to a pending
+    #    question, no matter how short. Without this, "In English" right
+    #    after a wizard/store/callback prompt reads as answering it, and
+    #    Classifier.process() returns before _store_language -- the only
+    #    caller of detect_language_override -- ever runs, so an unambiguous
+    #    request to switch language is silently ignored. Live: a returning
+    #    tester's "In English" was swallowed twice running, right after the
+    #    wizard's category prompt; only a longer, more distinctive phrasing
+    #    on the third try escaped this gate and reached the classifier.
+    if detect_language_override(normalized):
+        _release_sticky_wait(data, user_profile, regex_hint or "unknown", normalized)
+        return regex_hint or "unknown"
+
     # 1. Free path, and ONLY for intents that can never be a slot answer.
     #    "connect me to an agent" is never the answer to "what's your budget?",
     #    so a regex hit is safe to act on without a call.

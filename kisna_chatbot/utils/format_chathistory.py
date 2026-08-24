@@ -59,12 +59,24 @@ def format_assistant(assistant_message, phone_number):
     try:
         for assistant in assistant_message:
             message_type = assistant["type"]
+            if message_type == "skip":
+                continue
+
+            # One separator, applied once, before whatever this item adds --
+            # not per-branch. The "text" branch (and quick_reply's own text)
+            # used to append with nothing in front, so a plain-text greeting
+            # immediately followed by a plain-text prompt glued together with
+            # zero characters between them: "...today?Hi! ...". Every other
+            # branch already prepended "\n" itself; centralising it here
+            # closes the gap for every type combination, not just this one.
+            if body:
+                body += "\n"
 
             if message_type == "list":
-                body += f"\nSent list - [{assistant.get('list', '')}]"
+                body += f"Sent list - [{assistant.get('list', '')}]"
 
             elif message_type == "flow":
-                body += f"\nSent flow - [{assistant.get('flow', '')}]"
+                body += f"Sent flow - [{assistant.get('flow', '')}]"
 
             elif message_type in ("quick_reply", "quickreply"):
                 option_titles = ", ".join(
@@ -81,9 +93,9 @@ def format_assistant(assistant_message, phone_number):
                     if u.get("caption")
                 ]
                 if captions:
-                    body += f"\nShowed product images - {', '.join(captions)}"
+                    body += f"Showed product images - {', '.join(captions)}"
                 else:
-                    body += "\nShowed product images"
+                    body += "Showed product images"
 
             elif message_type == "image_with_cta":
                 caption = assistant.get("caption", "")
@@ -92,25 +104,22 @@ def format_assistant(assistant_message, phone_number):
                 # (e.g. .../rings+0k-to-10k+diamond) read like entities and
                 # anchor the LLM to stale filters on later turns.
                 first_line = caption.split("\n")[0].strip("* \n") if caption else ""
-                body += f"\n[Product: {first_line}]" if first_line else "\n[Product shown]"
+                body += f"[Product: {first_line}]" if first_line else "[Product shown]"
 
             elif message_type == "cta_url":
                 text = assistant.get("text", "")
                 display_text = assistant.get("display_text", "Link")
                 if text:
-                    body += f"\n{text}"
+                    body += f"{text}\n"
                 # Button label only — never the URL (slug bleeds filters into
                 # the LLM context; the user got the real link in the message).
-                body += f"\n[Button: {display_text}]"
+                body += f"[Button: {display_text}]"
 
             elif message_type == "text":
                 body += f"{assistant.get('text', '')}"
 
-            elif message_type == "skip":
-                continue
-
             else:
-                body += f"\nSent {message_type} message"
+                body += f"Sent {message_type} message"
 
         return body
     except Exception as e:

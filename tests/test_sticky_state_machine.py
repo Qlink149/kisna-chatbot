@@ -507,6 +507,56 @@ class LanguageOverrideTests(unittest.TestCase):
         reset_session_on_fresh_start(profile)
         self.assertIsNone(profile.get("language_override"))
 
+    def test_language_switch_right_after_a_wizard_prompt_is_not_swallowed(self):
+        """A real tester's "In English" was answered with the same stale
+        Hindi prompt, twice running -- right after the wizard's category
+        question, "In English" reads as an attempted ANSWER to that question,
+        so Classifier.process() returned before _store_language (the only
+        caller of detect_language_override) ever ran. Only a longer, more
+        distinctive phrasing on the third try escaped and reached it.
+
+        detect_language_override must now be checked before that decision,
+        so the message escapes on the FIRST try and the escape gate's own
+        LLM call is skipped entirely -- there is nothing for it to decide.
+        """
+
+        async def _run():
+            clf = Classifier()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "In English"}},
+                "user_profile": {
+                    "chat_history": [],
+                    "language": "hi",
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "shopping_wizard_active": True,
+                    "shopping_wizard_step": "category",
+                    "shopping_wizard_data": {},
+                    "last_message_at": _fresh_ts(),
+                },
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier.complete_chat",
+                new_callable=AsyncMock,
+                side_effect=[
+                    json.dumps(
+                        {"intent": "general", "confidence": 0.9, "entities": {}}
+                    ),
+                ],
+            ) as mock_llm:
+                result = await clf.process(data)
+
+            # Exactly one call: the full classifier. The escape gate's own
+            # LLM call never fires -- detect_language_override decided this
+            # before the gate was even consulted.
+            self.assertEqual(mock_llm.await_count, 1)
+            profile = result["user_profile"]
+            self.assertEqual(profile.get("language_override"), "en")
+            self.assertEqual(profile.get("language"), "en")
+
+        asyncio.run(_run())
+
 
 class EscapeRoutingTests(unittest.TestCase):
     """Stage 3c — an escape must survive a classifier LLM failure."""
