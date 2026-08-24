@@ -13,8 +13,13 @@ SAT_OPEN = time(10, 0)
 SAT_CLOSE = time(16, 0)
 
 # Company holiday calendar (YYYY-MM-DD → display name).
-# Empty until client supplies the official list — fill entries here.
-SUPPORT_HOLIDAYS: dict[str, str] = {}
+SUPPORT_HOLIDAYS: dict[str, str] = {
+    "2026-09-14": "Store Holiday",
+    "2026-10-02": "Gandhi Jayanti",
+    "2026-10-20": "Store Holiday",
+    "2026-11-10": "Store Holiday",
+    "2026-11-11": "Store Holiday",
+}
 
 
 def format_support_hours_text() -> str:
