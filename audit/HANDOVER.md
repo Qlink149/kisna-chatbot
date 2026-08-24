@@ -2,7 +2,7 @@
 
 **Repo**: `c:\Users\pc\Desktop\clara\chatbot\kisna-chatbot`
 **Branch**: `v3-text-flow` — also what is deployed (`prod` is a fast-forward of it)
-**HEAD at handover**: `20dc31e` · **Suite: 1362 passing**, 18 skipped
+**HEAD at handover**: `0bb4aa4` · **Suite: 1421 passing**, 18 skipped
 
 This replaces `OPEN_DEFECTS_HANDOFF.md`, which is now fully closed.
 
@@ -161,6 +161,7 @@ Nothing customer-blocking is known open. In rough priority:
 | `kisna_chatbot/utils/script_detect.py` | "Non-Latin means Indic". Seven sites once encoded that assumption; adding Urdu broke all seven at once. Ask what a character IS, never which block it sits in. |
 | `_PINNED_PHRASES` / `pin=` / `_pin` in `reply_composer` | Product names, button labels and typed-back trigger phrases being translated. A renamed product is unfindable on the card, the site and the customer's order. `_bold_titles` covers cards, which always bold their title; a spoken answer must declare its names with `_pin`. Do NOT pin every bold segment -- the recap bolds the material, category and budget, and those must translate. |
 | `canonical_city` in `entity_extractor` | An LLM answer in the customer's spelling ("Bengaluru", "Madras") overwriting the catalogue's own name and matching no store. |
+| `_restore_wizard_after_safe_detour` in `classifier` (called from `main.py`, mirrored in `loadtest_harness.py`) | A standalone offers/gold_rate/store_info/general question mid-wizard silently discarding everything already collected. Found live from a real tester chat. If a new agent gets its own "wizard active -> hand back to product search" guard (general_agent.py has one), the restore MUST still run only after that turn's own reply exists, never before — restoring earlier makes the guard swallow the very answer being given. |
 | `tests/test_final_qa_regressions.py` / `test_final_qa_language_fixes.py` | The five defects the final sweep found, each with its measurement in the docstring. |
 
 ---
