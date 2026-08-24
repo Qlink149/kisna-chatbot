@@ -2,7 +2,7 @@
 
 **Repo**: `c:\Users\pc\Desktop\clara\chatbot\kisna-chatbot`
 **Branch**: `v3-text-flow` — also what is deployed (`prod` is a fast-forward of it)
-**HEAD at handover**: `0bb4aa4` · **Suite: 1421 passing**, 18 skipped
+**HEAD at handover**: `8826ea7` · **Suite: 1430 passing**, 18 skipped
 
 This replaces `OPEN_DEFECTS_HANDOFF.md`, which is now fully closed.
 
@@ -14,6 +14,18 @@ pre-existing language defects; all five are fixed in `bbbdd30`.
 The four items that report left open — the "story udaipur" typo, Tamil
 `அத்தை`, the foreign-word leak in a rewrite, and Hindi "समय क्या है?" — are
 closed in `20dc31e`. §2 below is what genuinely remains.
+
+**Pre-launch pass (2026-08-25)**, following `audit/LIVE_TRAFFIC_2026-08-24.md`
+— real tester traffic pulled directly from Mongo and read end to end, not
+the harness. Three fixed in `8826ea7`: an explicit language-switch request
+("In English") silently swallowed by the universal-escape gate right after
+a pending question; Marathi "kami" (a stated ceiling) parsed as a spurious
++/-5k range instead of a ceiling; two adjacent plain-text reply segments
+losing their separator in stored chat history (customer-visible impact was
+nil — WhatsApp sends each segment as its own message — but the corrupted
+string is what feeds the classifier's own context on later turns). A fourth
+item, a Marathi mid-wizard category-switch reliability gap, was measured and
+precisely located but deliberately not fixed given go-live timing — see §2.1.
 
 ---
 
@@ -102,6 +114,17 @@ Nothing customer-blocking is known open. In rough priority:
 - **Odia/Kannada phrasing** is weaker than the other languages. Invented
   product *names* are fixed (the answerer is told they are proper nouns);
   general fluency is a model-selection question.
+- **Marathi mid-wizard category switch is ~5/8 reliable.** "nako mala
+  earrings pahije" ("no, I want earrings") mid-wizard correctly re-seeds
+  category=earring 5/8 runs, stays on the old category 3/8. **Located, not
+  fixed** (deliberately deferred given go-live timing, 2026-08-25): measured
+  that the wizard/carryover merge is NOT at fault -- whenever the extractor
+  reads a category at all, the wizard applies it correctly every time. The
+  loss is entirely upstream, in the extractor's own read of this one
+  romanized phrase. No deterministic code path is discarding a correct
+  answer here, so there is nothing to patch without guessing at a prompt
+  change; needs more measurement before a fix, same principle as everything
+  else in this section.
 
 ### 2.2 Operational
 - **Cold start**: the first ~6 turns of a fresh process take 58–63 s each;
@@ -163,6 +186,9 @@ Nothing customer-blocking is known open. In rough priority:
 | `canonical_city` in `entity_extractor` | An LLM answer in the customer's spelling ("Bengaluru", "Madras") overwriting the catalogue's own name and matching no store. |
 | `_restore_wizard_after_safe_detour` in `classifier` (called from `main.py`, mirrored in `loadtest_harness.py`) | A standalone offers/gold_rate/store_info/general question mid-wizard silently discarding everything already collected. Found live from a real tester chat. If a new agent gets its own "wizard active -> hand back to product search" guard (general_agent.py has one), the restore MUST still run only after that turn's own reply exists, never before — restoring earlier makes the guard swallow the very answer being given. |
 | `tests/test_final_qa_regressions.py` / `test_final_qa_language_fixes.py` | The five defects the final sweep found, each with its measurement in the docstring. |
+| `detect_language_override` check in `_check_universal_escape` (`classifier`) | A short, explicit language-switch request being read as an attempted answer to whatever question is pending and silently swallowed — the message never reaches `_store_language` at all. Found live: "In English" ignored twice running right after a wizard prompt. |
+| The `"25k kami"` worked example in the extractor's price rule (`classifier_kisna.py`) | Marathi's ceiling word regressing to the pre-fix behaviour (a spurious range instead of `max_price` only). The rule alone measured 3/5 — the worked example is what made it 8/8; removing just the example while keeping the rule reopens the gap. |
+| `tests/test_chat_history_separators.py` / `test_marathi_budget_ceiling.py` / the new test in `test_sticky_state_machine.py`'s `LanguageOverrideTests` | The three items fixed 2026-08-25, each with its live measurement in the docstring. |
 
 ---
 
