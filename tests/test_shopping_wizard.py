@@ -935,6 +935,38 @@ class BudgetBandSnapTests(unittest.TestCase):
             self._advance_budget("15 to 35k", {"min_price": 15000, "max_price": 35000}),
         )
 
+    def test_short_bare_amount_snaps_to_its_band(self):
+        """Live regression (+91…4178, 25 Aug 14:03).
+
+        The customer answered the budget step with "25". A len(digits) < 3
+        floor in _budget_from_text dropped it before the band snapper, so the
+        model's literal read stood: the recap said "under Rs 25" and the
+        catalogue call went out with maxPrice=25 and no results. A single
+        stated amount belongs in its PRICE_BANDS bracket at every magnitude.
+        """
+        from kisna_chatbot.processors.entity_extractor import _snap_single_price_to_band
+        from kisna_chatbot.processors.shopping_wizard import _budget_from_text
+
+        for raw in ("1", "25", "99", "100", "999", "1000", "25000", "100000"):
+            with self.subTest(answer=raw):
+                self.assertEqual(
+                    _snap_single_price_to_band(float(raw)),
+                    _budget_from_text(raw),
+                    f"bare {raw!r} did not land in its PRICE_BANDS bracket",
+                )
+
+    def test_short_amount_through_the_funnel(self):
+        self.assertEqual(
+            (0.0, 10000.0),
+            self._advance_budget("25", {"min_price": None, "max_price": 25}),
+        )
+
+    def test_pincode_and_phone_are_still_not_budgets(self):
+        from kisna_chatbot.processors.shopping_wizard import _budget_from_text
+
+        for raw in ("313002", "400086", "9876543210"):
+            with self.subTest(answer=raw):
+                self.assertIsNone(_budget_from_text(raw))
     def test_native_script_defers_to_the_model(self):
         """Only the LLM can read these, so its value must survive untouched."""
         for text in ("एक लाख", "ஒரு லட்சம்", "ಒಂದು ಲಕ್ಷ"):
