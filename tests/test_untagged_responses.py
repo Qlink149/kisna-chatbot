@@ -60,6 +60,12 @@ ALLOWED = {
     "processors/response_manager.py:*": "built after localisation runs",
     # The admin takeover route calls send_text_message directly.
     "routes/system_sub_routes/conversation.py:*": "admin route, bypasses localiser",
+    # Inbound-rate-limit notice: sent before the pipeline runs, so there is no
+    # user_profile yet to read a language from -- localize_bot_responses never
+    # sees it. Emoji-plus-short-English reads as "please wait" cross-language;
+    # a genuine fix means loading the stored language from Mongo (a real gap,
+    # not worth an extra DB round trip + LLM call on every rate-limited burst).
+    "main.py:\"You're moving fast — give me a sec 🙂\"": "sent pre-pipeline, no language available yet",
     # WhatsApp Flow payloads go straight to the Gupshup API and never become a
     # bot_response at all, so _compose cannot reach them.
     "whatsapp_functions/*": "direct Gupshup Flow API payload, not a bot_response",

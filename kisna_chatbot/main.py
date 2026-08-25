@@ -58,7 +58,11 @@ from kisna_chatbot.utils.logger_config import (
     set_request_context,
 )
 from kisna_chatbot.utils.pubsub import pubsub
-from kisna_chatbot.utils.rate_limiter import INBOUND_RATE_LIMIT, is_rate_limited
+from kisna_chatbot.utils.rate_limiter import (
+    INBOUND_RATE_LIMIT,
+    is_rate_limited,
+    should_notify_rate_limited,
+)
 
 # TODO: Upgrade to Redis distributed lock for multi-instance safety.
 _USER_LOCKS: dict[str, asyncio.Lock] = {}
@@ -532,6 +536,22 @@ async def process_message(
                 "Inbound rate limit exceeded — dropping message",
                 extra={"phone_number": phone_number, "count": INBOUND_RATE_LIMIT},
             )
+            if should_notify_rate_limited(phone_number):
+                try:
+                    from kisna_chatbot.whatsapp_functions.send_text_message import (
+                        send_text_message,
+                    )
+
+                    await asyncio.to_thread(
+                        send_text_message,
+                        phone_number,
+                        {"type": "text", "text": "You're moving fast — give me a sec 🙂"},
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to send rate-limit notice",
+                        extra={"phone_number": phone_number},
+                    )
             return
 
         if not message_id:
