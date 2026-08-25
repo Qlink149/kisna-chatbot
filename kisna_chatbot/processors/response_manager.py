@@ -36,9 +36,9 @@ from kisna_chatbot.whatsapp_functions.media.send_image_with_cta import (
     send_image_with_cta,
 )
 from kisna_chatbot.whatsapp_functions.quick_reply.send_quick_reply import (
-    send_quickreply,
+    send_quickreply_with_retry,
 )
-from kisna_chatbot.whatsapp_functions.list.send_list import send_list
+from kisna_chatbot.whatsapp_functions.list.send_list import send_list_with_retry
 from kisna_chatbot.whatsapp_functions.send_text_message import (
     send_text_message_with_retry,
 )
@@ -228,7 +228,9 @@ class ResponseManager:
         : phone_number: Contains the phone number of the user
         : bot_response: A dictionary containing the response details.
         """
-        return send_quickreply(phone_number=phone_number, bot_response=bot_response)
+        return send_quickreply_with_retry(
+            phone_number=phone_number, bot_response=bot_response
+        )
 
     def _handle_skip(self, phone_number, bot_response):
         """Processes text responses (e.g., sending cta urls).
@@ -275,7 +277,9 @@ class ResponseManager:
                 bot_response=build_main_menu_bot_response(),
             )
         elif list_name == "list":
-            return send_list(phone_number=phone_number, bot_response=bot_response)
+            return send_list_with_retry(
+                phone_number=phone_number, bot_response=bot_response
+            )
         else:
             raise ValueError(f"Unknown list: {list_name}")
 
