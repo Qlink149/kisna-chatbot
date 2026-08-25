@@ -48,7 +48,12 @@ def login(body: LoginRequest, response: Response):
         )
 
     # Single active session per account — a new login evicts any others.
-    admin_sessions.delete_many({"username": user["username"]})
+    # Marked revoked (not deleted) so the evicted browser's next request can
+    # tell "logged in elsewhere" apart from "never logged in" / "expired".
+    admin_sessions.update_many(
+        {"username": user["username"], "revoked": False},
+        {"$set": {"revoked": True, "revoked_reason": "replaced_by_new_login"}},
+    )
 
     session_id = secrets.token_urlsafe(32)
     # Naive UTC to match what pymongo hands back on read (no tz_aware=True
