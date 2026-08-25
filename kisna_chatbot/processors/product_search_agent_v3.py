@@ -228,6 +228,36 @@ _CATALOG_NOT_CONFIGURED = (
     "Our jewellery catalogue isn't connected yet. You can still check offers, "
     "find a store, or track an order — just tell me what you need."
 )
+
+
+def _trace_search_error(
+    data: dict,
+    exc: BaseException,
+    label: str,
+    query_params: dict | None,
+    entities: dict | None,
+) -> None:
+    """Record a failed catalogue search on the turn's trace.
+
+    These paths reply with an error message and return early, so without this
+    the dashboard timeline just stops with no reason given.
+    """
+    try:
+        from kisna_chatbot.utils.message_trace import trace_error
+
+        trace_error(data, exc, label=label)
+        steps = data.get("_trace_steps") or []
+        if steps:
+            steps[-1].setdefault("payload", {}).update(
+                {
+                    "query_params": query_params,
+                    "entities": entities,
+                }
+            )
+    except Exception:
+        pass
+
+
 _PROMPT_TEXT = (
     "Tell me what you're looking for — e.g. *gold ring*, "
     "*diamond necklace under 50k*, or *evil eye collection*."
@@ -3605,7 +3635,12 @@ class ProductSearchAgentV3(Processor):
                 trace_step,
             )
 
-            trace_step(data, "Filters detected", summarize_filters(entities))
+            trace_step(
+                data,
+                "Filters detected",
+                summarize_filters(entities),
+                payload={"entities": entities, "query": query_label},
+            )
         except Exception:
             summarize_filters = None  # type: ignore
             trace_step = None  # type: ignore
@@ -3820,6 +3855,9 @@ class ProductSearchAgentV3(Processor):
                         "error": str(e),
                     },
                 )
+                _trace_search_error(
+                    data, e, "Catalogue API failed", query_params, strategy_entities
+                )
                 data["bot_response"] = [{"type": "text", "text": e.args[0]}]
                 return data
             except Exception as e:
@@ -3829,6 +3867,9 @@ class ProductSearchAgentV3(Processor):
                         "phone_number": phone_number,
                         "error": str(e),
                     },
+                )
+                _trace_search_error(
+                    data, e, "Product search failed", query_params, strategy_entities
                 )
                 data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
                 return data
@@ -3860,8 +3901,25 @@ class ProductSearchAgentV3(Processor):
                         matched_count=matched_arg,
                         products=top_products,
                     )
+                    # Structured twin of `detail` — the panel renders this as
+                    # expandable JSON so a bad search can be reproduced exactly.
+                    trace_payload = {
+                        "strategy": log_label,
+                        "query_params": query_params,
+                        "entities": strategy_entities,
+                        "api_total": api_total_for_trace,
+                        "raw_returned": len(raw_products or []),
+                        "matched_after_client_filters": matched_for_trace,
+                        "product_ids": [
+                            p.get("id") or p.get("productId")
+                            for p in (top_products or [])[:10]
+                            if isinstance(p, dict)
+                        ],
+                    }
                     if log_label == "full":
-                        trace_step(data, "API call", detail, status=status)
+                        trace_step(
+                            data, "API call", detail, status=status, payload=trace_payload
+                        )
                     else:
                         dropped = (
                             fallback_drop_label(log_label)
@@ -3873,6 +3931,7 @@ class ProductSearchAgentV3(Processor):
                             "Closest-match search",
                             f"Without {dropped} — {detail}",
                             status="warn" if matched_for_trace == 0 else "ok",
+                            payload={**trace_payload, "dropped_filter": log_label},
                         )
                         data["_trace_outcome"] = (
                             "fallback_used"

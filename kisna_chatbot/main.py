@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
 
 from kisna_chatbot.config.clients import get_client_config
@@ -48,7 +48,9 @@ from kisna_chatbot.utils.reply_composer import localize_bot_responses
 from kisna_chatbot.routes import system as system_router
 from kisna_chatbot.whatsapp_functions.typing_indicator import typing_indicator_loop
 from kisna_chatbot.utils.logger_config import (
+    begin_trace_capture,
     clear_request_context,
+    end_trace_capture,
     log_event,
     log_http_bodies_enabled,
     logger,
@@ -142,6 +144,11 @@ async def lifespan(app: FastAPI):
         callback_requests.create_index(
             [("preferred_date", ASCENDING), ("preferred_time", ASCENDING)],
             name="callback_preferred_date_time",
+        )
+        # Covers the dashboard listing, which sorts newest-created first.
+        callback_requests.create_index(
+            [("client_id", ASCENDING), ("created_at", DESCENDING)],
+            name="callback_client_created_at",
         )
     except Exception:
         logger.exception("Failed to create callback_requests indexes")
@@ -415,6 +422,9 @@ async def _persist_session(
     try:
         from kisna_chatbot.utils.message_trace import persist_message_trace
 
+        # The clock is normally started when the message is received; fall back
+        # to the pipeline start so latency_ms is never missing.
+        data.setdefault("_trace_t0", pipeline_start)
         persist_message_trace(data)
     except Exception:
         logger.warning("message trace persist skipped", exc_info=True)
@@ -451,6 +461,10 @@ async def process_message(
 
     if request_id:
         set_request_context(request_id=request_id)
+
+    # Buffer every log record this turn emits so the dashboard panel can show a
+    # full log rather than only the hand-placed trace steps.
+    begin_trace_capture()
 
     try:
         whatsapp_event = request_data["entry"][0]["changes"][0]["value"]
@@ -567,6 +581,9 @@ async def process_message(
                     )
                 else:
                     preview = messages.get("type") or "message"
+                # Start the turn clock here so every step's t_ms is measured from
+                # the moment the message actually landed.
+                data["_trace_t0"] = time.time()
                 trace_step(data, "Message received", preview)
             except Exception:
                 pass
@@ -583,10 +600,16 @@ async def process_message(
                 )
                 content = format_user(messages, phone_number)
                 if content:
-                    save_user_message_silent(phone_number, content, client_id)
+                    saved_ts = save_user_message_silent(
+                        phone_number, content, client_id
+                    )
                     await pubsub.publish(
                         phone_number,
-                        {"type": "user_message", "content": content},
+                        {
+                            "type": "user_message",
+                            "content": content,
+                            "timestamp": saved_ts,
+                        },
                     )
                 touch_last_message_at(phone_number, client_id)
                 return
@@ -728,6 +751,18 @@ async def process_message(
                     "_compose": "fallback_error",
                 }
             ]
+            # Persist a trace for the crashed turn. Without this the one case
+            # the dashboard panel exists for produces no trace at all.
+            try:
+                from kisna_chatbot.utils.message_trace import (
+                    persist_message_trace,
+                    trace_error,
+                )
+
+                trace_error(data, e)
+                persist_message_trace(data)
+            except Exception:
+                logger.warning("error-trace persist skipped", exc_info=True)
             try:
                 await localize_bot_responses(data)
                 save_to_mongo(data=data)
@@ -747,6 +782,7 @@ async def process_message(
     finally:
         if stop_typing_event:
             stop_typing_event.set()
+        end_trace_capture()
         clear_request_context()
 
 

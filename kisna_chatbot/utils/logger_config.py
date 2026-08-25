@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import sys
+import traceback
 from contextvars import ContextVar
 from datetime import datetime
 from threading import Lock
@@ -205,6 +206,89 @@ def log_event(event: str, message: str = "", level: str = "info", **fields: Any)
         log_fn(event, extra=extra)
 
 
+# ── Per-turn log capture ──────────────────────────────────────────────────────
+# The dashboard's "What happened" panel shows a curated handful of trace steps,
+# but the app already emits ~430 structured log calls per turn carrying the real
+# diagnostics (LLM model/tokens/latency, Clara HTTP params and counts, retries,
+# tracebacks). This handler buffers those records per request so the panel can
+# render them like a deployment log, with no changes at any call site.
+
+_trace_logs_var: ContextVar[list | None] = ContextVar("trace_logs", default=None)
+
+# Hard ceilings so one pathological turn cannot bloat a Mongo document.
+_TRACE_LOG_MAX_ENTRIES = 400
+_TRACE_LOG_HEAD = 80  # kept from the start when truncating
+_TRACE_LOG_MSG_CHARS = 2000
+
+
+class TraceLogBuffer(logging.Handler):
+    """Buffer log records emitted during the current turn.
+
+    Appends to a ContextVar list, so concurrent turns never mix. A no-op when
+    capture has not been started for this context.
+    """
+
+    def emit(self, record: logging.LogRecord) -> None:
+        buffer = _trace_logs_var.get()
+        if buffer is None:
+            return
+        try:
+            if len(buffer) >= _TRACE_LOG_MAX_ENTRIES:
+                # Keep the head (how the turn started) and a sliding tail (how it
+                # ended); the middle is the least informative part of a long turn.
+                del buffer[_TRACE_LOG_HEAD]
+            buffer.append(_record_to_entry(record))
+        except Exception:  # never let logging break the request
+            pass
+
+
+def _record_to_entry(record: logging.LogRecord) -> dict:
+    """Flatten a LogRecord the same way JsonFormatter does, minus serialisation."""
+    entry: dict[str, Any] = {
+        "level": record.levelname,
+        "message": truncate_for_log(record.getMessage(), _TRACE_LOG_MSG_CHARS),
+        "logger": record.name,
+        "module": record.module,
+        "func": record.funcName,
+        "line": record.lineno,
+        "created": record.created,
+    }
+
+    extra = {
+        key: sanitize_for_log(value)
+        for key, value in vars(record).items()
+        if key not in SKIP_FIELDS_LOGGER
+        and key not in ("request_id", "phone_number", "client_id", "taskName")
+    }
+    if extra:
+        entry["extra"] = extra
+
+    if record.exc_info:
+        try:
+            entry["exception"] = truncate_for_log(
+                "".join(traceback.format_exception(*record.exc_info)), 4000
+            )
+        except Exception:
+            pass
+
+    return entry
+
+
+def begin_trace_capture() -> None:
+    """Start buffering log records for this turn."""
+    _trace_logs_var.set([])
+
+
+def get_trace_logs() -> list:
+    """Records captured so far for this turn (empty when capture is off)."""
+    return list(_trace_logs_var.get() or [])
+
+
+def end_trace_capture() -> None:
+    """Stop buffering and release the records."""
+    _trace_logs_var.set(None)
+
+
 class SingletonLogger:
     """A singleton logger to ensure only one instance is created."""
 
@@ -243,6 +327,13 @@ class SingletonLogger:
             stderr_handler.setFormatter(formatter)
             stderr_handler.addFilter(context_filter)
             self.logger.addHandler(stderr_handler)
+
+            # Captures every record for the in-flight turn so the dashboard can
+            # show a full log, not just the curated trace steps.
+            trace_handler = TraceLogBuffer()
+            trace_handler.setLevel(logging.DEBUG)
+            trace_handler.addFilter(context_filter)
+            self.logger.addHandler(trace_handler)
 
             if os.getenv("LOG_TO_FILE", "").lower() in ("1", "true", "yes"):
                 file_handler = logging.FileHandler(filename=log_file_path, mode="a")

@@ -76,6 +76,34 @@ def dual_write_chat_entries(
         )
 
 
+def _attach_trace_outcomes(messages: list[dict], client_id: str) -> None:
+    """Stamp each message with its turn outcome so the dashboard can flag bad turns.
+
+    One indexed lookup per page. Best-effort: a missing trace (TTL-expired, or a
+    turn that predates tracing) just leaves ``trace_outcome`` unset.
+    """
+    try:
+        request_ids = {m.get("request_id") for m in messages if m.get("request_id")}
+        if not request_ids:
+            return
+
+        from kisna_chatbot.database.collections import message_traces
+
+        outcomes = {
+            row["request_id"]: row.get("outcome")
+            for row in message_traces.find(
+                {"request_id": {"$in": list(request_ids)}, "client_id": client_id},
+                {"_id": 0, "request_id": 1, "outcome": 1},
+            )
+        }
+        for msg in messages:
+            outcome = outcomes.get(msg.get("request_id"))
+            if outcome:
+                msg["trace_outcome"] = outcome
+    except Exception:
+        logger.warning("Failed to attach trace outcomes", exc_info=True)
+
+
 def get_paginated_chat_messages(
     phone: str,
     client_id: str = "kisna",
@@ -132,6 +160,8 @@ def get_paginated_chat_messages(
                 "_id": str(row.get("_id")) if row.get("_id") is not None else None,
             }
         )
+
+    _attach_trace_outcomes(messages, client_id)
 
     return {
         "phone_number": phone,
@@ -218,8 +248,11 @@ def save_user_message_silent(
     text: str,
     client_id: str = "kisna",
     request_id: str | None = None,
-) -> None:
-    """Append user message to chat_history without bot response (human takeover)."""
+) -> int | None:
+    """Append user message to chat_history without bot response (human takeover).
+
+    Returns the timestamp written so the SSE publish can carry the same value.
+    """
     try:
         now = int(time.time())
         entry = {
@@ -247,6 +280,7 @@ def save_user_message_silent(
             "Silent user message saved",
             extra={"phone_number": phone_number, "client_id": client_id},
         )
+        return now
     except Exception as e:
         logger.exception(
             "Failed to save silent message",
@@ -588,8 +622,13 @@ def save_agent_message(
     message: str,
     client_id: str = "kisna",
     request_id: str | None = None,
-) -> None:
-    """Append an agent message to chat_history."""
+) -> int | None:
+    """Append an agent message to chat_history.
+
+    Returns the timestamp written, so the SSE publish can carry the identical
+    value — the dashboard dedupes the optimistic copy against the saved one by
+    (role, timestamp, content), and a mismatch shows the message twice.
+    """
     try:
         now = int(time.time())
         entry = {
@@ -616,6 +655,7 @@ def save_agent_message(
             "Agent message saved",
             extra={"phone_number": phone_number, "client_id": client_id},
         )
+        return now
     except Exception as e:
         logger.exception(
             "Failed to save agent message",
@@ -681,7 +721,12 @@ def get_all_callback_requests(
     status: str | None = None,
     request_type: str | None = None,
 ) -> dict:
-    """Paginated callback/video-call requests for a client."""
+    """Paginated callback/video-call requests for a client, newest request first.
+
+    Sorted by ``created_at`` descending so the most recently booked request is
+    always on page 1. ``_id`` breaks ties, otherwise requests sharing a
+    ``created_at`` second can shuffle between pages.
+    """
     try:
         query: dict = {"client_id": client_id}
         if status:
@@ -691,13 +736,7 @@ def get_all_callback_requests(
         skip = (page - 1) * limit
         cursor = (
             callback_requests.find(query, {"_id": 0})
-            .sort(
-                [
-                    ("preferred_date", 1),
-                    ("preferred_time_order", 1),
-                    ("created_at", -1),
-                ]
-            )
+            .sort([("created_at", -1), ("_id", -1)])
             .skip(skip)
             .limit(limit)
         )
@@ -854,6 +893,27 @@ def get_store_visit_growth(period: str = "month", client_id: str = "kisna") -> l
         raise
 
 
+def get_callback_growth(period: str = "month", client_id: str = "kisna") -> list:
+    """Callback + video-call request counts grouped by period."""
+    try:
+        result = list(
+            callback_requests.aggregate(
+                _growth_pipeline("created_at", period, {"client_id": client_id})
+            )
+        )
+        logger.info(
+            "Callback growth fetched",
+            extra={"period": period, "client_id": client_id, "buckets": len(result)},
+        )
+        return result
+    except Exception as e:
+        logger.exception(
+            "Failed to get callback growth",
+            extra={"period": period, "client_id": client_id},
+        )
+        raise
+
+
 def get_dashboard_stats(client_id: str = "kisna") -> dict:
     """Aggregate dashboard stats for a client.
 
@@ -892,6 +952,12 @@ def get_dashboard_stats(client_id: str = "kisna") -> dict:
 
         total_store_visits = store_visits.count_documents(match)
         total_complaints_count = complaints.count_documents(match)
+        total_callbacks = callback_requests.count_documents(
+            {**match, "request_type": "callback"}
+        )
+        total_video_calls = callback_requests.count_documents(
+            {**match, "request_type": "video_call"}
+        )
         rating_stats = get_rating_stats(client_id=client_id)
 
         return {
@@ -901,6 +967,8 @@ def get_dashboard_stats(client_id: str = "kisna") -> dict:
             "avg_ai_response_time_ms": avg_ms,
             "total_store_visits": total_store_visits,
             "total_complaints": total_complaints_count,
+            "total_callbacks": total_callbacks,
+            "total_video_calls": total_video_calls,
             "ratings": rating_stats,
         }
     except Exception as e:

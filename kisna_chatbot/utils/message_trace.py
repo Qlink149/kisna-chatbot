@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 import time
+import traceback
 from typing import Any
+
+# Trimmed so a trace doc stays small — the TTL keeps 30 days of these.
+_MAX_TRACEBACK_CHARS = 4000
+_MAX_PAYLOAD_STR = 600
+
 
 def _log_warning(msg: str, **kwargs) -> None:
     try:
@@ -38,25 +44,94 @@ _FALLBACK_DROP_LABELS = {
 }
 
 
+def _sanitize_payload(value: Any, _depth: int = 0) -> Any:
+    """Make a step payload safe and small enough to store.
+
+    Truncates long strings, caps list length, and stringifies anything Mongo
+    would refuse. Never raises — a bad payload must not cost us the trace.
+    """
+    try:
+        if _depth > 4:
+            return "…"
+        if value is None or isinstance(value, (bool, int, float)):
+            return value
+        if isinstance(value, str):
+            return value if len(value) <= _MAX_PAYLOAD_STR else value[:_MAX_PAYLOAD_STR] + "…"
+        if isinstance(value, dict):
+            return {
+                str(k): _sanitize_payload(v, _depth + 1)
+                for k, v in list(value.items())[:40]
+            }
+        if isinstance(value, (list, tuple, set)):
+            items = list(value)
+            out = [_sanitize_payload(v, _depth + 1) for v in items[:25]]
+            if len(items) > 25:
+                out.append(f"… +{len(items) - 25} more")
+            return out
+        return _sanitize_payload(str(value), _depth + 1)
+    except Exception:
+        return "<unserializable>"
+
+
+def _elapsed_ms(data: dict) -> int | None:
+    """Milliseconds since the turn started, if the turn clock was started."""
+    t0 = data.get("_trace_t0")
+    if not isinstance(t0, (int, float)):
+        return None
+    return round((time.time() - t0) * 1000)
+
+
 def trace_step(
     data: dict,
     label: str,
     detail: str,
     status: str = "ok",
+    *,
+    payload: dict | None = None,
 ) -> None:
-    """Append a step onto data['_trace_steps'] (never raises)."""
+    """Append a step onto data['_trace_steps'] (never raises).
+
+    ``detail`` stays the one-line human summary shown in the timeline; ``payload``
+    carries the structured version of the same thing (raw query params, counts,
+    exception info) that the dashboard renders as expandable JSON.
+    """
     try:
         steps = data.setdefault("_trace_steps", [])
-        steps.append(
-            {
-                "order": len(steps) + 1,
-                "label": label,
-                "detail": detail or "",
-                "status": status if status in ("ok", "warn", "error") else "ok",
-            }
-        )
+        step = {
+            "order": len(steps) + 1,
+            "label": label,
+            "detail": detail or "",
+            "status": status if status in ("ok", "warn", "error") else "ok",
+        }
+        t_ms = _elapsed_ms(data)
+        if t_ms is not None:
+            step["t_ms"] = t_ms
+        if payload:
+            step["payload"] = _sanitize_payload(payload)
+        steps.append(step)
     except Exception:
         _log_warning("trace_step failed", exc_info=True)
+
+
+def trace_error(data: dict | None, exc: BaseException, *, label: str = "Error") -> None:
+    """Record an exception as a trace step and force the turn's outcome to error.
+
+    Called from the webhook's top-level handler so a crashed turn still produces
+    a trace — that is the case the dashboard panel exists for.
+    """
+    if not isinstance(data, dict):
+        return
+    try:
+        payload = {
+            "type": type(exc).__name__,
+            "message": str(exc)[:_MAX_PAYLOAD_STR],
+            "traceback": traceback.format_exc()[-_MAX_TRACEBACK_CHARS:],
+        }
+        trace_step(data, label, f"{type(exc).__name__}: {exc}", "error", payload=payload)
+        data["_trace_outcome"] = "error"
+        data["_trace_error"] = payload
+    except Exception:
+        _log_warning("trace_error failed", exc_info=True)
 
 
 def format_query_params(params: dict[str, Any] | None) -> str:
@@ -255,11 +330,13 @@ def try_trace(
     label: str,
     detail: str,
     status: str = "ok",
+    *,
+    payload: dict | None = None,
 ) -> None:
     """Safe wrapper used by agents (no-op if data is missing)."""
     if not isinstance(data, dict):
         return
-    trace_step(data, label, detail, status=status)
+    trace_step(data, label, detail, status=status, payload=payload)
 
 
 
@@ -365,6 +442,97 @@ def ensure_reply_step(data: dict) -> None:
         _log_warning("ensure_reply_step failed", exc_info=True)
 
 
+# Outcomes worth keeping a full log for. A happy turn's DEBUG chatter is noise;
+# a failed or degraded one is exactly what you open the panel to read.
+_INTERESTING_OUTCOMES = {"error", "no_products", "fallback_used", "handoff"}
+_LOW_CONFIDENCE = 0.55
+
+# Records carrying a timing measurement are kept even on happy turns — they are
+# few (one per LLM/HTTP call) and they are what answers "why was this slow".
+_TIMING_KEYS = ("latency_ms", "elapsed_ms", "duration_ms")
+_KEEP_LEVELS = {"WARNING", "ERROR", "CRITICAL"}
+
+
+def _is_interesting(outcome: str, confidence: Any) -> bool:
+    if outcome in _INTERESTING_OUTCOMES:
+        return True
+    return isinstance(confidence, (int, float)) and confidence < _LOW_CONFIDENCE
+
+
+def _select_logs(
+    logs: list[dict],
+    *,
+    outcome: str,
+    confidence: Any,
+    steps: list[dict],
+    t0: float | None,
+) -> list[dict]:
+    """Trim and annotate captured log records for storage.
+
+    Full detail on turns that went wrong, warnings-and-timings only on turns that
+    went fine. Each surviving record is stamped with its offset into the turn and
+    the timeline step it happened under, so the panel can group them.
+    """
+    if not logs:
+        return []
+
+    keep_all = _is_interesting(outcome, confidence)
+    selected = [
+        entry
+        for entry in logs
+        if keep_all
+        or entry.get("level") in _KEEP_LEVELS
+        or any(k in (entry.get("extra") or {}) for k in _TIMING_KEYS)
+    ]
+
+    # Offsets let the UI show "+412ms" and order logs against the step timeline.
+    step_bounds = [(s.get("t_ms") or 0, s.get("order")) for s in steps]
+    for entry in selected:
+        created = entry.pop("created", None)
+        if t0 and isinstance(created, (int, float)):
+            t_ms = round((created - t0) * 1000)
+            entry["t_ms"] = t_ms
+            step = None
+            for bound, order in step_bounds:
+                if bound <= t_ms:
+                    step = order
+                else:
+                    break
+            if step is not None:
+                entry["step"] = step
+
+    return selected
+
+
+def _session_state_snapshot(user_profile: dict) -> dict:
+    """Whitelisted session flags that explain *why* the bot routed as it did.
+
+    Bulky product arrays are reduced to counts/ids — the useful signal is which
+    filters and pending flags were live, not the catalogue rows themselves.
+    """
+    try:
+        from kisna_chatbot.utils.session_state import (
+            _SEARCH_CONTEXT_KEYS,
+            _TRANSIENT_KEYS,
+        )
+
+        bulky = {"last_search_products", "last_search_buffer"}
+        snapshot: dict[str, Any] = {}
+        for key in (*_TRANSIENT_KEYS, *_SEARCH_CONTEXT_KEYS):
+            if key not in user_profile:
+                continue
+            value = user_profile.get(key)
+            if key in bulky:
+                if isinstance(value, list):
+                    snapshot[f"{key}_count"] = len(value)
+                continue
+            snapshot[key] = value
+        return _sanitize_payload(snapshot)
+    except Exception:
+        _log_warning("session state snapshot failed", exc_info=True)
+        return {}
+
+
 def persist_message_trace(data: dict) -> None:
     """Fire-and-forget write of the message_traces document."""
     try:
@@ -373,7 +541,7 @@ def persist_message_trace(data: dict) -> None:
             return
         ensure_reply_step(data)
         steps = list(data.get("_trace_steps") or [])
-        if not steps:
+        if not steps and not data.get("_trace_error"):
             return
 
         from kisna_chatbot.database.collections import message_traces
@@ -407,6 +575,9 @@ def persist_message_trace(data: dict) -> None:
                 reply_preview = str(item["text"])[:160]
                 break
 
+        messages_block = data.get("messages") or {}
+        bot_response = data.get("bot_response") or []
+
         doc = {
             "request_id": request_id,
             "client_id": data.get("client_id") or "kisna",
@@ -420,7 +591,34 @@ def persist_message_trace(data: dict) -> None:
             "confidence": data.get("classifier_confidence"),
             "language": user_profile.get("language"),
             "reply_preview": reply_preview,
+            # Diagnostics for the dashboard "What happened" panel
+            "latency_ms": _elapsed_ms(data),
+            "error": data.get("_trace_error"),
+            "service_selected": user_profile.get("service_selected"),
+            "message_type": (
+                messages_block.get("type") if isinstance(messages_block, dict) else None
+            ),
+            "bot_response_types": [
+                (item.get("type") or "text")
+                for item in bot_response
+                if isinstance(item, dict)
+            ],
+            "session_state": _session_state_snapshot(user_profile),
         }
+
+        try:
+            from kisna_chatbot.utils.logger_config import get_trace_logs
+
+            doc["logs"] = _select_logs(
+                get_trace_logs(),
+                outcome=outcome,
+                confidence=doc.get("confidence"),
+                steps=steps,
+                t0=data.get("_trace_t0"),
+            )
+        except Exception:
+            _log_warning("trace log capture failed", exc_info=True)
+            doc["logs"] = []
         message_traces.update_one(
             {"request_id": request_id, "client_id": doc["client_id"]},
             {"$set": doc},

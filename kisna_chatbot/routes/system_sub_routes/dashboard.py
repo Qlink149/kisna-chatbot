@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Literal
 
 from kisna_chatbot.database.db_utils import (
+    get_callback_growth,
     get_dashboard_stats,
     get_rating_stats,
     get_user_growth,
@@ -60,3 +61,17 @@ def store_visits_growth(
     except Exception:
         logger.exception("Failed to fetch store visit growth", extra={"period": period})
         raise HTTPException(status_code=500, detail="Failed to fetch store visit growth")
+
+
+@router.get("/callbacks/growth")
+def callbacks_growth(
+    period: Period = Query("month", description="Grouping granularity: year | month | week"),
+    client_id: str = Query("kisna", description="Tenant client id"),
+):
+    """Return scheduled call counts (callbacks + video calls) grouped by period."""
+    try:
+        data = get_callback_growth(period=period, client_id=client_id)
+        return {"period": period, "data": data}
+    except Exception:
+        logger.exception("Failed to fetch callback growth", extra={"period": period})
+        raise HTTPException(status_code=500, detail="Failed to fetch callback growth")

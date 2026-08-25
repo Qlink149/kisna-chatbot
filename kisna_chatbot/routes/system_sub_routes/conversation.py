@@ -72,8 +72,10 @@ async def takeover(phone_number: str):
         )
         save_agent_message(phone_number, TAKEOVER_MESSAGE)
 
+        # Only "takeover" — the dashboard refetches history on it, which already
+        # picks up the message save_agent_message just persisted. Publishing
+        # "agent_message" here too made the banner appear twice in the chat.
         await pubsub.publish(phone_number, {"type": "takeover", "phone_number": phone_number})
-        await pubsub.publish(phone_number, {"type": "agent_message", "content": TAKEOVER_MESSAGE})
 
         logger.info("Takeover initiated", extra={"phone_number": phone_number})
         return {"success": True, "message": "Takeover active"}
@@ -111,11 +113,15 @@ async def send_message(phone_number: str, body: SendMessageRequest):
             phone_number=phone_number,
             bot_response={"type": "text", "text": body.message},
         )
-        save_agent_message(phone_number, body.message)
+        saved_ts = save_agent_message(phone_number, body.message)
 
         await pubsub.publish(
             phone_number,
-            {"type": "agent_message", "content": body.message},
+            {
+                "type": "agent_message",
+                "content": body.message,
+                "timestamp": saved_ts,
+            },
         )
 
         logger.info("Agent message sent", extra={"phone_number": phone_number})
