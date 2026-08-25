@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -48,7 +48,9 @@ def login(body: LoginRequest, response: Response):
         )
 
     session_id = secrets.token_urlsafe(32)
-    now = datetime.now(timezone.utc)
+    # Naive UTC to match what pymongo hands back on read (no tz_aware=True
+    # on the client) — mixing naive/aware datetimes raises TypeError.
+    now = datetime.utcnow()
     admin_sessions.insert_one(
         {
             "session_id": session_id,

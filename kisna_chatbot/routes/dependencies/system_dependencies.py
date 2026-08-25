@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader
@@ -38,12 +38,17 @@ def verify_api_key(
 
 
 def _load_session(session_id: str) -> dict | None:
-    """Look up a session by id, returning it only if still valid."""
+    """Look up a session by id, returning it only if still valid.
+
+    pymongo returns naive UTC datetimes by default (no tz_aware=True on the
+    client), so this compares against naive utcnow() to match — mixing a
+    naive expires_at with an aware now() raises TypeError.
+    """
     session = admin_sessions.find_one({"session_id": session_id})
     if not session or session.get("revoked"):
         return None
     expires_at = session.get("expires_at")
-    if not expires_at or expires_at <= datetime.now(timezone.utc):
+    if not expires_at or expires_at <= datetime.utcnow():
         return None
     return session
 
