@@ -47,6 +47,9 @@ def login(body: LoginRequest, response: Response):
             detail="Invalid credentials",
         )
 
+    # Single active session per account — a new login evicts any others.
+    admin_sessions.delete_many({"username": user["username"]})
+
     session_id = secrets.token_urlsafe(32)
     # Naive UTC to match what pymongo hands back on read (no tz_aware=True
     # on the client) — mixing naive/aware datetimes raises TypeError.
