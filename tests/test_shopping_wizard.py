@@ -893,6 +893,48 @@ class BudgetBandSnapTests(unittest.TestCase):
                     f"wizard and free-text search disagree on {text!r}",
                 )
 
+    def _advance_budget(self, answer, llm_entities):
+        """Drive the real funnel, not just the slot parser."""
+        from kisna_chatbot.processors.shopping_wizard import advance_wizard
+
+        up = {
+            "shopping_wizard_active": True,
+            "shopping_wizard_step": "budget",
+            "shopping_wizard_data": {
+                "category": "nosewear", "gender": "women", "material_type": "gold",
+            },
+        }
+        advance_wizard(
+            up, {"type": "text", "text": {"body": answer}},
+            text=answer, llm_entities=llm_entities,
+        )
+        d = up.get("shopping_wizard_data", {})
+        return (d.get("min_price"), d.get("max_price"))
+
+    def test_bare_amount_survives_the_restate_overwrite(self):
+        """Live regression (+91…4178, 25 Aug 12:55).
+
+        _parse_text_for_step banded "1 lakh" correctly, then the budget-restate
+        branch overwrote it with the model's raw max-only read, so the recap
+        still said "under Rs 1,00,000" and the search sent maxPrice=100000.
+        """
+        self.assertEqual(
+            (100000.0, 150000.0),
+            self._advance_budget("1 lakh", {"min_price": None, "max_price": 100000}),
+        )
+
+    def test_restated_under_still_stays_a_ceiling(self):
+        self.assertEqual(
+            (None, 100000),
+            self._advance_budget("under 1 lakh", {"min_price": None, "max_price": 100000}),
+        )
+
+    def test_restated_genuine_range_is_preserved(self):
+        self.assertEqual(
+            (15000, 35000),
+            self._advance_budget("15 to 35k", {"min_price": 15000, "max_price": 35000}),
+        )
+
     def test_native_script_defers_to_the_model(self):
         """Only the LLM can read these, so its value must survive untouched."""
         for text in ("एक लाख", "ஒரு லட்சம்", "ಒಂದು ಲಕ್ಷ"):

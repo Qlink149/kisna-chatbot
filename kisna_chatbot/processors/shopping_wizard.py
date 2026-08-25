@@ -1447,8 +1447,15 @@ def advance_wizard(
         # Replace the whole budget when the user restates it mid-funnel
         # ("under 40k" at fulfillment). Empty-only fill left 15–30k stuck.
         if _budget_restated_in_text(text, llm_entities):
-            collected["min_price"] = ents.get("min_price")
-            collected["max_price"] = ents.get("max_price")
+            # `ents` merges the model's read LAST, so a bare "1 lakh" that the
+            # model saw as a bare ceiling landed here as (None, 100000) and
+            # overwrote the banded value _parse_text_for_step had just worked
+            # out. Same rule as there: the deterministic parser wins whenever it
+            # can read the message, the model stays the native-script fallback.
+            restated = _budget_from_text(text)
+            if restated is None:
+                restated = (ents.get("min_price"), ents.get("max_price"))
+            collected["min_price"], collected["max_price"] = restated
             collected.pop("budget", None)
         if unsupported_note and step == "material":
             # "silver" is a real answer to "what type of ring?" -- it is just
