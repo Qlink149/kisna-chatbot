@@ -152,35 +152,97 @@ def build_clara_query_params(
     page_no: int = 1,
     page_size: int | None = None,
 ) -> dict[str, Any]:
-    """Map search kwargs → Clara query-string keys shown on the dashboard."""
+    """Rebuild the exact Clara query the bot sent, for the dashboard trace.
+
+    Delegates to the real request builder rather than re-deriving the mapping.
+    A local copy had drifted: it never mapped ``category_id`` (the preferred
+    path — the slug over-matches) so the category silently vanished from the
+    panel, and it appended ``searchUrl=true`` unconditionally when the real
+    builder only sends it alongside a title or category slug. The panel was
+    showing a request that had never been made.
+    """
     raw = api_params or {}
-    out: dict[str, Any] = {
-        "pageNo": page_no,
-    }
-    if page_size is not None:
-        out["pageSize"] = page_size
-    if raw.get("category"):
-        out["category"] = raw["category"]
-    if raw.get("material_type"):
-        out["materialType"] = raw["material_type"]
-    if raw.get("min_price") is not None:
-        out["minPrice"] = raw["min_price"]
-    if raw.get("max_price") is not None:
-        out["maxPrice"] = raw["max_price"]
-    if raw.get("title"):
-        out["title"] = raw["title"]
-    if raw.get("tag_manager_id"):
-        out["tagManagerId"] = raw["tag_manager_id"]
-    if raw.get("collection_id"):
-        out["collectionId"] = raw["collection_id"]
-    if raw.get("meta_sub_attribute_value"):
-        out["metaSubAttributeValue"] = raw["meta_sub_attribute_value"]
-    if raw.get("ready_to_ship"):
-        out["readyTOShip"] = "true"
-    if raw.get("made_to_order"):
-        out["madeToOrder"] = "true"
-    out["searchUrl"] = "true"
-    return out
+    try:
+        from kisna_chatbot.integrations.clara_api import build_products_query_params
+
+        passthrough = (
+            "category",
+            "category_id",
+            "material_type",
+            "min_price",
+            "max_price",
+            "title",
+            "tag_manager_id",
+            "collection_id",
+            "meta_sub_attribute_value",
+            "ready_to_ship",
+            "made_to_order",
+        )
+        kwargs = {key: raw.get(key) for key in passthrough}
+        # search_products defaults to 5 when a caller omits the page size.
+        return build_products_query_params(
+            page_no=page_no,
+            page_size=page_size if page_size is not None else 5,
+            **kwargs,
+        )
+    except Exception:
+        _log_warning("build_clara_query_params delegation failed", exc_info=True)
+        return {"pageNo": page_no, **({"pageSize": page_size} if page_size else {})}
+
+
+def diagnose_client_filter_drop(
+    raw_products: list | None,
+    entities: dict | None,
+    *,
+    sample: int = 50,
+) -> dict:
+    """Explain why client-side filters rejected everything Clara returned.
+
+    "0 matched" on its own cannot be acted on. This records what the bot was
+    looking for next to what the products actually carried, which is what turns
+    a silent mismatch (Clara's "Nose Wear" vs the bot's "nosewear") into an
+    obvious one on the dashboard.
+    """
+    try:
+        from kisna_chatbot.processors.entity_extractor import (
+            extract_category_from_product,
+        )
+
+        wanted = entities or {}
+        seen_categories: dict[str, int] = {}
+        for product in (raw_products or [])[:sample]:
+            if not isinstance(product, dict):
+                continue
+            product_type = product.get("productType")
+            raw_name = None
+            if isinstance(product_type, dict):
+                block = product_type.get("category")
+                if isinstance(block, dict):
+                    raw_name = block.get("name")
+            raw_name = raw_name or product.get("category")
+            normalized = extract_category_from_product(product)
+            key = f"{raw_name!r} -> {normalized!r}"
+            seen_categories[key] = seen_categories.get(key, 0) + 1
+
+        out: dict[str, Any] = {
+            "expected_category": wanted.get("category"),
+            "expected_material": wanted.get("material_type"),
+            "expected_price_range": [wanted.get("min_price"), wanted.get("max_price")],
+            "product_category_raw_to_normalized": dict(
+                sorted(seen_categories.items(), key=lambda kv: -kv[1])[:5]
+            ),
+        }
+        # The failure mode worth shouting about: nothing normalised at all.
+        if seen_categories and all("-> None" in k for k in seen_categories):
+            out["likely_cause"] = (
+                "Clara's category name does not normalise to any known category, "
+                "so every product fails the client-side category check. Add it to "
+                "_CATEGORY_SYNONYMS."
+            )
+        return out
+    except Exception:
+        _log_warning("client filter drop diagnosis failed", exc_info=True)
+        return {}
 
 
 def _product_trace_price(product: dict) -> int:

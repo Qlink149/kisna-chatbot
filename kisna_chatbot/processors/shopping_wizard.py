@@ -1243,19 +1243,24 @@ def _parse_text_for_step(
     ):
         llm_min = llm_slots.get("min_price")
         llm_max = llm_slots.get("max_price")
-        # A degenerate min == max is the LLM reading "under 50k" as an exact
-        # price. normalize_price_entities then widens that single target
-        # UPWARD, so the recap reads "between Rs 50,000 and Rs 60,000", the
-        # header prints "Rs 50,000-Rs 50,000", and every result costs more
-        # than the ceiling the customer gave. Observed on 4 of 13 live "under
-        # Nk" answers -- it varies run to run, which is why it reads as flaky.
         # The deterministic parser gets this right every time, so it wins
         # whenever it can read the message; the LLM stays the fallback for
         # native script, which only it can parse.
-        if llm_min is not None and llm_min == llm_max:
-            deterministic = _budget_from_text(text)
-            if deterministic is not None:
-                return deterministic
+        #
+        # There are two ways the model mangles a single stated amount:
+        #   min == max   -- "under 50k" read as an exact price, then widened
+        #                   UPWARD, so every result costs more than the ceiling
+        #                   the customer gave.
+        #   min is None  -- a bare "1 lakh" read as a bare ceiling, so the recap
+        #                   says "under Rs 1,00,000" instead of the
+        #                   Rs 1,00,000-Rs 1,50,000 bucket kisna.com offers.
+        # Guarding only the first left the second live: _budget_from_text was
+        # never consulted, because `llm_min is not None` is False for a
+        # max-only read. Free-text search already snaps these (see
+        # normalize_price_entities); the wizard was the one path that did not.
+        deterministic = _budget_from_text(text)
+        if deterministic is not None:
+            return deterministic
         return (llm_min, llm_max)
 
     if step == "category":

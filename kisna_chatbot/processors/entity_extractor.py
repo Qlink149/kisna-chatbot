@@ -174,7 +174,14 @@ _CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "necklace_set": ["necklace set", "necklace sets"],
     "mangalsutra": ["mangalsutra", "mangalsutras", "mangal sutra", "tanmaniya"],
     "mangalsutra_bracelet": ["mangalsutra bracelet", "mangalsutra bracelets", "tanmaniya bracelet"],
-    "nosewear": ["nose pin", "nose pins", "nosepin", "nose stud", "nath", "nose ring", "nose rings"],
+    # "nose wear" is Clara's own category name for this (see _CLARA_CATEGORY_MAP).
+    # Omitting it meant products came back as "Nose Wear", normalised to None,
+    # and every one was dropped by the client-side category check.
+    "nosewear": [
+        "nose pin", "nose pins", "nosepin", "nose stud", "nath",
+        "nose ring", "nose rings", "nose wear", "nosewear",
+        "nose screw", "nose screws",
+    ],
     "watchwear": ["watch pin", "watch charm", "watch wear", "watch"],
     "anklet": ["anklet", "anklets", "payal", "pajeb", "paayal"],
     "maang_tikka": ["maang tikka", "maangtika", "maang_tikka", "tikka", "tika", "bor"],

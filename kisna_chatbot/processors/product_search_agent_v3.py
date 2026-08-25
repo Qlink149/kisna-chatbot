@@ -3916,6 +3916,16 @@ class ProductSearchAgentV3(Processor):
                             if isinstance(p, dict)
                         ],
                     }
+                    # Clara returned rows but client filters kept none — record
+                    # what they carried so "0 matched" explains itself.
+                    if matched_for_trace == 0 and raw_products:
+                        from kisna_chatbot.utils.message_trace import (
+                            diagnose_client_filter_drop,
+                        )
+
+                        trace_payload["client_filter_drop"] = (
+                            diagnose_client_filter_drop(raw_products, strategy_entities)
+                        )
                     if log_label == "full":
                         trace_step(
                             data, "API call", detail, status=status, payload=trace_payload

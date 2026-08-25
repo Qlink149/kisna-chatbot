@@ -141,3 +141,58 @@ class ClaraCategoryMappingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class CategorySlugRoundTripTests(unittest.TestCase):
+    """Guard the outbound slug against the inbound client-side matcher.
+
+    The bot sends Clara a category slug from CATEGORY_NORMALIZATION_MAP, then
+    re-checks every returned product client-side by normalising Clara's own
+    ``productType.category.name`` back through _CATEGORY_SYNONYMS. If a slug
+    does not normalise back to the category that produced it, every product is
+    silently dropped and the search returns "0 matched".
+
+    That is exactly how nosewear broke: it was sent as "nose wear" while its
+    synonym list only listed "nose pin"/"nath"/etc, so "Nose Wear" normalised
+    to None and no nose pin could ever be matched.
+    """
+
+    def test_every_searchable_category_slug_round_trips(self):
+        from kisna_chatbot.processors.entity_extractor import (
+            _CATEGORY_SYNONYMS,
+            _categories_match,
+            normalize_category_for_api,
+        )
+
+        failures = []
+        for category in _CATEGORY_SYNONYMS:
+            slug = CATEGORY_NORMALIZATION_MAP.get(category)
+            if not slug:
+                continue  # not searchable on Clara (e.g. anklet)
+            back = normalize_category_for_api(slug)
+            if not _categories_match(category, back):
+                failures.append(f"{category!r} sent as {slug!r} normalises back to {back!r}")
+
+        self.assertEqual(
+            [], failures,
+            "Clara category slug does not survive the client-side matcher, so "
+            "every returned product would be dropped:\n  " + "\n  ".join(failures),
+        )
+
+    def test_clara_category_name_matches_nosewear(self):
+        """Regression: Clara returns "Nose Wear"; it must match a nosewear search."""
+        from kisna_chatbot.processors.entity_extractor import (
+            _categories_match,
+            extract_category_from_product,
+            filter_products_by_entities,
+        )
+
+        product = {
+            "title": "Driti Diamond Nose Screw",
+            "productType": {"category": {"name": "Nose Wear"}},
+        }
+        self.assertEqual("nosewear", extract_category_from_product(product))
+        self.assertTrue(_categories_match("nosewear", extract_category_from_product(product)))
+
+        # The end-to-end symptom: the client filter must not drop it.
+        kept = filter_products_by_entities([product], {"category": "nosewear"})
+        self.assertEqual(1, len(kept), "nosewear product was dropped by the client filter")

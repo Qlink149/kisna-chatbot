@@ -830,3 +830,74 @@ class HindiAnyAnswerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class BudgetBandSnapTests(unittest.TestCase):
+    """A bare amount in the wizard must widen to the kisna.com price bucket.
+
+    Live regression (+91…0608, 25 Aug): the customer answered the budget step
+    with "1 lakh" and the recap came back "gold nose wear for women under
+    ₹100,000" instead of the ₹1,00,000–₹1,50,000 bucket. The LLM had read the
+    bare amount as a bare ceiling ({min: None, max: 100000}); the wizard only
+    consulted the deterministic parser when min == max, so a max-only read
+    skipped the band logic entirely and the model's ceiling was used as-is.
+    """
+
+    def _budget(self, text, llm_entities):
+        from kisna_chatbot.processors.shopping_wizard import _parse_text_for_step
+
+        return _parse_text_for_step("budget", text, llm_entities)
+
+    def test_bare_amount_widens_to_band(self):
+        # The exact live failure: max-only LLM read of an undirected amount.
+        self.assertEqual(
+            (100000.0, 150000.0),
+            self._budget("1 lakh", {"min_price": None, "max_price": 100000}),
+        )
+
+    def test_explicit_under_stays_a_ceiling(self):
+        # "under" is a real ceiling and must NOT be widened into a band.
+        self.assertEqual(
+            (None, 100000),
+            self._budget("under 1 lakh", {"min_price": None, "max_price": 100000}),
+        )
+
+    def test_degenerate_min_equals_max_still_widens(self):
+        self.assertEqual(
+            (20000.0, 30000.0),
+            self._budget("around 25000", {"min_price": 25000, "max_price": 25000}),
+        )
+
+    def test_genuine_range_is_left_alone(self):
+        self.assertEqual(
+            (15000, 35000),
+            self._budget("15 to 35k", {"min_price": 15000, "max_price": 35000}),
+        )
+
+    def test_wizard_agrees_with_free_text_search(self):
+        """The two budget paths must not disagree on the same answer."""
+        from kisna_chatbot.processors.entity_extractor import normalize_price_entities
+
+        for text in ("1 lakh", "under 1 lakh", "50k", "under 50k", "above 50k"):
+            llm = {"min_price": None, "max_price": 50000}
+            if "lakh" in text:
+                llm = {"min_price": None, "max_price": 100000}
+            if text.startswith("above"):
+                llm = {"min_price": 50000, "max_price": None}
+
+            wizard = self._budget(text, dict(llm))
+            free = normalize_price_entities(text, dict(llm))
+            with self.subTest(text=text):
+                self.assertEqual(
+                    (free.get("min_price"), free.get("max_price")),
+                    tuple(wizard),
+                    f"wizard and free-text search disagree on {text!r}",
+                )
+
+    def test_native_script_defers_to_the_model(self):
+        """Only the LLM can read these, so its value must survive untouched."""
+        for text in ("एक लाख", "ஒரு லட்சம்", "ಒಂದು ಲಕ್ಷ"):
+            with self.subTest(text=text):
+                self.assertEqual(
+                    (None, 100000),
+                    self._budget(text, {"min_price": None, "max_price": 100000}),
+                )
