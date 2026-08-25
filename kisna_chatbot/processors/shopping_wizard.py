@@ -1195,11 +1195,18 @@ def _budget_from_text(text: str) -> tuple[Any, Any] | None:
             return None
         return (min_p, max_p)
     # Bare digit fallback ("20000") — never concatenate range halves
-    # ("15 to 35 thousand" → "1535").
+    # ("15 to 35 thousand" → "1535"), which _RANGE_INDICATOR_RE below rejects.
+    #
+    # No length floor: a single stated amount belongs in whatever PRICE_BANDS
+    # bracket contains it, at every magnitude. A `len(digits) < 3` floor used
+    # to drop 1-2 digit answers here, so "25" never reached the band snapper
+    # and fell through to the model's literal read — the recap said "under
+    # ₹25" and the search went out with maxPrice=25. Reading the number as
+    # given is the predictable rule; a customer who means 25,000 types "25k".
     if _RANGE_INDICATOR_RE.search(text or ""):
         return None
     digits = re.sub(r"[^\d]", "", text or "")
-    if not digits.isdigit() or len(digits) < 3:
+    if not digits or not digits.isdigit():
         return None
     if _looks_like_pincode(digits, text):
         return None

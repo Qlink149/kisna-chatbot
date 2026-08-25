@@ -213,8 +213,25 @@ class WizardBudgetParsingTests(unittest.TestCase):
     def test_round_six_digit_amount_is_still_a_budget(self):
         self.assertIsNotNone(_parse_text_for_step("budget", "100000"))
 
-    def test_two_digit_answer_is_rejected(self):
-        self.assertIsNone(_parse_text_for_step("budget", "50"))
+    def test_two_digit_answer_uses_the_shared_band(self):
+        """A single stated amount lands in its bracket at every magnitude.
+
+        This previously asserted a two-digit answer was rejected so the funnel
+        would re-ask. That only ever held here, where _parse_text_for_step is
+        called without llm_entities. Production always supplies them, and the
+        model's literal read won before the rejection could apply — a customer
+        answering "25" got a recap of "under Rs 25" and a maxPrice=25 search
+        that matched nothing. Banding it is the consistent rule; a customer who
+        means 25,000 types "25k".
+        """
+        self.assertEqual(
+            _parse_text_for_step("budget", "50"),
+            _snap_single_price_to_band(50),
+        )
+        self.assertEqual(
+            _parse_text_for_step("budget", "50", {"min_price": None, "max_price": 50}),
+            _snap_single_price_to_band(50),
+        )
 
 
 class HinglishRangeTests(unittest.TestCase):
