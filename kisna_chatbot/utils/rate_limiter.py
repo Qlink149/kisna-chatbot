@@ -10,9 +10,15 @@ from collections import deque
 
 from kisna_chatbot.utils.logger_config import logger
 
-INBOUND_RATE_LIMIT = 10
+INBOUND_RATE_LIMIT = 40
 INBOUND_RATE_WINDOW = 60
 _INBOUND_COUNTS: dict[str, deque] = {}
+
+# A burst that trips the limit can be many messages in a row (retries, a
+# flood) — notifying on every single one would itself spam the customer.
+# One "you're moving fast" message per window is enough.
+RATE_LIMIT_NOTIFY_COOLDOWN = 60
+_LAST_NOTIFIED: dict[str, float] = {}
 
 
 def is_rate_limited(phone: str) -> bool:
@@ -24,6 +30,16 @@ def is_rate_limited(phone: str) -> bool:
         return True
     window.append(now)
     return False
+
+
+def should_notify_rate_limited(phone: str) -> bool:
+    """True at most once per RATE_LIMIT_NOTIFY_COOLDOWN for a rate-limited phone."""
+    now = time.time()
+    last = _LAST_NOTIFIED.get(phone)
+    if last is not None and now - last < RATE_LIMIT_NOTIFY_COOLDOWN:
+        return False
+    _LAST_NOTIFIED[phone] = now
+    return True
 
 
 class OutboundRateLimiter:
