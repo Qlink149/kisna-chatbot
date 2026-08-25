@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from kisna_chatbot.database.db_utils import get_all_users, get_user_by_phone, search_users
-from kisna_chatbot.routes.dependencies.system_dependencies import verify_token
+from kisna_chatbot.routes.dependencies.system_dependencies import verify_session
 from kisna_chatbot.utils.logger_config import logger
 
 router = APIRouter(
     prefix="/user",
     tags=["System - Users"],
-    dependencies=[Depends(verify_token)],
+    dependencies=[Depends(verify_session)],
 )
 
 

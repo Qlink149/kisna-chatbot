@@ -31,7 +31,6 @@ REQUIRED_IN_PROD = (
     "GUPSHUP_TOKEN",
     "GUPSHUP_APP_NAME",
     "GUPSHUP_API_KEY",
-    "JWT_SECRET_KEY",
     "SYSTEM_API_KEY",
     "KISNA_CLARA_BASE_URL",
     "CLARA_API_KEY",
@@ -93,9 +92,6 @@ gupshup_source = _getenv("GUPSHUP_SOURCE")
 kisna_phone_number_id = _getenv("KISNA_PHONE_NUMBER_ID")
 nkl_phone_number_id = _getenv("NKL_PHONE_NUMBER_ID")
 
-super_admin_username = _getenv("SUPER_ADMIN_USERNAME")
-super_admin_password = _getenv("SUPER_ADMIN_PASSWORD")
-jwt_secret_key = _getenv("JWT_SECRET_KEY")
 system_api_key = _getenv("SYSTEM_API_KEY")
 
 kisna_product_api = _getenv("KISNA_PRODUCT_API")

@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends
 
 from kisna_chatbot.routes.dependencies.system_dependencies import (
     verify_api_key,
-    verify_token,
-    verify_token_or_api_key,
+    verify_session,
+    verify_session_or_api_key,
 )
 from kisna_chatbot.routes.system_sub_routes import ai as ai_router
 from kisna_chatbot.routes.system_sub_routes import auth as auth_router
@@ -30,26 +30,26 @@ router.include_router(conversation_module.stream_router)
 
 router.include_router(
     conversation_module.router,
-    dependencies=[Depends(verify_token_or_api_key)],
+    dependencies=[Depends(verify_session_or_api_key)],
 )
 
-router.include_router(damage_router.router, dependencies=[Depends(verify_token)])
+router.include_router(damage_router.router, dependencies=[Depends(verify_session)])
 
-router.include_router(callbacks_router.router, dependencies=[Depends(verify_token)])
+router.include_router(callbacks_router.router, dependencies=[Depends(verify_session)])
 
-router.include_router(clara_events_router.router, dependencies=[Depends(verify_token)])
+router.include_router(clara_events_router.router, dependencies=[Depends(verify_session)])
 
 router.include_router(
-    message_trace_router.router, dependencies=[Depends(verify_token)]
+    message_trace_router.router, dependencies=[Depends(verify_session)]
 )
 
-router.include_router(dashboard_router.router, dependencies=[Depends(verify_token)])
+router.include_router(dashboard_router.router, dependencies=[Depends(verify_session)])
 
-router.include_router(ai_router.router, dependencies=[Depends(verify_token)])
+router.include_router(ai_router.router, dependencies=[Depends(verify_session)])
 
 router.include_router(
     chat_history_router.router,
-    dependencies=[Depends(verify_token_or_api_key)],
+    dependencies=[Depends(verify_session_or_api_key)],
 )
 
 router.include_router(
@@ -58,7 +58,7 @@ router.include_router(
 )
 
 
-@router.get("/ping", dependencies=[Depends(verify_token)])
+@router.get("/ping", dependencies=[Depends(verify_session)])
 def ping():
     """Health check — confirms the server is running."""
     logger.info("Ping endpoint called")
