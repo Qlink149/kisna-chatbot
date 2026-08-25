@@ -15,22 +15,22 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from kisna_chatbot.main import app  # noqa: E402
-from kisna_chatbot.routes.dependencies.system_dependencies import verify_token  # noqa: E402
+from kisna_chatbot.routes.dependencies.system_dependencies import verify_session  # noqa: E402
 
 
-def _fake_verify_token():
-    return {"sub": "test-admin", "role": "super_admin"}
+def _fake_verify_session():
+    return {"username": "test-admin", "role": "super_admin"}
 
 
 class TestCallbacksAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        app.dependency_overrides[verify_token] = _fake_verify_token
+        app.dependency_overrides[verify_session] = _fake_verify_session
         cls.client = TestClient(app)
 
     @classmethod
     def tearDownClass(cls):
-        app.dependency_overrides.pop(verify_token, None)
+        app.dependency_overrides.pop(verify_session, None)
 
     @patch("kisna_chatbot.routes.system_sub_routes.callbacks.get_all_callback_requests")
     def test_list_callbacks(self, mock_list):

@@ -10,7 +10,7 @@ from kisna_chatbot.ai import complete_chat, get_public_config
 from kisna_chatbot.ai.config import refresh_ai_settings, resolve_provider
 from kisna_chatbot.ai.types import AgentName
 from kisna_chatbot.database.collections import ai_usage_logs
-from kisna_chatbot.routes.dependencies.system_dependencies import verify_token
+from kisna_chatbot.routes.dependencies.system_dependencies import verify_session
 from kisna_chatbot.utils.logger_config import logger
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -22,14 +22,14 @@ class AITestRequest(BaseModel):
 
 
 @router.get("/config")
-def get_ai_config(_user=Depends(verify_token)):
+def get_ai_config(_user=Depends(verify_session)):
     """Return effective AI provider and model configuration per agent."""
     refresh_ai_settings()
     return get_public_config()
 
 
 @router.post("/test")
-async def test_ai_completion(body: AITestRequest, _user=Depends(verify_token)):
+async def test_ai_completion(body: AITestRequest, _user=Depends(verify_session)):
     """Run a one-shot completion to verify provider connectivity."""
     refresh_ai_settings()
     agent = AgentName(body.agent)
@@ -58,7 +58,7 @@ async def test_ai_completion(body: AITestRequest, _user=Depends(verify_token)):
 def get_ai_usage(
     days: int = Query(7, ge=1, le=90),
     client_id: str = Query("kisna"),
-    _user=Depends(verify_token),
+    _user=Depends(verify_session),
 ):
     """Aggregate AI usage logs for the given period."""
     since = int(time.time()) - days * 86400

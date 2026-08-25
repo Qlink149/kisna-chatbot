@@ -17,9 +17,9 @@ pymongo==4.6.1
 python-dotenv==1.0.0
 pydantic==2.5.3
 
-# Auth (JWT for /system routes) — also pulls cryptography for Flow endpoint crypto
-python-jose[cryptography]==3.3.0
+# Crypto for Flow endpoint (RSA/AES) + dashboard password hashing
 cryptography==48.0.0
+bcrypt==4.1.2
 
 # Knowledge base file parsing
 pypdf==4.2.0

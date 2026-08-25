@@ -13,14 +13,14 @@ from kisna_chatbot.database.db_utils import (
     save_agent_message,
     set_takeover,
 )
-from kisna_chatbot.routes.dependencies.system_dependencies import verify_token_query
+from kisna_chatbot.routes.dependencies.system_dependencies import verify_session
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.pubsub import pubsub
 from kisna_chatbot.whatsapp_functions.send_text_message import send_text_message
 from kisna_chatbot.database.collections import users
 from kisna_chatbot.processors.service_list import build_rating_prompt_response
 
-# stream_router: no router-level auth — stream validates via ?token= query param itself
+# stream_router: no router-level auth — stream validates via the session cookie itself
 stream_router = APIRouter(prefix="/conversation", tags=["System - Conversation"])
 router = APIRouter(prefix="/conversation", tags=["System - Conversation"])
 
@@ -35,8 +35,8 @@ class SendMessageRequest(BaseModel):
 # ── SSE Stream ────────────────────────────────────────────────────────────────
 
 @stream_router.get("/{phone_number}/stream")
-async def stream(phone_number: str, _: dict = Depends(verify_token_query)):
-    """Open an SSE connection for a conversation. Auth via ?token= query param."""
+async def stream(phone_number: str, _: dict = Depends(verify_session)):
+    """Open an SSE connection for a conversation. Auth via the session cookie."""
     queue = pubsub.subscribe(phone_number)
 
     async def generator():

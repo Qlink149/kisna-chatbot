@@ -69,7 +69,11 @@ async def _get_user_lock(phone: str) -> asyncio.Lock:
         _USER_LOCKS[phone] = asyncio.Lock()
     return _USER_LOCKS[phone]
 
-_default_origins = "https://kisna-wa.claraai.tech"
+_default_origins = (
+    "https://kisna-wa.claraai.tech,"
+    "https://kisna-chatbot-dashboard.vercel.app,"
+    "http://localhost:5173"
+)
 ALLOWED_ORIGINS = [
     o.strip().rstrip("/")
     for o in os.getenv("CORS_ORIGINS", _default_origins).split(",")
@@ -180,6 +184,22 @@ async def lifespan(app: FastAPI):
         )
     except Exception:
         logger.exception("Failed to create clara_events indexes")
+
+    try:
+        from kisna_chatbot.database.collections import admin_sessions
+
+        admin_sessions.create_index(
+            [("expires_at", ASCENDING)],
+            name="admin_sessions_ttl",
+            expireAfterSeconds=0,
+        )
+        admin_sessions.create_index(
+            [("session_id", ASCENDING)],
+            unique=True,
+            name="uniq_admin_session_id",
+        )
+    except Exception:
+        logger.exception("Failed to create admin_sessions indexes")
 
     from kisna_chatbot.database.database import ping_database
 
