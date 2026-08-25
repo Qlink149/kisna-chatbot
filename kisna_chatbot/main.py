@@ -539,11 +539,11 @@ async def process_message(
             if should_notify_rate_limited(phone_number):
                 try:
                     from kisna_chatbot.whatsapp_functions.send_text_message import (
-                        send_text_message,
+                        send_text_message_with_retry,
                     )
 
                     await asyncio.to_thread(
-                        send_text_message,
+                        send_text_message_with_retry,
                         phone_number,
                         {"type": "text", "text": "You're moving fast — give me a sec 🙂"},
                     )

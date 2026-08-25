@@ -95,7 +95,7 @@ class TestRateLimitDropSendsNotice(unittest.IsolatedAsyncioTestCase):
         ), patch.object(
             main_mod, "should_notify_rate_limited", return_value=True
         ), patch(
-            "kisna_chatbot.whatsapp_functions.send_text_message.send_text_message"
+            "kisna_chatbot.whatsapp_functions.send_text_message.send_text_message_with_retry"
         ) as send_mock:
             request_data = {
                 "entry": [
@@ -132,7 +132,7 @@ class TestRateLimitDropSendsNotice(unittest.IsolatedAsyncioTestCase):
         ), patch.object(
             main_mod, "should_notify_rate_limited", return_value=False
         ), patch(
-            "kisna_chatbot.whatsapp_functions.send_text_message.send_text_message"
+            "kisna_chatbot.whatsapp_functions.send_text_message.send_text_message_with_retry"
         ) as send_mock:
             request_data = {
                 "entry": [
@@ -166,7 +166,7 @@ class TestRateLimitDropSendsNotice(unittest.IsolatedAsyncioTestCase):
         ), patch.object(
             main_mod, "should_notify_rate_limited", return_value=True
         ), patch(
-            "kisna_chatbot.whatsapp_functions.send_text_message.send_text_message",
+            "kisna_chatbot.whatsapp_functions.send_text_message.send_text_message_with_retry",
             side_effect=RuntimeError("gupshup down"),
         ):
             request_data = {
