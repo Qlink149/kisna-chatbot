@@ -2214,12 +2214,56 @@ class ProductSearchAgentV3(Processor):
 
         return False
 
+    async def _handle_url_multi_search(
+        self, data: dict, phone_number: str, titles: list[str]
+    ) -> dict:
+        """Search once per pasted product URL slug; merge results into one reply.
+
+        Handles a single URL too (a list of one) -- always bypasses the
+        confirmation prompt, since a pasted product link is already an
+        explicit, unambiguous signal on its own.
+
+        _execute_search mutates user_profile's last_search_filters/
+        last_search_products/shown_product_ids on every call, so after this
+        loop that session state reflects the LAST url only -- an accepted,
+        simple compromise (it becomes the active context for a follow-up
+        like "show that one in gold"), not a silent surprise.
+        """
+        combined: list[dict] = []
+        for title in titles:
+            entities = {**_empty_entities(), "title": title}
+            result = await self._execute_search(
+                data, phone_number, entities, query_label=title, confirm=False,
+            )
+            combined.extend(result.get("bot_response") or [])
+        data["bot_response"] = combined or [
+            {
+                "type": "text",
+                "text": "Sorry, I couldn't find those products right now.",
+                "_compose": "zero_results",
+            }
+        ]
+        data.pop("_url_search_titles", None)
+        return data
+
     async def process(self, data: dict) -> dict:
         phone_number = data["phone_number"]
         messages = data.get("messages", {})
 
         if not self.should_run(data):
             return data
+
+        # One or more product URLs pasted in this message (classifier.py's
+        # _apply_product_url_shortcut) -- search once per URL slug and merge,
+        # skipping everything below (confirmation, wizard, filter-fix) since
+        # this isn't a normal typed message. Runs for a single URL too: the
+        # link itself is already an unambiguous, explicit signal, so it
+        # always searches directly instead of risking an avoidable
+        # confirmation prompt from a category word independently inferred
+        # from the slug text (e.g. "pendant").
+        url_titles = data.get("_url_search_titles")
+        if url_titles:
+            return await self._handle_url_multi_search(data, phone_number, url_titles)
 
         user_profile = data.get("user_profile", {})
 

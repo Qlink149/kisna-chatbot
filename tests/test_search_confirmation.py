@@ -166,6 +166,32 @@ class RecapWordingTests(unittest.TestCase):
         recap = build_search_recap({"category": "ring", "collection": "Noor Collection"})
         self.assertEqual(recap, "rings in Noor Collection")
 
+    def test_title_now_surfaces_in_recap(self):
+        # Regression: a title search ("Shree Pendant") lost the title entirely
+        # once other filters (gender/price) were also present in the recap --
+        # the customer couldn't tell WHICH item the bot understood.
+        recap = build_search_recap(
+            {
+                "category": "pendant",
+                "title": "Shree Pendant",
+                "gender": "women",
+                "min_price": 50000,
+                "max_price": 60000,
+            }
+        )
+        self.assertEqual(
+            recap,
+            'pendants ("Shree Pendant") for women between ₹50,000 and ₹60,000',
+        )
+
+    def test_title_redundant_with_category_not_duplicated(self):
+        recap = build_search_recap({"category": "chain", "title": "chains"})
+        self.assertEqual(recap, "chains")
+
+    def test_title_alone_still_surfaces(self):
+        recap = build_search_recap({"title": "Shree Pendant"})
+        self.assertEqual(recap, 'jewellery ("Shree Pendant")')
+
     def test_karat_colour_collection_alone_now_worth_confirming(self):
         self.assertTrue(should_confirm({"karat": "18KT"}))
         self.assertTrue(should_confirm({"metal_colour": "rose"}))
