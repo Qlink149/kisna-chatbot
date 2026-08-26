@@ -2469,6 +2469,52 @@ def _apply_store_pincode_shortcut(data: dict) -> bool:
     return True
 
 
+def _apply_product_url_shortcut(data: dict, raw_query: str) -> bool:
+    """Route one or more pasted Kisna product URLs straight to product search.
+
+    A raw product URL is an unambiguous, high-confidence signal that doesn't
+    need LLM classification -- resolved the same way plain-text title search
+    already works (see kisna_product_url.py for why: Clara has no lookup-by-
+    id/slug/variant endpoint, only `title` substring search).
+    """
+    from kisna_chatbot.processors.product_search_agent_v3 import _empty_entities
+    from kisna_chatbot.utils.kisna_product_url import (
+        extract_kisna_product_urls,
+        product_url_to_title_query,
+    )
+
+    urls = extract_kisna_product_urls(raw_query, limit=3)
+    if not urls:
+        return False
+    phrases: list[str] = []
+    seen_phrases: set[str] = set()
+    for u in urls:
+        phrase = product_url_to_title_query(u)
+        if not phrase or phrase.lower() in seen_phrases:
+            # Different variant= ids of the SAME product slug resolve to the
+            # identical title phrase -- without this, the same product would
+            # be searched and shown twice.
+            continue
+        seen_phrases.add(phrase.lower())
+        phrases.append(phrase)
+    if not phrases:
+        return False
+
+    user_profile = data["user_profile"]
+    entities = {**_empty_entities(), "title": phrases[0]}
+    _store_llm_entities(data, user_profile, entities)
+    user_profile["service_selected"] = ServiceList.PRODUCT_SEARCH.value
+    data["classified_category"] = "product_search"
+    # Turn-scoped only -- not persisted to user_profile. Consumed and popped
+    # by ProductSearchAgentV3._handle_url_multi_search, for ONE url too: a
+    # pasted product link is an unambiguous, explicit signal, so it always
+    # searches directly rather than routing through the normal per-turn flow
+    # (which can independently infer a category from slug words like
+    # "pendant" and trigger an avoidable confirmation prompt).
+    data["_url_search_titles"] = phrases
+    return True
+
+
 _STORE_WORDS = ("store", "shop", "showroom", "outlet")
 _STORE_TYPO_TOKEN_RE = re.compile(r"[A-Za-z]{4,}")
 
@@ -2908,6 +2954,10 @@ class Classifier(Processor):
                 flow_keeps_turn = True
 
         if flow_keeps_turn or not self.should_run(data):
+            # NOTE: a pasted product URL landing here (a sticky wait owns the
+            # turn) is not detected -- _apply_product_url_shortcut only runs
+            # further down, on the ordinary per-turn path. Same pre-existing
+            # gap every shortcut below already has; not new breakage.
             if _apply_store_pincode_shortcut(data):
                 logger.info(
                     "Store lookup shortcut — routing to ad_flow",
@@ -2944,6 +2994,13 @@ class Classifier(Processor):
                         "Context: user was asked to clarify their previous message. "
                         f"Their clarification: {clarified}"
                     )
+
+                if _apply_product_url_shortcut(data, raw_query):
+                    logger.info(
+                        "Product URL shortcut — routing to product search",
+                        extra={"phone_number": phone_number},
+                    )
+                    return data
 
                 if _is_optout_keyword(raw_query):
                     return _unsubscribe(data)

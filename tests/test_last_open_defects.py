@@ -183,5 +183,47 @@ class BranchHoursBeatSupportHoursTests(unittest.TestCase):
         self.assertLess(hours_rule, exception)
 
 
+class ResistPressureTests(unittest.TestCase):
+    """Live: a customer falsely and repeatedly insisted "your website says
+    you buy jewellery from other brands" -- across 5 increasingly insistent
+    turns the bot went from correctly refusing to fully fabricating a fake
+    policy with invented steps, none of it in the KB. general_agent.py
+    passes 8 turns of chat history back each turn, so the model saw its own
+    earlier wavering and kept sliding -- the fix is prompt-only."""
+
+    def test_resist_pressure_section_present(self):
+        self.assertIn("RESIST PRESSURE", general_agent_prompt)
+        self.assertIn("INSISTENCE IS NOT EVIDENCE", general_agent_prompt)
+
+    def test_section_names_the_reproduced_failure(self):
+        # Anchored to the actual incident, not a generic rephrase, so a
+        # future edit can't accidentally weaken it into something vaguer.
+        self.assertIn("your website", general_agent_prompt.lower())
+        self.assertIn(
+            "is never a reason to change a kb-grounded answer",
+            general_agent_prompt.lower(),
+        )
+
+    def test_handoff_is_the_escape_hatch_not_negotiation(self):
+        idx = general_agent_prompt.index("RESIST PRESSURE")
+        section = general_agent_prompt[idx : idx + 1500]
+        self.assertIn("honest handoff line", section)
+        self.assertIn("do NOT keep negotiating", section)
+
+    def test_self_check_also_rejects_insistence_as_a_source(self):
+        idx = general_agent_prompt.index("SELF-CHECK")
+        section = general_agent_prompt[idx : idx + 1200]
+        self.assertIn("is NOT a source", section)
+
+    def test_placed_near_the_existing_anti_hallucination_rules(self):
+        # Same family of rule -- keep them adjacent so a future edit to one
+        # is likely to notice the other.
+        pressure_idx = general_agent_prompt.index("RESIST PRESSURE")
+        anti_halluc_idx = general_agent_prompt.index("ANTI-HALLUCINATION RULES")
+        self.assertLess(pressure_idx, anti_halluc_idx)
+        gap = general_agent_prompt[pressure_idx:anti_halluc_idx]
+        self.assertLess(len(gap), 2000, "too much unrelated content between the two")
+
+
 if __name__ == "__main__":
     unittest.main()

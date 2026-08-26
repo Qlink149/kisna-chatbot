@@ -125,6 +125,25 @@ def _category_phrase(entities: dict) -> str | None:
     return f"{', '.join(labels[:-1])} and {labels[-1]}"
 
 
+def _title_phrase(entities: dict) -> str | None:
+    """Bracket the customer's own product name so the recap stays specific.
+
+    Skipped when the title just echoes the category (e.g. title="chains",
+    category="chain") -- title_redundant_with_category already exists for
+    exactly this, see build_search_context's identical guard.
+    """
+    from kisna_chatbot.processors.entity_extractor import (
+        title_redundant_with_category,
+    )
+
+    title = entities.get("title")
+    if not title or not str(title).strip():
+        return None
+    if title_redundant_with_category(entities):
+        return None
+    return f'("{str(title).strip().title()}")'
+
+
 def build_search_recap(entities: dict) -> str:
     """Plain-language read-back of the filters a search will use."""
     entities = entities or {}
@@ -140,6 +159,10 @@ def build_search_recap(entities: dict) -> str:
 
         category = recap_product_word(entities)
     parts.append(category or "jewellery")
+
+    title_phrase = _title_phrase(entities)
+    if title_phrase:
+        parts.append(title_phrase)
 
     gender = _GENDER_LABELS.get(str(entities.get("gender") or "").lower())
     if gender:
