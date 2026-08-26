@@ -59,8 +59,11 @@ The HEAD OFFICE / corporate office / registered office is NOT a retail location 
 explains why and offers the store locator instead; routing it here asks the customer
 for a pincode without ever answering what they asked.
 
-**order_tracking** — Existing order status or its delivery: "mera order kahan hai",
-"track order", "delivery kab hogi" about a placed order, dispatch status.
+**order_status** — Confirmed/shipped/dispatched yet, not where it is: "order confirm hua
+kya", "ship hua ya nahi", "order status".
+
+**track_order** — WHERE the order is / WHEN it arrives: "mera order kahan hai",
+"track order", "kab tak milega". Unclear which → default track_order.
 
 **returns_refund** — Return/refund/exchange ACTION requests ("return karna hai",
 "wapas karna hai"). NOT how-to/policy questions.
@@ -121,7 +124,7 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
 4. Offers/discounts/sale/cashback on purchases → offers
 5. PHYSICAL store/showroom/outlet location (city, pincode, address, directions, nearest
    branch) → store_info, ≥0.9. NEVER product_search. See STORE vs PRODUCT below.
-6. Order tracking or order delivery timing → order_tracking
+6. Order confirmed/shipped → order_status; order location/arrival → track_order
 7. Return/refund/exchange action → returns_refund
 8. Damage/wrong delivery → complaint
 9. Live agent / human → human_handoff (≥0.9; never general, never low-confidence)
@@ -141,7 +144,7 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
 15. A product name → product_search or product_info ONLY — never general, never offers.
 16. Price + number in a browse context (under 50k, 1 lakh tak) → product_search
 17. Price of a NAMED product ("X ring ki price") → product_info
-18. Delivery days about an ORDER → order_tracking; about a PRODUCT → product_info
+18. Delivery status: ORDER → order_status/track_order (r6); PRODUCT → product_info
 19. Bare material ("gold", "diamond") with no action word → low confidence, do not guess
 20. While browsing, comparative questions ("cheapest", "sabse sasta", "which is better")
     → compare. Exception: picking ONE shown item ("2nd wala dikhao") → product_info.
@@ -152,7 +155,7 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
 22. Video call / consultation / video shopping → video_call
 23. Scheme / savings plan / KMR / Meri Roshni / installment plan → general (KB), NEVER
     offers — offers is only discounts on purchases.
-24. Damaged/wrong item in a DELIVERED order → complaint, NOT order_tracking.
+24. Damaged/wrong item in a DELIVERED order → complaint
 25. Order cancellation or modification → human_handoff (bot cannot cancel).
 26. MULTI-INTENT ("gold ring dikhao aur store bhi batao") → `intent` is the PRIMARY
     shopping action (usually the first concrete request) AND `secondary_intent` is
@@ -365,8 +368,12 @@ Fallback for unclear or spam/gibberish:
 "where is your store in Hyderabad" -> store_info .93
 "Mumbai me store hai kya" -> store_info .93
 "do you have diamond rings?" -> product_search .93    (item, not a place)
-"mera order kahan hai?" -> order_tracking .95
-"track order KIS123" -> order_tracking .93
+"mera order kahan hai?" -> track_order .95
+"मेरा ऑर्डर कहां है?" -> track_order .93 (hi)
+"મારો ઓર્ડર ક્યાં છે?" -> track_order .9 (gu)
+"order confirm hua kya?" -> order_status .9
+"ऑर्डर कन्फर्म हुआ या नहीं?" -> order_status .88 (hi)
+"ઓર્ડર કન્ફર્મ થયો કે નહીં?" -> order_status .85 (gu)
 "return karna hai" -> returns_refund .9
 "refund kab milega" -> returns_refund .88
 "return kaise karu?" -> general .9
@@ -409,9 +416,8 @@ Fallback for unclear or spam/gibberish:
 "aaj kya discount hai?" -> offers .93
 "making charge offer batao" -> offers .9
 "koi cashback milega?" -> offers .88
-"delivery kab hogi?" | no product context -> order_tracking .85
-"delivery kab hogi?" | order context -> order_tracking .9
-"order status" -> order_tracking .93
+"delivery kab hogi?" | order context -> track_order .9
+"order status" -> order_status .93
 "exchange possible hai?" -> general .88
 "product wapas karna hai" -> returns_refund .9
 "complaint darz karni hai" -> complaint .92

@@ -122,14 +122,18 @@ _FAQ_WH_START_RE = re.compile(
     re.I,
 )
 
-_ORDER_TRACKING_RE = re.compile(
-    r"\b(track\s+(my\s+)?order|order\s+status|where\s+is\s+my\s+order|"
-    r"delivery\s+status|shipment\s+status|mera\s+order|order\s+track)\b",
+_ORDER_STATUS_RE = re.compile(
+    r"\b(order\s+status|order\s+confirm(?:ed)?|order\s+placed|"
+    r"order\s+(?:ban(?:a)?|hua)\s*(?:ya\s*nahi)?|"
+    r"shipment\s+status|dispatch(?:ed)?\s*(?:hua|ya\s+nahi)?|"
+    r"ship(?:ped)?\s*(?:hua|ho\s+gaya)?\s*(?:ya\s+nahi)?)\b",
     re.I,
 )
 
-_ORDER_DELIVERY_RE = re.compile(
-    r"\b(mera\s+order|order.*delivery|delivery\s+kab|dispatch|shipment)\b",
+_ORDER_TRACK_RE = re.compile(
+    r"\b(track\s+(my\s+)?order|order\s+track|where\s+is\s+my\s+order|"
+    r"delivery\s+status|order\s+kaha|mera\s+order\s+kaha|"
+    r"delivery\s+kab|kab\s+tak\s+(?:milega|pahuchega|aayega))\b",
     re.I,
 )
 
@@ -687,8 +691,10 @@ def _sticky_wait_escape_intent(user_query: str) -> str | None:
         return "offers"
     if _STORE_LOOKUP_RE.search(normalized):
         return "store_info"
-    if _ORDER_TRACKING_RE.search(normalized) or _ORDER_DELIVERY_RE.search(normalized):
-        return "order_tracking"
+    if _ORDER_STATUS_RE.search(normalized):
+        return "order_status"
+    if _ORDER_TRACK_RE.search(normalized):
+        return "track_order"
     if _is_policy_action_query(normalized):
         return "returns_refund"
     if _COMPLAINT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
@@ -1059,8 +1065,8 @@ def _sanitize_llm_entities(entities: dict) -> dict:
 _ENTITY_STASH_KEY = "_context_free_entities"
 
 # Intents whose turn can end in a catalogue search, and therefore need entities.
-# Everything else (store_info, order_tracking, returns_refund, complaint,
-# callback, video_call, gold_rate, repair) needs none, and skipping the call
+# Everything else (store_info, order_status, track_order, returns_refund,
+# complaint, callback, video_call, gold_rate, repair) needs none, and skipping the call
 # there is where the saving comes from.
 _ENTITY_EXTRACTION_INTENTS = frozenset(
     {
@@ -1120,8 +1126,8 @@ def _store_llm_entities(data: dict, user_profile: dict, entities: dict) -> None:
 
 
 # Intents that can be answered or acknowledged as a SECOND request without
-# starting a flow of their own. order_tracking, returns_refund and complaint
-# are deliberately absent: each needs its own conversation.
+# starting a flow of their own. order_status, track_order, returns_refund and
+# complaint are deliberately absent: each needs its own conversation.
 _SECONDARY_INTENTS = frozenset(
     {"offers", "gold_rate", "store_info", "general"}
 )
@@ -1554,7 +1560,8 @@ _STICKY_ESCAPE_INTENTS = frozenset(
         "video_call",
         "gold_rate",
         "complaint",
-        "order_tracking",
+        "order_status",
+        "track_order",
         "returns_refund",
         "offers",
         "store_info",
@@ -2097,11 +2104,11 @@ def _keep_order_id_with_its_flow(
     text at all, in English or Hindi.
 
     Deliberately narrow: only when one of those flows is already active, only
-    when the intent resolved to order_tracking, and only when the message is
-    essentially JUST an id. "where is my order" mid-return is still a real
-    escape and still routes to tracking.
+    when the intent resolved to order_status or track_order, and only when the
+    message is essentially JUST an id. "where is my order" mid-return is still
+    a real escape and still routes to tracking.
     """
-    if intent != "order_tracking":
+    if intent not in ("order_status", "track_order"):
         return intent
     if user_profile.get("service_selected") not in _ORDER_ID_OWNING_SERVICES:
         return intent
@@ -2186,7 +2193,8 @@ def _route_resolved_intent(
             "product_search": "Product search",
             "store_info": "Store lookup",
             "offers": "Offers",
-            "order_tracking": "Order tracking",
+            "order_status": "Order status",
+            "track_order": "Track my order",
             "returns_refund": "Returns & refunds",
             "complaint": "Complaint",
             "greeting": "Greeting",
@@ -2588,7 +2596,8 @@ _CATEGORY_TO_SERVICE = {
     "compare": ServiceList.PRODUCT_SEARCH,
     "offers": ServiceList.OFFERS,
     "pre_order": ServiceList.PRE_ORDER,
-    "order_tracking": ServiceList.ORDER_TRACKING,
+    "order_status": ServiceList.ORDER_TRACKING,
+    "track_order": ServiceList.ORDER_TRACKING,
     "returns_refund": ServiceList.RETURNS_REFUND,
     "complaint": ServiceList.COMPLAINT,
     "store_info": ServiceList.AD_FLOW,

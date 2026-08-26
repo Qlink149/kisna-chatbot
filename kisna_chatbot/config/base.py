@@ -85,7 +85,7 @@ class ClientConfig(BaseModel):
         default=True,
         description=(
             "Whether order tracking flows are enabled. "
-            "When False, order_tracking intent is not offered."
+            "When False, order_status/track_order intents are not offered."
         ),
     )
     intent_categories: list[str] = Field(

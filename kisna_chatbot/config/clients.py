@@ -22,7 +22,8 @@ KISNA_INTENT_CATEGORIES = [
     "store_locator",
     "offers",
     "pre_order",
-    "order_tracking",
+    "order_status",
+    "track_order",
     "human_handoff",
 ]
 

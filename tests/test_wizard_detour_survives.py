@@ -84,7 +84,8 @@ class RestoreAfterSafeDetourTests(unittest.TestCase):
         for intent in (
             "human_handoff",
             "complaint",
-            "order_tracking",
+            "order_status",
+            "track_order",
             "returns_refund",
             "callback",
             "video_call",

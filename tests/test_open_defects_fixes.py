@@ -570,9 +570,9 @@ class SecondaryIntentTests(unittest.TestCase):
             self.assertEqual(self._parse("product_search", value), value)
 
     def test_a_flow_starting_intent_is_refused(self):
-        """order_tracking needs an id, returns needs a reason, complaint needs
-        a conversation -- none can be bolted onto another turn."""
-        for value in ("order_tracking", "returns_refund", "complaint",
+        """order_status/track_order need an id, returns needs a reason,
+        complaint needs a conversation -- none can be bolted onto another turn."""
+        for value in ("order_status", "track_order", "returns_refund", "complaint",
                       "human_handoff", "video_call", "callback"):
             self.assertIsNone(self._parse("product_search", value), value)
 
@@ -1029,7 +1029,7 @@ class OrderIdOwnershipTests(unittest.TestCase):
     """D2: answering the returns prompt with an order number derailed into
     order tracking, and the returns prompt then restarted."""
 
-    def _route(self, service, text, intent="order_tracking"):
+    def _route(self, service, text, intent="track_order"):
         from kisna_chatbot.processors.classifier import _keep_order_id_with_its_flow
 
         return _keep_order_id_with_its_flow({"service_selected": service}, text, intent)
@@ -1037,17 +1037,21 @@ class OrderIdOwnershipTests(unittest.TestCase):
     def test_an_id_stays_with_the_flow_that_asked(self):
         self.assertEqual(self._route("returns_refund", "KIS12345"), "returns_refund")
         self.assertEqual(self._route("complaint", "KIS12345"), "complaint")
+        self.assertEqual(
+            self._route("returns_refund", "KIS12345", intent="order_status"),
+            "returns_refund",
+        )
 
     def test_a_sentence_is_still_a_real_escape(self):
         """"where is my order" mid-return genuinely leaves the flow."""
         self.assertEqual(
             self._route("returns_refund", "actually where is my order KIS12345 now please"),
-            "order_tracking",
+            "track_order",
         )
 
     def test_other_flows_are_untouched(self):
-        self.assertEqual(self._route("product_search", "KIS12345"), "order_tracking")
-        self.assertEqual(self._route("", "KIS12345"), "order_tracking")
+        self.assertEqual(self._route("product_search", "KIS12345"), "track_order")
+        self.assertEqual(self._route("", "KIS12345"), "track_order")
 
     def test_a_non_tracking_intent_is_untouched(self):
         self.assertEqual(

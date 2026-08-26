@@ -628,7 +628,8 @@ class AdFlowAgent(Processor):
                         if escape_intent in ("product_search", "product_info")
                         else {
                             "offers": SL.OFFERS.value,
-                            "order_tracking": SL.ORDER_TRACKING.value,
+                            "order_status": SL.ORDER_TRACKING.value,
+                            "track_order": SL.ORDER_TRACKING.value,
                             "returns_refund": SL.RETURNS_REFUND.value,
                             "complaint": SL.COMPLAINT.value,
                         }.get(escape_intent, SL.GENERAL.value)

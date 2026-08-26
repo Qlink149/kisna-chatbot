@@ -48,8 +48,18 @@ from kisna_chatbot.utils.whatsapp_window import is_window_open
 from kisna_chatbot.whatsapp_functions.send_kisna_welcome_template import (
     send_kisna_welcome_template,
 )
+import os
 import re
 import time
+
+# "Submitted" (Gupshup accepted the send) is not "delivered" (WhatsApp
+# finished uploading/processing and rendered it). An image_with_cta needs more
+# real-world buffer than a lightweight interactive message before the next
+# item is submitted, or a later item can win the delivery race and render
+# first -- see the note at the call site. Env-tunable since the right value
+# depends on live delivery timings, not something to guess once and freeze.
+_DEFAULT_SEND_DELAY_SECONDS = float(os.getenv("KISNA_SEND_DELAY_SECONDS", "0.4"))
+_IMAGE_SEND_DELAY_SECONDS = float(os.getenv("KISNA_IMAGE_SEND_DELAY_SECONDS", "1.2"))
 
 # The LLM (GeneralAgent especially, but any free-generation path can do it)
 # frequently reaches for standard Markdown **bold** despite prompt
@@ -200,7 +210,21 @@ class ResponseManager:
                         logger.warning(f"Message not confirmed: {result}")
                     else:
                         logger.info("message submitted")
-                        time.sleep(0.4)
+                        # "submitted" only means Gupshup accepted the send --
+                        # not that WhatsApp finished uploading/processing the
+                        # media and rendered it on the customer's phone. A
+                        # lightweight interactive message (e.g. the "See
+                        # Collection" cta_url) can win that delivery race and
+                        # visibly appear BEFORE a still-processing product
+                        # image sent moments earlier, even though we submitted
+                        # them to Gupshup in the correct order. Give image
+                        # sends extra buffer so the next item doesn't overtake
+                        # them on WhatsApp's own delivery pipeline.
+                        time.sleep(
+                            _IMAGE_SEND_DELAY_SECONDS
+                            if response_type == "image_with_cta"
+                            else _DEFAULT_SEND_DELAY_SECONDS
+                        )
             else:
                 logger.error(
                     "Unknown bot_response type: %s — skipping send",
@@ -329,7 +353,7 @@ class ResponseManager:
                         "type": "text",
                         "text": (
                             "Sorry, couldn't open the budget form right now. "
-                            "Please type your budget, e.g. '25000', '15000-35000', or '1 lakh'."
+                            "Please type your budget, e.g. '25000', '15000-35000', or '100000'."
                         ),
                     },
                 )

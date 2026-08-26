@@ -280,7 +280,7 @@ class ConfirmationRefinementTests(unittest.TestCase):
         """The classifier's route is what vetoes an escape now."""
         for text, route in (
             ("do you have a store in Mumbai", "store_info"),
-            ("where is my order", "order_tracking"),
+            ("where is my order", "track_order"),
             ("hi", "greeting"),
         ):
             self.assertIsNone(self._merge(self.PENDING, text, {}, route), text)

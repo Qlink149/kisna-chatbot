@@ -427,7 +427,7 @@
       "id": "sv-07",
       "bucket": "service",
       "message": "my order track",
-      "expect_intent": "order_tracking",
+      "expect_intent": "track_order",
       "expect_entities": {},
       "rationale": "Status of an existing order."
     },

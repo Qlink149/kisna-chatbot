@@ -423,7 +423,11 @@ class SilentFlowSwitchTests(unittest.TestCase):
     def test_flow_switch_ack_text(self):
         self.assertIn(
             "order",
-            flow_switch_acknowledgement("product_search", "order_tracking").lower(),
+            flow_switch_acknowledgement("product_search", "track_order").lower(),
+        )
+        self.assertIn(
+            "order",
+            flow_switch_acknowledgement("product_search", "order_status").lower(),
         )
 
     def test_acknowledgement_is_text(self):
