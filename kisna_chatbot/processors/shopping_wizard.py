@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 
@@ -628,6 +629,24 @@ def _apply_any_slot(collected: dict, step: str) -> None:
         collected["fulfillment"] = ANY_SLOT
 
 
+def is_material_fulfillment_ask_enabled() -> bool:
+    """Temporary client-requested toggle.
+
+    Off while Clara's own materialType / readyTOShip / madeToOrder filters have
+    known bugs on their side (~2 month fix ETA, client-confirmed). The wizard
+    still HONOURS either one when a customer states it unprompted in free text
+    (seed_wizard_from_entities runs before get_next_step ever sees `collected`)
+    -- this flag only controls whether the wizard ever ASKS for them. Flip
+    KISNA_WIZARD_ASK_MATERIAL_FULFILLMENT=true once Clara's fix ships to
+    restore today's behaviour with no further code changes.
+    """
+    return os.getenv("KISNA_WIZARD_ASK_MATERIAL_FULFILLMENT", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
 def get_next_step(collected: dict) -> str | None:
     """Return the next missing step, or None when ready to search.
 
@@ -635,11 +654,12 @@ def get_next_step(collected: dict) -> str | None:
     the next prompt so ≤1-option facets never ask the user.
     """
     apply_dynamic_wizard_skips(collected)
+    ask_material_fulfillment = is_material_fulfillment_ask_enabled()
     if not collected.get("category"):
         return "category"
     if not collected.get("gender"):
         return "gender"
-    if not collected.get("material_type"):
+    if ask_material_fulfillment and not collected.get("material_type"):
         return "material"
     if (
         collected.get("budget") != ANY_SLOT
@@ -647,7 +667,7 @@ def get_next_step(collected: dict) -> str | None:
         and collected.get("max_price") is None
     ):
         return "budget"
-    if not collected.get("fulfillment"):
+    if ask_material_fulfillment and not collected.get("fulfillment"):
         return "fulfillment"
     return None
 

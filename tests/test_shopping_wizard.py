@@ -4,6 +4,7 @@ import asyncio
 import os
 import time
 import unittest
+from unittest.mock import patch
 
 import pytest
 
@@ -22,6 +23,13 @@ for _k, _v in {
     "KISNA_VTIGER_BASE": "http://localhost/vtiger",
     "KISNA_VTIGER_TOKEN": "test",
     "KB_ENABLED": "false",
+    # This whole file exercises the full material/fulfillment ask sequence,
+    # which is now off by default (temporary client request while Clara's own
+    # materialType/readyTOShip/madeToOrder filters have known bugs -- see
+    # is_material_fulfillment_ask_enabled). Restore the "ask" behaviour these
+    # tests were written to verify; the off-by-default case has its own
+    # dedicated tests below.
+    "KISNA_WIZARD_ASK_MATERIAL_FULFILLMENT": "true",
 }.items():
     os.environ.setdefault(_k, _v)
 
@@ -35,6 +43,7 @@ from kisna_chatbot.processors.shopping_wizard import (  # noqa: E402
     entities_from_wizard,
     filter_by_fulfillment,
     get_next_step,
+    is_material_fulfillment_ask_enabled,
     seed_wizard_from_entities,
     should_start_wizard,
     start_wizard,
@@ -969,9 +978,112 @@ class BudgetBandSnapTests(unittest.TestCase):
                 self.assertIsNone(_budget_from_text(raw))
     def test_native_script_defers_to_the_model(self):
         """Only the LLM can read these, so its value must survive untouched."""
-        for text in ("एक लाख", "ஒரு லட்சம்", "ಒಂದು ಲಕ್ಷ"):
+        for text in ("एक लाख", "ஒரு லட்சம்", "ಒಂದு ಲಕ್ಷ"):
             with self.subTest(text=text):
                 self.assertEqual(
                     (None, 100000),
                     self._budget(text, {"min_price": None, "max_price": 100000}),
                 )
+
+
+class MaterialFulfillmentAskDisabledTests(unittest.TestCase):
+    """Temporary client-requested default: never ASK material/fulfillment
+    while Clara's own materialType/readyTOShip/madeToOrder filters have known
+    bugs -- but still HONOUR either one when the customer states it themselves.
+    """
+
+    def setUp(self):
+        self._patcher = patch.dict(
+            os.environ, {"KISNA_WIZARD_ASK_MATERIAL_FULFILLMENT": "false"}
+        )
+        self._patcher.start()
+
+    def tearDown(self):
+        self._patcher.stop()
+
+    def test_flag_reads_false_by_default_when_unset(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("KISNA_WIZARD_ASK_MATERIAL_FULFILLMENT", None)
+            self.assertFalse(is_material_fulfillment_ask_enabled())
+
+    def test_flag_off_here(self):
+        self.assertFalse(is_material_fulfillment_ask_enabled())
+
+    def test_never_asks_material_goes_straight_to_budget(self):
+        seeded = seed_wizard_from_entities({"category": "ring", "gender": "women"})
+        self.assertEqual(get_next_step(seeded), "budget")
+
+    def test_never_asks_fulfillment_completes_after_budget(self):
+        seeded = seed_wizard_from_entities(
+            {"category": "ring", "gender": "women", "max_price": 30000, "min_price": 0}
+        )
+        self.assertIsNone(get_next_step(seeded))
+
+    def test_full_wizard_never_shows_material_or_fulfillment_prompts(self):
+        profile = {}
+        responses = start_wizard(profile, entities={"category": "ring"})
+        msgids = [r.get("msgid") for r in responses]
+        self.assertNotIn("wizard$material", msgids)
+
+        status, responses = advance_wizard(
+            profile,
+            {
+                "interactive": {
+                    "type": "button_reply",
+                    "button_reply": {"id": "wizard$gender", "title": "Female"},
+                }
+            },
+        )
+        self.assertEqual(status, "prompt")
+        self.assertEqual(profile["shopping_wizard_step"], "budget")
+        self.assertNotEqual(responses[0].get("msgid"), "wizard$material")
+
+        status, responses = advance_wizard(profile, {}, text="30000")
+        self.assertEqual(status, "complete")
+        self.assertIsNone(responses)
+        self.assertEqual(profile["shopping_wizard_step"], "complete")
+
+        entities = entities_from_wizard(profile["shopping_wizard_data"])
+        self.assertIsNone(entities["material_type"])
+        self.assertIsNone(entities["fulfillment"])
+        self.assertEqual(entities["category"], "ring")
+        self.assertEqual(entities["gender"], "women")
+
+    def test_explicit_material_still_honoured_though_never_asked(self):
+        """'gold ring' -- material seeded from free text must still reach the
+        API even though the wizard would never have asked for it."""
+        seeded = seed_wizard_from_entities(
+            {"category": "ring", "gender": "women", "material_type": "gold"}
+        )
+        # Confirmed still skips straight past "material" (never asked)...
+        self.assertEqual(get_next_step(seeded), "budget")
+        # ...but the explicit value the customer gave is preserved untouched.
+        self.assertEqual(seeded["material_type"], "gold")
+        entities = entities_from_wizard(seeded)
+        self.assertEqual(entities["material_type"], "gold")
+
+    def test_explicit_fulfillment_still_honoured_though_never_asked(self):
+        """'ready to ship diamond necklace' -- same guarantee for fulfillment."""
+        seeded = seed_wizard_from_entities(
+            {
+                "category": "necklace",
+                "gender": "women",
+                "material_type": "diamond",
+                "fulfillment": "ready",
+                "max_price": 50000,
+                "min_price": 0,
+            }
+        )
+        self.assertIsNone(get_next_step(seeded))
+        entities = entities_from_wizard(seeded)
+        self.assertEqual(entities["fulfillment"], "ready")
+        self.assertEqual(entities["material_type"], "diamond")
+
+    def test_flag_true_restores_full_ask_sequence(self):
+        """Proves the revert path: flipping the env var back needs no code changes."""
+        with patch.dict(
+            os.environ, {"KISNA_WIZARD_ASK_MATERIAL_FULFILLMENT": "true"}
+        ):
+            self.assertTrue(is_material_fulfillment_ask_enabled())
+            seeded = seed_wizard_from_entities({"category": "ring", "gender": "women"})
+            self.assertEqual(get_next_step(seeded), "material")
