@@ -870,7 +870,7 @@ def build_budget_rejection_prompt() -> dict:
         "type": "text",
         "text": (
             "That doesn't look like a budget amount — could you type your "
-            "budget in rupees? e.g. *25000* or *1 lakh*"
+            "budget in rupees? e.g. *25000* or *100000*"
         ),
         "_compose": "wizard_budget",
     }
@@ -947,8 +947,9 @@ def build_step_prompt(step: str, collected: dict | None = None) -> dict:
         return {
             "type": "text",
             "text": (
-                "What's your budget? e.g. under 25k, 15–35k, around 1 lakh "
-                "(or say *no specific budget*)"
+                "What's your budget? e.g. under 25000, 15000–35000, around "
+                "100000 (Write your budget in number, or say "
+                "*no specific budget*)"
             ),
             "_compose": "wizard_budget",
         }

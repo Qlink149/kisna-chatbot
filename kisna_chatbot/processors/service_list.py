@@ -80,11 +80,13 @@ _WHAT_TODAY = "What would you like to do today?"
 
 _SLOT_FILL_QUESTION = (
     "Lovely! Are you thinking rings, earrings, necklaces…? "
-    "And any budget in mind? e.g. under 25k, 15–35k, around 1 lakh"
+    "And any budget in mind? e.g. under 25000, 15000–35000, around 100000 "
+    "(Write your budget in number)"
 )
 
 _BUDGET_TEXT_PROMPT = (
-    "What budget do you have in mind? e.g. under 25k, 15–35k, around 1 lakh"
+    "What budget do you have in mind? e.g. under 25000, 15000–35000, "
+    "around 100000 (Write your budget in number)"
 )
 
 _ACK_TEXT = (
@@ -503,14 +505,16 @@ def flow_switch_acknowledgement(current_service: str, new_intent: str) -> str:
     """One-line natural acknowledgement when switching flows silently."""
     acks = {
         (SL.PRODUCT_SEARCH.value, "offers"): "Sure — let me show you today's offers.",
-        (SL.PRODUCT_SEARCH.value, "order_tracking"): "Sure — let's look at your order.",
+        (SL.PRODUCT_SEARCH.value, "order_status"): "Sure — let's check your order status.",
+        (SL.PRODUCT_SEARCH.value, "track_order"): "Sure — let's look at your order.",
         (SL.PRODUCT_SEARCH.value, "returns_refund"): "Sure — I'll help with returns.",
         (SL.PRODUCT_SEARCH.value, "complaint"): "Sure — let's get your issue logged.",
         (SL.PRODUCT_SEARCH.value, "store_info"): "Sure — let's find a store near you.",
         (SL.OFFERS.value, "product_search"): "Sure — let's browse some jewellery.",
         (SL.AD_FLOW.value, "product_search"): "Sure — let's look at jewellery.",
         (SL.AD_FLOW.value, "offers"): "Sure — let me show you offers.",
-        (SL.AD_FLOW.value, "order_tracking"): "Sure — let's check your order.",
+        (SL.AD_FLOW.value, "order_status"): "Sure — let's check your order status.",
+        (SL.AD_FLOW.value, "track_order"): "Sure — let's check your order.",
     }
     return acks.get(
         (current_service, (new_intent or "").strip().lower()),
@@ -593,7 +597,7 @@ def build_clarification_bot_response(intent: str, confidence: float) -> list[dic
         )
     elif intent in ("store_info",):
         text = "Are you looking for a KISNA store near you? Share your PIN code or city."
-    elif intent in ("order_tracking", "complaint", "returns_refund"):
+    elif intent in ("order_status", "track_order", "complaint", "returns_refund"):
         text = (
             "Is this about tracking an existing order, or reporting an issue with one?"
         )
@@ -625,7 +629,7 @@ def handle_clarification_quick_reply(
             return True
         if title in ("track order",):
             user_profile["service_selected"] = SL.ORDER_TRACKING.value
-            data["classified_category"] = "order_tracking"
+            data["classified_category"] = "track_order"
             data["bot_response"] = build_track_order_bot_response()
             return True
         if title in ("find store",):
@@ -665,7 +669,7 @@ def handle_clarification_quick_reply(
             data["bot_response"] = [build_complaint_flow_bot_response()]
             return True
         user_profile["service_selected"] = SL.ORDER_TRACKING.value
-        data["classified_category"] = "order_tracking"
+        data["classified_category"] = "track_order"
         data["bot_response"] = build_track_order_bot_response()
         return True
 

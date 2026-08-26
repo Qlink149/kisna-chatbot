@@ -116,6 +116,32 @@ def mark_inbound_processed(
         return False
 
 
+def _ensure_explore_more_cta_last(data: dict) -> None:
+    """Keep the "See Collection" button last in the whole turn, not just
+    within the search result that built it.
+
+    _build_search_success_response already appends it last -- this guards
+    against anything appended AFTER that (e.g. append_secondary_answer
+    tacking a gold-rate/offers/store answer onto the same turn), which would
+    otherwise leave the CTA stranded mid-list. Stable reorder: only the CTA
+    moves, everything else keeps its relative order.
+    """
+    bot_response = data.get("bot_response")
+    if not isinstance(bot_response, list) or len(bot_response) < 2:
+        return
+
+    def _is_explore_more(item) -> bool:
+        return isinstance(item, dict) and item.get("_compose") == "search_explore_more"
+
+    if not any(_is_explore_more(item) for item in bot_response):
+        return
+    if _is_explore_more(bot_response[-1]):
+        return
+    cta_items = [item for item in bot_response if _is_explore_more(item)]
+    rest = [item for item in bot_response if not _is_explore_more(item)]
+    data["bot_response"] = rest + cta_items
+
+
 CLARA_EVENTS_SWEEP_SECONDS = int(os.getenv("KISNA_CLARA_EVENTS_SWEEP_SECONDS", "300"))
 
 
@@ -768,6 +794,7 @@ async def process_message(
                 )
 
                 await append_secondary_answer(data)
+                _ensure_explore_more_cta_last(data)
                 await localize_bot_responses(data)
                 await _persist_session(data, phone_number, pipeline_start)
                 responses_to_send = data

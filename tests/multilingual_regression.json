@@ -135,7 +135,7 @@
       "id": "hi-06",
       "bucket": "hi-native",
       "message": "मेरा ऑर्डर कहाँ है?",
-      "expect_intent": "order_tracking",
+      "expect_intent": "track_order",
       "expect_entities": {}
     },
     {

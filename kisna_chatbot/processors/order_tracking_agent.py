@@ -130,6 +130,33 @@ def _build_generic_tracking_response(tracking_url: str) -> list:
     ]
 
 
+def _build_status_response(order_id: str, status_url: str) -> list:
+    return [
+        {
+            "type": "cta_url",
+            "text": (
+                f"Order *{order_id}* — click below to check your order "
+                "status. 📦"
+            ),
+            "display_text": "Order Status",
+            "_compose": "order_status_cta",
+            "url": status_url,
+        },
+    ]
+
+
+def _build_generic_status_response(status_url: str) -> list:
+    return [
+        {
+            "type": "cta_url",
+            "text": "Click below to check your order status. 📦",
+            "display_text": "Order Status",
+            "_compose": "order_status_cta",
+            "url": status_url,
+        },
+    ]
+
+
 def build_track_order_bot_response(
     order_id: str | None = None,
     client_id: str = "kisna",
@@ -147,11 +174,30 @@ def _build_error_response(text: str) -> list:
     return [{"type": "text", "text": text, "_compose": "system_error"}]
 
 
+def _resolve_tracking_kind(data: dict, interactive: dict) -> str:
+    """Which of the two order-tracking intents applies this turn.
+
+    No persistent state needed -- service_selected is cleared on every
+    response (process(), below), so this agent is single-shot per turn. The
+    track$ button is unambiguous (always means "track my order"); otherwise
+    trust the classifier's fresh read of the current message, which already
+    has full conversational context. Falls back to track_order, matching the
+    pre-split default most closely (e.g. the static main-menu button, which
+    sets service_selected without a classified_category).
+    """
+    if _is_track_button(interactive):
+        return "track_order"
+    classified = data.get("classified_category")
+    if classified in ("order_status", "track_order"):
+        return classified
+    return "track_order"
+
+
 class OrderTrackingAgent(Processor):
-    """Handles order tracking via track$ buttons or order_tracking intent."""
+    """Handles order status / order tracking via track$ buttons or intent."""
 
     def should_run(self, data: dict) -> bool:
-        """Run for order_tracking category or track$ button taps."""
+        """Run for order_status/track_order category or track$ button taps."""
         if "bot_response" in data:
             return False
 
@@ -165,7 +211,7 @@ class OrderTrackingAgent(Processor):
         interactive = messages.get("interactive", {})
 
         user_profile = data.get("user_profile", {})
-        if data.get("classified_category") == "order_tracking":
+        if data.get("classified_category") in ("order_status", "track_order"):
             return True
         if user_profile.get("service_selected") == "order_tracking":
             return True
@@ -190,6 +236,8 @@ class OrderTrackingAgent(Processor):
             )
             return data
 
+        interactive = messages.get("interactive", {})
+        kind = _resolve_tracking_kind(data, interactive)
         order_id = _resolve_order_id(data, messages)
 
         adapter = ClientAPIAdapter(client_config)
@@ -200,14 +248,22 @@ class OrderTrackingAgent(Processor):
                     "phone_number": phone_number,
                     "order_id": order_id,
                     "client_id": client_id,
+                    "kind": kind,
                 },
             )
 
-            tracking_url = adapter.get_order_tracking_url(order_id or "")
-            if order_id:
-                data["bot_response"] = _build_tracking_response(order_id, tracking_url)
+            if kind == "order_status":
+                status_url = adapter.get_order_status_url(order_id or "")
+                if order_id:
+                    data["bot_response"] = _build_status_response(order_id, status_url)
+                else:
+                    data["bot_response"] = _build_generic_status_response(status_url)
             else:
-                data["bot_response"] = _build_generic_tracking_response(tracking_url)
+                tracking_url = adapter.get_order_tracking_url(order_id or "")
+                if order_id:
+                    data["bot_response"] = _build_tracking_response(order_id, tracking_url)
+                else:
+                    data["bot_response"] = _build_generic_tracking_response(tracking_url)
 
             logger.info(
                 "Order tracking URL generated",
@@ -215,6 +271,7 @@ class OrderTrackingAgent(Processor):
                     "phone_number": phone_number,
                     "order_id": order_id,
                     "client_id": client_id,
+                    "kind": kind,
                 },
             )
             user_profile["service_selected"] = ""

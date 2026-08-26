@@ -20,9 +20,9 @@ from kisna_chatbot.prompts.classifier_kisna import kisna_classifier_intent
 
 ALL_INTENTS = (
     "greeting", "menu_help", "product_search", "product_info", "compare",
-    "repair", "offers", "store_info", "order_tracking", "returns_refund",
-    "complaint", "human_handoff", "callback", "video_call", "gold_rate",
-    "general",
+    "repair", "offers", "store_info", "order_status", "track_order",
+    "returns_refund", "complaint", "human_handoff", "callback", "video_call",
+    "gold_rate", "general",
 )
 
 # Structurally dominant by design: the catalogue is the product, and general

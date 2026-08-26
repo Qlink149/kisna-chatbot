@@ -489,3 +489,20 @@ class ClientAPIAdapter:
 
         base = self._require_base(self._config.product_api_base, "product_api_base")
         return f"{base}/track/{order_id}"
+
+    def get_order_status_url(self, order_id: str) -> str:
+        """
+        Build the order status URL for the configured client.
+
+        Uses KISNA_ORDER_STATUS_URL when set; otherwise falls back to the
+        same destination as get_order_tracking_url (order-status and
+        order-tracking share one page until a client-specific status URL is
+        configured).
+        """
+        import os
+
+        url = os.getenv("KISNA_ORDER_STATUS_URL", "").strip()
+        if url:
+            return append_kisna_utm(url)
+
+        return self.get_order_tracking_url(order_id)
