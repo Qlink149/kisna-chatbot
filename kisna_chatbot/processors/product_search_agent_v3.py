@@ -16,6 +16,7 @@ from kisna_chatbot.processors.service_list import (
 )
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.entity_extractor import (
+    _CATEGORY_SYNONYMS,
     _NEVER_INHERIT_FIELDS,
     apply_llm_evidence_gate,
     apply_occasion_style_hints,
@@ -1560,6 +1561,35 @@ def _extract_search_query(messages: dict) -> str | None:
     return None
 
 
+# Every generic jewellery noun across every language _CATEGORY_SYNONYMS knows
+# about ("locket", "pendant", "chain", "kada", ...), flattened once. Used to
+# strip a generic word a customer's own phrasing tacked onto a real product
+# name (title="Shree locket") -- never to guess a product name from scratch.
+_GENERIC_TITLE_WORDS: frozenset[str] = frozenset(
+    word.lower()
+    for synonyms in _CATEGORY_SYNONYMS.values()
+    for word in synonyms
+)
+
+
+def _strip_generic_title_words(title: str) -> str | None:
+    """Drop generic jewellery-category words from a multi-word title.
+
+    Case-insensitive on the match; casing of surviving tokens is preserved
+    exactly as extracted, since we don't know whether Clara's own title
+    matching is case-sensitive and there's no reason to rewrite it either way.
+    Returns None if nothing distinctive survives.
+    """
+    tokens = title.split()
+    if len(tokens) < 2:
+        return None
+    kept = [t for t in tokens if t.strip(".,!?").lower() not in _GENERIC_TITLE_WORDS]
+    if not kept or len(kept) == len(tokens):
+        return None
+    stripped = " ".join(kept).strip()
+    return stripped or None
+
+
 def _build_fallback_strategies(
     entities: dict,
 ) -> list[tuple[dict, str | None, str]]:
@@ -1578,6 +1608,17 @@ def _build_fallback_strategies(
             strategies.append((ent, note_kind, label))
 
     add(entities, None, "full")
+
+    # A real, literal title always gets tried first (the "full" rung above) --
+    # this only fires as a FALLBACK when that returns nothing, never as an
+    # upfront rewrite. "Shree locket" -> "Shree" recovers the real product;
+    # if a product genuinely were titled with the generic word attached, the
+    # literal rung already had first crack at it.
+    raw_title = entities.get("title")
+    if isinstance(raw_title, str) and raw_title.strip():
+        stripped_title = _strip_generic_title_words(raw_title.strip())
+        if stripped_title and stripped_title.lower() != raw_title.strip().lower():
+            add({**entities, "title": stripped_title}, None, "title_stripped")
 
     # Ready-to-ship is a catalog subset — expand before dropping gold/budget.
     if entities.get("fulfillment"):
@@ -1639,6 +1680,58 @@ def _build_fallback_strategies(
         add(cat_only, "category", "category_only")
 
     return strategies
+
+
+_TITLE_VARIANT_PROMPT = (
+    "A jewellery shop's product title is being searched by this term: \"{title}\"\n\n"
+    "If this looks like a proper noun or devotional/Sanskrit-derived name with common "
+    "alternate English-alphabet spellings (e.g. Sri/Shri/Shree, Ganesh/Ganesha, Om/Aum, "
+    "Laxmi/Lakshmi), reply with up to 3 alternate spellings as a comma-separated list, "
+    "most likely first. If it is an ordinary English word with no meaningful spelling "
+    "variant, reply with exactly: none\n\n"
+    "Reply with the list (or 'none') only. No explanation, no punctuation beyond commas."
+)
+
+
+async def _suggest_title_spelling_variants(
+    title: str,
+    *,
+    client_id: str = "kisna",
+    phone_number: str | None = None,
+) -> list[str]:
+    """Up to 3 alternate English spellings for a proper noun (transliteration variants).
+
+    Only called once the literal title (and its generic-noun-stripped form) have
+    already failed to match anything -- this never pre-empts a correct literal
+    match, it only adds a chance to succeed where today there is none. Never
+    makes things worse than no suggestion: any failure returns [].
+    """
+    from kisna_chatbot.ai.factory import complete_chat
+    from kisna_chatbot.ai.types import AgentName
+
+    try:
+        raw = await complete_chat(
+            agent=AgentName.CLASSIFIER,
+            agent_display_name="Title Spelling Variants",
+            instruction=_TITLE_VARIANT_PROMPT.format(title=title),
+            messages=[{"role": "user", "content": title}],
+            max_output_tokens=40,
+            phone_number=phone_number,
+            client_id=client_id,
+        )
+    except Exception:
+        logger.warning(
+            "Title spelling variant lookup unavailable — skipping",
+            extra={"title": title, "phone_number": phone_number},
+            exc_info=True,
+        )
+        return []
+
+    text = (raw or "").strip().strip(".")
+    if not text or text.lower() == "none":
+        return []
+    variants = [v.strip() for v in text.split(",")]
+    return [v for v in variants if v][:3]
 
 
 def _fallback_prefix_note(
@@ -3664,8 +3757,9 @@ class ProductSearchAgentV3(Processor):
             prefix_parts.insert(0, _UNSUPPORTED_MATERIAL_NOTE)
         intro_relaxed = False
         _filter_ratio = 1.0
+        title_variants_tried = False
 
-        for strategy_entities, note_kind, log_label in strategies:
+        for idx, (strategy_entities, note_kind, log_label) in enumerate(strategies):
             api_params = entities_to_api_params(strategy_entities)
             api_page_size = resolve_api_page_size(strategy_entities)
             query_params = None
@@ -4012,6 +4106,49 @@ class ProductSearchAgentV3(Processor):
                     # set of results. Keep the specific one.
                     intro_relaxed = False
                 break
+
+            # This rung found nothing. If it was the last of the (free,
+            # deterministic) title-correction rungs -- "full" or, when it
+            # exists, "title_stripped" -- try LLM-suggested spelling variants
+            # once before the ladder starts relaxing real constraints
+            # (fulfillment/price/material). Only fires when a title is in
+            # play; on any failure it's a no-op and the ladder proceeds
+            # exactly as it does today.
+            next_is_also_title_rung = (
+                idx + 1 < len(strategies) and strategies[idx + 1][2] in ("full", "title_stripped")
+            )
+            current_title = strategy_entities.get("title")
+            if (
+                not title_variants_tried
+                and log_label in ("full", "title_stripped")
+                and not next_is_also_title_rung
+                and isinstance(current_title, str)
+                and current_title.strip()
+            ):
+                title_variants_tried = True
+                variants = await _suggest_title_spelling_variants(
+                    current_title.strip(),
+                    client_id=data.get("client_id", "kisna"),
+                    phone_number=phone_number,
+                )
+                new_entries: list[tuple[dict, str | None, str]] = []
+                seen_titles = {current_title.strip().lower()}
+                for variant in variants:
+                    variant = variant.strip()
+                    if not variant or variant.lower() in seen_titles:
+                        continue
+                    seen_titles.add(variant.lower())
+                    new_entries.append(
+                        ({**entities, "title": variant}, None, "title_llm_variant")
+                    )
+                    stripped_variant = _strip_generic_title_words(variant)
+                    if stripped_variant and stripped_variant.lower() not in seen_titles:
+                        seen_titles.add(stripped_variant.lower())
+                        new_entries.append(
+                            ({**entities, "title": stripped_variant}, None, "title_llm_variant")
+                        )
+                if new_entries:
+                    strategies[idx + 1 : idx + 1] = new_entries
 
         prefix_note = "\n".join(prefix_parts) if prefix_parts else None
 
