@@ -193,6 +193,31 @@ def _material_catalogue_segment(material_type: str | None) -> str | None:
     return material
 
 
+# Live-confirmed against the real site (client-verified, not guessed):
+# .../earrings+mens+... and .../earrings+women+... -- asymmetric on purpose,
+# "mens" carries the trailing s, "women" does not. "kids" is the one value
+# with no confirmed example; kept as a direct passthrough since every other
+# segment here (karat, colour) does the same absent evidence of a transform.
+_GENDER_SEGMENTS = {"men": "mens", "women": "women", "kids": "kids"}
+
+
+def _gender_catalogue_segment(gender: str | None) -> str | None:
+    if not gender:
+        return None
+    return _GENDER_SEGMENTS.get(str(gender).strip().lower())
+
+
+# Live-confirmed: .../30k-to-40k+ready-to-ship+... Internal values ("ready"/
+# "mto") already used elsewhere (shopping_wizard.py, search_confirmation.py).
+_FULFILLMENT_SEGMENTS = {"ready": "ready-to-ship", "mto": "made-to-order"}
+
+
+def _fulfillment_catalogue_segment(fulfillment: str | None) -> str | None:
+    if not fulfillment:
+        return None
+    return _FULFILLMENT_SEGMENTS.get(str(fulfillment).strip().lower())
+
+
 def build_catalogue_url(entities: dict[str, Any]) -> str:
     """Build KISNA jewellery catalogue deep-link from extracted entities."""
     parts: list[str] = []
@@ -200,6 +225,10 @@ def build_catalogue_url(entities: dict[str, Any]) -> str:
     category_part = _category_catalogue_segment(entities.get("category"))
     if category_part:
         parts.append(category_part)
+
+    gender_part = _gender_catalogue_segment(entities.get("gender"))
+    if gender_part:
+        parts.append(gender_part)
 
     price_part = _price_band_segment(
         entities.get("min_price"), entities.get("max_price")
@@ -210,6 +239,10 @@ def build_catalogue_url(entities: dict[str, Any]) -> str:
     material_part = _material_catalogue_segment(entities.get("material_type"))
     if material_part:
         parts.append(material_part)
+
+    fulfillment_part = _fulfillment_catalogue_segment(entities.get("fulfillment"))
+    if fulfillment_part:
+        parts.append(fulfillment_part)
 
     karat = entities.get("karat")
     if karat:
@@ -230,6 +263,10 @@ def build_catalogue_url(entities: dict[str, Any]) -> str:
         coll_slug = _slugify_segment(
             str(collection).replace(" Collection", "").replace(" collection", "")
         )
+        # Live-confirmed: the site expects the suffix APPENDED ("Sparkle" ->
+        # sparkle-collection), not stripped -- this used to strip it instead.
+        if coll_slug and not coll_slug.endswith("-collection"):
+            coll_slug = f"{coll_slug}-collection"
         if coll_slug:
             parts.append(coll_slug)
 
