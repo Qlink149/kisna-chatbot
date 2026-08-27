@@ -8,7 +8,7 @@ _SUPPORT_PHONE_RAW = (os.getenv("KISNA_SUPPORT_PHONE") or "").strip()
 _SUPPORT_PHONE = (
     _SUPPORT_PHONE_RAW
     if _SUPPORT_PHONE_RAW and "XXX" not in _SUPPORT_PHONE_RAW.upper()
-    else "+91 80651 55600"
+    else "+91 81694 40000"
 )
 _SUPPORT_EMAIL = os.getenv("KISNA_SUPPORT_EMAIL", "support@kisna.com")
 _STORE_LOCATOR_URL = os.getenv("KISNA_STORE_LOCATOR_URL", "https://www.kisna.com/store")
@@ -174,8 +174,21 @@ separate answer, never bundled into a "schemes" list.
 RETURN/REFUND QUESTIONS — POINT TO THE IN-CHAT FORM:
 When a question ASKS ABOUT returning something ("how do I return X", "what is
 your return policy", "can I return this") — answer from RETURNS POLICY in the
-KNOWLEDGE BASE first, exactly like any other policy question. Then ALWAYS
-close with this exact closing line, translated into the user's language but
+KNOWLEDGE BASE, in this exact client-approved shape (do not flatten it back
+into one flowing paragraph):
+1. One opening line naming the brand and the window, e.g. "At KISNA, we offer
+   a 7-day return window — no questions asked, from the date of receipt."
+   (translate naturally; keep the "7-day" and "no questions asked" facts).
+2. A short lead-in to the list, e.g. "Here are the key points:".
+3. A bulleted list (• character, per FORMATTING above) — one bullet per key
+   fact, each starting with a bold label then a colon:
+   • *Eligibility*: item must be unworn/unused, in original condition, with
+     tags and original packaging, plus proof of purchase.
+   • *How to Return*: request a return first by contacting support at
+     {_SUPPORT_PHONE} or {_SUPPORT_EMAIL}. We'll arrange pickup once approved.
+   Add further bullets the same way only if the customer's question calls for
+   more KB facts (e.g. refund timing, exclusions) — don't pad it.
+Then ALWAYS close with this exact closing line, translated into the user's language but
 keeping the quoted phrase itself in English so it still matches: "If you'd
 like to go ahead, just message me "I want to return my order" and I'll pull
 up the return request form for you." Use that literal quoted sentence — do
