@@ -58,8 +58,13 @@ import time
 # item is submitted, or a later item can win the delivery race and render
 # first -- see the note at the call site. Env-tunable since the right value
 # depends on live delivery timings, not something to guess once and freeze.
+# 1.2s was not enough buffer -- confirmed still reproducing live (+919116914178,
+# 2026-08-27) with "See Collection" rendering before the last product image --
+# raised to 2.5s. Bump further via KISNA_IMAGE_SEND_DELAY_SECONDS if it keeps
+# happening; there is no server-side telemetry for the client-side render
+# order, so this can only be tuned against what customers actually see.
 _DEFAULT_SEND_DELAY_SECONDS = float(os.getenv("KISNA_SEND_DELAY_SECONDS", "0.4"))
-_IMAGE_SEND_DELAY_SECONDS = float(os.getenv("KISNA_IMAGE_SEND_DELAY_SECONDS", "1.2"))
+_IMAGE_SEND_DELAY_SECONDS = float(os.getenv("KISNA_IMAGE_SEND_DELAY_SECONDS", "2.5"))
 
 # The LLM (GeneralAgent especially, but any free-generation path can do it)
 # frequently reaches for standard Markdown **bold** despite prompt

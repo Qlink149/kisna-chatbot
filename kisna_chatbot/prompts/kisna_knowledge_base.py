@@ -34,15 +34,14 @@ KISNA_KNOWLEDGE_BASE = """\
 ## RETURNS POLICY (authoritative)
 - Return window: 7 days, no-questions-asked, from date of receipt.
 - Eligibility: item must be unworn/unused, in original condition, with tags and original packaging, plus receipt/proof of purchase.
-- How to return: the customer must REQUEST a return FIRST — contact support by phone (+91 80651 55600) or email (ecom@kisna.com). Kisna arranges pickup once approved. Items shipped back WITHOUT a prior request are NOT accepted.
+- How to return: the customer must REQUEST a return FIRST — contact support by phone (+91 80651 55600) or email (support@kisna.com). Kisna arranges pickup once approved. Items shipped back WITHOUT a prior request are NOT accepted.
 - Damaged/wrong item: inspect on receipt and report immediately for evaluation.
 - Exclusions: sale items and gift cards are NOT eligible for return.
 - Refunds: if approved within the 7-day window, customer gets a 100% refund to the original payment method, processed within 10 business days (bank/card processing may add delay).
 - Return shipping: a flat ₹100 charge applies to resizing, exchange, and refund shipments sent back to Kisna.
 - Partial returns: allowed per individual item, but each returned product must be returned in full, including all components.
 - Ring doesn't fit: check the size guide before ordering; if it still doesn't fit, send it back for resizing/exchange.
-- Track a return: via chat support or by emailing ecom@kisna.com (returns and
-  exchanges are handled by ecom@; support@ is for general queries).
+- Track a return: via chat support or by emailing support@kisna.com.
 
 ## EXCHANGE POLICY (authoritative — /buyback-and-exchange-policy)
 - Applies to products sold in India, available for the lifetime of the product, but only 7+ days after purchase date, subject to Quality Assurance review (item must be free of tampering, damage, alteration, or resizing — otherwise rejected).
