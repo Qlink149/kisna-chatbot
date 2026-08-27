@@ -21,6 +21,7 @@ import asyncio
 import difflib
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -33,6 +34,9 @@ from kisna_chatbot.utils.logger_config import logger
 _FILTERS_PATH = "/api/v1/clara/filters"
 _DEFAULT_TTL_SECONDS = 21600  # 6 hours
 _COLLECTION_FUZZY_THRESHOLD = 0.82
+# Anantam / Evil Eye / Ti Amo all ship this as their collection slug upstream.
+# It is a page type, not a filter token, so it must never reach a URL.
+_JUNK_COLLECTION_SLUG = "pdp"
 _SNAPSHOT_PATH = (
     Path(__file__).resolve().parent / "data" / "clara_filters_snapshot.json"
 )
@@ -498,6 +502,35 @@ def get_collection_id(collection_name: str) -> str | None:
     if matched and matched.get("value"):
         return str(matched["value"])
     return None
+
+
+def get_collection_slug(
+    collection_name: str, *, fuzzy: bool = True
+) -> str | None:
+    """Site URL slug for a collection, for catalogue deep-links.
+
+    Most collections slug as "<name>-collection", but six are bare (Echo,
+    Esme, Heart String, Tiny Tales, Vachan, Valentine 2025) — which is why
+    this reads the real slug instead of appending a suffix. Three entries
+    (Anantam, Evil Eye, Ti Amo) carry "pdp" as their slug upstream; that is a
+    Clara data bug, not a real filter, so fall back to the label.
+    """
+    payload = _resolve_cached_payload(None)
+    matched = _match_option(
+        _options(payload, FACET_COLLECTION),
+        collection_name,
+        fuzzy=fuzzy,
+        threshold=_COLLECTION_FUZZY_THRESHOLD,
+    )
+    if not matched:
+        return None
+    slug = _norm_label(str(matched.get("slug") or "")).replace(" ", "-")
+    if slug and slug != _JUNK_COLLECTION_SLUG:
+        return slug
+    label = _norm_label(str(matched.get("label") or ""))
+    if not label:
+        return None
+    return re.sub(r"[^a-z0-9]+", "-", label).strip("-") or None
 
 
 def get_gender_tag_id(gender: str) -> str | None:

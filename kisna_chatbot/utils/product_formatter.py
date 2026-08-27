@@ -10,6 +10,7 @@ import re
 from typing import Any, Optional
 
 from kisna_chatbot.processors.entity_extractor import build_search_context
+from kisna_chatbot.utils import catalogue_facets
 from kisna_chatbot.utils.kisna_url_tracking import append_kisna_utm, kisna_home_url
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.price_calculator import resolve_product_prices
@@ -26,16 +27,6 @@ def _truncate(text: str, max_len: int, ellipsis: str = "…") -> str:
     if max_len <= len(ellipsis):
         return text[:max_len]
     return text[: max_len - len(ellipsis)] + ellipsis
-
-
-def _int_price(val: Any) -> int | None:
-    if val is None:
-        return None
-    try:
-        parsed = int(float(val))
-        return parsed if parsed > 0 else None
-    except (TypeError, ValueError):
-        return None
 
 
 def parse_variant_details(product: dict) -> dict[str, Any]:
@@ -132,147 +123,42 @@ def _product_sku(product: dict) -> str | None:
 
 _CATALOGUE_BASE = "https://www.kisna.com/jewellery"
 
-_CATEGORY_PLURALS = {
-    "ring": "rings",
-    "earring": "earrings",
-    "necklace": "necklaces",
-    "pendant": "pendants",
-    "bracelet": "bracelets",
-    "bangle": "bangles",
-    "mangalsutra": "mangalsutra",
-    "chain": "chains",
-    "nosewear": "nose-wear",
-    "watchwear": "watch-wear",
-    "maang_tikka": "maang-tikka",
-    "anklet": "anklets",
-}
-
-
-def _slugify_segment(text: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", text.lower().strip())
-    return slug.strip("-")
-
-
-def _category_catalogue_segment(category: str | None) -> str | None:
-    if not category:
-        return None
-    cat = category.strip().lower()
-    if cat in _CATEGORY_PLURALS:
-        return _CATEGORY_PLURALS[cat]
-    if cat.endswith("s"):
-        return cat.replace("_", "-")
-    return f"{cat.replace('_', '-')}s"
-
-
-def _price_band_segment(min_price: Any, max_price: Any) -> str | None:
-    min_p = _int_price(min_price)
-    max_p = _int_price(max_price)
-    if min_p is None and max_p is None:
-        return None
-    if min_p is not None and max_p is not None:
-        low_k = int(min_p) // 1000
-        high_k = int(max_p) // 1000
-        return f"{low_k}k-to-{high_k}k"
-    if max_p is not None:
-        low = max(0, int(max_p) - 10000)
-        return f"{low // 1000}k-to-{int(max_p) // 1000}k"
-    if min_p is not None:
-        high = int(min_p) + 10000
-        return f"{int(min_p) // 1000}k-to-{high // 1000}k"
-    return None
-
-
-def _material_catalogue_segment(material_type: str | None) -> str | None:
-    if not material_type:
-        return None
-    material = material_type.strip().lower()
-    if material in ("white_gold", "rose_gold"):
-        return "gold"
-    if material in ("silver", "platinum", "pearl"):
-        return None
-    return material
-
-
-# Live-confirmed against the real site (client-verified, not guessed):
-# .../earrings+mens+... and .../earrings+women+... -- asymmetric on purpose,
-# "mens" carries the trailing s, "women" does not. "kids" is the one value
-# with no confirmed example; kept as a direct passthrough since every other
-# segment here (karat, colour) does the same absent evidence of a transform.
-_GENDER_SEGMENTS = {"men": "mens", "women": "women", "kids": "kids"}
-
-
-def _gender_catalogue_segment(gender: str | None) -> str | None:
-    if not gender:
-        return None
-    return _GENDER_SEGMENTS.get(str(gender).strip().lower())
-
-
-# Live-confirmed: .../30k-to-40k+ready-to-ship+... Internal values ("ready"/
-# "mto") already used elsewhere (shopping_wizard.py, search_confirmation.py).
-_FULFILLMENT_SEGMENTS = {"ready": "ready-to-ship", "mto": "made-to-order"}
-
-
-def _fulfillment_catalogue_segment(fulfillment: str | None) -> str | None:
-    if not fulfillment:
-        return None
-    return _FULFILLMENT_SEGMENTS.get(str(fulfillment).strip().lower())
-
 
 def build_catalogue_url(entities: dict[str, Any]) -> str:
-    """Build KISNA jewellery catalogue deep-link from extracted entities."""
+    """Build KISNA jewellery catalogue deep-link from extracted entities.
+
+    Every segment is a real filter token from catalogue_facets; an entity the
+    site has no filter for drops out rather than becoming a dead segment.
+    """
     parts: list[str] = []
 
-    category_part = _category_catalogue_segment(entities.get("category"))
-    if category_part:
-        parts.append(category_part)
+    parts.extend(catalogue_facets.category_slugs(entities.get("category")))
 
-    gender_part = _gender_catalogue_segment(entities.get("gender"))
-    if gender_part:
-        parts.append(gender_part)
-
-    price_part = _price_band_segment(
-        entities.get("min_price"), entities.get("max_price")
-    )
-    if price_part:
-        parts.append(price_part)
-
-    material_part = _material_catalogue_segment(entities.get("material_type"))
-    if material_part:
-        parts.append(material_part)
-
-    fulfillment_part = _fulfillment_catalogue_segment(entities.get("fulfillment"))
-    if fulfillment_part:
-        parts.append(fulfillment_part)
-
-    karat = entities.get("karat")
-    if karat:
-        parts.append(str(karat).lower().replace(" ", ""))
-
-    colour = entities.get("metal_colour")
-    if colour:
-        parts.append(str(colour).lower())
-
-    collection = entities.get("collection") or entities.get("title")
-    if collection and str(collection).lower() not in (
-        "bridal",
-        "traditional",
-        "modern",
-        "minimal",
-        "heavy",
+    for slug in (
+        catalogue_facets.gender_slug(entities.get("gender")),
+        catalogue_facets.price_band_slug(
+            entities.get("min_price"), entities.get("max_price")
+        ),
+        catalogue_facets.material_slug(entities.get("material_type")),
+        catalogue_facets.fulfillment_slug(entities.get("fulfillment")),
+        catalogue_facets.karat_slug(entities.get("karat")),
+        catalogue_facets.colour_slug(entities.get("metal_colour")),
     ):
-        coll_slug = _slugify_segment(
-            str(collection).replace(" Collection", "").replace(" collection", "")
-        )
-        # Live-confirmed: the site expects the suffix APPENDED ("Sparkle" ->
-        # sparkle-collection), not stripped -- this used to strip it instead.
-        if coll_slug and not coll_slug.endswith("-collection"):
-            coll_slug = f"{coll_slug}-collection"
-        if coll_slug:
-            parts.append(coll_slug)
+        if slug:
+            parts.append(slug)
 
-    occasion = entities.get("occasion")
-    if occasion:
-        parts.append(_slugify_segment(str(occasion).replace("_", " ")))
+    # A named collection is a deliberate filter, so it fuzzy-matches. "title"
+    # is free text — style words, a product name — and only counts when it
+    # names a collection outright, never on a near-miss.
+    collection_part = catalogue_facets.collection_slug(
+        entities.get("collection")
+    ) or catalogue_facets.collection_slug(entities.get("title"), fuzzy=False)
+    if collection_part:
+        parts.append(collection_part)
+
+    occasion_part = catalogue_facets.occasion_slug(entities.get("occasion"))
+    if occasion_part:
+        parts.append(occasion_part)
 
     if not parts:
         url = _CATALOGUE_BASE
