@@ -93,9 +93,9 @@ def _format_promo_line(promo: dict) -> str | None:
         except (TypeError, ValueError):
             return None
         label = f"{disc_val}% off on {disc_on}"
-    amount_range = _format_amount_range(promo)
-    if amount_range:
-        return f"• {label} — {amount_range}"
+    # Client-requested: drop the price-slab suffix ("— ₹10,00,001 and
+    # above") -- the label alone is enough, the amount range read as
+    # confusing/unnecessary detail in the offers list.
     return f"• {label}"
 
 

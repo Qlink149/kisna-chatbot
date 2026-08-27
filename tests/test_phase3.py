@@ -54,7 +54,7 @@ class OffersFormatTests(unittest.TestCase):
             }
         )
         self.assertIn("10% off on Making Charges", line)
-        self.assertIn("₹1,00,000 – ₹1,99,999", line)
+        self.assertNotIn("₹", line)
 
     def test_build_offers_text_sections(self):
         promos = [
@@ -121,7 +121,10 @@ class OffersFormatTests(unittest.TestCase):
         self.assertNotIn("Browse Gold", str(resp))
         self.assertNotIn("Browse Diamond", str(resp))
 
-    def test_promo_line_includes_amount_range(self):
+    def test_promo_line_omits_amount_range(self):
+        # Client-requested: the price-slab suffix ("— ₹X and above") reads
+        # as confusing/unnecessary detail -- the label alone is enough, even
+        # when the promo carries a real fromAmt/toAmt slab.
         line = _format_promo_line(
             {
                 "discountLable": "20% off on Making Charges",
@@ -130,9 +133,8 @@ class OffersFormatTests(unittest.TestCase):
                 "discOn": "Labour",
             }
         )
-        self.assertEqual(
-            line, "• 20% off on Making Charges — Up to ₹50,000"
-        )
+        self.assertEqual(line, "• 20% off on Making Charges")
+        self.assertNotIn("₹", line)
 
     def test_promo_line_open_ended_slab(self):
         line = _format_promo_line(
@@ -143,10 +145,7 @@ class OffersFormatTests(unittest.TestCase):
                 "discOn": "Labour",
             }
         )
-        self.assertEqual(
-            line,
-            "• 100% off on Making Charges — ₹10,00,001 and above",
-        )
+        self.assertEqual(line, "• 100% off on Making Charges")
 
     def test_promo_line_mid_range_slab(self):
         line = _format_promo_line(
@@ -157,10 +156,7 @@ class OffersFormatTests(unittest.TestCase):
                 "discOn": "Labour",
             }
         )
-        self.assertEqual(
-            line,
-            "• 45% off on Making Charges — ₹1,00,001 – ₹2,00,000",
-        )
+        self.assertEqual(line, "• 45% off on Making Charges")
 
     def test_promo_line_omits_range_when_amounts_missing(self):
         line = _format_promo_line(
@@ -184,9 +180,7 @@ class OffersFormatTests(unittest.TestCase):
                 "discOn": "Making Charges",
             }
         )
-        self.assertEqual(
-            line, "• 15% off on Making Charges — Up to ₹99,999"
-        )
+        self.assertEqual(line, "• 15% off on Making Charges")
 
     def test_format_inr_indian_grouping(self):
         self.assertEqual(_format_inr(50_000), "50,000")
