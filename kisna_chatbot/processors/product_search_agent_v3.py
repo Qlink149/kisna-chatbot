@@ -1093,6 +1093,12 @@ def _category_only_entities(entities: dict) -> dict:
     # hand back the one thing the customer ruled out.
     if entities.get("excluded_material"):
         cat_only["excluded_material"] = entities["excluded_material"]
+    # Gender is jewellery-essential, same as category -- softening a search
+    # down to its last rung must not hand a woman men's rings (or vice
+    # versa). Everything else (material, price, karat, ...) is fair game to
+    # drop by this point; gender and category are not.
+    if entities.get("gender"):
+        cat_only["gender"] = entities["gender"]
     return cat_only
 
 
@@ -1672,7 +1678,11 @@ def _build_fallback_strategies(
         add(no_material, "material", "drop_material")
 
     if entities.get("title") and not title_redundant_with_category(entities):
-        title_only = {**_empty_entities(), "title": entities["title"]}
+        title_only = {
+            **_empty_entities(),
+            "title": entities["title"],
+            "gender": entities.get("gender"),
+        }
         add(title_only, None, "title_only")
 
     cat_only = _category_only_entities(entities)
@@ -1822,6 +1832,17 @@ def _fallback_prefix_note(
         material = original_entities.get("material_type")
         mat_label = _material_display_label(material) if material else ""
         price_suffix = _format_price_range_suffix(original_entities)
+        # Gender still applies at this rung (see _category_only_entities) --
+        # say so, same "men's"/"women's"/"kids'" pattern the collection
+        # branch above already uses, so the recap doesn't read as if the
+        # search went gender-neutral when it didn't.
+        gender_possessive = {
+            "men": "men's",
+            "women": "women's",
+            "kids": "kids'",
+        }.get(original_entities.get("gender") or "")
+        if gender_possessive:
+            cat_label = f"{gender_possessive} {cat_label}".strip()
         if material:
             target = f"{mat_label} {cat_label}".strip()
         else:

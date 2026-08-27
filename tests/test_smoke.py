@@ -547,17 +547,22 @@ class ProductSearchTests(unittest.TestCase):
                 "classified_category": "product_search",
             }
 
+            successful_calls: list[dict] = []
+
             async def search_side_effect(**kwargs):
-                # Exact / partial filters empty until category-only.
+                # Exact / partial filters empty until category-only. Gender
+                # (tag_manager_id) is NOT in this zero-result bucket -- it
+                # must survive to the final rung, unlike ready-to-ship.
                 if kwargs.get("material_type") or kwargs.get("max_price") is not None:
                     return {"products": [], "total_count": 0, "page": 1}
-                if kwargs.get("ready_to_ship") or kwargs.get("tag_manager_id"):
+                if kwargs.get("ready_to_ship"):
                     return {"products": [], "total_count": 0, "page": 1}
                 # Phase 3 may send categoryId instead of slug.
                 if (
                     kwargs.get("category") == "maang tikka"
                     or kwargs.get("category_id")
                 ):
+                    successful_calls.append(kwargs)
                     return {
                         "products": [mock_product],
                         "total_count": 1,
@@ -590,6 +595,12 @@ class ProductSearchTests(unittest.TestCase):
             )
             self.assertIn("maang tikka", intro)
             self.assertTrue("40,000" in intro or "45,000" in intro)
+            # Client-reported bug: the final fallback rung was dropping
+            # gender along with everything else. The winning call must
+            # still carry the gender filter (tag_manager_id).
+            self.assertTrue(successful_calls)
+            self.assertTrue(successful_calls[-1].get("tag_manager_id"))
+            self.assertIn("women", intro)
 
         import asyncio
 

@@ -211,6 +211,69 @@ class ClaraFixtureTests(unittest.TestCase):
         self.assertIn("drop_material", labels)
         self.assertNotIn("category_only", labels)
 
+    def test_category_only_keeps_gender(self):
+        # Client-reported: the last fallback rung was silently dropping
+        # gender along with everything else -- a woman's ring search could
+        # widen all the way down to men's rings. Gender is jewellery-
+        # essential, same as category; only material/price/etc. should be
+        # relaxed away, not gender.
+        entities = {
+            "category": "maang_tikka",
+            "material_type": "gold",
+            "gender": "women",
+            "min_price": 40000,
+            "max_price": 50000,
+        }
+        strategies = _build_fallback_strategies(entities)
+        cat_only = next(s for s in strategies if s[2] == "category_only")
+        self.assertEqual(cat_only[0]["gender"], "women")
+        self.assertEqual(cat_only[0]["category"], "maang_tikka")
+
+    def test_category_only_no_gender_stays_none(self):
+        # Must not fabricate a gender that was never in the original request.
+        entities = {"category": "ring", "material_type": "gold", "min_price": 40000}
+        strategies = _build_fallback_strategies(entities)
+        cat_only = next(s for s in strategies if s[2] == "category_only")
+        self.assertIsNone(cat_only[0]["gender"])
+
+    def test_title_only_keeps_gender(self):
+        entities = {
+            "title": "Shree Pendant",
+            "gender": "kids",
+            "category": None,
+            "material_type": "gold",
+            "max_price": 50000,
+        }
+        strategies = _build_fallback_strategies(entities)
+        title_only = next(s for s in strategies if s[2] == "title_only")
+        self.assertEqual(title_only[0]["gender"], "kids")
+        self.assertEqual(title_only[0]["title"], "Shree Pendant")
+
+    def test_category_fallback_note_mentions_gender(self):
+        note = _fallback_prefix_note(
+            "category",
+            [],
+            {
+                "category": "ring",
+                "material_type": "diamond",
+                "gender": "women",
+                "max_price": 30000,
+            },
+            {"category": "ring", "gender": "women"},
+        )
+        self.assertIn("women's", note)
+
+    def test_category_fallback_note_omits_gender_when_unset(self):
+        note = _fallback_prefix_note(
+            "category",
+            [],
+            {"category": "ring", "material_type": "diamond"},
+            {"category": "ring"},
+        )
+        self.assertNotIn("women's", note)
+        self.assertNotIn("men's", note)
+        self.assertNotIn("kids'", note)
+
     def test_sanitize_search_entities_clears_redundant_chain_title(self):
         entities = {
             "category": "chain",
