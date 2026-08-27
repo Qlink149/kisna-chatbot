@@ -128,7 +128,7 @@ _FAQ_TEXT = (
     "• Certification — BIS + IGI/GIA certified\n"
     "• Delivery — Free shipping, ~6 working day dispatch\n"
     "• Payment — No COD; EMI available on checkout\n"
-    "• Support — +91 80651 55600, "
+    "• Support — +91 81694 40000, "
     f"{format_support_hours_text().replace(' IST', '')}\n\n"
     "What would you like to know more about?"
 )

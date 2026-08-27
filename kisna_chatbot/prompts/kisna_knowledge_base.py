@@ -34,7 +34,7 @@ KISNA_KNOWLEDGE_BASE = """\
 ## RETURNS POLICY (authoritative)
 - Return window: 7 days, no-questions-asked, from date of receipt.
 - Eligibility: item must be unworn/unused, in original condition, with tags and original packaging, plus receipt/proof of purchase.
-- How to return: the customer must REQUEST a return FIRST — contact support by phone (+91 80651 55600) or email (support@kisna.com). Kisna arranges pickup once approved. Items shipped back WITHOUT a prior request are NOT accepted.
+- How to return: the customer must REQUEST a return FIRST — contact support by phone (+91 81694 40000) or email (support@kisna.com). Kisna arranges pickup once approved. Items shipped back WITHOUT a prior request are NOT accepted.
 - Damaged/wrong item: inspect on receipt and report immediately for evaluation.
 - Exclusions: sale items and gift cards are NOT eligible for return.
 - Refunds: if approved within the 7-day window, customer gets a 100% refund to the original payment method, processed within 10 business days (bank/card processing may add delay).
@@ -88,7 +88,7 @@ KISNA_KNOWLEDGE_BASE = """\
 ## ORDERS
 - Editing: you cannot add or edit a product once an order is placed. You can remove a product before it's packed/shipped via "My Orders" (cancel option).
 - Multiple products: yes — add to cart and check out together.
-- Duplicate order: contact +91 80651 55600 or support@kisna.com.
+- Duplicate order: contact +91 81694 40000 or support@kisna.com.
 - Order confirmation: a confirmation page with a unique Order ID, item listing, shipping address, plus a confirmation email; tracking details on dispatch.
 - Different shipping vs billing address: allowed.
 
@@ -147,7 +147,7 @@ KISNA_KNOWLEDGE_BASE = """\
 - Online and in-store pricing/offers are uniform.
 
 ## SUPPORT & CONTACT
-- Customer support phone: +91 80651 55600.
+- Customer support phone: +91 81694 40000.
 - Support hours: 10:00 am–6:30 pm IST Mon–Fri; 10:00 am–4:00 pm IST Sat.
 - WhatsApp ("Chat with Experts"): +91 89768 74310.
 - General support email: support@kisna.com.

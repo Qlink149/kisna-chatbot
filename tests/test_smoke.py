@@ -124,7 +124,7 @@ class ProductSearchTests(unittest.TestCase):
     def test_general_agent_prompt_includes_knowledge_base(self):
         prompt = build_general_agent_prompt()
         self.assertIn("95%", prompt)
-        self.assertIn("80651 55600", prompt)
+        self.assertIn("81694 40000", prompt)
         self.assertIn("HOW TO USE THE KNOWLEDGE BASE", prompt)
         self.assertNotIn("5-7 business days", prompt)
         self.assertNotIn("Grounded brand knowledge", prompt)

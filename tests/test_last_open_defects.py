@@ -225,5 +225,66 @@ class ResistPressureTests(unittest.TestCase):
         self.assertLess(len(gap), 2000, "too much unrelated content between the two")
 
 
+class ReturnPolicyBulletedShapeTests(unittest.TestCase):
+    """Client-requested reformat: the returns-policy answer was landing as
+    one flowing paragraph; client wants an opening line, then a short
+    bulleted list of key facts (bold label + colon), then the unchanged
+    return-form trigger line."""
+
+    def test_opening_line_present(self):
+        idx = general_agent_prompt.index("RETURN/REFUND QUESTIONS")
+        section = general_agent_prompt[idx : idx + 1200].lower()
+        self.assertIn("at kisna, we offer", section)
+        self.assertIn("7-day return window", section)
+        self.assertIn("no questions asked", section)
+
+    def test_bulleted_key_points_with_bold_labels(self):
+        idx = general_agent_prompt.index("RETURN/REFUND QUESTIONS")
+        section = general_agent_prompt[idx : idx + 1200]
+        self.assertIn("• *Eligibility*:", section)
+        self.assertIn("• *How to Return*:", section)
+
+    def test_support_phone_and_email_are_interpolated_not_hardcoded_stale(self):
+        idx = general_agent_prompt.index("RETURN/REFUND QUESTIONS")
+        section = general_agent_prompt[idx : idx + 1200]
+        self.assertIn("81694 40000", section)
+        self.assertIn("support@kisna.com", section)
+        # The old number must not linger anywhere in this section.
+        self.assertNotIn("80651", section)
+
+    def test_closing_form_trigger_line_still_present_and_unchanged(self):
+        self.assertIn(
+            'just message me "I want to return my order"',
+            general_agent_prompt,
+        )
+
+    def test_bullets_come_before_the_closing_line(self):
+        idx = general_agent_prompt.index("RETURN/REFUND QUESTIONS")
+        bullets_idx = general_agent_prompt.index("• *Eligibility*:", idx)
+        closing_idx = general_agent_prompt.index(
+            'just message me "I want to return my order"', idx
+        )
+        self.assertLess(bullets_idx, closing_idx)
+
+
+class SupportPhoneNumberUpdatedTests(unittest.TestCase):
+    """Client-confirmed real number change: 80651 55600 -> 81694 40000.
+
+    The old number legitimately still appears once in the full prompt: the
+    KMR scheme's own dedicated support line (kisna_knowledge_base.py's KMR
+    section) is a separate, deliberately-untouched number -- only the
+    general/returns support contact changed.
+    """
+
+    def test_general_agent_fallback_uses_new_number(self):
+        self.assertIn("81694 40000", general_agent_prompt)
+
+    def test_contact_details_block_uses_new_number_only(self):
+        idx = general_agent_prompt.index("Contact details")
+        section = general_agent_prompt[idx : idx + 300]
+        self.assertIn("81694 40000", section)
+        self.assertNotIn("80651", section)
+
+
 if __name__ == "__main__":
     unittest.main()
