@@ -62,25 +62,25 @@ class TestSendListStatusCheck(unittest.TestCase):
 
 
 class TestSendListWithRetry(unittest.TestCase):
-    @patch("kisna_chatbot.whatsapp_functions.list.send_list.time.sleep")
+    @patch("kisna_chatbot.whatsapp_functions.list.send_list.time")
     @patch("kisna_chatbot.whatsapp_functions.list.send_list.httpx.post")
-    def test_retries_on_500_then_succeeds(self, post_mock, sleep_mock):
+    def test_retries_on_500_then_succeeds(self, post_mock, time_mock):
         post_mock.side_effect = [_response(500), _response(200)]
         result = send_list_with_retry("919812345678", _BODY, max_retries=3)
         self.assertEqual(result, {"status": "submitted"})
         self.assertEqual(post_mock.call_count, 2)
 
-    @patch("kisna_chatbot.whatsapp_functions.list.send_list.time.sleep")
+    @patch("kisna_chatbot.whatsapp_functions.list.send_list.time")
     @patch("kisna_chatbot.whatsapp_functions.list.send_list.httpx.post")
-    def test_does_not_retry_a_client_error(self, post_mock, sleep_mock):
+    def test_does_not_retry_a_client_error(self, post_mock, time_mock):
         post_mock.return_value = _response(400, {"error": "bad payload"})
         with self.assertRaises(httpx.HTTPStatusError):
             send_list_with_retry("919812345678", _BODY, max_retries=3)
         post_mock.assert_called_once()
 
-    @patch("kisna_chatbot.whatsapp_functions.list.send_list.time.sleep")
+    @patch("kisna_chatbot.whatsapp_functions.list.send_list.time")
     @patch("kisna_chatbot.whatsapp_functions.list.send_list.httpx.post")
-    def test_exhausts_retries_and_raises_last_error(self, post_mock, sleep_mock):
+    def test_exhausts_retries_and_raises_last_error(self, post_mock, time_mock):
         post_mock.side_effect = [_response(500), _response(500), _response(500)]
         with self.assertRaises(httpx.HTTPStatusError):
             send_list_with_retry("919812345678", _BODY, max_retries=3)
