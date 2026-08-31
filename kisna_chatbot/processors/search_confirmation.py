@@ -114,9 +114,15 @@ def _category_phrase(entities: dict) -> str | None:
         _humanize_category_label,
     )
 
-    categories = entities.get("categories") or []
-    if not categories and entities.get("category"):
-        categories = [entities["category"]]
+    # "chain" is stored as category="necklace" + clara_category_override="chain";
+    # the recap must read "chains" (mirrors entity_extractor.build_search_context).
+    override = entities.get("clara_category_override")
+    if override:
+        categories = [override]
+    else:
+        categories = entities.get("categories") or []
+        if not categories and entities.get("category"):
+            categories = [entities["category"]]
     labels = [_humanize_category_label(str(c)) for c in categories if c]
     if not labels:
         return None

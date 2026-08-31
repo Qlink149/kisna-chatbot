@@ -412,6 +412,17 @@ def _category_label_plural(category: str | None) -> str:
     return label.replace("_", " ")
 
 
+def _customer_facing_category(entities: dict | None) -> str | None:
+    """The category as the CUSTOMER named it, for display only.
+
+    "chain" is stored internally as category="necklace" with the real value in
+    clara_category_override; every customer-facing label must show "chain", the
+    same as entity_extractor.build_search_context already does.
+    """
+    e = entities or {}
+    return e.get("clara_category_override") or e.get("category")
+
+
 def _material_display_label(material: str | None) -> str:
     if not material:
         return ""
@@ -463,7 +474,7 @@ def _intro_descriptor(entities: dict) -> str:
     )
     if material:
         parts.append(material)
-    category = _category_label_plural(entities.get("category"))
+    category = _category_label_plural(_customer_facing_category(entities))
     parts.append(category or "pieces")
     desc = " ".join(p for p in parts if p)
     return " ".join(desc.split())
@@ -1088,6 +1099,10 @@ def _category_only_entities(entities: dict) -> dict:
         cat_only["secondary_category"] = entities.get("secondary_category")
     if entities.get("category"):
         cat_only["category"] = entities["category"]
+    # Keep the chain->necklace alias intact through the last rung, or a chain
+    # search that has to widen this far comes back as necklaces.
+    if entities.get("clara_category_override"):
+        cat_only["clara_category_override"] = entities["clara_category_override"]
     # A refused metal is not a filter to strip. This is the LAST-DITCH
     # strategy, so it is exactly where a widening search would otherwise
     # hand back the one thing the customer ruled out.
@@ -1805,7 +1820,7 @@ def _fallback_prefix_note(
             "women": "women's",
             "kids": "kids'",
         }.get(original_entities.get("gender") or "")
-        cat_label = _category_label_plural(original_entities.get("category"))
+        cat_label = _category_label_plural(_customer_facing_category(original_entities))
         what = f"{gender_possessive} {cat_label}".strip() if gender_possessive else cat_label
         if collection_label:
             return (
@@ -1819,14 +1834,16 @@ def _fallback_prefix_note(
 
     if note_kind == "material":
         material = original_entities.get("material_type") or "matching"
-        cat_label = _category_label_plural(original_entities.get("category") or "jewellery")
+        cat_label = _category_label_plural(
+            _customer_facing_category(original_entities) or "jewellery"
+        )
         return (
             f"I couldn't find {material} {cat_label}, "
             f"but here are other {cat_label} options you might like:"
         )
 
     if note_kind == "category":
-        category = original_entities.get("category") or "jewellery"
+        category = _customer_facing_category(original_entities) or "jewellery"
         cat_label = _category_label_plural(category)
         cat_in = _category_singular_label(category)
         material = original_entities.get("material_type")

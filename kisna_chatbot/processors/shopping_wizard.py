@@ -510,7 +510,14 @@ def seed_wizard_from_entities(
     ents = entities or {}
     seeded: dict[str, Any] = {}
 
-    category = ents.get("category")
+    # Seed the category the CUSTOMER named. "chain" is stored internally as
+    # category="necklace" + clara_category_override="chain" by
+    # normalize_internal_category before the wizard is ever reached; if we
+    # seeded the bare "necklace" the override would be lost for the whole
+    # funnel and the search + recap would come back as necklaces. Seeding
+    # "chain" here lets the completion-time finalize_search_entities re-derive
+    # the override (and the Clara alias) exactly as the non-wizard path does.
+    category = ents.get("clara_category_override") or ents.get("category")
     if category:
         seeded["category"] = str(category).strip().lower()
 
