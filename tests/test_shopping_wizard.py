@@ -450,6 +450,37 @@ class DynamicWizardSkipTests(unittest.TestCase):
         self.assertEqual(get_next_step(seeded), "material")
         self.assertEqual(seeded.get("gender"), "women")
 
+    def test_chain_survives_wizard_in_production_entity_shape(self):
+        """By the time the wizard is seeded, normalize_internal_category has
+        already rewritten "chain" -> category="necklace" + a separate
+        clara_category_override key. The wizard must seed the customer's real
+        category so the search + recap come back as chains, not necklaces."""
+        from kisna_chatbot.processors.entity_extractor import (
+            entities_to_api_params,
+            finalize_search_entities,
+        )
+        from kisna_chatbot.integrations.clara_filters import get_category_id
+        from kisna_chatbot.processors.search_confirmation import build_search_recap
+
+        finalized = finalize_search_entities(
+            {"category": "chain", "min_price": 300000}, query="I need a chain"
+        )
+        self.assertEqual(finalized["category"], "necklace")
+        self.assertEqual(finalized["clara_category_override"], "chain")
+
+        seeded = seed_wizard_from_entities(finalized)
+        self.assertEqual(seeded["category"], "chain")
+
+        completed = finalize_search_entities(entities_from_wizard(seeded, {}))
+        self.assertEqual(completed["clara_category_override"], "chain")
+
+        params = entities_to_api_params(completed)
+        self.assertEqual(params.get("category_id"), get_category_id("chain"))
+        self.assertNotEqual(get_category_id("chain"), get_category_id("necklace"))
+
+        self.assertIn("chain", build_search_recap(completed).lower())
+        self.assertNotIn("necklace", build_search_recap(completed).lower())
+
     def test_rings_asks_two_genders_male_female(self):
         from kisna_chatbot.processors.shopping_wizard import build_step_prompt
 
