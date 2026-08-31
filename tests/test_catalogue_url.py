@@ -47,6 +47,30 @@ class CatalogueUrlTests(unittest.TestCase):
             "https://www.kisna.com/jewellery",
         )
 
+    def test_chain_uses_chain_slug_not_necklace(self):
+        # A chain search reaches here as category="necklace" +
+        # clara_category_override="chain" (normalize_internal_category). The
+        # See Collection link must point at the site's `chain` filter.
+        url = build_catalogue_url(
+            {"category": "necklace", "clara_category_override": "chain"}
+        )
+        self.assertEqual(url, "https://www.kisna.com/jewellery/chain")
+
+        url = build_catalogue_url(
+            {
+                "category": "necklace",
+                "clara_category_override": "chain",
+                "min_price": 300000,
+            }
+        )
+        self.assertEqual(url, "https://www.kisna.com/jewellery/chain+above-2l")
+
+        # No override -> unchanged: a real necklace search still says necklace.
+        self.assertEqual(
+            build_catalogue_url({"category": "necklace"}),
+            "https://www.kisna.com/jewellery/necklace",
+        )
+
     def test_rose_gold_ring_under_50k(self):
         url = build_catalogue_url(
             {

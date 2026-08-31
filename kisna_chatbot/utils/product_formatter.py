@@ -132,7 +132,14 @@ def build_catalogue_url(entities: dict[str, Any]) -> str:
     """
     parts: list[str] = []
 
-    parts.extend(catalogue_facets.category_slugs(entities.get("category")))
+    # "chain" is stored internally as category="necklace" with the real value in
+    # clara_category_override; the site has its own `chain` filter, so the
+    # See Collection link must use it, not necklace.
+    parts.extend(
+        catalogue_facets.category_slugs(
+            entities.get("clara_category_override") or entities.get("category")
+        )
+    )
 
     for slug in (
         catalogue_facets.gender_slug(entities.get("gender")),
