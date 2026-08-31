@@ -103,6 +103,38 @@ class ReplyLanguageStabilityTests(unittest.TestCase):
         _store_language(profile, "hi", "talk to me in English")
         self.assertEqual(profile["language"], "en")
 
+    def test_greeting_prefix_is_not_low_signal(self):
+        # "hi" alone proves nothing; "Hi, I'm looking for jewellery" is English
+        # prose and must be allowed to correct a stale stored language.
+        self.assertFalse(
+            _is_low_language_signal("Hi, I'm looking for jewellery")
+        )
+        self.assertFalse(_is_low_language_signal("hello, do you have gold rings"))
+        for bare in ("hi", "hi.", "Hi!", "hello", "hey", "hii", "  hey  "):
+            self.assertTrue(_is_low_language_signal(bare), bare)
+        for ack in ("yes", "ok", "yes please", "thanks a lot"):
+            self.assertTrue(_is_low_language_signal(ack), ack)
+
+    def test_stale_hinglish_corrects_on_english_prose(self):
+        # Fresh LLM label says en.
+        profile = {"language": "hi-Latn"}
+        _store_language(profile, "en", "Hi, I'm looking for jewellery")
+        self.assertEqual(profile["language"], "en")
+        # Shortcut path (label=None): script-mirror still demotes it.
+        profile = {"language": "hi-Latn"}
+        _store_language(profile, None, "Hi, I'm looking for jewellery")
+        self.assertEqual(profile["language"], "en")
+
+    def test_cleared_language_reseeds_from_script_only(self):
+        # After a TTL expiry the key is gone. A greeting in native script should
+        # re-seed; an English greeting should leave it unset (defaults to en).
+        profile = {}
+        _store_language(profile, None, "नमस्ते")
+        self.assertEqual(profile.get("language"), "hi")
+        profile = {}
+        _store_language(profile, None, "hi")
+        self.assertNotIn("language", profile)
+
 
 class ComposeModelRoutingTests(unittest.TestCase):
     """P1-6 -- weak languages route to a stronger model; the rest do not."""

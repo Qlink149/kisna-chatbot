@@ -60,6 +60,10 @@ ALLOWED = {
     "processors/response_manager.py:*": "built after localisation runs",
     # The admin takeover route calls send_text_message directly.
     "routes/system_sub_routes/conversation.py:*": "admin route, bypasses localiser",
+    # Win-back nudge: text is already localised by reply_composer.narrate() and
+    # sent straight to Gupshup from the background sweep — it never enters the
+    # bot_response pipeline, so localize_bot_responses never sees it.
+    "processors/reengagement.py:text": "localised by narrate(), sent outside the pipeline",
     # Inbound-rate-limit notice: sent before the pipeline runs, so there is no
     # user_profile yet to read a language from -- localize_bot_responses never
     # sees it. Emoji-plus-short-English reads as "please wait" cross-language;

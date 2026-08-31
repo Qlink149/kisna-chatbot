@@ -282,5 +282,34 @@ class TtlMissingTimestampTests(unittest.TestCase):
         self.assertEqual(profile["username"], "Asha")
 
 
+class TtlClearsStoredLanguageTests(unittest.TestCase):
+    """A stale detected language must not outlive a multi-hour gap."""
+
+    def test_expiry_drops_stored_language(self):
+        stale = time.time() - (3 * 3600)
+        profile = {
+            "language": "hi-Latn",
+            "shopping_wizard_active": True,
+            "last_message_at": stale,
+        }
+        maybe_expire_session(profile)
+        self.assertNotIn("language", profile)
+
+    def test_language_is_in_mongo_unset_list(self):
+        from kisna_chatbot.utils.session_state import (
+            mongo_unset_for_missing_session_keys,
+        )
+
+        # After a pop the $set-only save must actually remove it from Mongo.
+        self.assertIn("language", mongo_unset_for_missing_session_keys({}))
+
+    def test_fresh_start_keeps_language(self):
+        # Greeting/menu is a fresh start but NOT a TTL expiry: an in-session
+        # greeting should not throw away the language just established.
+        profile = {"language": "gu", "shopping_wizard_active": True}
+        reset_session_on_fresh_start(profile)
+        self.assertEqual(profile.get("language"), "gu")
+
+
 if __name__ == "__main__":
     unittest.main()
