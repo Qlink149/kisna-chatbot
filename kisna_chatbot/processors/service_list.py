@@ -217,7 +217,8 @@ def _format_recent_search_hint(user_profile: dict | None) -> str | None:
         return None
     filters = profile.get("last_search_filters") or {}
     parts: list[str] = []
-    category = filters.get("category")
+    # "chain" is stored as category="necklace" + clara_category_override="chain".
+    category = filters.get("clara_category_override") or filters.get("category")
     if category:
         parts.append(str(category).replace("_", " "))
     material = filters.get("material_type")
