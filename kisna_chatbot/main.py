@@ -231,6 +231,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to create admin_sessions indexes")
 
+    # Serves the re-engagement sweep's per-brand idle-time query + sort.
+    try:
+        from kisna_chatbot.database.collections import users
+
+        users.create_index(
+            [("client_id", ASCENDING), ("last_message_at", ASCENDING)],
+            name="users_client_last_message_at",
+        )
+    except Exception:
+        logger.exception("Failed to create users re-engagement index")
+
     from kisna_chatbot.database.database import ping_database
 
     try:
