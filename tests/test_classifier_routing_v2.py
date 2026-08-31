@@ -1157,13 +1157,11 @@ class NarratorGuardrailTests(unittest.TestCase):
     def test_narrator_prompt_forbids_inventing_products(self):
         # The greeting narrator hallucinated "want to see silver rings?" — the
         # instruction must forbid inventing products and mentioning silver.
-        import inspect
+        from kisna_chatbot.utils.reply_composer import _narrate_instruction
 
-        from kisna_chatbot.utils import reply_composer
-
-        src = inspect.getsource(reply_composer.narrate)
-        self.assertIn("Do NOT invent", src)
-        self.assertIn("silver", src)
+        instr = _narrate_instruction("English")
+        self.assertIn("Do NOT invent", instr)
+        self.assertIn("silver", instr)
 
 
 class ScriptMirrorLanguageTests(unittest.TestCase):

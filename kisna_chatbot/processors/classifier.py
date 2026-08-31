@@ -1209,6 +1209,9 @@ def _is_optout_keyword(query: str) -> bool:
 
 def _unsubscribe(data: dict) -> dict:
     data["classified_category"] = "unsubscribe"
+    # STOP / unsubscribe also suppresses the win-back nudge (reengagement.py).
+    if isinstance(data.get("user_profile"), dict):
+        data["user_profile"]["reengage_opted_out"] = True
     data["bot_response"] = [
         {
             "type": "text",
@@ -1432,9 +1435,16 @@ def detect_language_override(text: str) -> str | None:
 # Filler and bare values that prove nothing about the customer's language.
 # Anything containing Indic characters is excluded up front: that DOES prove a
 # script, however short the message is.
+#
+# Greeting words are low-signal only when they ARE the whole message (+ trailing
+# punctuation): "hi" says nothing, but "Hi, I'm looking for jewellery" is plainly
+# English prose and must be allowed to correct a stale stored language. Bare acks
+# (yes / ok / thanks) keep the looser \b match so a native-script session is not
+# demoted by "yes please ...".
 _LOW_SIGNAL_ALWAYS_RE = re.compile(
     r"^[\W\d]*$"  # digits / punctuation / emoji only ("50000", "?", "😍")
-    r"|^\s*(?:yes|no|ok|okay|yeah|yup|sure|hi|hii+|hey|hello|thanks|ty)\b",
+    r"|^\s*(?:yes|no|ok|okay|yeah|yup|sure|thanks|ty)\b"
+    r"|^\s*(?:hi|hii+|hey|hello)[\s.,!]*$",
     re.I,
 )
 
@@ -1514,7 +1524,9 @@ def _store_language(
 
     An explicit request ("talk to me in English only please") outranks both:
     the user told us what they want and detection must stop second-guessing
-    them. Cleared on greeting / session expiry with the other transient state.
+    them. The stored language is cleared on session expiry (see
+    session_state._expire_session_now); language_override is additionally
+    cleared on a fresh start with the other transient state.
     """
     requested = detect_language_override(user_text)
     if requested:
@@ -1544,6 +1556,16 @@ def _store_language(
         return
     if stored and user_text:
         user_profile["language"] = resolve_reply_language(stored, user_text)
+        return
+    if not stored and user_text:
+        # Nothing stored (fresh session, or just cleared on TTL expiry) and no
+        # LLM label yet — e.g. a returning customer whose first message is a
+        # greeting in their own script. Seed from unambiguous script / romanized
+        # evidence only; resolve_reply_language returns "en" when that evidence
+        # is absent, so an English greeting still leaves language unset.
+        seeded = resolve_reply_language(None, user_text)
+        if seeded and seeded != "en":
+            user_profile["language"] = seeded
 
 
 def _flow_escape_should_classify(user_query: str) -> bool:
@@ -2954,6 +2976,24 @@ class Classifier(Processor):
                 flow_keeps_turn = True
 
         if flow_keeps_turn or not self.should_run(data):
+            # Mid-wizard turns never reached _store_language, so a stale stored
+            # language could never correct while the funnel owned the turn.
+            # Only act on genuine PROSE the wizard cannot parse as a slot answer
+            # ("something for my wife's birthday") — never on a slot word
+            # ("rings", "gold", "Female"), which carries no language evidence
+            # and whose demotion to "en" is exactly the regression
+            # test_native_script_session_is_not_demoted_by_one_english_word
+            # guards against. label=None, so it can only script-mirror / apply
+            # an override, never invent a fresh identity.
+            _wizard_body = ""
+            if "text" in data.get("messages", {}):
+                _wizard_body = data["messages"]["text"].get("body") or ""
+            if (
+                _wizard_body
+                and user_profile.get("shopping_wizard_active")
+                and not _wizard_parses_offline(user_profile, _wizard_body)
+            ):
+                _store_language(user_profile, None, _wizard_body)
             # NOTE: a pasted product URL landing here (a sticky wait owns the
             # turn) is not detected -- _apply_product_url_shortcut only runs
             # further down, on the ordinary per-turn path. Same pre-existing

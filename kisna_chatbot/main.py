@@ -276,6 +276,28 @@ async def lifespan(app: FastAPI):
 
         sweep_task = asyncio.create_task(_sweep_clara_events())
 
+    # Win-back nudge loop. Same single-loop pattern; default OFF.
+    from kisna_chatbot.processors.reengagement import (
+        is_enabled as reengage_enabled,
+        sweep_reengagement,
+        sweep_seconds as reengage_sweep_seconds,
+    )
+
+    reengage_task: asyncio.Task | None = None
+    if reengage_enabled():
+
+        async def _sweep_reengagement() -> None:
+            while True:
+                await asyncio.sleep(reengage_sweep_seconds())
+                try:
+                    await sweep_reengagement()
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception("Re-engagement sweep failed")
+
+        reengage_task = asyncio.create_task(_sweep_reengagement())
+
     try:
         yield
     finally:
@@ -283,6 +305,10 @@ async def lifespan(app: FastAPI):
             sweep_task.cancel()
             with suppress(asyncio.CancelledError):
                 await sweep_task
+        if reengage_task is not None:
+            reengage_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await reengage_task
 
 
 app = FastAPI(
@@ -857,6 +883,27 @@ async def process_message(
 def ping():
     """Public health check."""
     return {"status": "ok"}
+
+
+@app.post("/internal/reengagement/sweep")
+async def internal_reengagement_sweep(request: Request):
+    """Run one win-back sweep on demand.
+
+    The container already runs the sweep on a timer (see ``lifespan``); this is a
+    portable trigger for an external cron / for verification. Guarded by
+    ``KISNA_INTERNAL_CRON_KEY`` — if that env var is unset the endpoint is
+    disabled (404-equivalent 403) so it can never be hit anonymously.
+    """
+    expected = (os.getenv("KISNA_INTERNAL_CRON_KEY") or "").strip()
+    provided = (request.headers.get("X-Internal-Key") or "").strip()
+    if not expected or not hmac.compare_digest(
+        expected.encode("utf-8", "ignore"), provided.encode("utf-8", "ignore")
+    ):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from kisna_chatbot.processors.reengagement import sweep_reengagement
+
+    sent = await sweep_reengagement()
+    return {"status": "ok", "sent": sent}
 
 
 @app.post("/gupshup/message/kisna")

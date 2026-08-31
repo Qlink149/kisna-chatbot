@@ -557,6 +557,75 @@ class LanguageOverrideTests(unittest.TestCase):
 
         asyncio.run(_run())
 
+    def test_english_prose_mid_wizard_corrects_stale_hinglish(self):
+        """A stale hi-Latn used to be frozen for the whole wizard: the answer
+        to a mid-wizard prompt returns before the classifier's _store_language.
+        English PROSE (not a bare slot answer) must now demote it to en even
+        while the flow keeps the turn."""
+
+        async def _run():
+            clf = Classifier()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {
+                    "text": {"body": "something elegant for my wife's birthday"}
+                },
+                "user_profile": {
+                    "chat_history": [],
+                    "language": "hi-Latn",
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "shopping_wizard_active": True,
+                    "shopping_wizard_step": "category",
+                    "shopping_wizard_data": {},
+                    "last_message_at": _fresh_ts(),
+                },
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier._check_universal_escape",
+                new_callable=AsyncMock,
+                return_value=None,
+            ):
+                result = await clf.process(data)
+
+            # The flow kept the turn (no bot_response from the classifier)...
+            self.assertNotIn("bot_response", result)
+            # ...but the stale Hinglish was still corrected.
+            self.assertEqual(result["user_profile"].get("language"), "en")
+
+        asyncio.run(_run())
+
+    def test_bare_slot_answer_mid_wizard_keeps_language(self):
+        """The counter-case: "Female" is a genuine low-signal slot answer and
+        must NOT disturb the established language."""
+
+        async def _run():
+            clf = Classifier()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "Female"}},
+                "user_profile": {
+                    "chat_history": [],
+                    "language": "hi-Latn",
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "shopping_wizard_active": True,
+                    "shopping_wizard_step": "gender",
+                    "shopping_wizard_data": {"category": "ring"},
+                    "last_message_at": _fresh_ts(),
+                },
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.classifier._check_universal_escape",
+                new_callable=AsyncMock,
+                return_value=None,
+            ):
+                result = await clf.process(data)
+
+            self.assertEqual(result["user_profile"].get("language"), "hi-Latn")
+
+        asyncio.run(_run())
+
 
 class EscapeRoutingTests(unittest.TestCase):
     """Stage 3c — an escape must survive a classifier LLM failure."""

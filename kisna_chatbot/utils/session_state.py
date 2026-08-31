@@ -54,7 +54,9 @@ _SEARCH_CONTEXT_KEYS = (
 
 # Keys that processors pop() in memory. save_to_mongo is $set-only, so a pop
 # otherwise leaves the old Mongo value (stale last_search_at after greeting).
-_MONGO_UNSET_IF_MISSING = _TRANSIENT_KEYS + _SEARCH_CONTEXT_KEYS
+# "language" is popped by _expire_session_now on TTL and must actually leave
+# Mongo so the next session re-derives it.
+_MONGO_UNSET_IF_MISSING = _TRANSIENT_KEYS + _SEARCH_CONTEXT_KEYS + ("language",)
 
 _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
     "product_search": (
@@ -109,6 +111,12 @@ def _expire_session_now(user_profile: dict) -> None:
     reset_transient_state(user_profile)
     user_profile["service_selected"] = ""
     clear_search_context(user_profile)
+    # Detected reply language is per-conversation, not a permanent preference: a
+    # stale value (e.g. hi-Latn) must not outlive a multi-hour gap and keep
+    # answering an all-English customer in Hinglish. It re-derives from the first
+    # real message of the next session. An explicit "reply in English" override
+    # lives in language_override, which reset_transient_state already clears.
+    user_profile.pop("language", None)
 
 
 def maybe_expire_session(user_profile: dict) -> None:

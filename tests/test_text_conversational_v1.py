@@ -137,6 +137,43 @@ class ReplyComposerTests(unittest.TestCase):
 
         asyncio.run(_run())
 
+    def test_compose_instruction_sets_respectful_register(self):
+        import kisna_chatbot.utils.reply_composer as rc
+
+        async def _run():
+            rc._CACHE.clear()
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value="महिलाओं के लिए सोने की अंगूठी",
+            ) as mocked:
+                await rc.compose("search_confirm", "gold rings for women", language="hi")
+            instruction = mocked.await_args.kwargs["instruction"]
+            # Respect floor: aap-form in Hindi/Hinglish, no slang.
+            self.assertIn("aap", instruction)
+            self.assertIn("tum", instruction)
+            self.assertIn("respectful", instruction.lower())
+            self.assertIn("yaar", instruction)
+            # KIA persona is female — feminine first-person self-reference.
+            self.assertIn("female", instruction.lower())
+            self.assertIn("sakti", instruction)
+
+        asyncio.run(_run())
+
+    def test_instructions_set_female_persona(self):
+        from kisna_chatbot.utils.reply_composer import (
+            _compose_instruction,
+            _narrate_instruction,
+        )
+
+        for instr in (_compose_instruction("Hindi"), _narrate_instruction("Hinglish")):
+            low = instr.lower()
+            self.assertIn("female", low)
+            self.assertIn("kar sakti hoon", instr)
+            self.assertIn("samajh gayi", instr)
+            # ...but don't gender the customer.
+            self.assertIn("customer's gender", instr)
+
     def test_native_script_echo_retries_then_caches(self):
         import kisna_chatbot.utils.reply_composer as rc
 
@@ -283,6 +320,23 @@ class NarratorTests(unittest.TestCase):
                 )
             mocked.assert_called_once()  # English is narrated too (not passthrough)
             self.assertIn("help you find", out)
+
+        asyncio.run(_run())
+
+    def test_narrate_instruction_sets_respectful_register(self):
+        from kisna_chatbot.utils.reply_composer import narrate
+
+        async def _run():
+            with patch(
+                "kisna_chatbot.utils.reply_composer.complete_chat",
+                new_callable=AsyncMock,
+                return_value="Aap ke liye kya dhoondhein? 😊",
+            ) as mocked:
+                await narrate("Greet the customer", language="hi-Latn")
+            instruction = mocked.await_args.kwargs["instruction"]
+            self.assertIn("aap", instruction)
+            self.assertIn("tum", instruction)
+            self.assertIn("respectful", instruction.lower())
 
         asyncio.run(_run())
 
