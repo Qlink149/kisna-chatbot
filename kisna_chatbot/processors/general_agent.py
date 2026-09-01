@@ -34,6 +34,31 @@ _KMR_RE = re.compile(
     re.I,
 )
 
+
+def _strip_url_mentions(text: str, url: str) -> str:
+    """Remove any mention of `url` (with or without the https:// protocol) from
+    LLM free text. general_agent_kisna.py's prompt already tells the model not
+    to type the digital-gold/KMR link itself since a CTA button carries it —
+    this is the deterministic safety net for the turns it does anyway, so the
+    customer is never shown the same link twice in one message.
+    """
+    if not text or not url:
+        return text
+    domain = url.split("//", 1)[-1].rstrip("/")
+    if not domain:
+        return text
+    cleaned = re.sub(rf"https?://{re.escape(domain)}/?", "", text, flags=re.I)
+    cleaned = re.sub(rf"(?<!\S){re.escape(domain)}/?(?!\S)", "", cleaned, flags=re.I)
+    if cleaned == text:
+        return text
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = cleaned.strip()
+    # If stripping the URL leaves nothing (the whole reply WAS the link),
+    # a duplicated link beats an empty WhatsApp text message.
+    return cleaned or text
+
 _CATALOG_FOLLOWUP_RE = re.compile(
     r"\b("
     r"price|cost|kitna|rate|sasta|mehnga|cheap|expensive|cheapest|cheaper|better|compare|"
@@ -217,6 +242,11 @@ class GeneralAgent(Processor):
                 if data.get("_digital_gold_cta") or _DIGITAL_GOLD_RE.search(
                     user_query or ""
                 ):
+                    # Don't show the link twice: once as text, once as the
+                    # button below it.
+                    responses[0]["text"] = _strip_url_mentions(
+                        responses[0]["text"], DIGITAL_GOLD_URL
+                    )
                     responses.append(
                         {
                             "type": "cta_url",
@@ -235,6 +265,9 @@ class GeneralAgent(Processor):
                         }
                     )
                 if _KMR_RE.search(user_query or ""):
+                    responses[0]["text"] = _strip_url_mentions(
+                        responses[0]["text"], KMR_URL
+                    )
                     responses.append(
                         {
                             "type": "cta_url",

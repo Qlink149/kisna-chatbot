@@ -84,6 +84,13 @@ class DigitalGoldTests(unittest.TestCase):
         intent, _ = _programmatic_intent_override("what is digital gold?")
         self.assertEqual(intent, "general")
 
+    def test_strip_url_mentions_drops_digital_gold_link(self):
+        from kisna_chatbot.processors.general_agent import _strip_url_mentions
+
+        text = "Register at https://www.kisna.com/digital-gold to get started."
+        cleaned = _strip_url_mentions(text, DIGITAL_GOLD_URL)
+        self.assertNotIn("kisna.com/digital-gold", cleaned)
+
 
 class KmrTests(unittest.TestCase):
     def test_kmr_regex(self):
@@ -136,6 +143,34 @@ class KmrTests(unittest.TestCase):
         result = self._run_general_agent("what is your return policy?")
         types = [r.get("type") for r in result["bot_response"]]
         self.assertNotIn("cta_url", types)
+
+    def test_llm_repeating_the_link_is_stripped_from_the_text(self):
+        # Live bug: the model sometimes writes the link itself even though the
+        # KB/prompt says not to -- the customer must never see it twice (once
+        # in the message, once as the button).
+        message_text = (
+            "KMR is Kisna's savings plan. Enroll online at "
+            "https://meriroshni.kisna.com/ or visit any store."
+        )
+        result = self._run_general_agent("tell me about KMR", message_text=message_text)
+        responses = result["bot_response"]
+        self.assertNotIn("meriroshni.kisna.com", responses[0]["text"])
+        cta = next(r for r in responses if r.get("type") == "cta_url")
+        self.assertEqual(cta["url"], KMR_URL)
+
+    def test_strip_url_mentions_never_empties_the_message(self):
+        from kisna_chatbot.processors.general_agent import _strip_url_mentions
+
+        self.assertEqual(
+            _strip_url_mentions(
+                "https://meriroshni.kisna.com/", "https://meriroshni.kisna.com/"
+            ),
+            "https://meriroshni.kisna.com/",
+        )
+        self.assertEqual(_strip_url_mentions("", KMR_URL), "")
+        self.assertEqual(
+            _strip_url_mentions("KMR is great!", KMR_URL), "KMR is great!"
+        )
 
 
 if __name__ == "__main__":
