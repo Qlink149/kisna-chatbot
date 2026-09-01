@@ -47,6 +47,15 @@ def _is_active(entry: dict) -> bool:
     return entry.get("active") is True
 
 
+def _is_standard_karat(entry: dict) -> bool:
+    """Only the 5 karats KISNA actually sells. Clara's payload sometimes
+    includes extra rows (e.g. 20KT); those are dropped regardless of the
+    payload's own `active` flag."""
+    label = (_karat_label(entry) or "").lower()
+    m = re.match(r"^(\d+)", label)
+    return bool(m) and f"{m.group(1)}kt" in _KT_ORDER
+
+
 def _karat_label(entry: dict) -> str | None:
     raw = (
         entry.get("kt")
@@ -118,7 +127,9 @@ def _format_rate_line(entry: dict) -> str | None:
 
 
 def format_gold_rates_reply(body: Any) -> str:
-    entries = [e for e in _extract_rate_entries(body) if _is_active(e)]
+    entries = [
+        e for e in _extract_rate_entries(body) if _is_active(e) and _is_standard_karat(e)
+    ]
     entries.sort(key=_karat_sort_key)
 
     lines = ["*Today's KISNA Gold Rates* ✨", ""]
@@ -149,10 +160,8 @@ def format_gold_rates_reply(body: Any) -> str:
     if len([ln for ln in lines if ln.startswith("•")]) == 0:
         return _FALLBACK
 
-    home = append_kisna_utm(kisna_home_url())
     lines.append("")
     lines.append("_Per gram · rates change through the day._")
-    lines.append(f"Browse jewellery: {home}")
     return "\n".join(lines)
 
 
@@ -170,4 +179,19 @@ async def build_gold_rate_bot_response(app_state=None) -> list[dict]:
     # Tagged so localize_bot_responses mirrors it into the user's language;
     # untagged, a Devanagari "आज सोने का भाव क्या है?" was answered entirely in
     # English. Functional tag: the karat figures must survive verbatim.
-    return [{"type": "text", "text": text, "_compose": "gold_rates"}]
+    responses: list[dict] = [{"type": "text", "text": text, "_compose": "gold_rates"}]
+    if text != _FALLBACK:
+        # A separate CTA button, not an inline URL: display_text/url are never
+        # sent through the translator (reply_composer.py), so this survives
+        # every language exactly, unlike the old "Browse jewellery: <url>" line
+        # which sat inside LLM-rewritten prose.
+        responses.append(
+            {
+                "type": "cta_url",
+                "text": "Browse our full jewellery collection ✨",
+                "_compose": "gold_rates_browse_cta",
+                "display_text": "Browse Jewellery",
+                "url": append_kisna_utm(kisna_home_url()),
+            }
+        )
+    return responses

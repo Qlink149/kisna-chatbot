@@ -20,6 +20,7 @@ WIZARD_STEPS = (
 READY_TO_SHIP_EDD_DAYS = 7
 
 DIGITAL_GOLD_URL = "https://www.kisna.com/digital-gold"
+KMR_URL = "https://meriroshni.kisna.com/"
 
 # "Doesn't matter" answer: fills the slot so the funnel advances, then drops
 # out in entities_from_wizard so no filter is sent.
