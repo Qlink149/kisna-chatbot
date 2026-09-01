@@ -174,9 +174,9 @@ KISNA_KNOWLEDGE_BASE = """\
 - Sign up at www.kisna.com with name, email, and a password.
 - Forgot password: click "forgot password" under sign-in, enter registered email, receive a reset link.
 
-## KISNA MERI ROSHNI (KMR) — Monthly Savings Plan — meriroshni.kisna.com
+## KISNA MERI ROSHNI (KMR) — Monthly Savings Plan — https://meriroshni.kisna.com/
 - KMR is Kisna's "10+1" monthly jewellery savings plan with two variants: KMR-Amount and KMR-Gram.
-- How to join: visit any Kisna exclusive store (store staff will assist), or enroll online at meriroshni.kisna.com.
+- How to join: visit any Kisna exclusive store (store staff will assist), or enroll online at https://meriroshni.kisna.com/.
 - Support phone: 8065155600.
 
 ### KYC Requirements

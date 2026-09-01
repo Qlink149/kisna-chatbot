@@ -91,6 +91,23 @@ class TestGoldRate(unittest.TestCase):
         text = format_gold_rates_reply({})
         self.assertIn("kisna.com", text.lower())
 
+    def test_excludes_20kt_even_when_active(self):
+        # KISNA doesn't sell 20KT; it must be dropped even when Clara marks it
+        # active=True (the reported bug — the fixture above only covers the
+        # active=False case, which was never actually the failure mode).
+        body = {
+            "data": [
+                {"kt": "24kt", "price": 15733, "active": True},
+                {"kt": "20kt", "price": 12012, "active": True},
+                {"kt": "9kt", "price": 5899.88, "active": True},
+            ]
+        }
+        text = format_gold_rates_reply(body)
+        self.assertIn("24KT", text)
+        self.assertIn("9KT", text)
+        self.assertNotIn("20KT", text)
+        self.assertNotIn("12,012", text)
+
     @patch(
         "kisna_chatbot.processors.gold_rate_handler.get_cached_gold_rates",
         new_callable=AsyncMock,
@@ -101,6 +118,26 @@ class TestGoldRate(unittest.TestCase):
         self.assertEqual(responses[0]["type"], "text")
         self.assertIn("24KT", responses[0]["text"])
         self.assertIn("14,727", responses[0]["text"])
+        # The inline "Browse jewellery: <url>" line is gone -- it's now a
+        # separate CTA button so the URL survives translation untouched.
+        self.assertNotIn("Browse jewellery", responses[0]["text"])
+        self.assertNotIn("http", responses[0]["text"])
+
+        self.assertEqual(len(responses), 2)
+        cta = responses[1]
+        self.assertEqual(cta["type"], "cta_url")
+        self.assertEqual(cta["display_text"], "Browse Jewellery")
+        self.assertTrue(cta["url"].startswith("https://www.kisna.com"))
+
+    @patch(
+        "kisna_chatbot.processors.gold_rate_handler.get_cached_gold_rates",
+        new_callable=AsyncMock,
+    )
+    def test_no_cta_button_on_fallback(self, mock_get):
+        mock_get.return_value = {}
+        responses = asyncio.run(build_gold_rate_bot_response())
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0]["type"], "text")
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ from kisna_chatbot.ai import run_general_agent
 from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
-from kisna_chatbot.processors.shopping_wizard import DIGITAL_GOLD_URL
+from kisna_chatbot.processors.shopping_wizard import DIGITAL_GOLD_URL, KMR_URL
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
 
@@ -19,6 +19,17 @@ _DIGITAL_GOLD_RE = re.compile(
     r"\b("
     r"digital\s+gold|safegold|safe\s+gold|buy\s+gold\s+online|"
     r"gold\s+sip|digital\s+sona"
+    r")\b",
+    re.I,
+)
+
+# Same wording as classifier.py's _SCHEME_RE — duplicated locally rather than
+# imported, matching how _DIGITAL_GOLD_RE above is already duplicated here
+# instead of imported from classifier.py.
+_KMR_RE = re.compile(
+    r"\b("
+    r"kmr|meri\s+roshni|savings?\s+plan|gold\s+plan|monthly\s+plan|"
+    r"installment\s+plan|kisht?\s+plan|10\s*\+\s*1|schemes?"
     r")\b",
     re.I,
 )
@@ -220,6 +231,20 @@ class GeneralAgent(Processor):
                             "_compose": "digital_gold_cta",
                             "display_text": "Buy Digital Gold",
                             "url": DIGITAL_GOLD_URL,
+                            "footer": "KISNA Diamond & Gold",
+                        }
+                    )
+                if _KMR_RE.search(user_query or ""):
+                    responses.append(
+                        {
+                            "type": "cta_url",
+                            "text": (
+                                "Learn more about KISNA Meri Roshni, our "
+                                "monthly savings plan."
+                            ),
+                            "_compose": "kmr_cta",
+                            "display_text": "Explore KMR",
+                            "url": KMR_URL,
                             "footer": "KISNA Diamond & Gold",
                         }
                     )
