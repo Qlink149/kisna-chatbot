@@ -239,8 +239,17 @@ class GeneralAgent(Processor):
                 responses: list[dict] = [
                     {"type": "text", "text": result.message_text}
                 ]
-                if data.get("_digital_gold_cta") or _DIGITAL_GOLD_RE.search(
-                    user_query or ""
+                # Checked against BOTH the raw query and the model's own answer:
+                # a typo ("krm" for "kmr") still gets a correct, on-topic KMR
+                # answer from the classifier/LLM (typo-tolerant), but a plain
+                # substring match on the raw query alone would miss it and
+                # silently drop the button. The KB opens with "KMR"/"Meri
+                # Roshni" verbatim whenever the model is genuinely answering
+                # about it, so checking the answer text is a reliable fallback.
+                if (
+                    data.get("_digital_gold_cta")
+                    or _DIGITAL_GOLD_RE.search(user_query or "")
+                    or _DIGITAL_GOLD_RE.search(result.message_text or "")
                 ):
                     # Don't show the link twice: once as text, once as the
                     # button below it.
@@ -264,7 +273,9 @@ class GeneralAgent(Processor):
                             "footer": "KISNA Diamond & Gold",
                         }
                     )
-                if _KMR_RE.search(user_query or ""):
+                if _KMR_RE.search(user_query or "") or _KMR_RE.search(
+                    result.message_text or ""
+                ):
                     responses[0]["text"] = _strip_url_mentions(
                         responses[0]["text"], KMR_URL
                     )

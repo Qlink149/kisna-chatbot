@@ -104,7 +104,7 @@ class KmrTests(unittest.TestCase):
         intent, _ = _programmatic_intent_override("tell me about KMR")
         self.assertEqual(intent, "general")
 
-    def _run_general_agent(self, query: str, message_text: str = "KMR info"):
+    def _run_general_agent(self, query: str, message_text: str = "Generic answer."):
         from kisna_chatbot.ai.types import GeneralAgentResult, ProviderName
 
         async def _run():
@@ -130,7 +130,7 @@ class KmrTests(unittest.TestCase):
         return asyncio.run(_run())
 
     def test_kmr_query_appends_cta_button(self):
-        result = self._run_general_agent("Tell me about KMR")
+        result = self._run_general_agent("Tell me about KMR", message_text="KMR info")
         responses = result["bot_response"]
         self.assertEqual(responses[0]["type"], "text")
         self.assertEqual(responses[0]["text"], "KMR info")
@@ -138,6 +138,22 @@ class KmrTests(unittest.TestCase):
         self.assertEqual(cta["url"], KMR_URL)
         self.assertEqual(cta["display_text"], "Explore KMR")
         self.assertEqual(cta["_compose"], "kmr_cta")
+
+    def test_typo_query_still_gets_the_button_when_the_answer_is_on_topic(self):
+        # Live bug: "krm" (typo for "kmr") doesn't match _KMR_RE, but the
+        # classifier/LLM is typo-tolerant and answers correctly about KMR
+        # anyway -- the button must still show up, keyed off the answer text.
+        result = self._run_general_agent(
+            "krm",
+            message_text=(
+                "Kisna Meri Roshni (KMR) hamari monthly savings plan hai."
+            ),
+        )
+        responses = result["bot_response"]
+        types = [r.get("type") for r in responses]
+        self.assertIn("cta_url", types)
+        cta = next(r for r in responses if r.get("type") == "cta_url")
+        self.assertEqual(cta["url"], KMR_URL)
 
     def test_non_kmr_query_has_no_cta_button(self):
         result = self._run_general_agent("what is your return policy?")
