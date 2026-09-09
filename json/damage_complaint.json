@@ -9,47 +9,75 @@
             "children": [
               {
                 "type": "TextSubheading",
-                "text": "Enter Order ID & Describe Your Issue."
+                "text": "Tell us what went wrong and how to reach you."
               },
               {
                 "data-source": [
-                  {"id": "0_Want_to_Buy", "title": "Want to Buy"},
                   {"id": "1_Order_Related", "title": "Order Related"},
                   {"id": "2_Payment_Related", "title": "Payment Related"},
                   {"id": "3_Stores_Related", "title": "Stores Related"},
                   {"id": "4_Returns_Related", "title": "Returns Related"},
                   {"id": "5_Exchange_Buyback", "title": "Exchange/Buyback"},
                   {"id": "6_Digital_Gold", "title": "Digital Gold"},
-                  {"id": "7_Kisna_Points", "title": "Kisna Points"},
-                  {"id": "8_10_Plus_1_Monthly_Plan", "title": "10+1 Monthly Plan"},
-                  {"id": "9_Other", "title": "Other"}
+                  {"id": "7_Kisna_Points", "title": "Kisna Points (KMR)"},
+                  {"id": "8_10_Plus_1_Monthly_Plan", "title": "10+1 Monthly Plan (KMR)"},
+                  {"id": "9_Other", "title": "Other / General"}
                 ],
                 "label": "Complaint Type",
-                "name": "Complaint_Type_522e3f",
+                "name": "complaint_type",
                 "required": true,
                 "type": "Dropdown"
               },
               {
                 "input-type": "text",
                 "label": "Order ID",
-                "name": "Order_ID_b1c73d",
-                "required": true,
+                "name": "order_id",
+                "required": false,
+                "helper-text": "For order, payment, return or exchange issues. Skip if you don't have one.",
                 "type": "TextInput"
               },
               {
-                "label": "Issue Description",
-                "name": "Issue_Description_516d4e",
+                "input-type": "number",
+                "label": "Registered Mobile Number",
+                "name": "registered_mobile",
+                "required": false,
+                "helper-text": "For order or payment issues — the mobile number on your Kisna account.",
+                "type": "TextInput"
+              },
+              {
+                "input-type": "text",
+                "label": "Registered Email or Contact Number",
+                "name": "registered_contact",
+                "required": false,
+                "helper-text": "For KMR, Digital Gold, store or general queries — how we identify your account.",
+                "type": "TextInput"
+              },
+              {
+                "input-type": "text",
+                "label": "Invoice Number",
+                "name": "invoice_number",
+                "required": false,
+                "helper-text": "For store-related issues, if you have the invoice.",
+                "type": "TextInput"
+              },
+              {
+                "label": "Describe your issue",
+                "name": "issue_description",
                 "required": true,
+                "helper-text": "For payment issues, include the transaction ID, amount and date.",
                 "type": "TextArea"
               },
               {
-                "label": "Continue",
+                "label": "Submit Complaint",
                 "on-click-action": {
                   "name": "complete",
                   "payload": {
-                    "screen_0_Order_ID_0": "${form.Order_ID_b1c73d}",
-                    "screen_0_Issue_Description_1": "${form.Issue_Description_516d4e}",
-                    "screen_0_complaint_type_2": "${form.Complaint_Type_522e3f}"
+                    "complaint_type": "${form.complaint_type}",
+                    "order_id": "${form.order_id}",
+                    "registered_mobile": "${form.registered_mobile}",
+                    "registered_contact": "${form.registered_contact}",
+                    "invoice_number": "${form.invoice_number}",
+                    "issue_description": "${form.issue_description}"
                   }
                 },
                 "type": "Footer"
