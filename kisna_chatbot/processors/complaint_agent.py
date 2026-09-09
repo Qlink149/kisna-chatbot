@@ -96,6 +96,42 @@ def _extract_complaint_fields(flow_data: dict) -> tuple[str, str, str]:
     )
 
 
+def _extract_contact_fields(flow_data: dict) -> dict[str, str]:
+    """Category-specific contact fields added in the v2 complaint form
+    (registered mobile / email-or-contact / invoice number). Absent from the
+    old form's payload -> all blank, and every downstream use is a no-op.
+    """
+    return {
+        "registered_mobile": str(flow_data.get("registered_mobile") or "").strip(),
+        "registered_contact": str(flow_data.get("registered_contact") or "").strip(),
+        "invoice_number": str(flow_data.get("invoice_number") or "").strip(),
+    }
+
+
+def _augment_issue_with_contact(issue: str, contact: dict[str, str]) -> str:
+    """Fold the contact fields into the issue text so they still reach CRM /
+    Clara without changing those payload contracts. No-op when none were given
+    (old-form submissions), so the byte-for-byte event tests are unaffected.
+    """
+    extras = []
+    if contact.get("registered_mobile"):
+        extras.append(f"Registered mobile: {contact['registered_mobile']}")
+    if contact.get("registered_contact"):
+        extras.append(f"Registered email / contact: {contact['registered_contact']}")
+    if contact.get("invoice_number"):
+        extras.append(f"Invoice no.: {contact['invoice_number']}")
+    if not extras:
+        return issue
+    block = "Contact details provided:\n" + "\n".join(extras)
+    return f"{issue}\n\n{block}" if issue else block
+
+
+def _is_want_to_buy(complaint_type: str) -> bool:
+    """A purchase enquiry is not a complaint (client request, C9). The v2 form
+    no longer offers this option; this only catches a stale cached form."""
+    return complaint_type.strip().lower().startswith(("0_want_to_buy", "want to buy", "want_to_buy"))
+
+
 def _build_confirmation(case_id: str) -> list[dict]:
     """Build bot_response confirmation text after complaint registration."""
     lines = [
@@ -104,7 +140,7 @@ def _build_confirmation(case_id: str) -> list[dict]:
     if case_id:
         lines.append(f"Case ID: {case_id}")
     lines.append("Our team will contact you within 24 hours.")
-    return [{"type": "text", "text": "\n".join(lines)}]
+    return [{"type": "text", "text": "\n".join(lines), "_compose": "complaint_registered"}]
 
 
 class ComplaintAgent(Processor):
@@ -149,6 +185,31 @@ class ComplaintAgent(Processor):
             order_id, issue_description, complaint_type = _extract_complaint_fields(
                 flow_data
             )
+            contact = _extract_contact_fields(flow_data)
+
+            # C9: "Want to Buy" is a purchase enquiry, not a complaint. The v2
+            # form drops the option; this handles a stale cached form by
+            # routing to the sales journey instead of logging a junk case.
+            if _is_want_to_buy(complaint_type):
+                logger.info(
+                    "Complaint form submitted with Want-to-Buy — routing to sales",
+                    extra={"phone_number": phone_number, "client_id": client_id},
+                )
+                user_profile["service_selected"] = ""
+                data["bot_response"] = [
+                    {
+                        "type": "text",
+                        "text": (
+                            "Looks like you'd like to buy something rather than raise a "
+                            "complaint. 😊 Just tell me what you're after — e.g. "
+                            "\"gold earrings under 30k\" — and I'll show you options."
+                        ),
+                        "_compose": "complaint_want_to_buy_redirect",
+                    }
+                ]
+                return data
+
+            issue_description = _augment_issue_with_contact(issue_description, contact)
 
             logger.info(
                 "Complaint received",
@@ -156,6 +217,7 @@ class ComplaintAgent(Processor):
                     "phone_number": phone_number,
                     "order_id": order_id,
                     "complaint_type": complaint_type,
+                    "has_contact_fields": any(contact.values()),
                     "client_id": client_id,
                 },
             )
@@ -203,6 +265,11 @@ class ComplaintAgent(Processor):
                         "customer_name": customer_name,
                         "created_at": created_at,
                         "status": "registered" if case_id else "crm_pending",
+                        # v2 form category-specific contact fields (blank for
+                        # old-form submissions).
+                        "registered_mobile": contact["registered_mobile"],
+                        "registered_contact": contact["registered_contact"],
+                        "invoice_number": contact["invoice_number"],
                     }
                 )
                 mongo_saved = True
