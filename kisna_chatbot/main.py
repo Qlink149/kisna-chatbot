@@ -533,6 +533,32 @@ async def _send_responses(payload: dict) -> None:
     await asyncio.to_thread(ResponseManager().handle_responses, data=payload)
 
 
+def _is_tracked_flow_submission(messages: dict) -> bool:
+    """True when the inbound message is a complaint / callback / video-call
+    Flow reply (matched by flow_token).
+
+    While a human agent has a conversation taken over, the inbound handler
+    saves every message silently and skips the pipeline (see process_message).
+    That also drops these three WhatsApp *Flow* submissions, which are
+    structured records — not chat an agent answers in the thread — so the
+    complaint / callback / video-call simply never gets registered. When this
+    returns True the handler still runs that one processor (record persisted +
+    Clara event pushed + confirmation sent); every other message stays silent
+    and the takeover is otherwise untouched.
+    """
+    try:
+        from kisna_chatbot.processors.callback_agent import _parse_support_request_flow
+        from kisna_chatbot.processors.complaint_agent import _parse_complaint_flow
+
+        return (
+            _parse_complaint_flow(messages) is not None
+            or _parse_support_request_flow(messages) is not None
+        )
+    except Exception:
+        logger.exception("tracked-flow detection failed")
+        return False
+
+
 async def process_message(
     request_data: dict,
     app_state=None,
@@ -697,8 +723,14 @@ async def process_message(
 
             takeover = get_takeover_status(phone_number, client_id)
             if takeover and takeover.get("active"):
+                bypass_flow = _is_tracked_flow_submission(messages)
                 logger.info(
-                    "Human takeover active — saving message silently",
+                    "Human takeover active — saving message silently"
+                    + (
+                        " (Flow submission will still be registered)"
+                        if bypass_flow
+                        else ""
+                    ),
                     extra={"phone_number": phone_number},
                 )
                 content = format_user(messages, phone_number)
@@ -715,6 +747,39 @@ async def process_message(
                         },
                     )
                 touch_last_message_at(phone_number, client_id)
+
+                if not bypass_flow:
+                    return
+
+                # A complaint / callback / video-call Flow reply is a
+                # structured record, not chat the agent will answer. Register
+                # it (row + Clara event, both written inside the processor) and
+                # send its confirmation. No writes to the user profile or the
+                # takeover state — the agent keeps the conversation.
+                try:
+                    from kisna_chatbot.pipelines.pipeline import Pipeline
+                    from kisna_chatbot.processors.callback_agent import CallbackAgent
+                    from kisna_chatbot.processors.complaint_agent import ComplaintAgent
+
+                    data = await UserRegistration().process(data)
+                    data = await Pipeline(
+                        [CallbackAgent(), ComplaintAgent()]
+                    ).run(data=data)
+                    if "bot_response" in data:
+                        await localize_bot_responses(data)
+                        await _send_responses(data)
+                    logger.info(
+                        "Flow submission registered during human takeover",
+                        extra={
+                            "phone_number": phone_number,
+                            "sent_confirmation": "bot_response" in data,
+                        },
+                    )
+                except Exception:
+                    logger.exception(
+                        "Flow submission under takeover failed",
+                        extra={"phone_number": phone_number},
+                    )
                 return
 
             if message_id:
