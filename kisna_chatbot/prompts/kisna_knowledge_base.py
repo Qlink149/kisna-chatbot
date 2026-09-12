@@ -28,7 +28,6 @@ KISNA_KNOWLEDGE_BASE = """\
 - Free shipping within India.
 - Easy exchange & buyback.
 - Free jewellery insurance.
-- EMI options available.
 - Uniform pricing across website, app, and physical stores.
 
 ## RETURNS POLICY (authoritative)
@@ -38,7 +37,7 @@ KISNA_KNOWLEDGE_BASE = """\
 - Damaged/wrong item: inspect on receipt and report immediately for evaluation.
 - Exclusions: sale items and gift cards are NOT eligible for return.
 - Refunds: if approved within the 7-day window, customer gets a 100% refund to the original payment method, processed within 10 business days (bank/card processing may add delay).
-- Return shipping: a flat ₹100 charge applies to resizing, exchange, and refund shipments sent back to Kisna.
+- Return/resizing/exchange shipping charge: there is NO standard flat fee for this — do not quote one (e.g. do not say "₹100" or any other amount). If a customer asks what it costs, say a support agent will confirm for their specific case (do not guess a number).
 - Partial returns: allowed per individual item, but each returned product must be returned in full, including all components.
 - Ring doesn't fit: check the size guide before ordering; if it still doesn't fit, send it back for resizing/exchange.
 - Track a return: via chat support or by emailing support@kisna.com.
@@ -82,7 +81,7 @@ KISNA_KNOWLEDGE_BASE = """\
 ## PAYMENT
 - Accepted: debit/credit cards, net banking, UPI/wallets (Google Pay, PhonePe, MobiKwik, PayZapp, Freecharge, Ola Money).
 - Cash on Delivery (COD): NOT available — online payment only.
-- EMI: available on checkout via major bank cards.
+- EMI: NOT available directly at Kisna. Customer can pay via credit card from a major bank and, if their bank offers it, convert the transaction into EMI afterward — direct EMI-conversion queries to the customer's own bank support.
 - Fraud prevention: payment partners monitor for suspicious activity; flagged transactions held for manual review; ID may be requested to confirm the cardholder.
 
 ## ORDERS
