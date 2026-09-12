@@ -7,6 +7,9 @@ python-multipart==0.0.9
 httpx==0.26.0
 requests==2.31.0
 
+# Object storage (Backblaze B2, S3-compatible) — WhatsApp media capture/send
+boto3==1.43.91
+
 # AI / embeddings / vector store
 openai==2.36.0
 

@@ -721,6 +721,16 @@ async def process_message(
                 extra={"phone_number": phone_number, "client_id": client_id},
             )
 
+            # Copy customer-sent media into B2 before anything else touches
+            # this message -- runs regardless of takeover state, so an agent
+            # who takes over later can still see what was sent while the bot
+            # was handling the chat. No-op (returns None) when B2 isn't
+            # configured or the message isn't media; never raises.
+            from kisna_chatbot.processors.media_capture import capture_inbound_media
+
+            inbound_media = await capture_inbound_media(messages)
+            data["_inbound_media"] = inbound_media
+
             takeover = get_takeover_status(phone_number, client_id)
             if takeover and takeover.get("active"):
                 bypass_flow = _is_tracked_flow_submission(messages)
@@ -736,14 +746,25 @@ async def process_message(
                 content = format_user(messages, phone_number)
                 if content:
                     saved_ts = save_user_message_silent(
-                        phone_number, content, client_id
+                        phone_number, content, client_id, media=inbound_media
                     )
+                    sse_media = None
+                    if inbound_media:
+                        from kisna_chatbot.utils import media_store
+
+                        sse_media = {
+                            **inbound_media,
+                            "url": media_store.presign_get(
+                                inbound_media["b2_key"], 7200
+                            ),
+                        }
                     await pubsub.publish(
                         phone_number,
                         {
                             "type": "user_message",
                             "content": content,
                             "timestamp": saved_ts,
+                            "media": sse_media,
                         },
                     )
                 touch_last_message_at(phone_number, client_id)
