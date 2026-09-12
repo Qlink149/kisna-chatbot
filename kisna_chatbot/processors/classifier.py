@@ -137,6 +137,27 @@ _ORDER_TRACK_RE = re.compile(
     re.I,
 )
 
+# C4: "May I know when I'll receive the call" fell into the classifier prompt's
+# own "unclear -> default track_order" rule and got answered with the
+# Track-Your-Order button. Deliberately narrow -- only patterns that can only
+# be about a human/call connection, never about order delivery, so this never
+# shadows a genuine "when will my order arrive" question (that stays on
+# _ORDER_TRACK_RE, unchanged).
+_HANDOFF_STATUS_RE = re.compile(
+    r"\b("
+    r"when\s+(?:will\s+)?i(?:'ll| will)?\s+(?:receive|recevue|get)\s+the\s+call|"
+    r"when\s+will\s+(?:the\s+|an\s+)?agent\s+(?:connect|call|reply|respond)|"
+    r"when\s+will\s+(?:someone|somebody|anyone)\s+(?:call|connect|respond|reply)|"
+    r"still\s+not\s+connected|not\s+connected\s+yet|"
+    r"waiting\s+(?:from|since)\s+(?:a\s+)?long(?:\s+time)?|"
+    r"this\s+was\s+said\s+before|said\s+(?:this\s+)?before\s+also|"
+    r"kab\s+tak\s+call\s+(?:aayega|karoge|hoga)|"
+    r"koi\s+reply\s+nahi\s+(?:aaya|aa\s+raha)|"
+    r"abhi\s+tak\s+koi\s+nahi"
+    r")\b",
+    re.I,
+)
+
 _EXCHANGE_RE = re.compile(r"\b(exchange|badal|swap)\b", re.I)
 
 _RETURNS_RE = re.compile(r"\b(return|refund|wapas)\b", re.I)
@@ -300,6 +321,36 @@ _DIGITAL_GOLD_RE = re.compile(
     r"\b("
     r"digital\s+gold|safegold|safe\s+gold|buy\s+gold\s+online|"
     r"gold\s+sip|digital\s+sona"
+    r")\b",
+    re.I,
+)
+
+# C7: "making charges kitna hai" is a baked-in few-shot example routing to
+# "general" (kisna_classifier_intent), which lets the LLM answer from its own
+# knowledge -- it invented "making charge is often 10%" with a worked ₹
+# example, though the KB explicitly forbids ever quoting a percentage (the
+# live offers slab table is the only source of truth). This is a hard
+# override so the LLM is never even asked the question.
+_MAKING_CHARGES_RE = re.compile(r"\bmaking\s+charges?\b", re.I)
+
+# QA-found guard for the F6/F9 hard overrides (making-charges -> offers,
+# handoff-status). Live-LLM replay of real traffic showed both overrides
+# firing on messages the classifier had already gotten RIGHT:
+#   "The making charges discount is not showing in my bill"  -> LLM: complaint,
+#       override wrongly forced offers (re-created audit defect C3).
+#   "i am waiting from long time for my delivery"            -> LLM: track_order,
+#       override wrongly forced handoff_status.
+# When a message carries order / delivery / billing / complaint context it is
+# not a pure "how are making charges calculated" or "when will the agent call"
+# question -- suppress the override and let the LLM decide.
+_ORDER_BILL_COMPLAINT_CONTEXT_RE = re.compile(
+    r"\b("
+    r"orders?|delivery|deliver(?:ed|ing)?|shipped|shipping|shipment|dispatch\w*|"
+    r"parcel|package|courier|tracking|"
+    r"bill|billing|invoice|"
+    r"complaint|refund|"
+    r"not\s+(?:showing|reflect\w*|applied|added|deducted|adjusted)|"
+    r"galat\s+(?:lag|laga|lage)|overcharg\w*|charged\s+me|wrong(?:ly)?\s+charg\w*"
     r")\b",
     re.I,
 )
@@ -513,6 +564,16 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("general", 0.95)
     if _is_custom_jewellery_query(normalized):
         return ("human_handoff", 0.95)
+    if (
+        _HANDOFF_STATUS_RE.search(normalized)
+        and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)
+    ):
+        return ("handoff_status", 0.95)
+    if (
+        _MAKING_CHARGES_RE.search(normalized)
+        and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)
+    ):
+        return ("offers", 0.95)
     if _DIGITAL_GOLD_RE.search(normalized) or _SCHEME_RE.search(normalized):
         return ("general", 0.9)
     # Policy action/info regexes are HINTS only (see _programmatic_intent_hint).
@@ -687,6 +748,16 @@ def _sticky_wait_escape_intent(user_query: str) -> str | None:
         return "human_handoff"
     if _looks_like_browse_escape(normalized):
         return "product_search"
+    if (
+        _HANDOFF_STATUS_RE.search(normalized)
+        and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)
+    ):
+        return "handoff_status"
+    if (
+        _MAKING_CHARGES_RE.search(normalized)
+        and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)
+    ):
+        return "offers"
     if _OFFERS_INTENT_RE.search(normalized) and not _CATEGORY_WORD_RE.search(normalized):
         return "offers"
     if _STORE_LOOKUP_RE.search(normalized):
@@ -2222,6 +2293,7 @@ def _route_resolved_intent(
             "greeting": "Greeting",
             "menu_help": "Main menu",
             "human_handoff": "Live agent handoff",
+            "handoff_status": "Handoff status check",
             "callback": "Callback request form",
             "gold_rate": "Gold rate",
             "video_call": "Video call scheduling",
@@ -2266,6 +2338,16 @@ def _route_resolved_intent(
             _handle_custom_jewellery_handoff(data, user_profile, phone_number)
         else:
             _handle_human_handoff(data, user_profile, phone_number)
+        return True
+
+    if intent == "handoff_status":
+        from kisna_chatbot.processors.support_handler import (
+            build_handoff_status_response,
+        )
+
+        data["bot_response"] = build_handoff_status_response(
+            phone_number, data.get("client_id", "kisna"), user_profile
+        )
         return True
 
     if intent == "callback":

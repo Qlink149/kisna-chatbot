@@ -38,9 +38,16 @@ POLICY_INFO_MATRIX = [
     ("return kaise karu?", "general"),
     ("return policy kya hai?", "general"),
     ("buyback kitna milega?", "general"),
-    ("making charges kitna hai?", "general"),
     ("exchange policy kya hai?", "general"),
     ("exchange possible hai?", "general"),
+]
+
+# F6: making-charges questions are the one policy-info case that IS a hard
+# override (to "offers"), not merely a hint -- the LLM invented a 10% figure
+# with a worked example (C7), so the routing authority is the regex, not the
+# LLM, for this specific topic.
+MAKING_CHARGES_INFO_MATRIX = [
+    ("making charges kitna hai?", "offers"),
 ]
 
 POLICY_ACTION_MATRIX = [
@@ -77,6 +84,12 @@ class PolicyRoutingUnitTests(unittest.TestCase):
         for text, _expected in POLICY_INFO_MATRIX + POLICY_ACTION_MATRIX:
             self.assertIsNone(_programmatic_intent_override(text), msg=text)
             self.assertIsNotNone(_programmatic_intent_hint(text), msg=text)
+
+    def test_making_charges_is_the_one_hard_override_policy_query(self):
+        for text, expected in MAKING_CHARGES_INFO_MATRIX:
+            self.assertEqual(
+                _programmatic_intent_override(text), (expected, 0.95), msg=text
+            )
 
     def test_return_gift_is_not_hijacked(self):
         # "return gift" = a present; regex must not force returns_refund.

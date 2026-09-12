@@ -31,7 +31,6 @@ LLM_INTENT_MATRIX = [
     ("what is the price of Tanishta ring?", "product_info"),
     ("Evil Eye pendant ki price kya hai?", "product_info"),
     ("koi offer hai kya?", "offers"),
-    ("making charge offer batao", "offers"),
     ("nearest store", "store_info"),
     ("mera order kahan hai?", "track_order"),
     ("delivery kab hogi?", "track_order"),
