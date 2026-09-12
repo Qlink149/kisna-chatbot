@@ -67,6 +67,70 @@ def build_support_contact_response(user_profile: dict) -> list[dict]:
     ]
 
 
+def _find_pending_callback(phone_number: str, client_id: str) -> dict | None:
+    """Most recent unresolved callback/video-call booking for this phone, if any."""
+    from kisna_chatbot.database.collections import callback_requests
+
+    return callback_requests.find_one(
+        {"client_id": client_id, "phone_number": phone_number, "status": "pending"},
+        sort=[("created_at", -1)],
+    )
+
+
+def build_handoff_status_response(
+    phone_number: str, client_id: str, user_profile: dict
+) -> list[dict]:
+    """C4: "when will the agent connect / call me" must answer about the
+    handoff, not order tracking. Three cases, checked in order:
+      1. A callback is already booked -> tell them the actual slot, don't
+         re-offer a form they've already filled in.
+      2. A handoff is pending and no agent has taken it over yet -> a status
+         line + the callback form as a concrete next step.
+      3. Neither (the phrase matched but nothing is actually pending) ->
+         a plain reassurance + the option to book a callback anyway, so the
+         hard-override regex never dead-ends a turn with silence.
+    """
+    booked = _find_pending_callback(phone_number, client_id)
+    if booked:
+        date = booked.get("preferred_date") or ""
+        time_label = booked.get("preferred_time_label") or ""
+        slot = f"{date} · {time_label}".strip(" ·") or "the slot you picked"
+        text = (
+            f"You already have a callback booked for {slot} — our team will "
+            "reach out then. No need to book another."
+        )
+        return [{"type": "text", "text": text, "_compose": "handoff_status_booked"}]
+
+    takeover = user_profile.get("human_takeover") or {}
+    if user_profile.get("live_agent_required") and not takeover.get("active"):
+        from kisna_chatbot.config.gupshup import get_callback_flow_id
+        from kisna_chatbot.processors.service_list import (
+            _start_callback_text_capture,
+            build_callback_flow_bot_response,
+        )
+
+        text = (
+            "Our team hasn't picked this up yet — I'm sorry for the wait. "
+            "Let me book you a callback instead so you're not left hanging."
+        )
+        responses: list[dict] = [
+            {"type": "text", "text": text, "_compose": "handoff_status_pending"}
+        ]
+        if get_callback_flow_id():
+            responses.append(build_callback_flow_bot_response())
+        else:
+            responses.extend(
+                _start_callback_text_capture(user_profile, request_type="callback")
+            )
+        return responses
+
+    text = (
+        "I don't see a pending request from you right now — would you like me "
+        "to connect you with a Kisna representative, or book a callback?"
+    )
+    return [{"type": "text", "text": text, "_compose": "handoff_status_none"}]
+
+
 def _notify_admins(customer_name: str, customer_phone: str) -> None:
     for admin in ADMINS:
         send_customer_support_template(
