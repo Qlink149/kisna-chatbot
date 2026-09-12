@@ -242,6 +242,29 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to create users re-engagement index")
 
+    # Serves the handoff-fallback sweep's two candidate queries.
+    try:
+        from kisna_chatbot.database.collections import users
+
+        users.create_index(
+            [
+                ("client_id", ASCENDING),
+                ("live_agent_required", ASCENDING),
+                ("live_agent_requested_at", ASCENDING),
+            ],
+            name="users_client_live_agent_requested_at",
+        )
+        users.create_index(
+            [
+                ("client_id", ASCENDING),
+                ("human_takeover.active", ASCENDING),
+                ("human_takeover.taken_at", ASCENDING),
+            ],
+            name="users_client_takeover_taken_at",
+        )
+    except Exception:
+        logger.exception("Failed to create users handoff-sweep indexes")
+
     from kisna_chatbot.database.database import ping_database
 
     try:
@@ -309,6 +332,25 @@ async def lifespan(app: FastAPI):
 
         reengage_task = asyncio.create_task(_sweep_reengagement())
 
+    # Handoff-fallback sweep loop (F10 callback fallback + F11 stale-takeover
+    # auto-expiry).
+    from kisna_chatbot.processors.handoff_sweep import (
+        sweep_handoff,
+        sweep_seconds as handoff_sweep_seconds,
+    )
+
+    async def _sweep_handoff_loop() -> None:
+        while True:
+            await asyncio.sleep(handoff_sweep_seconds())
+            try:
+                await sweep_handoff()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Handoff-fallback sweep failed")
+
+    handoff_task = asyncio.create_task(_sweep_handoff_loop())
+
     try:
         yield
     finally:
@@ -320,6 +362,10 @@ async def lifespan(app: FastAPI):
             reengage_task.cancel()
             with suppress(asyncio.CancelledError):
                 await reengage_task
+        if handoff_task is not None:
+            handoff_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await handoff_task
 
 
 app = FastAPI(
@@ -521,6 +567,9 @@ async def _persist_session(
         round((time.time() - pipeline_start) * 1000),
         client_id=client_id,
     )
+    from kisna_chatbot.processors.handoff_sweep import trigger_opportunistic_sweep
+
+    trigger_opportunistic_sweep()
 
 
 async def _send_responses(payload: dict) -> None:

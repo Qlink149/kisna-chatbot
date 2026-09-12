@@ -64,6 +64,9 @@ ALLOWED = {
     # sent straight to Gupshup from the background sweep — it never enters the
     # bot_response pipeline, so localize_bot_responses never sees it.
     "processors/reengagement.py:text": "localised by narrate(), sent outside the pipeline",
+    # Handoff-fallback callback (F10): same shape as the win-back nudge above --
+    # narrate()'d then sent straight to Gupshup from the background sweep.
+    "processors/handoff_sweep.py:text": "localised by narrate(), sent outside the pipeline",
     # Inbound-rate-limit notice: sent before the pipeline runs, so there is no
     # user_profile yet to read a language from -- localize_bot_responses never
     # sees it. Emoji-plus-short-English reads as "please wait" cross-language;
