@@ -17,8 +17,8 @@ Auth (same as docker login; no values printed):
 
 Usage:
   python scripts/prune_registry.py
-  python scripts/prune_registry.py --keep 10 --dry-run
-  python scripts/prune_registry.py --keep 10 --execute
+  python scripts/prune_registry.py --keep 5 --dry-run
+  python scripts/prune_registry.py --keep 5 --execute
 """
 
 from __future__ import annotations
@@ -112,17 +112,17 @@ def git_sha_order() -> dict[str, int]:
     return {sha: len(shas) - i for i, sha in enumerate(shas)}
 
 
-def delete_digest(sess: requests.Session, digest: str) -> int:
+def delete_digest(sess: requests.Session, digest: str) -> tuple[int, str]:
     url = f"https://{HOST}/v2/{REPO}/manifests/{digest}"
     response = sess.delete(url, timeout=30)
-    return response.status_code
+    return response.status_code, response.text[:500]
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Prune old SHA tags from Vultr kisna-backend (default: dry-run)"
     )
-    parser.add_argument("--keep", type=int, default=10, help="SHA tags to keep besides latest")
+    parser.add_argument("--keep", type=int, default=5, help="SHA tags to keep besides latest")
     parser.add_argument("--dry-run", action="store_true", help="Print plan only (default)")
     parser.add_argument("--execute", action="store_true", help="Actually DELETE old SHA manifests")
     return parser
@@ -186,15 +186,36 @@ def main() -> None:
             continue
         keep_digests.add(tag_digest(sess, tag))
 
+    # Attempt every candidate even if some fail -- one bad digest (or a
+    # credential that can list but not delete) must not stop the other 40+
+    # from being cleaned up. Collect failures and report/exit at the end.
+    failures: list[dict] = []
     for tag in delete_sha:
         digest = tag_digest(sess, tag)
         if digest in keep_digests:
             print(json.dumps({"skip": tag, "reason": "digest still referenced by a kept tag"}))
             continue
-        status = delete_digest(sess, digest)
+        status, body = delete_digest(sess, digest)
         print(json.dumps({"deleted_tag": tag, "digest": digest, "http": status}))
         if status not in {202, 200, 404}:
-            raise SystemExit(f"DELETE {digest} failed: HTTP {status}")
+            failures.append({"tag": tag, "digest": digest, "http": status, "body": body})
+
+    if failures:
+        print(json.dumps({"failures": failures}, indent=2), file=sys.stderr)
+        if all(f["http"] == 403 for f in failures):
+            print(
+                "\nEvery delete returned 403 Forbidden -- auth succeeded (list/read worked) "
+                "but this credential isn't permitted to delete. Vultr Container Registry is "
+                "Harbor-based: if VULTR_REGISTRY_USERNAME/PASSWORD is a robot account, its "
+                "scope likely covers push/pull only. Fix in the Vultr console -- Container "
+                "Registry -> Robot Accounts -- by granting delete permission on this project "
+                "(or recreating the robot account with it included), or delete the old tags "
+                "there directly under the repository's Tags tab as an immediate unblock.",
+                file=sys.stderr,
+            )
+        raise SystemExit(
+            f"{len(failures)}/{len(delete_sha)} deletes failed -- see failures above"
+        )
 
 
 if __name__ == "__main__":
