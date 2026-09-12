@@ -163,6 +163,102 @@ def test_process_message_image_skips_initial_pipeline():
     asyncio.run(_run())
 
 
+def test_process_message_captures_media_during_takeover():
+    """Inbound media is captured and threaded onto save_user_message_silent
+    even while a human takeover is active -- so an agent can see what the
+    customer sent, not just the canned-reply text."""
+    from kisna_chatbot import main as main_mod
+
+    request_data = {
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "850788844795304"},
+                            "contacts": [{"profile": {"name": "Test"}}],
+                            "messages": [
+                                {
+                                    "from": "919999999999",
+                                    "id": "wamid.img.takeover",
+                                    "type": "image",
+                                    "image": {"id": "img1", "mime_type": "image/jpeg", "url": "https://x/media/1"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    captured_media = {"kind": "image", "b2_key": "kisna/inbound/x.jpg", "mime": "image/jpeg"}
+
+    async def _run():
+        with (
+            patch.object(main_mod, "mark_inbound_processed", return_value=True),
+            patch.object(main_mod, "get_takeover_status", return_value={"active": True}),
+            patch(
+                "kisna_chatbot.processors.media_capture.capture_inbound_media",
+                new=AsyncMock(return_value=captured_media),
+            ),
+            patch.object(main_mod, "save_user_message_silent", return_value=123) as mock_save,
+            patch.object(main_mod, "touch_last_message_at"),
+            patch.object(main_mod.pubsub, "publish", new=AsyncMock()) as mock_publish,
+        ):
+            await main_mod.process_message(request_data, app_state=None)
+
+            mock_save.assert_called_once()
+            assert mock_save.call_args.kwargs.get("media") == captured_media
+            published_event = mock_publish.call_args[0][1]
+            assert published_event["type"] == "user_message"
+            assert published_event["media"] is None or published_event["media"]["b2_key"] == "kisna/inbound/x.jpg"
+
+    asyncio.run(_run())
+
+
+def test_process_message_media_capture_disabled_unchanged_behaviour():
+    """B2 unconfigured (the default in tests): capture_inbound_media returns
+    None on its own, and the takeover-silent path behaves exactly as before
+    this feature existed -- no media kwarg surprises, no exception."""
+    from kisna_chatbot import main as main_mod
+
+    request_data = {
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "850788844795304"},
+                            "contacts": [{"profile": {"name": "Test"}}],
+                            "messages": [
+                                {
+                                    "from": "919999999999",
+                                    "id": "wamid.img.nocap",
+                                    "type": "image",
+                                    "image": {"id": "img1", "mime_type": "image/jpeg", "url": "https://x/media/1"},
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+
+    async def _run():
+        with (
+            patch.object(main_mod, "mark_inbound_processed", return_value=True),
+            patch.object(main_mod, "get_takeover_status", return_value={"active": True}),
+            patch.object(main_mod, "save_user_message_silent", return_value=123) as mock_save,
+            patch.object(main_mod, "touch_last_message_at"),
+            patch.object(main_mod.pubsub, "publish", new=AsyncMock()),
+        ):
+            await main_mod.process_message(request_data, app_state=None)
+            assert mock_save.call_args.kwargs.get("media") is None
+
+    asyncio.run(_run())
+
+
 def test_process_message_reaction_silent():
     from kisna_chatbot import main as main_mod
 

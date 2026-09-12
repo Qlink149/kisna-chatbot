@@ -12,12 +12,30 @@ from kisna_chatbot.database.collections import (
     store_visits,
     users,
 )
+from kisna_chatbot.utils import media_store
 from kisna_chatbot.utils.format_chathistory import format_chat_history, trim_chat_history
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.request_ids import generate_request_id
 from kisna_chatbot.utils.session_state import mongo_unset_for_missing_session_keys
 
 MAX_CHAT_HISTORY = int(os.getenv("CHAT_HISTORY_MAX_LENGTH", "50"))
+
+# How long a chat-history media URL stays valid. The dashboard re-fetches
+# history often enough (5s poll, pagination, reconnect) that this never goes
+# stale in view; we never store or return a permanent URL (B2 bucket private).
+_MEDIA_PRESIGN_TTL_SECONDS = 7200
+
+
+def _presigned_media(media: dict | None) -> dict | None:
+    """Mint a fresh presigned URL for a stored media reference. Returns the
+    media dict unchanged except for `url` (added, or None if B2 isn't
+    configured / presign fails -- the dashboard renders an "unavailable"
+    placeholder in that case)."""
+    if not media:
+        return None
+    out = dict(media)
+    out["url"] = media_store.presign_get(media.get("b2_key"), _MEDIA_PRESIGN_TTL_SECONDS)
+    return out
 
 
 def _user_filter(phone_number: str, client_id: str) -> dict:
@@ -34,6 +52,7 @@ def _insert_chat_message(
     request_id: str | None = None,
     msg_type: str | None = None,
     migrated: bool = False,
+    media: dict | None = None,
 ) -> None:
     """Dual-write a single message into chat_messages (fire-and-forget safe)."""
     try:
@@ -50,6 +69,8 @@ def _insert_chat_message(
             doc["type"] = msg_type
         if migrated:
             doc["migrated"] = True
+        if media:
+            doc["media"] = media
         chat_messages.insert_one(doc)
     except Exception:
         logger.warning(
@@ -73,6 +94,7 @@ def dual_write_chat_entries(
             ts=entry.get("timestamp") or entry.get("ts"),
             request_id=entry.get("request_id"),
             msg_type=entry.get("type"),
+            media=entry.get("media"),
         )
 
 
@@ -158,6 +180,7 @@ def get_paginated_chat_messages(
                 "request_id": row.get("request_id"),
                 "type": row.get("type"),
                 "_id": str(row.get("_id")) if row.get("_id") is not None else None,
+                "media": _presigned_media(row.get("media")),
             }
         )
 
@@ -189,6 +212,7 @@ def save_to_mongo(data: dict) -> dict | None:
             assistant=assistant,
             phone_number=phone_number,
             request_id=data.get("request_id"),
+            media=data.get("_inbound_media"),
         )
         dual_write_chat_entries(phone_number, client_id, new_chat)
         current_history = user_profile_data.get("chat_history", [])
@@ -248,6 +272,7 @@ def save_user_message_silent(
     text: str,
     client_id: str = "kisna",
     request_id: str | None = None,
+    media: dict | None = None,
 ) -> int | None:
     """Append user message to chat_history without bot response (human takeover).
 
@@ -262,6 +287,8 @@ def save_user_message_silent(
         }
         if request_id:
             entry["request_id"] = request_id
+        if media:
+            entry["media"] = media
         users.update_one(
             _user_filter(phone_number, client_id),
             {
@@ -622,6 +649,7 @@ def save_agent_message(
     message: str,
     client_id: str = "kisna",
     request_id: str | None = None,
+    media: dict | None = None,
 ) -> int | None:
     """Append an agent message to chat_history.
 
@@ -638,6 +666,8 @@ def save_agent_message(
         }
         if request_id:
             entry["request_id"] = request_id
+        if media:
+            entry["media"] = media
         users.update_one(
             _user_filter(phone_number, client_id),
             {

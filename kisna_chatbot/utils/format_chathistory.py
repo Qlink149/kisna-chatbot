@@ -154,6 +154,23 @@ def format_user(user_message, phone_number):
                 title = user_message["interactive"]["button_reply"]["title"]
                 return f"User Selected - [{title}] from quick reply"
 
+        if msg_type in ("image", "audio", "video", "document"):
+            # Never fall through to str(user_message) for media: that dumps
+            # the raw payload -- including Gupshup's public, unauthenticated
+            # media URL -- into chat_messages.content (no TTL), the operator
+            # dashboard, and every later LLM prompt. Clean, stable text only;
+            # the actual file lives in the `media` field (see media_capture.py).
+            payload = user_message.get(msg_type) or {}
+            caption = (payload.get("caption") or "").strip()
+            if msg_type == "image":
+                return f"[Image] {caption}" if caption else "[Image]"
+            if msg_type == "audio":
+                return "[Voice note]"
+            if msg_type == "video":
+                return f"[Video] {caption}" if caption else "[Video]"
+            filename = payload.get("filename") or ""
+            return f"[Document] {filename}".strip()
+
         return str(user_message)
     except Exception as e:
         logger.exception(
@@ -163,8 +180,14 @@ def format_user(user_message, phone_number):
         raise
 
 
-def format_chat_history(user, assistant, phone_number, request_id: str | None = None):
-    """Format chat history as user/assistant message pairs."""
+def format_chat_history(
+    user, assistant, phone_number, request_id: str | None = None, media: dict | None = None
+):
+    """Format chat history as user/assistant message pairs.
+
+    `media` is the captured-inbound-media dict (see processors/media_capture.py),
+    attached to the user turn when the inbound message was image/audio/video/document.
+    """
     try:
         now = int(time.time())
         user_entry = {
@@ -182,6 +205,8 @@ def format_chat_history(user, assistant, phone_number, request_id: str | None = 
         if request_id:
             user_entry["request_id"] = request_id
             assistant_entry["request_id"] = request_id
+        if media:
+            user_entry["media"] = media
         return [user_entry, assistant_entry]
     except Exception as e:
         logger.exception(
