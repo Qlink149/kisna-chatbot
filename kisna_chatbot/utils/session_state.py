@@ -28,6 +28,8 @@ _TRANSIENT_KEYS = (
     "shopping_wizard_step",
     "shopping_wizard_data",
     "shopping_wizard_explicit",
+    "wizard_reask_attempts",
+    "wizard_reask_step",
     # An explicit "reply in English only" lasts until the user greets again or
     # the session expires — not forever.
     "language_override",
@@ -72,6 +74,8 @@ _SERVICE_TRANSIENT_KEYS: dict[str, tuple[str, ...]] = {
         "shopping_wizard_step",
         "shopping_wizard_data",
         "shopping_wizard_explicit",
+        "wizard_reask_attempts",
+        "wizard_reask_step",
         "pending_search",
         "awaiting_search_correction",
     ),
@@ -148,6 +152,27 @@ def reset_session_on_fresh_start(user_profile: dict) -> None:
     reset_transient_state(user_profile)
     user_profile["service_selected"] = ""
     clear_search_context(user_profile)
+
+
+_WIZARD_STATE_KEYS = frozenset(
+    (
+        "shopping_wizard_active",
+        "shopping_wizard_step",
+        "shopping_wizard_data",
+        "shopping_wizard_explicit",
+    )
+)
+
+
+def reset_session_on_fresh_start_preserving_wizard(user_profile: dict) -> None:
+    """Same as reset_session_on_fresh_start, except the 4 shopping-wizard keys
+    (and service_selected / search context, which the wizard needs intact to
+    resume) survive. For a bare greeting typed mid-wizard ("hi", "bhai",
+    "yaar") -- see classifier._reset_on_greeting. Every other transient flag
+    (sticky waits, pending clarifications, etc.) is still wiped exactly as
+    before.
+    """
+    reset_transient_state(user_profile, keep=_WIZARD_STATE_KEYS)
 
 
 _STICKY_WAIT_KEYS = (

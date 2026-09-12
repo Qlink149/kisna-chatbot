@@ -637,6 +637,78 @@ def _apply_any_slot(collected: dict, step: str) -> None:
         collected["fulfillment"] = ANY_SLOT
 
 
+_MAX_WIZARD_REASK_ATTEMPTS = 3
+
+
+def apply_reask_guard(
+    user_profile: dict, status: str, responses: list[dict] | None
+) -> tuple[str, list[dict] | None]:
+    """Cap consecutive identical re-asks of the same wizard step (C5 / audit
+    -- "What's your budget?" repeated 3x verbatim after "I have already
+    shared the details").
+
+    Call immediately after advance_wizard(). When the result isn't a "reask",
+    this is a no-op passthrough (and clears the counter, so a real answer
+    always resets it). On a "reask": 1st attempt is unchanged; 2nd swaps in a
+    rephrase that names what's already captured instead of repeating the same
+    question; 3rd treats the field as "no preference" (the same escape a user
+    typing "koi bhi" gets) and advances the wizard, so the customer is never
+    asked a 4th identical time.
+    """
+    step = user_profile.get("shopping_wizard_step")
+    if status != "reask" or not step:
+        user_profile.pop("wizard_reask_attempts", None)
+        user_profile.pop("wizard_reask_step", None)
+        return status, responses
+
+    if user_profile.get("wizard_reask_step") != step:
+        user_profile["wizard_reask_step"] = step
+        user_profile["wizard_reask_attempts"] = 0
+
+    attempts = int(user_profile.get("wizard_reask_attempts") or 0) + 1
+    user_profile["wizard_reask_attempts"] = attempts
+
+    if attempts >= _MAX_WIZARD_REASK_ATTEMPTS:
+        collected = _wizard_data(user_profile)
+        _apply_any_slot(collected, step)
+        user_profile["shopping_wizard_data"] = collected
+        user_profile.pop("wizard_reask_attempts", None)
+        user_profile.pop("wizard_reask_step", None)
+        next_step = get_next_step(collected)
+        if next_step is None:
+            user_profile["shopping_wizard_step"] = "complete"
+            return "complete", None
+        user_profile["shopping_wizard_step"] = next_step
+        return "prompt", [build_step_prompt(next_step, collected)]
+
+    if attempts == 2:
+        collected = _wizard_data(user_profile)
+        rephrase = build_step_reask_prompt(step, collected)
+        if rephrase is not None:
+            return "reask", [rephrase]
+
+    return status, responses
+
+
+def build_step_reask_prompt(step: str, collected: dict | None = None) -> dict | None:
+    """A 2nd-attempt rephrase for a step the parser couldn't read the 1st time
+    — same field, different wording, so it doesn't read as the bot ignoring
+    the customer's previous reply. Falls back to None (caller keeps the
+    original prompt) for any step without a dedicated rephrase.
+    """
+    texts = {
+        "category": "Sorry, I didn't quite get that — what kind of jewellery are you after? e.g. rings, earrings, necklaces…",
+        "gender": "Just to confirm who this is for — Kids, Male, Female, or say *anyone*?",
+        "material": "And in terms of material — gold, diamond, or no preference?",
+        "budget": "Still need a budget to search — a number works too, e.g. 30000, or say *no specific budget*.",
+        "fulfillment": "One more thing — ready-to-ship, made-to-order, or no preference?",
+    }
+    text = texts.get(step)
+    if text is None:
+        return None
+    return {"type": "text", "text": text, "_compose": f"wizard_reask_{step}"}
+
+
 def is_material_fulfillment_ask_enabled() -> bool:
     """Temporary client-requested toggle.
 
