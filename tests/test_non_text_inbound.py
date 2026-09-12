@@ -45,22 +45,34 @@ class TestNonTextHandler:
         assert handle_non_text_message(data) is None
 
     def test_image_reply(self):
-        data = _base_data("image", image={"id": "img123"})
-        assert handle_non_text_message(data) is None
-        assert len(data["bot_response"]) == 1
-        assert data["bot_response"][0]["type"] == "text"
-        assert "can't read images" in data["bot_response"][0]["text"].lower()
+        # F12: media routes into the handoff path, not a dead-end apology.
+        with patch(
+            "kisna_chatbot.processors.support_handler.build_expert_support_bot_response",
+            return_value=[{"type": "text", "text": "connecting...", "_compose": "support_handoff"}],
+        ):
+            data = _base_data("image", image={"id": "img123"})
+            assert handle_non_text_message(data) is None
+            assert data["bot_response"][0]["type"] == "text"
+            assert "can't view images" in data["bot_response"][0]["text"].lower()
 
     def test_audio_reply(self):
-        data = _base_data("audio", audio={"id": "aud123"})
-        handle_non_text_message(data)
-        assert data["bot_response"][0]["type"] == "text"
-        assert "words" in data["bot_response"][0]["text"].lower()
+        with patch(
+            "kisna_chatbot.processors.support_handler.build_expert_support_bot_response",
+            return_value=[{"type": "text", "text": "connecting...", "_compose": "support_handoff"}],
+        ):
+            data = _base_data("audio", audio={"id": "aud123"})
+            handle_non_text_message(data)
+            assert data["bot_response"][0]["type"] == "text"
+            assert "voice notes" in data["bot_response"][0]["text"].lower()
 
     def test_video_reply(self):
-        data = _base_data("video", video={"id": "vid123"})
-        handle_non_text_message(data)
-        assert data["bot_response"][0]["type"] == "text"
+        with patch(
+            "kisna_chatbot.processors.support_handler.build_expert_support_bot_response",
+            return_value=[{"type": "text", "text": "connecting...", "_compose": "support_handoff"}],
+        ):
+            data = _base_data("video", video={"id": "vid123"})
+            handle_non_text_message(data)
+            assert data["bot_response"][0]["type"] == "text"
 
     def test_sticker_reply(self):
         data = _base_data("sticker", sticker={"id": "stk123"})
@@ -145,6 +157,10 @@ def test_process_message_image_skips_initial_pipeline():
             patch.object(main_mod, "save_to_mongo"),
             patch.object(main_mod, "save_response_time"),
             patch.object(main_mod.ResponseManager, "handle_responses") as mock_send,
+            patch(
+                "kisna_chatbot.processors.support_handler.build_expert_support_bot_response",
+                return_value=[{"type": "text", "text": "connecting...", "_compose": "support_handoff"}],
+            ),
         ):
             mock_reg = MagicMock()
             mock_reg.process = AsyncMock(
