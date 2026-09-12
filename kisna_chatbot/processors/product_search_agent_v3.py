@@ -75,6 +75,7 @@ from kisna_chatbot.processors.shopping_wizard import (
     ANY_SLOT,
     WIZARD_CARRYOVER_KEYS as _WIZARD_CARRYOVER_KEYS,
     advance_wizard,
+    apply_reask_guard,
     build_wizard_summary,
     clear_wizard_state,
     entities_from_wizard,
@@ -3052,6 +3053,9 @@ class ProductSearchAgentV3(Processor):
             text=text,
             llm_entities=await _current_message_entities(data, text),
         )
+        # C5 / audit: advance_wizard() alone re-asks an unparseable step's
+        # prompt forever. Cap it.
+        status, responses = apply_reask_guard(user_profile, status, responses)
 
         if status == "escape":
             clear_wizard_state(user_profile)

@@ -30,6 +30,7 @@ from kisna_chatbot.processors.shopping_wizard import (
     ANY_SLOT,
     WIZARD_CARRYOVER_KEYS as _WIZARD_CARRYOVER_KEYS,
     is_fulfillment_slot_answer,
+    is_wizard_active as _is_wizard_active,
 )
 from kisna_chatbot.processors.support_handler import build_expert_support_bot_response
 from kisna_chatbot.prompts.classifier_kisna import kisna_classifier_intent
@@ -41,6 +42,7 @@ from kisna_chatbot.utils.session_state import (
     clear_transient_for_service_change,
     maybe_expire_session,
     reset_session_on_fresh_start,
+    reset_session_on_fresh_start_preserving_wizard,
     reset_transient_state,
 )
 
@@ -77,8 +79,25 @@ def _reset_session_on_fresh_start(user_profile: dict) -> None:
     reset_session_on_fresh_start(user_profile)
 
 
-# Back-compat alias used by older call sites / tests.
-_clear_state_on_greeting = _reset_session_on_fresh_start
+def _reset_on_greeting(user_profile: dict) -> None:
+    """A bare greeting starts a fresh turn -- except when a shopping wizard is
+    currently mid-flow (C5 / audit U2-U3: "Is size 8 available" and "Men's
+    Jewellery" both silently reset an in-progress wizard back to "What are
+    you looking for today?"), in which case the wizard's 4 state keys (and
+    service_selected / search context, which it needs intact to resume)
+    survive; every other transient flag is still wiped as normal.
+    """
+    if _is_wizard_active(user_profile):
+        reset_session_on_fresh_start_preserving_wizard(user_profile)
+        return
+    reset_session_on_fresh_start(user_profile)
+
+
+# Used by every "this message is a greeting" call site so the wizard guard
+# above applies uniformly. Explicit "menu"/"start over" requests deliberately
+# keep calling _reset_session_on_fresh_start directly -- an explicit reset
+# request should reset everything, wizard included.
+_clear_state_on_greeting = _reset_on_greeting
 
 
 _REROUTE_RE = re.compile(
@@ -3193,7 +3212,7 @@ class Classifier(Processor):
 
                 chat_history = data["user_profile"].get("chat_history", [])
                 if is_greeting_message(raw_query):
-                    _reset_session_on_fresh_start(user_profile)
+                    _clear_state_on_greeting(user_profile)
                     _store_llm_entities(data, user_profile, {})
                     data["classified_category"] = "greeting"
                     data["bot_response"] = build_greeting_welcome_bot_responses(

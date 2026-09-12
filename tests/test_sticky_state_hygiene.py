@@ -42,7 +42,10 @@ from kisna_chatbot.utils.session_state import (  # noqa: E402
 
 
 class FreshStartResetTests(unittest.TestCase):
-    def test_greeting_clears_wizard_and_search(self):
+    def test_greeting_preserves_mid_wizard_and_its_search_context(self):
+        # F3/C5: a bare greeting ("hi"/"bhai"/"yaar") mid-wizard must not
+        # restart the funnel -- the wizard's 4 state keys, service_selected,
+        # and search context (the wizard needs it intact to resume) survive.
         async def _run():
             clf = Classifier()
             data = {
@@ -63,8 +66,31 @@ class FreshStartResetTests(unittest.TestCase):
             result = await clf.process(data)
             profile = result["user_profile"]
             self.assertEqual(result["classified_category"], "greeting")
-            self.assertFalse(profile.get("shopping_wizard_active"))
-            self.assertNotIn("shopping_wizard_data", profile)
+            self.assertTrue(profile.get("shopping_wizard_active"))
+            self.assertEqual(profile.get("shopping_wizard_data"), {"category": "ring"})
+            self.assertEqual(profile.get("service_selected"), SL.PRODUCT_SEARCH.value)
+            self.assertIn("Welcome back", result["bot_response"][0]["text"])
+
+        asyncio.run(_run())
+
+    def test_greeting_with_no_active_wizard_still_clears_everything(self) -> None:
+        async def _run():
+            clf = Classifier()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": "Hey"}},
+                "user_profile": {
+                    "service_selected": SL.PRODUCT_SEARCH.value,
+                    "last_search_filters": {"category": "ring", "gender": "women"},
+                    "last_search_products": [{"_id": "1"}],
+                    "chat_history": [{"role": "user", "content": "rings"}],
+                    "username": "Priya",
+                    "last_message_at": _fresh_ts(),
+                },
+            }
+            result = await clf.process(data)
+            profile = result["user_profile"]
+            self.assertEqual(result["classified_category"], "greeting")
             self.assertNotIn("last_search_filters", profile)
             self.assertNotIn("last_search_products", profile)
             self.assertEqual(profile.get("service_selected"), "")
