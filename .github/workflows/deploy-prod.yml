@@ -68,7 +68,7 @@ jobs:
           VULTR_REGISTRY_PASSWORD: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
         run: |
           pip install requests
-          python scripts/prune_registry.py --keep 10 --execute
+          python scripts/prune_registry.py --keep 5 --execute
 
       - name: Build and push
         uses: docker/build-push-action@v6
