@@ -54,6 +54,22 @@ jobs:
           username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
           password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
 
+      # Runs BEFORE the push, unconditionally (not gated on this job's own
+      # success) -- pruning is what keeps the registry under its storage quota
+      # for the push below. Gating it on success() instead created a deadlock:
+      # once the registry filled up, "Build and push" failed *before* pruning
+      # ran, so the registry stayed full and every subsequent push failed the
+      # same way. continue-on-error: true so a prune hiccup (e.g. can't order
+      # SHA tags via git log) never blocks the deploy that follows it.
+      - name: Prune old registry tags
+        continue-on-error: true
+        env:
+          VULTR_REGISTRY_USERNAME: ${{ secrets.VULTR_REGISTRY_USERNAME }}
+          VULTR_REGISTRY_PASSWORD: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
+        run: |
+          pip install requests
+          python scripts/prune_registry.py --keep 10 --execute
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -146,18 +162,10 @@ jobs:
               exit 1
             fi
 
-      - name: Prune old registry tags
-        if: success()
-        continue-on-error: true
-        env:
-          VULTR_REGISTRY_USERNAME: ${{ secrets.VULTR_REGISTRY_USERNAME }}
-          VULTR_REGISTRY_PASSWORD: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
-        run: |
-          pip install requests
-          python scripts/prune_registry.py --keep 10 --execute
-
+      # Local droplet disk, not the registry -- low-risk either way, so this
+      # runs regardless of whether the deploy above succeeded.
       - name: Prune old images
-        if: success()
+        if: always()
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DROPLET_HOST }}
