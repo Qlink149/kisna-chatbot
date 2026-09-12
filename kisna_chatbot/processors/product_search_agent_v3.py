@@ -106,6 +106,8 @@ from kisna_chatbot.utils.product_formatter import (
 _MAX_IMAGE_PRODUCTS = 3
 PAGE_SIZE = 3
 _CAROUSEL_SCAN_LIMIT = 15
+
+
 _BUDGET_SCAN_MAX_PAGES = 5
 _SHOW_MORE_PAGE_RETRIES = 2
 _MAX_SHOWN_IDS = 100
@@ -1910,7 +1912,13 @@ def _build_search_success_response(
     show_more_intro: bool = True,
     page_size: int = PAGE_SIZE,
     intro_relaxed: bool = False,
+    display_total: int | None = None,
 ) -> list[dict]:
+    """``display_total``, when given, is the raw Clara catalogue total (not the
+    post-client-filter ``total_count``) -- used for the "Showing N of TOTAL"
+    line so a partial page doesn't read as the whole catalogue (C1: client saw
+    "only 3 shared" against a catalogue of 81+).
+    """
     bot_response: list[dict] = []
     intro_text: str | None = None
     if show_more_intro:
@@ -1964,10 +1972,16 @@ def _build_search_success_response(
         )
 
     if products[:page_size]:
+        cta_text = "Want to explore more? See the full collection 👇"
+        if images_sent > 0 and display_total and display_total > images_sent:
+            cta_text = (
+                f"Showing {images_sent} of {display_total}. "
+                "Want to explore more? See the full collection 👇"
+            )
         bot_response.append(
             {
                 "type": "cta_url",
-                "text": "Want to explore more? See the full collection 👇",
+                "text": cta_text,
                 "display_text": "See Collection",
                 "url": build_catalogue_url(entities),
                 "_compose": "search_explore_more",
@@ -3557,6 +3571,7 @@ class ProductSearchAgentV3(Processor):
                 filters,
                 carousel_pool=buffer,
                 show_more_intro=False,
+                display_total=api_total,
             )
             logger.info(
                 "Show More results sent from buffer",
@@ -3674,6 +3689,7 @@ class ProductSearchAgentV3(Processor):
             entities,
             carousel_pool=products,
             show_more_intro=False,
+            display_total=api_total,
         )
 
         logger.info(
@@ -4297,6 +4313,7 @@ class ProductSearchAgentV3(Processor):
             carousel_pool=carousel_pool,
             prefix_note=prefix_note,
             intro_relaxed=intro_relaxed,
+            display_total=api_total,
         )
         if any(
             (s.get("label") == "Closest-match search")
