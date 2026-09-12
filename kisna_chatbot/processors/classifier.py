@@ -1416,6 +1416,51 @@ _ROMANIZED_INDIC_RE = re.compile(
     re.I,
 )
 
+# The 4 tokens above that most often false-positive on plain English ("pass",
+# "kar", "che", "ami" are all real English words/names) are matched by a
+# SEPARATE regex rather than removed outright: dropping them from
+# _ROMANIZED_INDIC_RE unconditionally would risk under-detecting genuine short
+# Hinglish/Gujarati/Bengali replies that use only one of them, and every
+# caller of resolve_reply_language would inherit that the moment this file
+# imports -- not something to ship un-gated. See _romanized_indic_hit_count.
+_AMBIGUOUS_ROMANIZED_TOKENS = frozenset({"pass", "kar", "che", "ami"})
+
+# "Meri Roshni" is the brand name of the KMR scheme -- an all-English customer
+# asking "tell me about Kisna Meri Roshni scheme" is not writing Hinglish, but
+# "meri" is a full-weight _ROMANIZED_INDIC_RE token, so it alone used to push
+# the EN-sticky evidence score to 1.0 and let the conversation flip. Stripped
+# only for the sticky-guard score, nowhere else.
+_KMR_BRAND_RE = re.compile(r"\b(?:kisna\s+)?meri\s+roshni\b", re.I)
+
+
+def _romanized_indic_evidence_score(text: str) -> float:
+    """Weighted count of _ROMANIZED_INDIC_RE hits for the EN-sticky guard only.
+    A token that is ALSO a plain English word/name ("pass", "kar", "che",
+    "ami") counts half; every other, Hinglish-specific token counts a full
+    point. Kept separate from _ROMANIZED_INDIC_RE itself so no other caller's
+    behaviour changes.
+    """
+    cleaned = _KMR_BRAND_RE.sub(" ", text or "")
+    score = 0.0
+    for m in _ROMANIZED_INDIC_RE.finditer(cleaned):
+        score += 0.5 if m.group(1).lower() in _AMBIGUOUS_ROMANIZED_TOKENS else 1.0
+    return score
+
+
+def _is_weak_en_exit(stored: str | None, resolved: str, user_text: str) -> bool:
+    """True when leaving an English-anchored conversation (stored == "en")
+    for a ROMANIZED Indic label rests on too little evidence -- a lone
+    "pass"/"kar"/"che"/"ami" (real English words too) should not, by itself,
+    flip an English speaker to Hinglish for the rest of the chat. Native
+    script always wins outright (resolve_reply_language's script veto already
+    handles that) and is never "weak" here.
+    """
+    if stored != "en" or not (resolved or "").endswith("-Latn"):
+        return False
+    if has_non_latin_letters(user_text or ""):
+        return False
+    return _romanized_indic_evidence_score(user_text) < 1.0
+
 
 def resolve_reply_language(language: str | None, user_text: str) -> str:
     """Language identity from the LLM; SCRIPT from the user's actual characters.
@@ -1623,6 +1668,12 @@ def _store_language(
             # follow the current message (native vs romanized).
             user_profile["language"] = resolve_reply_language(stored, user_text)
             return
+        if _is_weak_en_exit(stored, resolved, user_text):
+            # An English-anchored conversation does not flip to Hinglish on a
+            # single ambiguous word ("pass", "kar", "che", "ami" are all real
+            # English words/names too) -- keep English until real evidence
+            # (native script, or >=1 unambiguous romanized-Indic word) shows up.
+            return
         user_profile["language"] = resolved
         return
     if stored and user_text:
@@ -1637,6 +1688,15 @@ def _store_language(
         seeded = resolve_reply_language(None, user_text)
         if seeded and seeded != "en":
             user_profile["language"] = seeded
+        elif seeded == "en":
+            # C2 root cause: "en" was never persisted, so the low-signal guard
+            # above (which every other language gets) never had anything to
+            # protect for an English speaker -- the first ambiguous later
+            # message flipped the whole conversation. Seeding it here is the
+            # fix; every downstream reader already treats a missing key as
+            # "en" (reply_composer, reengagement, ...), so this changes no
+            # OUTPUT by itself -- it only arms the existing anti-flip guard.
+            user_profile["language"] = "en"
 
 
 def _flow_escape_should_classify(user_query: str) -> bool:

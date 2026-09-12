@@ -1,6 +1,9 @@
 import os
 
-from kisna_chatbot.prompts.kisna_knowledge_base import KISNA_KNOWLEDGE_BASE
+from kisna_chatbot.prompts.kisna_knowledge_base import (
+    KISNA_KNOWLEDGE_BASE,
+    KISNA_KNOWLEDGE_BASE_V2,
+)
 from kisna_chatbot.utils.support_hours import format_support_hours_text
 
 _KISNA_DOMAIN = os.getenv("KISNA_WEBSITE_DOMAIN", "www.kisna.com")
@@ -308,8 +311,74 @@ Don't answer genuinely off-topic questions in depth — one warm line, then redi
 """
 
 
+# --- KB v2 (client-supplied Sept-2026 KB, incl. Gold Rate Protection) ---------
+# Built by literal substitution on the frozen v1 prompt above rather than a
+# second hand-maintained template: v1 stays byte-for-byte what it is today
+# (zero risk to current behaviour), and v2 cannot silently drift out of sync
+# with the surrounding prompt structure (formatting rules, handoff line,
+# tool description, etc. -- everything except the 4 substituted spots is
+# identical to v1 by construction).
+_MATERIALS_INTRO_V1 = (
+    "KISNA sells certified gold, diamond, AND gemstone jewellery across India. "
+    "(Gemstone = ruby, emerald, sapphire, etc. — YES, KISNA sells gemstone jewellery.) "
+    "The only materials KISNA does NOT sell are silver, platinum, and pearl."
+)
+_MATERIALS_INTRO_V2 = (
+    "KISNA sells certified gold, diamond, AND gemstone jewellery online across India. "
+    "(Gemstone = ruby, emerald, sapphire, etc. — YES, KISNA sells gemstone jewellery.) "
+    "Platinum jewellery, silver coins, and gold coins/bars are sold in select PHYSICAL "
+    "STORES ONLY, not online. The ONLY material KISNA does not sell anywhere — online "
+    "or in-store — is pearl."
+)
+
+_NEVER_MATERIALS_V1 = (
+    "- Claim KISNA sells silver, platinum, or pearl jewellery — it does NOT. KISNA\n"
+    "  offers gold, diamond, and gemstone only. If asked for silver/platinum/pearl,\n"
+    "  say so honestly and suggest gold/diamond/gemstone alternatives."
+)
+_NEVER_MATERIALS_V2 = (
+    "- Claim KISNA sells pearl jewellery anywhere — it does NOT, online or in-store.\n"
+    "- Claim platinum jewellery, silver coins, or gold coins/bars are available ONLINE —\n"
+    "  they are sold in select physical stores only. If asked, say so honestly and offer\n"
+    "  to help find their nearest store (ask for pincode/city)."
+)
+
+_HANDOFF_EXAMPLE_V1 = (
+    'Example (not in KB → handoff): "Do you do platinum resizing?" → honest handoff line.'
+)
+_HANDOFF_EXAMPLE_V2 = (
+    'Example (not in KB → handoff): "Do you do custom diamond cuts?" → honest handoff line.'
+)
+
+
+def _build_general_agent_prompt_v2() -> str:
+    prompt = general_agent_prompt
+    for before, after in (
+        (KISNA_KNOWLEDGE_BASE, KISNA_KNOWLEDGE_BASE_V2),
+        (_MATERIALS_INTRO_V1, _MATERIALS_INTRO_V2),
+        (_NEVER_MATERIALS_V1, _NEVER_MATERIALS_V2),
+        (_HANDOFF_EXAMPLE_V1, _HANDOFF_EXAMPLE_V2),
+    ):
+        count = prompt.count(before)
+        if count != 1:
+            # A future edit to general_agent_prompt moved or reworded one of
+            # these four spots and the v2 substitution silently stopped
+            # applying. Fail loud rather than ship a half-updated prompt.
+            raise RuntimeError(
+                f"general_agent_kisna v2 build: expected exactly 1 occurrence of "
+                f"{before[:40]!r}..., found {count}"
+            )
+        prompt = prompt.replace(before, after, 1)
+    return prompt
+
+
+general_agent_prompt_v2 = _build_general_agent_prompt_v2()
+
+
 def build_general_agent_prompt() -> str:
-    return general_agent_prompt
+    # F1: client-supplied Sept-2026 KB (adds Gold Rate Protection, corrects
+    # the platinum/silver-coins/gold-coins-in-store facts).
+    return general_agent_prompt_v2
 
 
 REQUEST_LIVE_AGENT_DESCRIPTION = (
