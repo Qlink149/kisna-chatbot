@@ -127,13 +127,13 @@ class ReplyLanguageStabilityTests(unittest.TestCase):
 
     def test_cleared_language_reseeds_from_script_only(self):
         # After a TTL expiry the key is gone. A greeting in native script should
-        # re-seed; an English greeting should leave it unset (defaults to en).
+        # re-seed; an English greeting seeds "en" (F5: arms the anti-flip guard).
         profile = {}
         _store_language(profile, None, "नमस्ते")
         self.assertEqual(profile.get("language"), "hi")
         profile = {}
         _store_language(profile, None, "hi")
-        self.assertNotIn("language", profile)
+        self.assertEqual(profile.get("language"), "en")
 
 
 class ComposeModelRoutingTests(unittest.TestCase):
