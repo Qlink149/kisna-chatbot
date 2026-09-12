@@ -110,9 +110,17 @@ async def _offers_response(data: dict) -> list[dict]:
     from kisna_chatbot.integrations.clara_api import get_promotions
     from kisna_chatbot.processors.offers_agent import (
         _build_bot_response,
+        _within_offers_cooldown,
         _build_offers_text,
     )
     from kisna_chatbot.utils.clara_cache import get_cached_promotions
+
+    # Same gate as OffersAgent -- a secondary offers block appended to
+    # another agent's reply is exactly how one live user got the full offers
+    # table repeated, just via a multi-intent message instead of a direct
+    # "offers" request.
+    if _within_offers_cooldown(data.get("user_profile") or {}):
+        return []
 
     promotions = await get_cached_promotions(data.get("app_state"))
     if not promotions:

@@ -1,4 +1,5 @@
 import os
+import time
 
 from kisna_chatbot.config.clients import get_client_config
 from kisna_chatbot.integrations.clara_api import ClaraAPIError, get_promotions
@@ -25,6 +26,43 @@ _MAKING_CHARGES_FOOTER = (
 )
 
 _OPEN_ENDED_TO_AMT = 999_999_999
+
+_OFFERS_COOLDOWN_POINTER_TEXT = (
+    "Offers are unchanged since I shared them a moment ago — up to 35% off "
+    "making charges on diamond jewellery, up to 20% on gold. Let me know if "
+    "you'd like the full list again."
+)
+
+
+def _offers_cooldown_seconds() -> int:
+    try:
+        return int(os.getenv("KISNA_OFFERS_COOLDOWN_SECONDS", "600"))
+    except (TypeError, ValueError):
+        return 600
+
+
+def _within_offers_cooldown(user_profile: dict) -> bool:
+    """U4 (audit, unreported): the full offers block was sent 6x in 6 minutes
+    to one live user because nothing dedupes it -- every loosely-related
+    message re-triggers the whole promotions text.
+    """
+    last_sent = user_profile.get("offers_last_sent_at")
+    if not last_sent:
+        return False
+    try:
+        return (time.time() - float(last_sent)) < _offers_cooldown_seconds()
+    except (TypeError, ValueError):
+        return False
+
+
+def _build_cooldown_response() -> list:
+    return [
+        {
+            "type": "text",
+            "text": _OFFERS_COOLDOWN_POINTER_TEXT,
+            "_compose": "offers_cooldown",
+        }
+    ]
 
 
 def _is_labour_promo(promo: dict) -> bool:
@@ -230,6 +268,15 @@ class OffersAgent(Processor):
             )
             return data
 
+        if _within_offers_cooldown(user_profile):
+            data["bot_response"] = _build_cooldown_response()
+            self._clear_offers_session(data, user_profile)
+            logger.info(
+                "Offers request within cooldown — sent pointer instead of full list",
+                extra={"phone_number": phone_number, "client_id": client_id},
+            )
+            return data
+
         from kisna_chatbot.utils.message_trace import try_trace
 
         try:
@@ -327,6 +374,7 @@ class OffersAgent(Processor):
             gold_n = len(_sorted_category_promos(active, "gold"))
             offers_text = _build_offers_text(active)
             data["bot_response"] = _build_bot_response(offers_text)
+            user_profile["offers_last_sent_at"] = time.time()
             self._clear_offers_session(data, user_profile)
             try_trace(
                 data,
