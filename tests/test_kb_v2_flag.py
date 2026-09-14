@@ -49,6 +49,18 @@ class KbV2Tests(unittest.TestCase):
         self.assertIn("160+ flagship stores", general_agent_prompt_v2)
         self.assertNotIn("120+ flagship stores", general_agent_prompt_v2)
 
+    def test_grp_answer_includes_the_page_url(self) -> None:
+        # Client-reported gap: "What is GRP?" answered with no link to the
+        # page at all. The URL must be in the answer text itself, not just
+        # the section header, so the model actually says it.
+        self.assertIn(
+            "It allows you to lock the prevailing gold rate at the time of "
+            "placing your order or booking, protecting you from any future "
+            "increase in gold prices during the offer period. Full details: "
+            "https://www.kisna.com/pages/gold-rate-protection",
+            general_agent_prompt_v2,
+        )
+
     def test_v2_corrects_platinum_silver_coin_facts(self) -> None:
         self.assertNotIn(
             "The only materials KISNA does NOT sell are silver, platinum, and pearl.",
