@@ -42,7 +42,11 @@ class KbV2Tests(unittest.TestCase):
     def test_v1_prompt_is_byte_identical_regardless_of_v2_existing(self) -> None:
         # Building v2 (module import time) must never mutate v1.
         self.assertIn("The only materials KISNA does NOT sell are silver, platinum, and pearl.", general_agent_prompt)
-        self.assertNotIn("Gold Rate Protection", general_agent_prompt)
+        # v1 has no GRP KB section (that's v2-only content) -- but it DOES
+        # legitimately mention "Gold Rate Protection" by name in the shared
+        # KMR/Digital-Gold/GRP button instruction, which lives outside the 4
+        # KB-content substitution points and is identical in both prompts.
+        self.assertNotIn("GOLD RATE PROTECTION PLAN", general_agent_prompt)
 
     def test_v2_adds_gold_rate_protection_and_keeps_store_count(self) -> None:
         self.assertIn("GOLD RATE PROTECTION PLAN", general_agent_prompt_v2)
