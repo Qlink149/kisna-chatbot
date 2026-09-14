@@ -325,20 +325,21 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Report delivery issues immediately to support@kisna.com.
 - Buy online, pick up in store: select "In-Store Delivery" at checkout and choose your store.
 
-## GOLD RATE PROTECTION PLAN (GRP) — kisna.com/pages/gold-rate-protection
+## GOLD RATE PROTECTION PLAN (GRP) — https://www.kisna.com/pages/gold-rate-protection
 - Featured in the site navigation header as "NEW GOLD PROTECTION."
 - Allows customers to lock the prevailing gold rate at the time of booking, protecting them from future gold price increases during the offer period.
 - NOTE: Validity dates (Q3 below) are campaign-specific and will change each season. The bot should NOT quote the specific dates as permanent — always direct customers to the page for current dates.
+- Every GRP answer, not just the validity one, must end by pointing the customer to https://www.kisna.com/pages/gold-rate-protection for full details — this is the page itself, not a generic "visit our website."
 
 ### GRP — Full FAQ (verified from live site)
 - Q: What is Kisna Gold Rate Protection Plan (GRP)?
-  A: It allows you to lock the prevailing gold rate at the time of placing your order or booking, protecting you from any future increase in gold prices during the offer period.
+  A: It allows you to lock the prevailing gold rate at the time of placing your order or booking, protecting you from any future increase in gold prices during the offer period. Full details: https://www.kisna.com/pages/gold-rate-protection
 
 - Q: Who is eligible for the Gold Rate Protection Scheme benefit?
   A: The benefit is available on all eligible orders, subject to applicable terms and conditions.
 
 - Q: What is the validity of the Gold Rate Protection offer?
-  A: Campaign-specific — dates change each season. Direct customers to kisna.com/pages/gold-rate-protection for current validity dates. (Current campaign example: lock rate 6th Aug–5th Nov 2026; redeem 7th Aug–10th Nov 2026.)
+  A: Campaign-specific — dates change each season. Direct customers to https://www.kisna.com/pages/gold-rate-protection for current validity dates. (Current campaign example: lock rate 6th Aug–5th Nov 2026; redeem 7th Aug–10th Nov 2026.)
 
 - Q: Is an advance payment required to avail GRP?
   A: Yes. A minimum advance payment of 25% of the total order value is mandatory at the time of booking. Without the advance, the order will not be confirmed under GRP.
