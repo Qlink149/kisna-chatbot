@@ -29,9 +29,14 @@ from kisna_chatbot.processors.classifier import (  # noqa: E402
     _programmatic_intent_override,
     _route_resolved_intent,
 )
-from kisna_chatbot.processors.general_agent import GeneralAgent, _KMR_RE  # noqa: E402
+from kisna_chatbot.processors.general_agent import (  # noqa: E402
+    GeneralAgent,
+    _GRP_RE,
+    _KMR_RE,
+)
 from kisna_chatbot.processors.shopping_wizard import (  # noqa: E402
     DIGITAL_GOLD_URL,
+    GRP_URL,
     KMR_URL,
 )
 
@@ -187,6 +192,89 @@ class KmrTests(unittest.TestCase):
         self.assertEqual(
             _strip_url_mentions("KMR is great!", KMR_URL), "KMR is great!"
         )
+
+
+class GrpTests(unittest.TestCase):
+    def test_grp_regex(self):
+        self.assertTrue(_GRP_RE.search("tell me about grp"))
+        self.assertTrue(_GRP_RE.search("what is gold rate protection"))
+        self.assertTrue(_GRP_RE.search("how do I lock the gold rate"))
+        self.assertEqual(GRP_URL, "https://www.kisna.com/pages/gold-rate-protection")
+
+    def test_grp_routes_general(self):
+        # Unlike KMR (hard-overridden via classifier._SCHEME_RE), GRP has no
+        # hard override -- it falls through to the LLM naturally, which is
+        # correct (confirmed: no misrouting). This just guards that nothing
+        # accidentally intercepts it into a different intent.
+        self.assertIsNone(_programmatic_intent_override("tell me about GRP"))
+
+    def _run_general_agent(self, query: str, message_text: str = "Generic answer."):
+        from kisna_chatbot.ai.types import GeneralAgentResult, ProviderName
+
+        async def _run():
+            agent = GeneralAgent()
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": query}},
+                "user_profile": {"service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.general_agent.run_general_agent",
+                new_callable=AsyncMock,
+                return_value=GeneralAgentResult(
+                    message_text=message_text,
+                    live_agent_requested=False,
+                    provider=ProviderName.OPENAI,
+                    model="test-model",
+                ),
+            ):
+                return await agent.process(data)
+
+        return asyncio.run(_run())
+
+    def test_grp_query_appends_cta_button(self):
+        result = self._run_general_agent("Tell me about GRP", message_text="GRP info")
+        responses = result["bot_response"]
+        self.assertEqual(responses[0]["type"], "text")
+        self.assertEqual(responses[0]["text"], "GRP info")
+        cta = next(r for r in responses if r.get("type") == "cta_url")
+        self.assertEqual(cta["url"], GRP_URL)
+        self.assertEqual(cta["display_text"], "Explore GRP")
+        self.assertEqual(cta["_compose"], "grp_cta")
+
+    def test_non_grp_query_has_no_cta_button(self):
+        result = self._run_general_agent("what is your return policy?")
+        types = [r.get("type") for r in result["bot_response"]]
+        self.assertNotIn("cta_url", types)
+
+    def test_llm_repeating_the_link_is_stripped_from_the_text(self):
+        # Live bug: the model sometimes writes the link itself even though the
+        # KB/prompt says not to -- the customer must never see it twice (once
+        # in the message, once as the button).
+        message_text = (
+            "GRP lets you lock the gold rate. Full details: "
+            "https://www.kisna.com/pages/gold-rate-protection"
+        )
+        result = self._run_general_agent("tell me about GRP", message_text=message_text)
+        responses = result["bot_response"]
+        self.assertNotIn("kisna.com/pages/gold-rate-protection", responses[0]["text"])
+        cta = next(r for r in responses if r.get("type") == "cta_url")
+        self.assertEqual(cta["url"], GRP_URL)
+
+    def test_grp_scheme_wording_does_not_also_trigger_kmr_button(self):
+        # Regression: the client's own approved KB wording says "Gold Rate
+        # Protection Scheme benefit" -- _KMR_RE's bare "schemes?" token must
+        # not also fire and attach a second, wrong "Explore KMR" button.
+        message_text = (
+            "The Gold Rate Protection Scheme benefit is available on all "
+            "eligible orders."
+        )
+        result = self._run_general_agent("tell me about GRP", message_text=message_text)
+        types = [r.get("type") for r in result["bot_response"]]
+        ctas = [r for r in result["bot_response"] if r.get("type") == "cta_url"]
+        self.assertEqual(types.count("cta_url"), 1)
+        self.assertEqual(ctas[0]["_compose"], "grp_cta")
 
 
 if __name__ == "__main__":

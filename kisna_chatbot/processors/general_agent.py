@@ -6,7 +6,7 @@ from kisna_chatbot.ai import run_general_agent
 from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
-from kisna_chatbot.processors.shopping_wizard import DIGITAL_GOLD_URL, KMR_URL
+from kisna_chatbot.processors.shopping_wizard import DIGITAL_GOLD_URL, GRP_URL, KMR_URL
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
 
@@ -30,6 +30,13 @@ _KMR_RE = re.compile(
     r"\b("
     r"kmr|meri\s+roshni|savings?\s+plan|gold\s+plan|monthly\s+plan|"
     r"installment\s+plan|kisht?\s+plan|10\s*\+\s*1|schemes?"
+    r")\b",
+    re.I,
+)
+
+_GRP_RE = re.compile(
+    r"\b("
+    r"grp|gold\s+rate\s+protection|lock\s+(?:the\s+)?gold\s+rate|gold\s+rate\s+lock"
     r")\b",
     re.I,
 )
@@ -273,8 +280,34 @@ class GeneralAgent(Processor):
                             "footer": "KISNA Diamond & Gold",
                         }
                     )
-                if _KMR_RE.search(user_query or "") or _KMR_RE.search(
+                # Checked BEFORE KMR, and KMR is skipped when this matches: the
+                # client's own approved KB wording says "Gold Rate Protection
+                # Scheme benefit" -- _KMR_RE's bare "schemes?" token would
+                # otherwise also fire on a GRP answer and wrongly attach a
+                # second "Explore KMR" button alongside the GRP one.
+                grp_matched = _GRP_RE.search(user_query or "") or _GRP_RE.search(
                     result.message_text or ""
+                )
+                if grp_matched:
+                    responses[0]["text"] = _strip_url_mentions(
+                        responses[0]["text"], GRP_URL
+                    )
+                    responses.append(
+                        {
+                            "type": "cta_url",
+                            "text": (
+                                "Lock in today's gold rate — explore KISNA's "
+                                "Gold Rate Protection Plan."
+                            ),
+                            "_compose": "grp_cta",
+                            "display_text": "Explore GRP",
+                            "url": GRP_URL,
+                            "footer": "KISNA Diamond & Gold",
+                        }
+                    )
+                if not grp_matched and (
+                    _KMR_RE.search(user_query or "")
+                    or _KMR_RE.search(result.message_text or "")
                 ):
                     responses[0]["text"] = _strip_url_mentions(
                         responses[0]["text"], KMR_URL
