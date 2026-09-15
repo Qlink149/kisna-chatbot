@@ -17,6 +17,29 @@ def _strip_urls(content: str) -> str:
     return _URL_RE.sub("", content or "").strip()
 
 
+# format_assistant() below writes internal shorthand for non-text response
+# types (buttons, lists, flows, product cards) into chat_messages storage --
+# meant for logging/dashboard display, never for the LLM to read back. Left
+# in, the model imitates the literal notation from its own prior turn and
+# echoes it as real customer-facing text on the next message (live bug: a GRP
+# answer ended in the literal string "[Button: Explore GRP]" once one such
+# turn already sat in history -- the model had never seen that pattern until
+# its own earlier reply put it there).
+_INTERNAL_ANNOTATION_RE = re.compile(
+    r"\[(?:Button|Options|Product):[^\]]*\]|\[Product shown\]|"
+    r"^Sent (?:list|flow) - \[[^\]]*\]$|^Showed product images(?: - .*)?$",
+    re.M,
+)
+
+
+def _strip_internal_annotations(content: str) -> str:
+    cleaned = _INTERNAL_ANNOTATION_RE.sub("", content or "")
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
 def get_recent_history(
     user_profile: dict,
     n: int = DEFAULT_HISTORY_WINDOW,
@@ -32,8 +55,9 @@ def format_recent_history_str(
 ) -> str:
     """Last n turns as a 'Role: content' string for LLM system prompts.
 
-    Assistant turns are URL-stripped at read time so legacy histories that
-    stored collection/product URLs stop anchoring the model.
+    Assistant turns are URL-stripped and internal-annotation-stripped at read
+    time so legacy/stored histories never leak DB-only shorthand (URLs,
+    "[Button: ...]", "[Options: ...]", etc.) into what the model sees.
     """
     turns = get_recent_history(user_profile, n)
     lines: list[str] = []
@@ -41,6 +65,12 @@ def format_recent_history_str(
         role = (t.get("role") or "").capitalize()
         content = t.get("content", "")
         if role == "Assistant":
+            # Annotations first: [^\]]* inside a tag like "[Button: See
+            # Collection -> https://...]" needs its closing "]" intact to
+            # match as one unit. Stripping URLs first would eat that "]"
+            # (\S+ doesn't stop at it), leaving an unclosed "[Button: ..."
+            # behind for the annotation regex to miss.
+            content = _strip_internal_annotations(content)
             content = _strip_urls(content)
         lines.append(f"{role}: {content}")
     return "\n".join(lines)

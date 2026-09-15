@@ -1058,6 +1058,12 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         # history read like entities and got copied into later extractions.
         # Assistant turns must be URL-stripped at read time (fixes legacy
         # histories); user turns stay untouched.
+        #
+        # The "[Product: ...]" / "[Button: ...]" shorthand itself is ALSO
+        # stripped for the LLM (it survives only in format_assistant's own
+        # DB-storage output, tested separately) -- live bug: left in, the
+        # model imitates its own prior turn's literal "[Button: X]" notation
+        # and echoes it as real customer-facing text on the next reply.
         from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 
         profile = {
@@ -1077,8 +1083,55 @@ class ReferenceCompareRepairTests(unittest.TestCase):
         out = format_recent_history_str(profile)
         self.assertNotIn("rings+0k-to-10k+diamond", out)
         self.assertNotIn("kisna.com", out)
-        self.assertIn("[Product: Selvi Ring]", out)   # product name kept
+        self.assertNotIn("[Product:", out)   # internal shorthand stripped for the LLM
+        self.assertNotIn("[Button:", out)
         self.assertIn("https://example.com/x", out)   # user turn untouched
+
+    def test_the_exact_live_grp_button_leak_is_fixed(self):
+        # Live bug, reproduced exactly: a prior turn's stored "[Button:
+        # Explore GRP]" shorthand (format_assistant's cta_url branch) leaked
+        # into the LLM's own history context, and the model imitated the
+        # literal bracket notation as real text in its NEXT reply -- the
+        # customer saw "...tap the button below! [Button: Explore GRP]" as
+        # plain text, not just the real button.
+        from kisna_chatbot.utils.format_chathistory import format_recent_history_str
+
+        profile = {
+            "chat_history": [
+                {"role": "user", "content": "Can you give me grp page website url"},
+                {
+                    "role": "assistant",
+                    "content": (
+                        "Here you go — just tap the button below 👇\n"
+                        "Lock in today's gold rate — explore KISNA's Gold "
+                        "Rate Protection Plan.\n[Button: Explore GRP]"
+                    ),
+                },
+            ]
+        }
+        out = format_recent_history_str(profile)
+        self.assertNotIn("[Button:", out)
+        self.assertIn("Here you go", out)   # the real reply text is kept
+
+    def test_options_and_product_shown_also_stripped(self):
+        # Same imitation risk as [Button: ...] -- every internal shorthand
+        # format_assistant() writes must be invisible to the LLM.
+        from kisna_chatbot.utils.format_chathistory import format_recent_history_str
+
+        profile = {
+            "chat_history": [
+                {"role": "user", "content": "show me rings"},
+                {
+                    "role": "assistant",
+                    "content": "Here are some options\n[Options: Gold, Diamond]",
+                },
+                {"role": "user", "content": "more"},
+                {"role": "assistant", "content": "[Product shown]"},
+            ]
+        }
+        out = format_recent_history_str(profile)
+        self.assertNotIn("[Options:", out)
+        self.assertNotIn("[Product shown]", out)
 
     def test_new_history_entries_store_no_urls(self):
         # Going forward, image_with_cta / cta_url turns are stored without URLs.
