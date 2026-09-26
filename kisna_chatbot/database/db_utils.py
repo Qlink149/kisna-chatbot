@@ -487,6 +487,9 @@ def get_all_users(
             "phone_number": 1,
             "username": 1,
             "updated_at": 1,
+            # WhatsApp-window clock for the dashboard's "window expired" state.
+            "last_inbound_at": 1,
+            "last_message_at": 1,
             "live_agent_required": 1,
             "_id": 0,
         }
@@ -528,6 +531,9 @@ def search_users(q: str, client_id: str = "kisna", limit: int = 20) -> list:
             "phone_number": 1,
             "username": 1,
             "updated_at": 1,
+            # WhatsApp-window clock for the dashboard's "window expired" state.
+            "last_inbound_at": 1,
+            "last_message_at": 1,
             "live_agent_required": 1,
             "_id": 0,
         }
