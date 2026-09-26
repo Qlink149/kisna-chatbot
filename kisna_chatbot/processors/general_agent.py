@@ -1,4 +1,4 @@
-# KB grounding via prompt injection (KISNA_KNOWLEDGE_BASE).
+# KB grounding via prompt injection (KISNA_KNOWLEDGE_BASE_V2, assembled in prompts/general_agent_kisna.py).
 
 import re
 

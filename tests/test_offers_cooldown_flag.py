@@ -57,6 +57,11 @@ class OffersCooldownTests(unittest.TestCase):
         self.assertNotIn("%", reply["text"])
         self.assertFalse(any(ch.isdigit() for ch in reply["text"]))
         self.assertIn("View Offers", reply["text"])
+        self.assertEqual(
+            reply["text"],
+            "Offers are unchanged since I shared them a moment ago — scroll up to "
+            "see them, or tap *View Offers* for the full list again.",
+        )
 
 
 if __name__ == "__main__":

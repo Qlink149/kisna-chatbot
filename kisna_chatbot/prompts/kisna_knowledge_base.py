@@ -9,8 +9,8 @@ When this KB exceeds ~12k tokens, switch GeneralAgent from prompt-injection
 injected into the GeneralAgent system prompt (no vector DB).
 
 Two versions live here side by side:
-  - KISNA_KNOWLEDGE_BASE     -- the original KB; kept only as the base
-    template KISNA_KNOWLEDGE_BASE_V2 is built from (general_agent_kisna.py).
+  - KISNA_KNOWLEDGE_BASE     -- the original KB. UNUSED since KB v2.1: kept
+    for history only; nothing imports it and it never reaches the prompt.
   - KISNA_KNOWLEDGE_BASE_V2  -- the client's September 2026 re-scrape, adopted
     verbatim EXCEPT the flagship-store count, which the client separately
     confirmed stays at "160+" (their new doc says "120+"; that single figure
@@ -23,12 +23,17 @@ Answers are generated from the facts in KISNA_KNOWLEDGE_BASE_V2 using the
 response-style spec in KISNA_VOICE -- V2 is a fact store, not a script; the
 customer-facing tone/structure/emoji rules live in KISNA_VOICE, not here.
 
-KISNA_CAMPAIGNS holds everything with an expiry date (making-charge
-discounts, insurance, GRP's current window, the Lucky Draw) and MUST be
-reviewed before 5 November 2026, when the GRP rate-lock and Lucky Draw both
-close.
+Time-bound content is KISNA_CAMPAIGN_ITEMS: records with a prompt_until /
+dropoff_until date, filtered at call time by build_campaigns_block() and
+build_dropoff_message(). Contact lines live only in KISNA_LOCKED_VALUES_TEMPLATE.
 """
 
+from dataclasses import dataclass
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
+# UNUSED -- history only. The live prompt is assembled from
+# KISNA_KNOWLEDGE_BASE_V2 (see general_agent_kisna.py); nothing imports this.
 KISNA_KNOWLEDGE_BASE = """\
 # KISNA KNOWLEDGE BASE (authoritative source of truth)
 
@@ -242,61 +247,29 @@ KISNA_KNOWLEDGE_BASE = """\
 - Cash withdrawal instead of jewellery: NOT allowed.
 """
 
-# TODO-CLIENT items below are about specific facts inside KISNA_KNOWLEDGE_BASE_V2
-# (a single string literal, so a per-line comment can't sit next to each one --
-# grouped here instead, each naming its section):
-#   EXCHANGE POLICY -- other-brand exchange: client doc gives no valuation
-#     percentage for a competitor's gold; the bot must not quote one, only
-#     confirm the facility exists and route valuation to the store.
-#   EXCHANGE POLICY / BUYBACK POLICY -- "cash or store credit?": the client
-#     doc's buyback answer (RTGS/NEFT, no store credit) and the existing
-#     exchange-credit fact (online-redemption-only, i.e. store credit) are two
-#     different policies with different payout types; the bot must
-#     disambiguate which one the customer means, not average them.
-#   CERTIFICATION -- "Kisna Promise Certificate" is introduced by the client's
-#     September FAQ document with no definition. The bot can confirm gold
-#     jewellery comes with one but cannot explain what it certifies. Route
-#     follow-ups to a live representative until defined.
-#   CERTIFICATION -- natural diamonds: client doc hedges "natural diamonds in
-#     our applicable jewellery", implying some pieces may not be natural, but
-#     there is no KB fact on lab-grown diamonds either way. Do not overclaim
-#     or deny lab-grown either way.
-#   PAYMENT -- "full amount at purchase, no partial payment" contradicts GRP's
-#     mandatory 25% advance; treating GRP as the stated exception rather than
-#     resolving which claim is "correct".
-#   PAYMENT -- vouchers being store-only sits next to the "pricing/offers are
-#     uniform online and in-store" fact (STORE & IN-STORE SERVICES); these are
-#     not the same claim -- do not let one imply the other.
-#   ORDERS -- cancellation: client doc names "My Account" and gives no cutoff;
-#     using the existing KB path ("My Orders") and cutoff (before
-#     packed/shipped) as the safe fallback until the client confirms otherwise.
-#   CUSTOMISATION -- engraving: client doc's engraving answer gave no next
-#     step; the safe fallback appends the same product-check routing the other
-#     customisation answers use.
-#   DELIVERY & SHIPPING -- client doc claims "next-day delivery in metro
-#     cities", which contradicts the 4-5 day dispatch fact already in this
-#     section. No committed delivery-date promise until this is resolved with
-#     the client.
+# KB v2.1 — client answers received 2026-09-26. No open client questions.
 KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of truth)
 
 ## COMPANY
 - Brand: KISNA (Diamond & Gold Jewellery), by Hari Krishna Group / Hari Krishna Exports Pvt. Ltd.
 - Founded: 2005 (Kisna brand launched in Mumbai); Hari Krishna Group established 1992.
 - Founder: Shri Savji Dholakia — Padma Shri awardee (2022).
-- Headquartered in Mumbai, Maharashtra. (Never share the head/corporate office street address with customers — see rule in SUPPORT & CONTACT.)
+- Headquartered in Mumbai, Maharashtra. (Never share the head/corporate office street address — see SUPPORT & CONTACT.)
 - Footprint: 160+ flagship stores; 3,500+ retail touchpoints across 29 Indian states; 8,000+ jewellery designs.
 - Products online: Diamond, gold, gemstone (ruby/emerald/sapphire etc.), and solitaire jewellery — rings, earrings, pendants, mangalsutras, bangles, bracelets, necklaces, nose pins, chains, and a 9KT gold line.
 - Products in select physical stores only (NOT available online): Platinum jewellery, silver coins. Gold coins and bars also available in stores.
 - The ONLY material KISNA does NOT sell anywhere is pearl.
-- All natural diamonds set in 14KT/18KT gold; every piece is hallmarked.
+- At Kisna, we deal exclusively in natural, certified diamonds. Every gold piece is hallmarked.
 - Sister brands (under House of HK): Kisna, Siva, RARE, Platinum, Oro, Rang.
 
 ## BRAND PROMISE
 - Certified jewellery (BIS Hallmark for gold; IGI/GIA for diamonds).
 - 7-day money-back guarantee.
-- Free shipping within India.
+- Free shipping in both directions within India — no charges for delivery or for returns.
 - Easy exchange & buyback.
-- Free jewellery insurance.
+- Complimentary jewellery insurance for 1 year (a permanent benefit, not a campaign). Covers Loss & Theft (theft, burglary, chain snatching) and Damage (fire, natural calamities). To claim, email Customer Support (support email in LOCKED VALUES) with all relevant details and supporting documents.
+- Free services: routine cleaning, polishing, and repairs for fallen stones or diamonds.
+- Warranty: covers pre-existing damage and manufacturing defects from the date of delivery; it does not cover normal wear and tear or damage from accidental mishandling.
 - Uniform pricing across website, app, and physical stores.
 - Kisna's basis for online trust: certified jewellery, transparency, quality craftsmanship and secure delivery.
 - Gold versus diamond: both are sound choices — gold for its enduring value, diamonds for their timeless beauty. Present as a balanced view, never steer the customer.
@@ -304,14 +277,14 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 ## RETURNS POLICY (authoritative — /return-and-shipping-policy)
 - Return window: 7 days, no-questions-asked, from date of receipt.
 - Eligibility: item must be unworn/unused, in original condition, with tags and original packaging, plus receipt/proof of purchase.
-- How to return: the customer must REQUEST a return FIRST — contact support by phone (+91 81694 40000) or email (support@kisna.com). Kisna arranges pickup once approved. Items shipped back WITHOUT a prior request are NOT accepted.
+- How to return: the customer must REQUEST a return FIRST by contacting Customer Support (phone and email in LOCKED VALUES). Kisna arranges pickup once approved. Items shipped back WITHOUT a prior request are NOT accepted.
 - Damaged/wrong item: inspect on receipt and report immediately for evaluation.
 - Exclusions: sale items and gift cards are NOT eligible for return.
 - Refunds: if approved within the 7-day window, customer gets a 100% refund to the original payment method, processed within 10 business days (bank/card processing may add delay).
-- Return/resizing/exchange shipping charge: there is NO standard flat fee for this — do not quote one (e.g. do not say "₹100" or any other amount). If a customer asks what it costs, say a support agent will confirm for their specific case (do not guess a number).
+- Return shipping is free — there is no charge for returns.
 - Partial returns: allowed per individual item, but each returned product must be returned in full, including all components.
 - Ring doesn't fit: check the size guide before ordering; if it still doesn't fit, send it back for resizing/exchange.
-- Track a return: via chat support or by emailing support@kisna.com.
+- Track a return: via chat support or by emailing Customer Support.
 
 ## RING SIZING & RESIZING
 - Determining ring size, three methods: (1) use a ring sizer, or visit a nearby jeweller, for the most accurate measurement; (2) measure the inner diameter of a well-fitting existing ring with a ruler; (3) paper strip method — wrap a thin strip of paper around the finger, mark the overlap, measure the length with a ruler.
@@ -325,23 +298,18 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Bot handling rule: when a customer mentions resizing done outside Kisna, note that an item that has been altered or resized is rejected at Quality Assurance under the exchange and buyback policy. Do not state this as a threat; state it as the reason to route resizing through Kisna.
 
 ## CUSTOMISATION
-- Design customisation may not be available for all Kisna designs. The customer shares the product they are interested in and the team checks whether customisation is possible.
-- Name engraving may not be available for all Kisna designs.
-- Bot handling rule: for an engraving question, always give the customer the next step -- they share the product they are interested in and the team checks whether engraving is possible for that design. Never leave an engraving answer without this next step.
-- Stone customisation may not be available for all Kisna designs. The customer shares the product and the team checks whether the stone can be changed for that design.
-- Bot handling rule: never confirm that a customisation, engraving or stone change is possible. Always hedge and route to the team for a product-specific check.
+- Kisna is currently unable to accept customisation orders. This includes engraving and stone changes. For further assistance, route to Customer Support.
 
 ## EXCHANGE POLICY (authoritative — /buyback-and-exchange-policy)
 - Applies to products sold in India, available for the lifetime of the product, but only 7+ days after purchase date, subject to Quality Assurance review (item must be free of tampering, damage, alteration, or resizing — otherwise rejected).
 - Diamond jewellery: 95% of current product price (excl. GST); labour charges NOT deducted; any original discounts/offers are deducted.
 - Gold jewellery: 100% of current gold value.
 - Required: original product + original invoice + product certificate (a missing diamond certificate incurs a charge).
-- How exchange credit works: the exchange value is applied as an online redemption credit — it can ONLY be used for purchases on kisna.com and cannot be encashed or used in physical stores. (Note: There is no active "Kisna account" system — the credit is applied directly at checkout online.)
+- Exchange credit: the exchange amount from an online purchase can be adjusted only against the customer's next online order. Exchange amount adjustment is not available for offline purchases.
 - Old gold (distinct from Kisna-jewellery exchange): can be exchanged at any physical Kisna store for 100% value, no deductions.
 - Old gold exchange is available at Kisna offline stores only. It has not been launched for online purchases.
-- Jewellery purchased from another brand can be exchanged through Kisna's old gold exchange facility, at offline stores only.
-- Bot handling rule: for jewellery from another brand, confirm the old gold exchange facility exists (offline stores only) but do NOT quote a valuation percentage -- the 100%/no-deductions figure above is for Kisna-store old gold, not confirmed for another brand's gold. Route the valuation itself to the store.
-- Bot handling rule: "will I get cash or store credit?" is ambiguous between exchange and buyback -- ask the customer which one they mean (or infer it from context) before answering. Exchange pays out as an online redemption credit (see above); buyback pays out as RTGS/NEFT (see BUYBACK POLICY below). Never answer this question without disambiguating first.
+- Jewellery purchased from another brand can be exchanged through Kisna's old gold exchange facility, at offline stores only. Its valuation may vary depending on detailed examination and assessment; the final value is determined by the product examination report. Never quote a percentage for it.
+- Bot handling rule: "will I get cash or store credit?" is ambiguous between exchange and buyback -- ask the customer which one they mean (or infer it from context) before answering. Exchange is adjusted only against the next online order (see above); buyback pays out as RTGS/NEFT (see BUYBACK POLICY below). Never answer this question without disambiguating first.
 
 ## BUYBACK POLICY (authoritative — /buyback-and-exchange-policy)
 - Diamond jewellery: 90% of current product price (excl. GST); labour charges NOT deducted; discounts/offers deducted.
@@ -350,31 +318,30 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Payment via RTGS/NEFT only, paid to the name on the invoice, within 5–10 days.
 - Under the buyback policy the payout is made by RTGS or NEFT to the name on the invoice. Store credit is not provided under buyback.
 - Kisna may update/withdraw/change this policy without prior notice.
-- Contact for all exchange/buyback queries: support@kisna.com.
+- Contact for all exchange/buyback queries: Customer Support.
 
 ## CERTIFICATION
 - BIS Hallmark: certifies purity of gold and silver (BIS triangle logo, caratage/purity, assay centre logo, jeweller's code, hallmarking date code). The principal certifying body for gold in India.
 - IGI (International Gemological Institute): Kisna's primary diamond certification lab. Certifies diamonds, gemstones, and jewellery. World's first gemological lab to commit to carbon neutrality. Widely accepted across the jewellery industry.
-- GIA and SGL are recognized diamond labs referenced on Kisna's buying guide. GIA is offered by Kisna only for solitaires, on request, at additional charge.
+- SGL is also a recognized diamond lab referenced on Kisna's buying guide.
 - HRD, GSI, NGTC: available on request via House of HK / franchise channel.
 - Lost certificate: a duplicate can be issued for ₹500 — the original product is required for a quality check before reissuing.
-- IGI certification is standard on Kisna diamond jewellery, as applicable to the piece.
-- GIA certification is available on request for solitaire diamonds only, with additional charges applicable.
+- GIA certification is available on request for solitaire diamonds only, with additional charges applicable. Route any GIA certificate query to Customer Support.
 - Sample diamond certificate, for reference only: https://www.igi.org/verify-your-report-sku/?r=HK_58J0810426 — the actual certificate varies by diamond and its grading.
-- Kisna gold jewellery comes with a Kisna Promise Certificate for the product.
+- Every Kisna gold jewellery product comes with a Kisna Promise Certificate, giving clarity on the product's purity and weight.
 - Bot handling rule: when sharing the sample certificate, always state that it is a sample and the customer's actual certificate may differ.
-- Bot handling rule: diamonds in the applicable Kisna jewellery are natural and carefully selected to meet quality standards. Do NOT state that ALL Kisna diamonds are natural, and do NOT state that Kisna does or does not sell lab-grown diamonds. If pressed on this, route to a live representative.
 
 ## GOLD PURITY & KARAT GUIDE
-- 916 gold means the jewellery contains approximately 91.6% pure gold, which corresponds to 22K.
-- 18K gold contains 75% pure gold and has a richer colour.
-- 14K gold is more durable and better suited to everyday wear.
-- Bot handling rule: answer karat questions as general education only. This KB does not record which karats Kisna stocks beyond 14KT, 18KT and the 9KT line. Never tell a customer that Kisna does or does not sell 22K or 916 jewellery; route product availability questions to the catalogue or a live representative.
+- Kisna offers jewellery in 24KT, 18KT, 14KT and 9KT gold. 22KT jewellery is not currently available.
+- 916 gold means approximately 91.6% pure gold, which corresponds to 22K (general education — Kisna does not offer 22KT).
+- 18K gold contains 75% pure gold.
+- 14KT vs 18KT: the main difference is gold purity; visually there is generally no significant difference.
 
 ## DIAMOND BUYING GUIDE — THE 4Cs
 - Color: absence of color; colorless is most valuable. D–F colorless, G–J near-colorless, K–M faint hue.
 - Cut: how well facets interact with light. Excellent > Good > Poor. Most important factor for sparkle.
-- Clarity: freedom from inclusions/blemishes. FL (Flawless), VS (Very Slightly Included), SI (Slightly Included).
+- Clarity: the presence of internal or external characteristics — inclusions and blemishes. A higher clarity grade generally indicates fewer and less noticeable inclusions. FL (Flawless), VS (Very Slightly Included), SI (Slightly Included).
+- Diamond grades Kisna offers: VVS-FG — very high clarity, colour range considered colourless; SI-HI — slightly more visible inclusions under magnification, near-colourless range. For selected designs, different diamond grades may be available; route specifics to Customer Support.
 - Carat: weight (1 carat = 200mg, divided into 100 points). 0.5ct delicate, 1ct classic, 2ct+ bold statement.
 - Recommended buying process: (1) define purpose — casual/occasional/ceremonial; (2) define style/type; (3) set a budget, then pick diamond quality via the 4Cs; (4) verify certifications — BIS for gold, IGI/GIA/SGL for diamonds.
 
@@ -384,65 +351,59 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Clean diamond jewellery: warm water + a few drops of mild unscented soap → soak ~30 min → dry with a clean cloth → soft-bristled toothbrush for residue.
 - Clean gold jewellery: warm water + mild soap/dishwashing solution → soak 15–20 min → rinse cold water → air-dry flat on clean cloth. Soft-bristled brush for crevices. Works for yellow, white, and rose gold.
 - Gemstone pieces: clean gently. Do NOT use hot or cold water. Instead of tap water, use sodium-free seltzer water or club soda — the carbonation lifts grime. A professional jeweller's cleaning solution also works.
-- Storage: store each piece separately — diamonds can chip and scratch each other and other jewellery. Use a fabric-lined jewellery box with separate compartments or wrap each piece individually in soft tissue.
+- Keep jewellery away from harsh chemicals, perfumes and excessive moisture, and follow the care instructions provided with the product.
+- Storage: store each piece separately in a clean, dry place — diamonds can chip and scratch each other and other jewellery. Use a fabric-lined jewellery box with separate compartments or wrap each piece individually in soft tissue.
 
 ## PAYMENT
 - Accepted: debit/credit cards, net banking, UPI/wallets (Google Pay, PhonePe, MobiKwik, PayZapp, Freecharge, Ola Money).
 - Cash on Delivery (COD): NOT available — online payment only.
 - EMI: NOT available directly at Kisna. Customer can pay via credit card from a major bank and, if their bank offers it, convert the transaction into EMI afterward — direct EMI-conversion queries to the customer's own bank support.
 - Fraud prevention: payment partners monitor for suspicious activity; flagged transactions held for manual review; ID may be requested to confirm the cardholder.
-- UPI is accepted, including Google Pay, PhonePe and other popular UPI apps, at checkout.
-- Payment security: Kisna uses secure encryption protocols to protect payment and personal details. Payment partners monitor transactions for suspicious activity.
-- Bot handling rule: standard online orders require full payment at checkout -- multiple payment methods cannot be combined directly at checkout (one method per order). Gold Rate Protection bookings are the documented exception: a 25% advance secures the booking, not full payment. Route GRP payment specifics to the GRP page/section.
+- Payment security: online payments are processed through Kisna's secure payment system; recommend completing payments only through the official checkout.
+- Price composition: the price may include gold value, making charges, stone charges, applicable taxes and discounts; a detailed price breakdown is on the website. (Never quote a making-charge percentage.)
+- Partial payment: accepted only against the gold rate under Gold Rate Protection (25% advance); it cannot be made against any specific jewellery product. Standard online orders require full payment at checkout.
 - One payment method per order: multiple payment methods cannot be combined directly at checkout. The Support Team can arrange payment using multiple options from the backend, wherever applicable.
-- Vouchers: a valid voucher can be used at Kisna stores only. Vouchers are not applicable to online purchases and are subject to applicable terms and conditions.
-- Bot handling rule: when answering a voucher question, state the voucher rule as given (store-only, not valid online, T&Cs apply) and do not also claim offers are uniform online/in-store in the same reply -- a voucher is not a general offer or a gift card, and the two should not be equated.
+- Vouchers issued by Kisna stores or through events and promotions are not redeemable for online purchases.
 
 ## ORDERS
-- Editing: you cannot add or edit a product once an order is placed. You can remove a product before it's packed/shipped via "My Orders" (cancel option).
+- Editing: you cannot add or edit a product once an order is placed.
 - Multiple products: yes — add to cart and check out together.
-- Duplicate order: contact +91 81694 40000 or support@kisna.com.
+- Duplicate order: contact Customer Support.
 - Order confirmation: a confirmation page with a unique Order ID, item listing, shipping address, plus a confirmation email; tracking details sent on dispatch.
 - Different shipping vs billing address: allowed.
-- Bot handling rule: to cancel a standard order, use "My Orders" before it is packed or shipped, or email support@kisna.com as an alternative. This does NOT apply to Digital Gold -- see DIGITAL GOLD below, where an order cannot be cancelled once placed. Never let this general cancellation answer override that Digital Gold rule.
+- Cancellation: an order can be cancelled any time before it has been shipped, through My Account; once shipped, cancellation may no longer be possible. Order status is tracked through My Account. This does NOT apply to Digital Gold -- a digital gold order cannot be cancelled once placed (see DIGITAL GOLD).
 
 ## DELIVERY & SHIPPING
-- Free shipping throughout India.
-- Most orders dispatch within 4-5 days (or as specified on the product detail page). Committed shipping time is calculated in working hours/days. Occasional delays possible due to unforeseen circumstances.
+- Standard delivery within 4–5 working days across India; timelines may vary depending on the delivery pincode and location. Occasional delays are possible due to unforeseen circumstances.
 - Tracking: an email with tracking number and courier name is sent once dispatched.
-- Packaging: boxed with a plastic outer layer; each product individually bubble-wrapped.
+- Packaging: the order comes in a KISNA-branded poly bag with a security seal; the bag includes the product and shipment information for security and transparency.
 - Shipment cannot be rerouted once dispatched.
-- Report delivery issues immediately to support@kisna.com.
+- Report delivery issues immediately to Customer Support.
 - Buy online, pick up in store: select "In-Store Delivery" at checkout and choose your store.
-- Express delivery is used for all Kisna shipments. Delivery timelines vary by location.
-- Shipping is free across India, including metro cities.
+- Delivery to another city: yes, subject to availability at the destination.
 - Packages are fully insured throughout storage and transit.
-- Packaging is discreet, so that the contents remain confidential through delivery.
 - Delivery address change: possible while the order has not yet been dispatched. The customer contacts the team as soon as possible and the team checks whether the address can be updated. Once dispatched, the address cannot be changed.
 - Someone other than the customer can receive the package on their behalf. Someone must be present at the delivery address, and the required OTP or a valid ID must be ready for verification.
-- Store pickup for online orders: the customer selects their preferred Kisna store at checkout and the order is delivered to that store for collection.
-- Bot handling rule: never promise a specific delivery date. State that shipping is free and express across India, that timelines vary by location, and that next-day delivery is available for metro cities and select locations subject to the item's dispatch timeline. Route a specific ETA to a live representative.
+- Bot handling rule: the bot has no pincode data yet. Never ask the customer for a pincode to check delivery. Say delivery is across India in 4–5 working days, varying by pincode, and offer Customer Support for a specific location. Never promise a specific delivery date.
 
 ## GIFTING
 - Jewellery can be sent as a gift. The customer provides the recipient's delivery details when placing the order, and someone must be available at that address to receive the package.
 - Secure delivery for gifts: the required OTP or a valid ID may be needed for verification at handover.
-- A personal gift message can be added to an order, subject to availability. The customer shares the message and the team guides them through the process.
+- Gift message: share it with the support team before dispatch; once shipped, adding or modifying a gift message is no longer possible.
+- Invoice and shipping details travel with the order as required during transit; gift packaging and invoice handling may vary by order. Route gift-invoice questions to Customer Support.
+- Product images represent the jewellery as accurately as possible; actual appearance may vary slightly due to lighting, photography and screen settings.
 
 ## GOLD RATE PROTECTION PLAN (GRP) — https://www.kisna.com/pages/gold-rate-protection
-- Featured in the site navigation header as "NEW GOLD PROTECTION."
 - Allows customers to lock the prevailing gold rate at the time of booking, protecting them from future gold price increases during the offer period.
-- NOTE: Validity dates (Q3 below) are campaign-specific and will change each season. The bot should NOT quote the specific dates as permanent — always direct customers to the page for current dates.
+- Never quote GRP dates — always direct customers to the page for current dates.
 - Every GRP answer, not just the validity one, must end by pointing the customer to https://www.kisna.com/pages/gold-rate-protection for full details — this is the page itself, not a generic "visit our website."
 
 ### GRP — Full FAQ (verified from live site)
-- Q: What is Kisna Gold Rate Protection Plan (GRP)?
-  A: It allows you to lock the prevailing gold rate at the time of placing your order or booking, protecting you from any future increase in gold prices during the offer period. Full details: https://www.kisna.com/pages/gold-rate-protection
-
 - Q: Who is eligible for the Gold Rate Protection Scheme benefit?
   A: The benefit is available on all eligible orders, subject to applicable terms and conditions.
 
 - Q: What is the validity of the Gold Rate Protection offer?
-  A: Campaign-specific — dates change each season. Direct customers to https://www.kisna.com/pages/gold-rate-protection for current validity dates. (Current campaign example: lock rate 6th Aug–5th Nov 2026; redeem 7th Aug–10th Nov 2026.)
+  A: Campaign-specific — dates change each season. Direct customers to https://www.kisna.com/pages/gold-rate-protection for current validity dates.
 
 - Q: Is an advance payment required to avail GRP?
   A: Yes. A minimum advance payment of 25% of the total order value is mandatory at the time of booking. Without the advance, the order will not be confirmed under GRP.
@@ -503,14 +464,9 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Store locator: kisna.com/store (searchable by city). Authorized dealers: kisna.com/kisna-authorized-dealers.
 - In-store: jewellery consultation (no purchase obligation), try-on, servicing, exchange/buyback at any store.
 - Online and in-store pricing/offers are uniform.
-- Pricing is uniform across the Kisna website and physical stores. The price is the same whether the customer buys online or in store.
 
 ## SUPPORT & CONTACT
-- Customer support phone: +91 81694 40000.
-- Support hours: 10:00 am–6:30 pm IST Mon–Fri; 10:00 am–4:00 pm IST Sat.
-- WhatsApp ("Chat with Experts"): +91 89768 74310.
-- Support email: support@kisna.com — use this for ALL queries (general, returns, order status, exchange/buyback). This is the ONLY active customer email. Any previous separate transactional email address has been decommissioned.
-- Corporate enquiries: corporate@kisna.com. HR/careers: hr@kisna.com.
+- Customer Support phone, email, hours, WhatsApp and other contacts: see LOCKED VALUES. The support email there is the ONLY active customer email, for ALL queries.
 - Grievance: kisna.com/privacy-policy (Grievance section).
 - Head/corporate office: located in Mumbai. NEVER share the street address with customers; if asked, help them find their nearest STORE via the store locator instead.
 - Social: Instagram @kisnadiamondjewellery, Facebook KisnaDiamondJewellery, YouTube KisnaDiamondJewellery, Twitter/X @kisnaindia, Pinterest kisnaindia, LinkedIn kisna-diamond-jewellery.
@@ -549,7 +505,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 ### Payment Options
 - Online: Credit card, Debit card, Net banking, UPI.
 - In-store (at any Kisna exclusive store): cash, card, cheque, demand draft.
-- Failed online payment: wait 48 hours (payment gateway server issues may auto-resolve). If still not credited after 48 hours, contact support with payment screenshot.
+- Failed online payment: wait 48 hours (payment gateway server issues may auto-resolve). If still not credited after 48 hours, contact Customer Support with a payment screenshot.
 - Subsequent installments can be paid at ANY Kisna exclusive store or on the website — not locked to enrollment location.
 
 ### KMR-Amount Plan
@@ -578,10 +534,9 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Pre-maturity benefit:
   - Diamond jewellery: 50% of the 1st installment value as discount (e.g. ₹2,000/month → ₹1,000 discount).
   - Gold jewellery: 37.5% of the 1st installment value as discount (e.g. ₹2,000/month → ₹750 discount).
-- NOTE: The Kisna website's General FAQ section shows examples at half these values (₹500 / ₹375) — that is an error on Kisna's site. The correct values above are confirmed by the Gold Saving Scheme FAQ section on the same page. Use the values above.
 
 ### Redemption Rules
-- Where to redeem: any Kisna exclusive store or kisna.com — NOT restricted to enrollment store.
+- Where to redeem: KMR redemption is available online via Customer Support (phone or email). The KMR support line is for other KMR queries.
 - Eligible products: diamond jewellery and gold jewellery ONLY.
 - NOT eligible for redemption: Gold Coins, Silver Coins, Rare Solitaire, Plain Platinum jewellery, Studded Diamond Platinum jewellery.
 - Cannot split one plan across diamond and gold — must choose ONE category per plan at redemption.
@@ -659,7 +614,10 @@ Never approximate, round or restate in words any value listed in
 KISNA_LOCKED_VALUES. Quote those exactly as written.
 """
 
-KISNA_LOCKED_VALUES = """\
+# Contact lines are filled at assembly from the env-driven constants in
+# general_agent_kisna.py (KISNA_SUPPORT_PHONE / KISNA_SUPPORT_EMAIL /
+# support_hours) -- this block is the ONE place the prompt carries them.
+KISNA_LOCKED_VALUES_TEMPLATE = """\
 # LOCKED VALUES — quote these EXACTLY. Never round, approximate, or
 # restate in words. "7-10 business days" must never become "about a week".
 
@@ -707,108 +665,142 @@ Digital Gold
 Gold purity
 - 916 gold = approximately 91.6% pure gold = 22K
 - 18K = 75% pure gold
-- 14K = more durable, for everyday wear
+- 14KT vs 18KT: purity differs; visually no significant difference
+
+Delivery and shipping
+- Delivery: 4–5 working days across India
+- Return and delivery shipping: free both ways
+
+Insurance
+- Insurance: 1 year complimentary
+
+Gold and diamonds
+- Karats offered: 24KT, 18KT, 14KT, 9KT; 22KT not available
+- Diamond grades: VVS-FG, SI-HI
 
 Contacts
-- Customer support: +91 81694 40000
+- Customer support phone: {support_phone}
 - WhatsApp, Chat with Experts: +91 89768 74310
 - KMR support: 8065155600
 - Franchise: +91 22 6716 0000, WhatsApp +91 91524 84423
-- Support email: support@kisna.com (the ONLY customer email)
+- Support email: {support_email} (the ONLY customer email)
 - Corporate: corporate@kisna.com. HR: hr@kisna.com. Franchise:
   franchise@kisna.com
-- Support hours: 10:00 am to 6:30 pm IST Mon-Fri; 10:00 am to 4:00 pm
-  IST Sat
+- Support hours: {support_hours}
 """
 
-# TODO-CLIENT: no named owner at Kisna for campaign updates yet. Until one
-# exists, every date below must be manually reviewed. Next hard deadline:
-# GRP rate lock expires 5 November 2026; Lucky Draw ends 30 November 2026.
-KISNA_CAMPAIGNS = """\
-# TIME-BOUND CONTENT — verify before quoting. Everything here expires.
 
-## Making charge discounts (BROADCAST ONLY)
-- Diamond jewellery: up to 35% off making charges
-- Gold jewellery: up to 20% off making charges
-- Discounts apply to making charges only. T&Cs apply.
-- Bot handling rule: these figures appear ONLY in the drop-off broadcast
-  message, which is sent verbatim by the system. The bot must NEVER quote
-  them in a generated reply. Every making-charge or offer question routes
-  to the View Offers menu, which is the single source of truth. If a
-  customer quotes the percentage back from the broadcast, acknowledge the
-  offer exists and route to View Offers for the figure that applies to
-  their piece.
+def build_locked_values(*, support_phone: str, support_email: str, support_hours: str) -> str:
+    return KISNA_LOCKED_VALUES_TEMPLATE.format(
+        support_phone=support_phone,
+        support_email=support_email,
+        support_hours=support_hours,
+    )
 
-## Free jewellery insurance
-- Free 1-Year Jewellery Insurance with every purchase.
-- Bot handling rule: this KB has NO detail on what the insurance covers,
-  whether it is automatic, or how to claim. If asked, confirm the benefit
-  exists and route to a live representative. Never describe coverage.
 
-## Gold Rate Protection (GRP) — current campaign
-- Rate lock: 6 August to 5 November 2026
-- Redemption: 7 August to 10 November 2026
-- Minimum 25% advance; purchase up to 4x the advance
-- Eligible: Gold, Diamond, Platinum and Solitaire jewellery
-- Page: https://www.kisna.com/pages/gold-rate-protection
-- Bot handling rule: never quote these dates as permanent. Always end a
-  GRP answer by pointing the customer to the GRP page above.
+# ---------------------------------------------------------------------------
+# Campaigns: records with structural expiry. An item is live ON its *_until
+# date and gone the day after. prompt_text is what the model may know (None:
+# nothing); dropoff_line is the exact line for the drop-off broadcast. The
+# making-charge percentages exist ONLY as a drop-off line -- the model never
+# sees them. Lines are the client's copy, moved verbatim from the former
+# KISNA_DROPOFF_MESSAGE.
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class CampaignItem:
+    id: str
+    prompt_text: str | None
+    dropoff_line: str | None
+    prompt_until: date | None
+    dropoff_until: date | None
 
-## Lucky Draw
-- Prize: 2 scooters and 1 car
-- Period: 21 August to 30 November 2026
-- Eligibility: Indian citizens aged 18 and above, excluding Tamil Nadu
-- T&Cs apply. Page: https://www.kisna.com/pages/jewellery-offers
-- Bot handling rule: after 30 November 2026 this campaign is closed. Do not
-  mention it unless the block has been updated.
-"""
 
-KISNA_WELCOME_MESSAGE = """\
-Good Morning! ☀️ Hope you're doing well!
+KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
+    CampaignItem(
+        id="making_charges",
+        prompt_text=None,
+        dropoff_line='• Up to 35% off making charges on diamond jewellery, and up to 20% off on gold jewellery.',
+        prompt_until=None,
+        dropoff_until=None,
+    ),
+    CampaignItem(
+        id="insurance",
+        prompt_text=None,  # permanent benefit -- lives in BRAND PROMISE
+        dropoff_line='• Free 1-Year Jewellery Insurance with every purchase.',
+        prompt_until=None,
+        dropoff_until=None,
+    ),
+    CampaignItem(
+        id="grp",
+        prompt_text=(
+            "- Gold Rate Protection (GRP) is running now. Never quote its dates; "
+            "always direct the customer to the GRP page."
+        ),
+        dropoff_line="• Gold Rate Protection — lock in today's gold rate before it changes: https://www.kisna.com/pages/gold-rate-protection",
+        prompt_until=date(2026, 11, 10),
+        dropoff_until=date(2026, 11, 5),
+    ),
+    CampaignItem(
+        id="lucky_draw",
+        prompt_text=(
+            "- Lucky Draw: prize of 2 scooters and 1 car, 21 August to 30 November "
+            "2026, for Indian citizens aged 18 and above, excluding Tamil Nadu. "
+            "T&Cs apply. Page: https://www.kisna.com/pages/jewellery-offers"
+        ),
+        dropoff_line='• Lucky Draw — stand a chance to win 2 scooters and 1 car: https://www.kisna.com/pages/jewellery-offers',
+        prompt_until=date(2026, 11, 30),
+        dropoff_until=date(2026, 11, 30),
+    ),
+)
 
+# The order the lines appeared in the client's drop-off message.
+_DROPOFF_ORDER: tuple[str, ...] = ('making_charges', 'insurance', 'grp', 'lucky_draw')
+_DROPOFF_HEADER = "Just a quick reminder before you go — here's what you don't want to miss at Kisna! ✨\n\n"
+_DROPOFF_FOOTER = "\nNeed help? Just reply here and I'll be happy to assist! 😊\n"
+
+# The client's welcome text minus its first "Good Morning!..." line, which is
+# now the time-aware kisna_greeting_line() in processors/service_list.py.
+KISNA_WELCOME_BODY = """\
 Namaste and welcome to Kisna Diamond & Gold. 💎
 
 I'm KIA - your personal jewellery assistant, and I'm delighted to assist you.
 
-Whether you're exploring our latest collections, looking for the perfect
-jewellery, checking offers, tracking an order, or need any assistance - I'm
-here to make your Kisna experience simple and delightful. ✨
+Whether you're exploring our latest collections, looking for the perfect jewellery, checking offers, tracking an order, or need any assistance - I'm here to make your Kisna experience simple and delightful. ✨
 
 How may I assist you today? 😊
 """
-# TODO-CLIENT: the greeting hardcodes "Good Morning!" and will say it at
-# 11pm IST. Implement as a time-aware token (Good Morning / Good Afternoon /
-# Good Evening, IST) OR get client sign-off on a neutral opener. Flag before
-# production.
 
-# TODO-CLIENT: drop-off trigger undefined - inactivity timeout, session end,
-# or manual send? Confirm before wiring.
-KISNA_DROPOFF_MESSAGE = """\
-Just a quick reminder before you go — here's what you don't want to miss at Kisna! ✨
 
-• Up to 35% off making charges on diamond jewellery, and up to 20% off on gold jewellery.
-• Free 1-Year Jewellery Insurance with every purchase.
-• Gold Rate Protection — lock in today's gold rate before it changes: https://www.kisna.com/pages/gold-rate-protection
-• Lucky Draw — stand a chance to win 2 scooters and 1 car: https://www.kisna.com/pages/jewellery-offers
+def _today_ist() -> date:
+    return datetime.now(ZoneInfo("Asia/Kolkata")).date()
 
-Need help? Just reply here and I'll be happy to assist! 😊
-"""
-# This is the only place the making-charge percentages above may appear —
-# they are broadcast verbatim by the system, never composed by the LLM.
-# See KISNA_CAMPAIGNS for the same figures with their full bot handling rules.
 
-# ROUTER NOTE - form triggers from the client's September FAQ doc.
-# Not KB content. For the classifier/router owner:
-#   Call Back form   -> "talk to an expert" / "connect to expert" /
-#                       "call back" / "my refund hasn't come" /
-#                       "I want a human agent"
-#   Complaint form   -> "I have a complaint" /
-#                       "my product is damaged" /
-#                       "I received the wrong product"
-#   TODO-CLIENT: the client's doc routes "can I exchange it for another
-#   size" to the Complaint form. A size exchange is not a complaint.
-#   Recommend Call Back; awaiting client confirmation.
-#   TODO-CLIENT: callback form needs defined time slots, a receiving team
-#   and an SLA. None supplied.
-#   Refund status: state the 10-business-day refund window BEFORE offering
-#   the callback, to avoid unnecessary escalations.
+def _live(until: date | None, today: date) -> bool:
+    return until is None or today <= until
+
+
+def build_campaigns_block(today: date | None = None) -> str:
+    """Time-bound facts the model may know today (IST). Empty when none."""
+    today = today or _today_ist()
+    lines = [
+        item.prompt_text
+        for item in KISNA_CAMPAIGN_ITEMS
+        if item.prompt_text and _live(item.prompt_until, today)
+    ]
+    if not lines:
+        return ""
+    return "# LIVE CAMPAIGNS (time-bound; never quote dates unless listed here)\n" + "\n".join(lines) + "\n"
+
+
+def build_dropoff_message(today: date | None = None) -> str:
+    """The client's drop-off broadcast with only today's live lines (IST).
+    Always a valid message: header + live lines (original order) + footer."""
+    today = today or _today_ist()
+    by_id = {item.id: item for item in KISNA_CAMPAIGN_ITEMS}
+    live = [
+        by_id[i].dropoff_line
+        for i in _DROPOFF_ORDER
+        if by_id[i].dropoff_line and _live(by_id[i].dropoff_until, today)
+    ]
+    body = "\n".join(live)
+    return _DROPOFF_HEADER + (body + "\n" if body else "") + _DROPOFF_FOOTER

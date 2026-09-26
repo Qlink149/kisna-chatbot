@@ -347,15 +347,20 @@ class GeneralAgentModelRoutingTests(unittest.TestCase):
         for fn in (run_general_agent, run_openai_general_agent):
             self.assertIn("language", inspect.signature(fn).parameters, fn.__name__)
 
-    def test_web_search_stays_gated_on_the_configured_model(self):
+    def test_no_model_route_can_switch_web_search_on(self):
         """Routing a language to another model must NOT silently switch web
-        search on and change what the answer is built from."""
+        search on and change what the answer is built from. KB v2.1 removed
+        web search outright (the prompt no longer describes it), so no route
+        can enable it."""
         import inspect
 
         from kisna_chatbot.ai import openai_responses
+        from kisna_chatbot.prompts import general_agent_kisna
 
         src = inspect.getsource(openai_responses.run_openai_general_agent)
-        self.assertIn('"gpt-4o-mini" not in configured_model.lower()', src)
+        self.assertNotIn("web_search", src)
+        self.assertIn("tools = [request_live_agent_tool]", src)
+        self.assertFalse(hasattr(general_agent_kisna, "web_search_tool"))
 
 
 class UrduSupportTests(unittest.TestCase):

@@ -1,9 +1,9 @@
 """Win-back nudge for customers who went quiet mid-conversation.
 
 If a user's last turn was ``DELAY``..``MAX_AGE`` seconds ago (default 3h..23h,
-i.e. still inside WhatsApp's 24-hour session window) we send ONE short,
-KB-grounded reassurance -- the 7-day no-questions-asked return policy and similar
-promises -- worded fresh by :func:`reply_composer.narrate` each time.
+i.e. still inside WhatsApp's 24-hour session window) we send ONE message: the
+client's drop-off broadcast, built by ``build_dropoff_message()`` from the
+campaigns live today -- verbatim in English, faithfully translated otherwise.
 
 Isolated by design:
 
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-import random
+import re
 import time
 
 from kisna_chatbot.database.collections import users
@@ -30,8 +30,9 @@ from kisna_chatbot.database.db_utils import (
     get_takeover_status,
     save_agent_message,
 )
+from kisna_chatbot.prompts.kisna_knowledge_base import build_dropoff_message
 from kisna_chatbot.utils.logger_config import logger
-from kisna_chatbot.utils.reply_composer import narrate
+from kisna_chatbot.utils.reply_composer import compose, normalize_language
 from kisna_chatbot.utils.whatsapp_window import is_window_open
 from kisna_chatbot.whatsapp_functions.send_text_message import (
     send_text_message_with_retry,
@@ -97,45 +98,42 @@ def _client_ids() -> list[str]:
 # Message copy -- grounded in kisna_knowledge_base.py
 # --------------------------------------------------------------------------
 
-# Complete, ready-to-send English lines. Every promise here is verbatim from
-# kisna_chatbot/prompts/kisna_knowledge_base.py (## RETURNS POLICY / ## BRAND
-# PROMISE / ## CERTIFICATION). narrate() rewrites each one fresh and in the
-# customer's language; on any LLM failure narrate() returns the line unchanged,
-# so the customer still gets a correct, on-brand message.
-_REENGAGE_LINES: tuple[str, ...] = (
-    "Just checking in — you were looking at jewellery with us earlier. "
-    "No rush at all: KISNA has a 7-day no-questions-asked return policy from the "
-    "date you receive your order, so it's a safe purchase. \U0001f48e",
-    "Still here whenever you'd like to continue browsing. With KISNA, peace of "
-    "mind is built in — free shipping across India, free jewellery insurance, "
-    "and a 7-day money-back guarantee on every piece.",
-    "Whenever you're ready to pick up where you left off — every KISNA "
-    "piece is certified (BIS Hallmark gold, IGI-certified diamonds) and covered "
-    "by our 7-day no-questions-asked return policy.",
-    "No pressure to decide now — KISNA offers easy exchange and buyback, "
-    "plus a 7-day return window if a piece isn't quite right. Happy to help "
-    "whenever you'd like to look again.",
-)
+# The message is the client's drop-off broadcast (KB v2.1): header, the
+# campaign lines live today (IST), footer -- see build_dropoff_message(). It is
+# the ONLY outbound text allowed to carry the making-charge percentages, so it
+# is never paraphrased: English is sent verbatim, and other languages get a
+# faithful compose() translation with the figures and links pinned, never a
+# narrate() rewrite.
+_DROPOFF_TEMPLATE_KEY = "reengage_dropoff"
+# One message now, not a rotation; kept so reengage_last_line stays populated.
+_DROPOFF_LINE_INDEX = 0
+_URL_RE = re.compile(r"https?://\S+")
+_PINNED_FIGURES = ("35%", "20%", "1-Year")
 
 
 def build_reengagement_message(user_profile: dict) -> tuple[str, int]:
-    """Pick a grounded English line. Kept sync + side-effect free for testing;
-    the caller runs it through :func:`narrate`."""
-    idx = random.randrange(len(_REENGAGE_LINES))
-    return _REENGAGE_LINES[idx], idx
+    """(English drop-off message for today, line index). Sync, side-effect free."""
+    return build_dropoff_message(), _DROPOFF_LINE_INDEX
 
 
 async def compose_reengagement(user_profile: dict) -> tuple[str, int]:
-    """(text, line_index) -- the line rewritten fresh in the user's language."""
-    line, idx = build_reengagement_message(user_profile)
-    language = user_profile.get("language") or "en"
-    text = await narrate(
-        line,
+    """(text, line_index) -- verbatim in English, faithfully translated otherwise."""
+    message, idx = build_reengagement_message(user_profile)
+    language = normalize_language(user_profile.get("language") or "en")
+    if language == "en":
+        return message, idx
+    pins = tuple(_URL_RE.findall(message)) + tuple(
+        figure for figure in _PINNED_FIGURES if figure in message
+    )
+    text = await compose(
+        _DROPOFF_TEMPLATE_KEY,
+        message,
         language=language,
         phone_number=user_profile.get("phone_number"),
         client_id=user_profile.get("client_id") or _DEFAULT_CLIENT_ID,
+        pin=pins,
     )
-    return (text or line), idx
+    return (text or message), idx
 
 
 # --------------------------------------------------------------------------

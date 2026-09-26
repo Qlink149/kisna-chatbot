@@ -1,9 +1,14 @@
-"""OpenAI Responses API for GeneralAgent (web search + tools)."""
+"""OpenAI Responses API for GeneralAgent (live-agent tool)."""
 
 import json
 import time
 
-from kisna_chatbot.ai.config import get_ai_settings, resolve_compose_model
+from kisna_chatbot.ai.config import (
+    GENERAL_AGENT_TEMPERATURE,
+    get_ai_settings,
+    resolve_compose_model,
+    supports_temperature,
+)
 from kisna_chatbot.ai.types import AgentName, GeneralAgentResult, ProviderName
 from kisna_chatbot.ai.usage import build_usage_record, record_usage
 from kisna_chatbot.constants import ADMINS
@@ -12,7 +17,6 @@ from kisna_chatbot.prompts.general_agent_kisna import (
     build_general_agent_prompt,
     output_schema,
     request_live_agent_tool,
-    web_search_tool,
 )
 from kisna_chatbot.utils.get_openai_client import get_openai_client
 from kisna_chatbot.utils.logger_config import logger
@@ -31,7 +35,7 @@ async def run_openai_general_agent(
     language: str | None = None,
 ) -> GeneralAgentResult:
     """
-    Run GeneralAgent via OpenAI Responses API with web search and live-agent tool.
+    Run GeneralAgent via OpenAI Responses API with the live-agent tool.
     """
     start = time.perf_counter()
     settings = get_ai_settings()
@@ -64,37 +68,35 @@ async def run_openai_general_agent(
     prompt_tokens = 0
     completion_tokens = 0
 
+    # Built once per request: the campaigns block inside it filters by today.
+    instructions = build_general_agent_prompt()
+    # Reasoning-family models (gpt-5.x, o-series -- e.g. the gpt-5.6-luna
+    # compose model routed in above) reject `temperature`; send it only to
+    # models that accept it.
+    sampling = (
+        {"temperature": GENERAL_AGENT_TEMPERATURE} if supports_temperature(model) else {}
+    )
+
     try:
+        # Web search was removed: it was never sent for the configured
+        # gpt-4o-mini, and the prompt no longer describes it.
         tools = [request_live_agent_tool]
-        if "gpt-4o-mini" not in configured_model.lower():
-            tools.append(web_search_tool)
 
         for iteration in range(3):
             response = await get_openai_client().responses.create(
                 model=model,
-                instructions=build_general_agent_prompt(),
+                instructions=instructions,
                 input=input_messages,
                 tools=tools,
                 text=output_schema,
                 max_output_tokens=settings["max_tokens_general"],
-                include=["web_search_call.action.sources"] if web_search_tool in tools else [],
+                **sampling,
             )
 
             usage = getattr(response, "usage", None)
             if usage:
                 prompt_tokens += getattr(usage, "input_tokens", 0) or 0
                 completion_tokens += getattr(usage, "output_tokens", 0) or 0
-
-            for item in response.output:
-                if item.type == "web_search_call":
-                    action = getattr(item, "action", None)
-                    logger.info(
-                        "GeneralAgent web search",
-                        extra={
-                            "queries": getattr(action, "queries", []) if action else [],
-                            "phone_number": phone_number,
-                        },
-                    )
 
             logger.info(
                 "GeneralAgent iteration",
@@ -149,7 +151,7 @@ async def run_openai_general_agent(
                 )
 
             for item in response.output:
-                if item.type in ("reasoning", "web_search_call"):
+                if item.type == "reasoning":
                     input_messages.append(item)
 
         message_item = next(
@@ -158,11 +160,12 @@ async def run_openai_general_agent(
         if not message_item:
             response = await get_openai_client().responses.create(
                 model=model,
-                instructions=build_general_agent_prompt(),
+                instructions=instructions,
                 input=input_messages,
                 tools=[],
                 text=output_schema,
                 max_output_tokens=settings["max_tokens_general"],
+                **sampling,
             )
             usage = getattr(response, "usage", None)
             if usage:

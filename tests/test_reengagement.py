@@ -22,7 +22,7 @@ os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
 
 from kisna_chatbot.processors import reengagement as re  # noqa: E402
 from kisna_chatbot.prompts.kisna_knowledge_base import (  # noqa: E402
-    KISNA_KNOWLEDGE_BASE,
+    build_dropoff_message,
 )
 
 _NOW = int(time.time())
@@ -98,7 +98,7 @@ class SweepTests(_EnabledCase):
         ) as update_one, patch.object(
             re, "get_takeover_status", return_value=takeover
         ), patch.object(
-            re, "narrate", new_callable=AsyncMock, side_effect=lambda line, **k: line
+            re, "compose", new_callable=AsyncMock, side_effect=lambda key, text, **k: text
         ), patch.object(
             re, "send_text_message_with_retry"
         ) as send, patch.object(
@@ -150,36 +150,45 @@ class SweepTests(_EnabledCase):
             self._env.start()
 
 
-class CopyTests(unittest.TestCase):
-    def test_build_returns_a_known_line(self):
-        line, idx = re.build_reengagement_message(_profile())
-        self.assertEqual(re._REENGAGE_LINES[idx], line)
+class DropoffCopyTests(unittest.TestCase):
+    """KB v2.1: the nudge is the client's drop-off broadcast, never paraphrased."""
 
-    def test_compose_passes_language_and_survives_narrate_failure(self):
+    def test_build_returns_todays_dropoff_message(self):
+        text, idx = re.build_reengagement_message(_profile())
+        self.assertEqual(text, build_dropoff_message())
+        self.assertEqual(idx, 0)
+
+    def test_english_is_sent_verbatim_and_never_narrated(self):
+        async def _run():
+            with patch.object(re, "compose", new_callable=AsyncMock) as comp:
+                text, _ = await re.compose_reengagement(_profile(language="en"))
+            comp.assert_not_awaited()
+            self.assertEqual(text, build_dropoff_message())
+
+        asyncio.run(_run())
+        self.assertFalse(hasattr(re, "narrate"))
+
+    def test_other_languages_get_faithful_compose_with_pins(self):
         async def _run():
             with patch.object(
-                re, "narrate", new_callable=AsyncMock, side_effect=lambda line, **k: line
-            ) as narr:
-                text, idx = await re.compose_reengagement(_profile(language="hi-Latn"))
-            self.assertEqual(narr.await_args.kwargs["language"], "hi-Latn")
-            self.assertEqual(text, re._REENGAGE_LINES[idx])
+                re, "compose", new_callable=AsyncMock, side_effect=lambda key, text, **k: text
+            ) as comp:
+                text, _ = await re.compose_reengagement(_profile(language="hi-Latn"))
+            kwargs = comp.await_args.kwargs
+            self.assertEqual(kwargs["language"], "hi-Latn")
+            self.assertIn("https://www.kisna.com/pages/jewellery-offers", kwargs["pin"])
+            self.assertIn("35%", kwargs["pin"])
+            self.assertEqual(text, build_dropoff_message())
 
         asyncio.run(_run())
 
-    def test_every_line_is_grounded_in_the_kb(self):
-        kb = KISNA_KNOWLEDGE_BASE.lower()
-        self.assertIn("7-day", kb)
-        self.assertIn("no-questions-asked", kb)
-        for line in re._REENGAGE_LINES:
-            low = line.lower()
-            self.assertIn("kisna", low)
-            self.assertIn("7-day", low)
-            # No invented promises: only claims that appear in the KB.
-            for claim in ("no-questions-asked", "money-back guarantee",
-                          "free shipping", "jewellery insurance",
-                          "exchange and buyback", "certified"):
-                if claim in low:
-                    self.assertIn(claim.split(" and ")[0], kb, claim)
+    def test_compose_failure_falls_back_to_english_message(self):
+        async def _run():
+            with patch.object(re, "compose", new_callable=AsyncMock, return_value=""):
+                text, _ = await re.compose_reengagement(_profile(language="ta"))
+            self.assertEqual(text, build_dropoff_message())
+
+        asyncio.run(_run())
 
 
 class OptOutWiringTests(unittest.TestCase):

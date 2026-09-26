@@ -1,6 +1,7 @@
 """AI provider configuration from environment."""
 
 import os
+import re
 from functools import lru_cache
 
 from kisna_chatbot.ai.types import AgentName, ProviderName
@@ -55,6 +56,17 @@ DEFAULT_COMPOSE_WEAK_MODEL = "gpt-5.6-luna"
 COMPOSE_WEAK_LANGUAGES = frozenset(
     {"ta", "te", "bn", "pa", "kn", "ml", "or", "as", "gu", "mr", "ur"}
 )
+
+# GeneralAgent answers policy/FAQ questions from the KB -- low variance wanted.
+GENERAL_AGENT_TEMPERATURE = 0.2
+# Reasoning-family models (gpt-5.x, o1/o3/o4...) reject `temperature` outright.
+_NO_TEMPERATURE_MODELS = re.compile(r"^(?:gpt-[5-9]|o[1-9])", re.I)
+
+
+def supports_temperature(model: str | None) -> bool:
+    """False for model families that reject the `temperature` parameter."""
+    return bool(model) and not _NO_TEMPERATURE_MODELS.match(model.strip())
+
 
 MAX_OUTPUT_TOKENS_CLASSIFIER = 512
 MAX_OUTPUT_TOKENS_GENERAL = 1024

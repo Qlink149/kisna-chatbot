@@ -1,10 +1,10 @@
-"""F1: the client's Sept-2026 KB (Gold Rate Protection, corrected
-platinum/silver-coin/gold-coin facts) is the live prompt. Unconditional --
-no on/off flag; general_agent_prompt (v1) is kept only as the base template
-general_agent_prompt_v2 is built from."""
+"""KB v2.1: the live GeneralAgent prompt is assembled directly --
+wrapper -> KISNA_KNOWLEDGE_BASE_V2 -> live campaigns -> KISNA_VOICE ->
+LOCKED VALUES. V1 is no longer a template and must not reach the prompt."""
 
 import os
 import unittest
+from datetime import date
 
 os.environ.setdefault("ENV_MODE", "dev")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -26,67 +26,65 @@ os.environ.setdefault("GUPSHUP_WEBHOOK_SECRET", "test-webhook-secret")
 
 from kisna_chatbot.prompts.general_agent_kisna import (  # noqa: E402
     build_general_agent_prompt,
+    build_locked_values,
     general_agent_prompt,
-    general_agent_prompt_v2,
 )
 from kisna_chatbot.prompts.kisna_knowledge_base import (  # noqa: E402
     KISNA_KNOWLEDGE_BASE,
     KISNA_KNOWLEDGE_BASE_V2,
+    KISNA_VOICE,
 )
 
+_DAY = date(2026, 9, 26)
 
-class KbV2Tests(unittest.TestCase):
-    def test_live_prompt_is_v2(self) -> None:
-        self.assertEqual(build_general_agent_prompt(), general_agent_prompt_v2)
 
-    def test_v1_prompt_is_byte_identical_regardless_of_v2_existing(self) -> None:
-        # Building v2 (module import time) must never mutate v1.
-        self.assertIn("The only materials KISNA does NOT sell are silver, platinum, and pearl.", general_agent_prompt)
-        # v1 has no GRP KB section (that's v2-only content) -- but it DOES
-        # legitimately mention "Gold Rate Protection" by name in the shared
-        # KMR/Digital-Gold/GRP button instruction, which lives outside the 4
-        # KB-content substitution points and is identical in both prompts.
-        self.assertNotIn("GOLD RATE PROTECTION PLAN", general_agent_prompt)
+class KbV21AssemblyTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.prompt = build_general_agent_prompt(_DAY)
 
-    def test_v2_adds_gold_rate_protection_and_keeps_store_count(self) -> None:
-        self.assertIn("GOLD RATE PROTECTION PLAN", general_agent_prompt_v2)
-        self.assertIn("160+ flagship stores", general_agent_prompt_v2)
-        self.assertNotIn("120+ flagship stores", general_agent_prompt_v2)
+    def test_static_prefix_leads_every_prompt(self) -> None:
+        # The large static part is the prefix, so OpenAI prompt caching applies.
+        self.assertTrue(self.prompt.startswith(general_agent_prompt))
+        self.assertTrue(general_agent_prompt.endswith(KISNA_KNOWLEDGE_BASE_V2))
 
-    def test_grp_answer_includes_the_page_url(self) -> None:
-        # Client-reported gap: "What is GRP?" answered with no link to the
-        # page at all. The URL must be in the answer text itself, not just
-        # the section header, so the model actually says it.
+    def test_order_ends_voice_then_locked_values(self) -> None:
+        v2 = self.prompt.index(KISNA_KNOWLEDGE_BASE_V2)
+        campaigns = self.prompt.index("# LIVE CAMPAIGNS")
+        voice = self.prompt.index(KISNA_VOICE)
+        locked = self.prompt.index(build_locked_values())
+        self.assertLess(v2, campaigns)
+        self.assertLess(campaigns, voice)
+        self.assertLess(voice, locked)
+        self.assertTrue(self.prompt.rstrip().endswith(build_locked_values().rstrip()))
+
+    def test_v1_kb_is_not_in_the_prompt(self) -> None:
+        self.assertNotIn(KISNA_KNOWLEDGE_BASE, self.prompt)
+
+    def test_v2_keeps_grp_section_and_store_count(self) -> None:
+        self.assertIn("GOLD RATE PROTECTION PLAN", self.prompt)
+        self.assertIn("160+ flagship stores", self.prompt)
+        self.assertNotIn("120+ flagship stores", self.prompt)
+
+    def test_every_grp_answer_points_to_the_page(self) -> None:
+        # Client-reported gap: "What is GRP?" answered with no pointer to the
+        # page. The rule survives; the link itself is carried by the button.
         self.assertIn(
-            "It allows you to lock the prevailing gold rate at the time of "
-            "placing your order or booking, protecting you from any future "
-            "increase in gold prices during the offer period. Full details: "
-            "https://www.kisna.com/pages/gold-rate-protection",
-            general_agent_prompt_v2,
+            "Every GRP answer, not just the validity one, must end by pointing the "
+            "customer to https://www.kisna.com/pages/gold-rate-protection",
+            self.prompt,
         )
 
-    def test_v2_corrects_platinum_silver_coin_facts(self) -> None:
+    def test_materials_facts(self) -> None:
         self.assertNotIn(
             "The only materials KISNA does NOT sell are silver, platinum, and pearl.",
-            general_agent_prompt_v2,
+            self.prompt,
         )
-        self.assertIn("sold in select PHYSICAL", general_agent_prompt_v2)
-        self.assertIn("is pearl", general_agent_prompt_v2)
+        self.assertIn("sold in select PHYSICAL", self.prompt)
+        self.assertIn("is pearl", self.prompt)
 
-    def test_v2_still_forbids_making_charge_percentages(self) -> None:
-        # The client's updated KB kept this rule verbatim -- must survive the swap.
-        self.assertIn("NEVER quote a specific percentage", KISNA_KNOWLEDGE_BASE_V2)
-        self.assertIn("NEVER quote a percentage", KISNA_KNOWLEDGE_BASE)
-
-    def test_v2_prompt_structure_outside_the_four_edits_matches_v1(self) -> None:
-        # Reconstruct v2 by undoing the 4 known substitutions; result must equal v1
-        # exactly -- proves nothing else in the 300-line prompt drifted between versions.
-        materials_v2_marker = "sold in select PHYSICAL STORES ONLY"
-        self.assertIn(materials_v2_marker, general_agent_prompt_v2)
-        reconstructed = general_agent_prompt_v2.replace(KISNA_KNOWLEDGE_BASE_V2, KISNA_KNOWLEDGE_BASE, 1)
-        # After swapping the KB back, the only remaining diffs must be the 3 rule
-        # sentences -- so v1 minus those 3 spots must be a substring-equal skeleton.
-        self.assertNotEqual(reconstructed, general_agent_prompt, "sanity: KB swap alone must change the prompt")
+    def test_still_forbids_making_charge_percentages(self) -> None:
+        self.assertIn("NEVER quote a specific percentage", self.prompt)
+        self.assertIn("Never quote a making-charge percentage", self.prompt)
 
 
 if __name__ == "__main__":

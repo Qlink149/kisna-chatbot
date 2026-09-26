@@ -54,29 +54,28 @@ class TestMenuGreeting(unittest.TestCase):
         self.assertTrue(menu["text"].strip())
         self.assertIn("tell me what you need", menu["text"].lower())
 
-    def test_greeting_by_name(self):
+    def test_new_user_gets_client_welcome_body(self):
+        # KB v2.1: new users get the client's welcome text (time line + body).
         text = build_greeting_text(
             chat_history=[],
             user_profile={"username": "Priya"},
         )
-        self.assertIn("Priya", text)
-        self.assertIn("I'm KIA, your trusted jewellery assistant", text)
-        self.assertIn("What would you like to do today?", text)
+        self.assertIn("Namaste and welcome to Kisna Diamond & Gold. 💎", text)
+        self.assertIn("I'm KIA - your personal jewellery assistant", text)
+        self.assertIn("How may I assist you today? 😊", text)
 
     def test_greeting_without_name(self):
         text = build_greeting_text(chat_history=[], user_profile={})
         self.assertNotIn("None", text)
-        self.assertIn("I'm KIA, your trusted jewellery assistant", text)
+        self.assertIn("Namaste and welcome to Kisna Diamond & Gold.", text)
 
     def test_greeting_returning_user(self):
         text = build_greeting_text(
             chat_history=[{"role": "user", "content": "hi"}],
             user_profile={"username": "Priya"},
         )
-        self.assertIn("Welcome back", text)
-        self.assertIn("Priya", text)
-        self.assertIn("I'm KIA, your trusted jewellery assistant", text)
-        self.assertIn("What would you like to do today?", text)
+        self.assertIn("Welcome back, Priya! 👋", text)
+        self.assertIn("How may I assist you today? 😊", text)
 
     def test_greeting_garbage_name_omitted(self):
         for bad in ("12345", "a" * 40, "foo@bar.com", "None"):
@@ -113,7 +112,8 @@ class TestMenuGreeting(unittest.TestCase):
         )
         self.assertEqual(len(responses), 1)
         self.assertEqual(responses[0]["type"], "text")
-        self.assertIn("I'm KIA, your trusted jewellery assistant", responses[0]["text"])
+        self.assertIn("Namaste and welcome to Kisna Diamond & Gold.", responses[0]["text"])
+        self.assertEqual(responses[0]["_compose"], "greeting_new")
         self.assertNotIn("Welcome back", responses[0]["text"])
 
     def test_complaint_flow_shape(self):

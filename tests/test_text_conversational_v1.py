@@ -364,7 +364,7 @@ class NarratorTests(unittest.TestCase):
                 "messages": {"type": "text", "text": {"body": "hi"}},
                 "user_profile": {"language": "en"},
                 "bot_response": [
-                    {"type": "text", "text": "Welcome!", "_compose": "greeting_return"},
+                    {"type": "text", "text": "Thanks!", "_compose": "acknowledgement"},
                     {"type": "text", "text": "Share your pincode", "_compose": "store_pincode"},
                 ],
             }

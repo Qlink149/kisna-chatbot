@@ -1,12 +1,15 @@
 import json
 import re
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from kisna_chatbot.config.gupshup import get_callback_flow_id, get_videocall_flow_id
 from kisna_chatbot.models.enums import ListIds, QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
+from kisna_chatbot.prompts.kisna_knowledge_base import KISNA_WELCOME_BODY
 from kisna_chatbot.processors.support_handler import (
     HELP_CALLBACK_POSTBACK,
     HELP_CALLBACK_QR_MSGID,
@@ -68,13 +71,35 @@ _CAPABILITY_HINT = (
     "a store near you, or your order status."
 )
 
-_KIA_INTRO = (
-    "I'm KIA, your trusted jewellery assistant. Whether you're looking for "
-    "the perfect piece, exploring our latest collections, checking today's "
-    "offers, tracking an order, or need support, I'm here to make your "
-    "shopping experience simple and enjoyable.\n"
-    "What would you like to do today?"
-)
+_IST = ZoneInfo("Asia/Kolkata")
+
+# The client's welcome, minus its old hard-coded "Good Morning!" line (which
+# said good morning at 11pm). The time-aware line is kisna_greeting_line().
+_WELCOME_BODY = KISNA_WELCOME_BODY.strip("\n")
+# Returning users get the client's own closing question, not the whole welcome.
+_WELCOME_CLOSER = _WELCOME_BODY.rsplit("\n\n", 1)[-1]
+
+
+def kisna_greeting_line(now: datetime | None = None) -> str:
+    """Time-of-day greeting in IST; empty from 21:00 to 04:59.
+
+    An aware datetime is converted to IST; a naive one is taken as IST
+    (same convention as utils/support_hours._to_ist).
+    """
+    if now is None:
+        now = datetime.now(_IST)
+    elif now.tzinfo is None:
+        now = now.replace(tzinfo=_IST)
+    else:
+        now = now.astimezone(_IST)
+    hour = now.hour
+    if 5 <= hour < 12:
+        return "Good Morning! ☀️ Hope you're doing well!"
+    if 12 <= hour < 17:
+        return "Good Afternoon! 🌤️ Hope you're having a good day!"
+    if 17 <= hour < 21:
+        return "Good Evening! 🌆 Hope you're having a lovely evening!"
+    return ""
 
 _WHAT_TODAY = "What would you like to do today?"
 
@@ -241,24 +266,23 @@ def build_greeting_text(
     *,
     chat_history: list | None = None,
     user_profile: dict | None = None,
+    now: datetime | None = None,
 ) -> str:
-    """English greeting copy — localized by callers via reply_composer."""
+    """English greeting copy -- the client's text, sent verbatim in English and
+    translated faithfully (not rewritten) for other languages."""
     history = chat_history if chat_history is not None else []
-    name = _display_name_from_profile(user_profile)
+    time_line = kisna_greeting_line(now)
     if is_new_session(history):
-        if name:
-            return f"Hi {name}! 👋 {_KIA_INTRO}"
-        return f"Hi! 👋 {_KIA_INTRO}"
+        return f"{time_line}\n\n{_WELCOME_BODY}" if time_line else _WELCOME_BODY
 
-    # Returning users get the same full KIA intro (plus optional search hint).
+    name = _display_name_from_profile(user_profile)
+    opener = f"Welcome back, {name}! 👋" if name else "Welcome back! 👋"
+    if time_line:
+        opener = f"{time_line}\n{opener}"
     continue_hint = _format_recent_search_hint(user_profile)
-    if name:
-        opener = f"Welcome back, {name}! 👋"
-    else:
-        opener = "Welcome back! 👋"
     if continue_hint:
-        return f"{opener}\n{continue_hint}\n{_KIA_INTRO}"
-    return f"{opener} {_KIA_INTRO}"
+        return f"{opener}\n{continue_hint}\n{_WELCOME_CLOSER}"
+    return f"{opener}\n{_WELCOME_CLOSER}"
 
 
 def build_greeting_welcome_bot_responses(

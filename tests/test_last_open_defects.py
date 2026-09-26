@@ -51,6 +51,8 @@ from kisna_chatbot.processors.classifier import (  # noqa: E402
 )
 from kisna_chatbot.prompts.classifier_kisna import kisna_entity_extractor  # noqa: E402
 from kisna_chatbot.prompts.general_agent_kisna import (  # noqa: E402
+    build_general_agent_prompt,
+    build_locked_values,
     general_agent_prompt,
 )
 from kisna_chatbot.utils.reply_composer import (  # noqa: E402
@@ -244,13 +246,16 @@ class ReturnPolicyBulletedShapeTests(unittest.TestCase):
         self.assertIn("• *Eligibility*:", section)
         self.assertIn("• *How to Return*:", section)
 
-    def test_support_phone_and_email_are_interpolated_not_hardcoded_stale(self):
+    def test_how_to_return_tells_model_to_include_phone_and_email_from_locked(self):
+        # KB v2.1: support phone/email live ONLY in LOCKED VALUES (built from
+        # the env-driven constants); the return template points the model there.
         idx = general_agent_prompt.index("RETURN/REFUND QUESTIONS")
         section = general_agent_prompt[idx : idx + 1200]
-        self.assertIn("81694 40000", section)
-        self.assertIn("support@kisna.com", section)
-        # The old number must not linger anywhere in this section.
+        self.assertIn("include the support phone and support email from LOCKED VALUES", section)
         self.assertNotIn("80651", section)
+        full = build_general_agent_prompt()
+        self.assertIn("81694 40000", full)
+        self.assertIn("support@kisna.com", full)
 
     def test_closing_form_trigger_line_still_present_and_unchanged(self):
         self.assertIn(
@@ -277,13 +282,15 @@ class SupportPhoneNumberUpdatedTests(unittest.TestCase):
     """
 
     def test_general_agent_fallback_uses_new_number(self):
-        self.assertIn("81694 40000", general_agent_prompt)
+        self.assertIn("81694 40000", build_general_agent_prompt())
 
-    def test_contact_details_block_uses_new_number_only(self):
-        idx = general_agent_prompt.index("Contact details")
-        section = general_agent_prompt[idx : idx + 300]
-        self.assertIn("81694 40000", section)
-        self.assertNotIn("80651", section)
+    def test_locked_support_phone_line_uses_new_number_only(self):
+        # The one support-phone line in the prompt, in LOCKED VALUES. (The KMR
+        # line's 8065155600 is a separate, deliberately-untouched number.)
+        locked = build_locked_values()
+        line = next(l for l in locked.splitlines() if l.startswith("- Customer support phone:"))
+        self.assertIn("81694 40000", line)
+        self.assertNotIn("80651", line)
 
 
 if __name__ == "__main__":

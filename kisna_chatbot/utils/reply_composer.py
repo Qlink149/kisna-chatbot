@@ -513,8 +513,10 @@ async def compose(
 # is lost.
 _PERSONALITY_TAGS = frozenset(
     {
-        "greeting_new",
-        "greeting_return",
+        # greeting_new / greeting_return are deliberately NOT here: the
+        # welcome is the client's own copy, so it goes through compose()
+        # (English verbatim, faithful translation) instead of narrate(), which
+        # rewrote it into "1-2 short lines" in every language, English too.
         "acknowledgement",
         "flow_switch_ack",
         "slot_fill",

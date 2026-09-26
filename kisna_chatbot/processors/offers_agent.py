@@ -32,7 +32,7 @@ _OPEN_ENDED_TO_AMT = 999_999_999
 # making-charge percentage itself (View Offers is the single source).
 _OFFERS_COOLDOWN_POINTER_TEXT = (
     "Offers are unchanged since I shared them a moment ago — scroll up to see "
-    "them, or tap View Offers for the full list again."
+    "them, or tap *View Offers* for the full list again."
 )
 
 
