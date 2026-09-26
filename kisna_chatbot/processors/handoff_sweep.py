@@ -70,6 +70,38 @@ def _takeover_ttl_seconds() -> int:
 # F10: callback fallback when no agent has picked up a handoff
 # --------------------------------------------------------------------------
 
+# Eligibility is per handoff EPISODE, not per customer. The marker used to be
+# "absent = eligible", and it was only ever cleared by the 12h stale-takeover
+# expiry -- so after one fallback a customer was excluded from every later
+# handoff for good (24 such users in prod on 2026-09-26). Every new request
+# rewrites live_agent_requested_at, so a marker older than it belongs to an
+# earlier episode and no longer counts. Both fields are int(time.time()).
+_MARKER_FROM_EARLIER_EPISODE = {
+    "$or": [
+        {"handoff_callback_sent_at": {"$exists": False}},
+        {"$expr": {"$lt": ["$handoff_callback_sent_at", "$live_agent_requested_at"]}},
+    ]
+}
+
+
+def _eligible_for_fallback(user_profile: dict) -> bool:
+    """Python mirror of _MARKER_FROM_EARLIER_EPISODE (plus "a request exists").
+
+    Re-checked after the query so the episode rule holds even where the
+    Mongo query is not evaluated (the test suite mocks the collection).
+    """
+    requested_at = user_profile.get("live_agent_requested_at")
+    if requested_at is None:
+        return False
+    sent_at = user_profile.get("handoff_callback_sent_at")
+    if sent_at is None:
+        return True
+    try:
+        return float(sent_at) < float(requested_at)
+    except (TypeError, ValueError):
+        return False
+
+
 def _has_pending_callback(phone: str, client_id: str) -> bool:
     return (
         callback_requests.find_one(
@@ -82,15 +114,23 @@ def _has_pending_callback(phone: str, client_id: str) -> bool:
 async def _process_one_handoff(user_profile: dict, now: int) -> bool:
     phone = user_profile.get("phone_number")
     client_id = user_profile.get("client_id") or _DEFAULT_CLIENT_ID
-    if not phone:
+    if not phone or not _eligible_for_fallback(user_profile):
         return False
+    requested_at = user_profile["live_agent_requested_at"]
 
-    # At-most-once: arm the marker atomically BEFORE sending. The filter
-    # requires the field to be absent, so a concurrent sweep pass or the
-    # opportunistic inbound-path trigger racing this one can never both get
-    # a non-None result -- exactly one of them "wins" the send.
+    # At-most-once per episode: arm the marker atomically BEFORE sending. The
+    # filter accepts only a marker absent or older than THIS episode's request,
+    # so a concurrent sweep pass or the opportunistic inbound-path trigger
+    # racing this one can never both get a non-None result -- once one arms it
+    # to `now` (>= requested_at), the other's filter no longer matches.
     armed = users.find_one_and_update(
-        {**_user_filter(phone, client_id), "handoff_callback_sent_at": {"$exists": False}},
+        {
+            **_user_filter(phone, client_id),
+            "$or": [
+                {"handoff_callback_sent_at": {"$exists": False}},
+                {"handoff_callback_sent_at": {"$lt": requested_at}},
+            ],
+        },
         {"$set": {"handoff_callback_sent_at": now}},
     )
     if armed is None:
@@ -144,7 +184,7 @@ async def _sweep_callback_fallback(limit: int) -> int:
                         "$gte": now - _MAX_AGE_SECONDS,
                     },
                     "human_takeover.active": {"$ne": True},
-                    "handoff_callback_sent_at": {"$exists": False},
+                    **_MARKER_FROM_EARLIER_EPISODE,
                 }
             )
             .sort("live_agent_requested_at", 1)
