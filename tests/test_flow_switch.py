@@ -162,8 +162,8 @@ class FlowSwitchPromptTests(unittest.TestCase):
                     return_value='{"intent": "human_handoff", "confidence": 0.95, "entities": {}}',
                 ),
                 patch(
-                    "kisna_chatbot.processors.support_handler.get_support_status",
-                    return_value={"status": "open"},
+                    "kisna_chatbot.processors.support_handler.is_within_working_hours",
+                    return_value=True,
                 ),
                 patch(
                     "kisna_chatbot.processors.support_handler.send_customer_support_template"

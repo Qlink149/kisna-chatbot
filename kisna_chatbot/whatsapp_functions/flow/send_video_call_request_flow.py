@@ -1,13 +1,15 @@
 import httpx
 
 from kisna_chatbot.config.gupshup import get_videocall_flow_id
+from kisna_chatbot.prompts.form_copy import VIDEO_CALL_PREFORM
 from kisna_chatbot.utils.env_load import gupshup_app_id, gupshup_token
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.support_slots import screen_data_for_date
 
 
-def send_video_call_request_flow(phone_number: str):
-    """Sends the video call request WhatsApp Flow."""
+def send_video_call_request_flow(phone_number: str, body_text: str | None = None):
+    """Sends the video call request WhatsApp Flow. ``body_text`` is the
+    localised pre-form message (client copy by default)."""
     flow_id = get_videocall_flow_id()
     if not flow_id:
         logger.warning(
@@ -39,7 +41,7 @@ def send_video_call_request_flow(phone_number: str):
         "interactive": {
             "type": "flow",
             "header": {"type": "text", "text": "Schedule Video Call"},
-            "body": {"text": "Please share your mobile number, date and preferred time."},
+            "body": {"text": body_text or VIDEO_CALL_PREFORM},
             "footer": {"text": "Kisna"},
             "action": {
                 "name": "flow",

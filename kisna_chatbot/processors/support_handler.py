@@ -5,7 +5,12 @@ from __future__ import annotations
 import time
 
 from kisna_chatbot.constants import ADMINS, KIA_HANDOFF_MESSAGE
-from kisna_chatbot.utils.support_hours import format_support_hours_text, get_support_status
+from kisna_chatbot.prompts.kisna_knowledge_base import REFUND_PROCESSING_TEXT
+from kisna_chatbot.utils.support_hours import (
+    format_support_hours_text,
+    get_support_status,
+    is_within_working_hours,
+)
 from kisna_chatbot.whatsapp_functions.template.send_customer_support_template import (
     send_customer_support_template,
 )
@@ -29,9 +34,8 @@ def build_support_contact_response(user_profile: dict) -> list[dict]:
         _SUPPORT_PHONE,
     )
 
-    status = get_support_status()
     hours = format_support_hours_text()
-    open_now = status["status"] == "open"
+    open_now = is_within_working_hours()
 
     lines = [
         "Here are our customer care details 📞",
@@ -131,6 +135,41 @@ def build_handoff_status_response(
     return [{"type": "text", "text": text, "_compose": "handoff_status_none"}]
 
 
+REFUND_STATUS_TEXT = (
+    f"Please note that refunds are processed within {REFUND_PROCESSING_TEXT} "
+    "after approval. 💳 If it has been longer than that, please share your "
+    "details below and our team will check your refund and get back to you."
+)
+
+
+def build_refund_status_response(user_profile: dict) -> list[dict]:
+    """P3 7.1: "my refund hasn't come" -> the LOCKED refund window, then the
+    callback form (never the complaint form)."""
+    from kisna_chatbot.config.gupshup import get_callback_flow_id
+    from kisna_chatbot.models.service_list import ServiceList as SL
+    from kisna_chatbot.processors.service_list import (
+        _start_callback_text_capture,
+        build_callback_flow_bot_response,
+    )
+
+    responses: list[dict] = [
+        {
+            "type": "text",
+            "text": REFUND_STATUS_TEXT,
+            "_compose": "refund_status",
+            "_pin": (REFUND_PROCESSING_TEXT,),
+        }
+    ]
+    user_profile["service_selected"] = SL.CALLBACK.value
+    if get_callback_flow_id():
+        responses.append(build_callback_flow_bot_response())
+    else:
+        responses.extend(
+            _start_callback_text_capture(user_profile, request_type="callback")
+        )
+    return responses
+
+
 def _notify_admins(customer_name: str, customer_phone: str) -> None:
     for admin in ADMINS:
         send_customer_support_template(
@@ -152,10 +191,9 @@ def build_expert_support_bot_response(
     During open hours: flag live agent + handoff message.
     Outside hours / holiday: send callback form directly (agent = pick a slot).
     """
-    status = get_support_status(now)
     customer_name = user_profile.get("username") or "Customer"
 
-    if status["status"] == "open":
+    if is_within_working_hours(now):
         user_profile["live_agent_requested_at"] = int(time.time())
         user_profile["live_agent_required"] = True
         _notify_admins(customer_name, phone_number)
@@ -169,6 +207,7 @@ def build_expert_support_bot_response(
             }
         ]
 
+    status = get_support_status(now)  # only for the holiday's display name
     if status["status"] == "closed_holiday":
         holiday = status.get("holiday", "a holiday")
         offline_text = (

@@ -22,10 +22,14 @@ import asyncio
 import os
 import time
 
+from datetime import datetime, timezone
+
 from kisna_chatbot.database.collections import callback_requests, users
 from kisna_chatbot.database.db_utils import _user_filter, save_agent_message, set_takeover
+from kisna_chatbot.prompts.form_copy import HANDOFF_FALLBACK
 from kisna_chatbot.utils.logger_config import logger
-from kisna_chatbot.utils.reply_composer import narrate
+from kisna_chatbot.utils.reply_composer import compose, normalize_language
+from kisna_chatbot.utils.support_hours import working_seconds_between
 from kisna_chatbot.whatsapp_functions.flow.send_callback_request_flow import (
     send_callback_request_flow,
 )
@@ -37,10 +41,9 @@ _DEFAULT_CLIENT_ID = "kisna"
 _MAX_AGE_SECONDS = 23 * 60 * 60  # stay inside WhatsApp's 24h free-form window
 _DEFAULT_BATCH_LIMIT = 25
 
-_FALLBACK_TEXT = (
-    "Our team hasn't picked this up yet — I'm sorry for the wait. "
-    "Let me book you a callback instead so you're not left hanging."
-)
+# The client's fallback copy (P3): apology, high-volume line, then the form.
+_FALLBACK_TEXT = HANDOFF_FALLBACK
+_FALLBACK_TEMPLATE_KEY = "handoff_fallback"
 
 
 # --------------------------------------------------------------------------
@@ -102,6 +105,23 @@ def _eligible_for_fallback(user_profile: dict) -> bool:
         return False
 
 
+def _working_delay_elapsed(requested_at: int, now: int, delay: int) -> bool:
+    """The working-hours gate (P3 5.2): the fallback fires only once ``delay``
+    seconds of WORKING time (Mon–Fri 10:00–18:30, Sat 10:00–16:00 IST, not
+    Sunday, not a holiday) have passed since the request.
+
+    So a request at 18:28 on a weekday has 2 working minutes by 18:33 and does
+    not fire; it fires once 3 more working minutes accrue -- 10:03 on the next
+    working day. A request at 09:58 fires at 10:05 (the clock starts at
+    10:00), not at 10:03. A handoff made outside hours already gave the
+    customer the callback form (support_handler) and never sets
+    live_agent_required, so the sweep does not see it at all.
+    """
+    start = datetime.fromtimestamp(int(requested_at), tz=timezone.utc)
+    end = datetime.fromtimestamp(int(now), tz=timezone.utc)
+    return working_seconds_between(start, end) >= delay
+
+
 def _has_pending_callback(phone: str, client_id: str) -> bool:
     return (
         callback_requests.find_one(
@@ -117,6 +137,10 @@ async def _process_one_handoff(user_profile: dict, now: int) -> bool:
     if not phone or not _eligible_for_fallback(user_profile):
         return False
     requested_at = user_profile["live_agent_requested_at"]
+    if not _working_delay_elapsed(requested_at, now, _callback_delay_seconds()):
+        # Not enough WORKING time yet -- leave the marker unarmed so a later
+        # sweep can fire once the desk has been open for the full delay.
+        return False
 
     # At-most-once per episode: arm the marker atomically BEFORE sending. The
     # filter accepts only a marker absent or older than THIS episode's request,
@@ -143,13 +167,22 @@ async def _process_one_handoff(user_profile: dict, now: int) -> bool:
         return False
 
     # Sent straight to Gupshup from this background sweep, never through the
-    # bot_response / localize_bot_responses pipeline -- so it must already be
-    # in the customer's language before it leaves here, same as
-    # reengagement.compose_reengagement. Falls back to the English original on
-    # any narrate() failure.
-    language = user_profile.get("language") or "en"
-    text = await narrate(_FALLBACK_TEXT, language=language, phone_number=phone, client_id=client_id)
-    text = text or _FALLBACK_TEXT
+    # bot_response / localize_bot_responses pipeline -- so it is localised
+    # here the same way as the drop-off message: verbatim in English, a
+    # faithful compose() translation otherwise, English on any failure.
+    language = normalize_language(user_profile.get("language") or "en")
+    text = _FALLBACK_TEXT
+    if language != "en":
+        text = (
+            await compose(
+                _FALLBACK_TEMPLATE_KEY,
+                _FALLBACK_TEXT,
+                language=language,
+                phone_number=phone,
+                client_id=client_id,
+            )
+            or _FALLBACK_TEXT
+        )
 
     await asyncio.to_thread(
         send_text_message_with_retry, phone, {"type": "text", "text": text}

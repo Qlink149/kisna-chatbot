@@ -68,6 +68,7 @@ kya", "ship hua ya nahi", "order status".
 **returns_refund** — Return/refund/exchange ACTION requests ("return karna hai",
 "wapas karna hai"). NOT how-to/policy questions.
 
+**refund_status** — Chasing a refund already due ("my refund hasn't come"); NOT a return request.
 **complaint** — Damaged/wrong/defective received goods.
 
 **human_handoff** — Explicit request for a live person/agent ("connect me with agent",
@@ -350,7 +351,6 @@ Fallback for unclear or spam/gibberish:
 "Namaste Kisna" -> greeting .9
 "hey" / "heyy!" / "yo bhai" / "good morning" / "ram ram" / "kaise ho" -> greeting .99
 "kya scene hai" -> greeting .85
-"bhai kya chal raha hai" -> greeting .8
 "menu bhejo" -> menu_help .95
 "options dikhao" -> menu_help .9
 "diamond ring dikhao" -> product_search .95
@@ -375,11 +375,11 @@ Fallback for unclear or spam/gibberish:
 "ऑर्डर कन्फर्म हुआ या नहीं?" -> order_status .88 (hi)
 "ઓર્ડર કન્ફર્મ થયો કે નહીં?" -> order_status .85 (gu)
 "return karna hai" -> returns_refund .9
-"refund kab milega" -> returns_refund .88
+"refund kab milega" -> refund_status .9
+"My refund hasn't come" -> refund_status .92
+"Can I exchange it for another size?" -> returns_refund .9
 "return kaise karu?" -> general .9
 "How do I return the chain that I ordered?" -> general .9   (asking HOW, not performing it)
-"How do I return my order?" -> general .88
-"How can I return the necklace I bought?" -> general .88
 "I want to return my order" -> returns_refund .95           (contrast: a statement of intent)
 "buyback kitna milega" -> general .9
 "making charges kitna hai" -> general .88
@@ -391,7 +391,6 @@ Fallback for unclear or spam/gibberish:
 "galat item deliver hua" -> complaint .92
 "human se baat karo" -> human_handoff .95
 "Talk to me in English" -> general .85          (language instruction to the bot, not a person)
-"please talk in English" -> general .85
 "reply to me in Hindi" -> general .85
 "talk to a human" -> human_handoff .95
 "call me back" -> callback .95
@@ -443,7 +442,6 @@ Fallback for unclear or spam/gibberish:
 "monthly installment plan hai kya jewellery ke liye?" -> general .88
 "can you schedule a video call?" -> video_call .95
 "video pe jewellery dikha sakte ho?" -> video_call .9
-"video consultation book karni hai" -> video_call .93
 "mera order damage aa gaya" -> complaint .93
 "order cancel karna hai" -> human_handoff .88
 "gold ring dikhao aur nearest store bhi batao" -> product_search .85

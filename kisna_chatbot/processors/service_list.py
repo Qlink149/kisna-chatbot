@@ -9,6 +9,11 @@ from kisna_chatbot.models.enums import ListIds, QuickReplyId
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.order_tracking_agent import build_track_order_bot_response
+from kisna_chatbot.prompts.form_copy import (
+    CALLBACK_PREFORM,
+    COMPLAINT_PREFORM,
+    VIDEO_CALL_PREFORM,
+)
 from kisna_chatbot.prompts.kisna_knowledge_base import KISNA_WELCOME_BODY
 from kisna_chatbot.processors.support_handler import (
     HELP_CALLBACK_POSTBACK,
@@ -355,31 +360,32 @@ def build_acknowledgement_bot_response() -> list[dict]:
 
 
 def build_complaint_flow_bot_response() -> dict:
-    """WhatsApp Flow payload for damage / quality complaints."""
+    """WhatsApp Flow payload for complaints. ``text`` is the client's pre-form
+    message; ResponseManager sends it as the Flow body (localised)."""
     return {
         "type": "flow",
         "flow": "damage_complaint",
-        "text": "Please provide your order details and describe the issue.",
+        "text": COMPLAINT_PREFORM,
         "_compose": "complaint_flow_prompt",
     }
 
 
 def build_callback_flow_bot_response() -> dict:
-    """WhatsApp Flow payload for callback requests."""
+    """WhatsApp Flow payload for callback requests (client pre-form message)."""
     return {
         "type": "flow",
         "flow": "callback_request",
-        "text": "Please share your details for a callback.",
+        "text": CALLBACK_PREFORM,
         "_compose": "callback_flow_prompt",
     }
 
 
 def build_video_call_flow_bot_response() -> dict:
-    """WhatsApp Flow payload for video call scheduling."""
+    """WhatsApp Flow payload for video call scheduling (client pre-form message)."""
     return {
         "type": "flow",
         "flow": "video_call_request",
-        "text": "Please share your details to schedule a video call.",
+        "text": VIDEO_CALL_PREFORM,
         "_compose": "video_call_flow_prompt",
     }
 

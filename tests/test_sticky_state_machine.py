@@ -136,8 +136,8 @@ class UniversalEscapeTests(unittest.TestCase):
                 "kisna_chatbot.processors.support_handler."
                 "send_customer_support_template"
             ), patch(
-                "kisna_chatbot.processors.support_handler.get_support_status",
-                return_value={"status": "open"},
+                "kisna_chatbot.processors.support_handler.is_within_working_hours",
+                return_value=True,
             ):
                 result = await clf.process(data)
 
@@ -335,8 +335,8 @@ class UniversalEscapeTests(unittest.TestCase):
                 "kisna_chatbot.processors.support_handler."
                 "send_customer_support_template"
             ), patch(
-                "kisna_chatbot.processors.support_handler.get_support_status",
-                return_value={"status": "open"},
+                "kisna_chatbot.processors.support_handler.is_within_working_hours",
+                return_value=True,
             ):
                 result = await clf.process(data)
 

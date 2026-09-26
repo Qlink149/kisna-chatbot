@@ -99,8 +99,8 @@ class SupportContactResponseTests(unittest.TestCase):
         with patch(
             "kisna_chatbot.processors.support_handler.send_customer_support_template"
         ), patch(
-            "kisna_chatbot.processors.support_handler.get_support_status",
-            return_value={"status": "open"},
+            "kisna_chatbot.processors.support_handler.is_within_working_hours",
+            return_value=True,
         ):
             _handle_support_connect_reply(
                 "Yes, connect me", data, profile, "919999999999"
@@ -157,8 +157,8 @@ class SupportContactRoutingTests(unittest.TestCase):
                 "kisna_chatbot.processors.support_handler."
                 "send_customer_support_template"
             ), patch(
-                "kisna_chatbot.processors.support_handler.get_support_status",
-                return_value={"status": "open"},
+                "kisna_chatbot.processors.support_handler.is_within_working_hours",
+                return_value=True,
             ):
                 result = await clf.process(data)
             self.assertEqual(result["classified_category"], "human_handoff")
@@ -179,8 +179,8 @@ class SupportContactRoutingTests(unittest.TestCase):
                 "kisna_chatbot.processors.support_handler."
                 "send_customer_support_template"
             ), patch(
-                "kisna_chatbot.processors.support_handler.get_support_status",
-                return_value={"status": "open"},
+                "kisna_chatbot.processors.support_handler.is_within_working_hours",
+                return_value=True,
             ):
                 result = await clf.process(data)
             self.assertEqual(result["classified_category"], "human_handoff")

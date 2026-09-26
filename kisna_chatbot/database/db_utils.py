@@ -553,42 +553,6 @@ def search_users(q: str, client_id: str = "kisna", limit: int = 20) -> list:
         raise
 
 
-def save_store_visit(
-    phone_number: str,
-    visit_date: str,
-    visit_time: str,
-    store_name: str,
-    client_id: str = "kisna",
-) -> None:
-    """Save a store visit booking to the store_visits collection."""
-    try:
-        doc = {
-            "client_id": client_id,
-            "phone_number": phone_number,
-            "visit_date": visit_date,
-            "visit_time": visit_time,
-            "store_name": store_name,
-            "created_at": int(time.time()),
-        }
-        store_visits.insert_one(doc)
-        logger.info(
-            "Store visit saved",
-            extra={
-                "phone_number": phone_number,
-                "client_id": client_id,
-                "visit_date": visit_date,
-                "visit_time": visit_time,
-                "store_name": store_name,
-            },
-        )
-    except Exception as e:
-        logger.exception(
-            "Failed to save store visit",
-            extra={"phone_number": phone_number, "client_id": client_id},
-        )
-        raise
-
-
 def request_live_agent(phone_number: str, client_id: str = "kisna") -> None:
     """Flag a user's conversation for live agent intervention."""
     try:

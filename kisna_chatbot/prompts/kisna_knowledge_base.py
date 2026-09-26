@@ -693,6 +693,21 @@ Contacts
 """
 
 
+def _locked_value(label: str) -> str:
+    """The value after "- {label}:" in LOCKED VALUES -- the one source for a
+    figure that code (not the model) quotes to a customer."""
+    prefix = f"- {label}:"
+    for line in KISNA_LOCKED_VALUES_TEMPLATE.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix):].strip()
+    raise LookupError(f"LOCKED VALUES has no line for {label!r}")
+
+
+# "10 business days" -- quoted by the refund-status route (classifier), taken
+# from LOCKED so the code and the model can never disagree on it.
+REFUND_PROCESSING_TEXT = _locked_value("Refund processing")
+
+
 def build_locked_values(*, support_phone: str, support_email: str, support_hours: str) -> str:
     return KISNA_LOCKED_VALUES_TEMPLATE.format(
         support_phone=support_phone,

@@ -181,6 +181,32 @@ _HANDOFF_STATUS_RE = re.compile(
     re.I,
 )
 
+# Chasing a refund that is already due -- a status question, never a request
+# to return (that is returns_refund -> complaint form). P3 routes it to the
+# LOCKED refund window + the callback form. Deliberately narrow: "I want a
+# refund" / "refund chahiye" are ACTION phrases and must not match.
+_REFUND_STATUS_RE = re.compile(
+    r"\b("
+    r"refund\s+(?:has\s*n[o']t|hasnt|not|never|is\s*n[o']t|isnt|didn[o']?t|did\s+not)\s+"
+    r"(?:come|arrived?|received?|reached|credited|reflect\w*|shown?|processed|happened|been\s+\w+)|"
+    r"(?:haven[o']?t|have\s+not|didn[o']?t|did\s+not|not\s+yet)\s+(?:got|received|gotten)\s+(?:my\s+|the\s+)?refund|"
+    r"refund\s+(?:status|update|pending|delay\w*|kab\s+(?:milega|aayega|hoga)|nahi\s+(?:aaya|mila|hua)|abhi\s+tak)|"
+    r"(?:where|when)\s+(?:is|will|do\s+i\s+get)\s+(?:my\s+|the\s+)?refund|"
+    r"status\s+of\s+(?:my\s+|the\s+)?refund|"
+    r"still\s+(?:waiting|no)\s+(?:for\s+)?(?:my\s+|the\s+)?refund|"
+    r"mera\s+refund\s+(?:kaha|kahan|kab)"
+    r")\b",
+    re.I,
+)
+
+# A refund the customer disputes (amount, a charge, a bill) rather than one
+# that is simply late -- stays with the LLM (complaint), see the override.
+_REFUND_DISPUTE_CONTEXT_RE = re.compile(
+    r"\b(making\s+charges?|bill|billing|invoice|discount|overcharg\w*|"
+    r"wrong\s+amount|less\s+amount|partial(?:ly)?|deduct\w*|short(?:ed)?)\b",
+    re.I,
+)
+
 _EXCHANGE_RE = re.compile(r"\b(exchange|badal|swap)\b", re.I)
 
 _RETURNS_RE = re.compile(r"\b(return|refund|wapas)\b", re.I)
@@ -206,7 +232,10 @@ _ACTION_INTENT_RE = re.compile(
     r"register (a )?|wapas karna|wapas chahiye|"
     r"refund chahiye|"
     r"i want to (return|exchange|refund)|"
-    r"i need to (return|exchange))\b",
+    r"i need to (return|exchange)|"
+    # "Can I exchange it for another size?" -- a size exchange is an exchange
+    # ACTION (client: complaint form), not a policy question.
+    r"exchange (?:it|this|that|the \w+|my \w+) for (?:another|a different|a new|a bigger|a smaller) size)\b",
     re.I,
 )
 
@@ -596,6 +625,14 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
     # ("18K richer colour, 14K more durable") beat three prompt wordings.
     if is_karat_comparison(normalized):
         return ("karat_comparison", 0.95)
+    # P3 7.1: a refund-status chase gets the LOCKED refund window + callback
+    # form, never the complaint form the returns_refund route opens. A refund
+    # DISPUTE ("making charges refund not reflecting", a wrong amount, a bill)
+    # is a complaint the LLM must decide, so it is left alone.
+    if _REFUND_STATUS_RE.search(normalized) and not _REFUND_DISPUTE_CONTEXT_RE.search(
+        normalized
+    ):
+        return ("refund_status", 0.95)
     if (
         _MAKING_CHARGES_RE.search(normalized)
         and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)
@@ -618,6 +655,10 @@ def _programmatic_intent_fallback(text: str) -> tuple[str, float] | None:
         return None
     if is_karat_comparison(normalized):
         return ("karat_comparison", 0.95)
+    if _REFUND_STATUS_RE.search(normalized) and not _REFUND_DISPUTE_CONTEXT_RE.search(
+        normalized
+    ):
+        return ("refund_status", 0.95)
     if _HUMAN_HANDOFF_RE.search(normalized):
         return ("human_handoff", 0.9)
     if _CALLBACK_RE.search(normalized):
@@ -2384,6 +2425,7 @@ def _route_resolved_intent(
             "human_handoff": "Live agent handoff",
             "handoff_status": "Handoff status check",
             "callback": "Callback request form",
+            "refund_status": "Refund status",
             "gold_rate": "Gold rate",
             "video_call": "Video call scheduling",
             "compare": "Compare products",
@@ -2452,19 +2494,22 @@ def _route_resolved_intent(
         )
 
         user_profile["service_selected"] = ServiceList.CALLBACK.value
-        preamble = {
-            "type": "text",
-            "text": (
-                "Sure! Please fill in your details below and we'll call you back."
-            ),
-            "_compose": "callback_preamble",
-        }
+        # The client's pre-form message is the Flow body itself (P3), so no
+        # separate preamble text goes out before the form.
         if get_callback_flow_id():
-            data["bot_response"] = [preamble, build_callback_flow_bot_response()]
+            data["bot_response"] = [build_callback_flow_bot_response()]
         else:
-            data["bot_response"] = [preamble] + _start_callback_text_capture(
+            data["bot_response"] = _start_callback_text_capture(
                 user_profile, request_type="callback"
             )
+        return True
+
+    if intent == "refund_status":
+        from kisna_chatbot.processors.support_handler import (
+            build_refund_status_response,
+        )
+
+        data["bot_response"] = build_refund_status_response(user_profile)
         return True
 
     if intent == "gold_rate":

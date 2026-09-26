@@ -243,7 +243,8 @@ class TestCallbackAgent(unittest.TestCase):
         }
         result = asyncio.run(agent.process(data))
         self.assertIn("Request ID", result["bot_response"][0]["text"])
-        self.assertNotIn("full", result["bot_response"][0]["text"].lower())
+        # No rescheduled line: the requested slot was booked as asked.
+        self.assertNotIn("slot was full", result["bot_response"][0]["text"].lower())
         mock_coll.insert_one.assert_called_once()
         saved = mock_coll.insert_one.call_args[0][0]
         self.assertEqual(saved["preferred_date"], "2099-08-03")

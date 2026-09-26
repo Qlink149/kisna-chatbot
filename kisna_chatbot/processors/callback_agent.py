@@ -13,6 +13,7 @@ from kisna_chatbot.integrations.clara_events import (
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.prompts.form_copy import callback_confirmation, confirmation_pins
 from kisna_chatbot.utils.request_ids import generate_request_id
 from kisna_chatbot.utils.support_slots import (
     SLOT_LABELS,
@@ -225,22 +226,31 @@ def _build_confirmation(
     preferred_date: str = "",
     preferred_time: str = "",
     was_rescheduled: bool = False,
+    now: datetime | None = None,
 ) -> list[dict]:
-    label = "video call" if request_type == "video_call" else "callback"
+    """The client's confirmation -- the working-hours or offline variant,
+    chosen at submission time (form_copy.callback_confirmation). The
+    "{date} · {slot}" line is built exactly as before. Tagged for faithful
+    translation with the ID, date, slot and brand pinned."""
     slot_label = _display_time(preferred_time) if preferred_time else preferred_time
-    lines = [
-        f"Thank you! Your {label} request has been registered.",
-        f"Request ID: {request_id}",
+    scheduled_for = (
+        f"{preferred_date} · {slot_label}" if preferred_date and preferred_time else ""
+    )
+    text = callback_confirmation(
+        request_id,
+        request_type,
+        scheduled_for=scheduled_for,
+        now=now,
+        was_rescheduled=was_rescheduled,
+    )
+    return [
+        {
+            "type": "text",
+            "text": text,
+            "_compose": "callback_registered",
+            "_pin": confirmation_pins(request_id, scheduled_for),
+        }
     ]
-    if preferred_date and preferred_time:
-        lines.append(f"Scheduled for: {preferred_date} · {slot_label}")
-    if was_rescheduled:
-        lines.append(
-            "Your preferred slot was full, so we booked the next available "
-            "time for you."
-        )
-    lines.append("Our team will contact you soon.")
-    return [{"type": "text", "text": "\n".join(lines)}]
 
 
 def _resolve_or_reject(

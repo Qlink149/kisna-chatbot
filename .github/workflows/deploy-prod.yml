@@ -101,9 +101,22 @@ jobs:
               : > "$PREV_FILE"
             fi
             docker pull "$IMAGE"
+            # Keep the outgoing container's logs: `docker rm` discards them,
+            # which left the window between two deploys unverifiable.
+            LOG_DIR=/var/log/kisna
+            mkdir -p "$LOG_DIR"
+            if docker inspect kisna-backend >/dev/null 2>&1; then
+              OLD_SHA=$(docker inspect -f '{{.Config.Image}}' kisna-backend | sed 's/.*://' | cut -c1-12)
+              docker logs kisna-backend > "$LOG_DIR/backend-${OLD_SHA}-$(date -u +%Y%m%dT%H%M%SZ).log" 2>&1 || true
+              # Keep the 10 most recent dumps.
+              ls -1t "$LOG_DIR"/backend-*.log 2>/dev/null | tail -n +11 | xargs -r rm -f
+            fi
             docker stop kisna-backend || true
             docker rm kisna-backend || true
+            # json-file rotation so a long-lived container's log cannot grow
+            # without bound (docker logs still reads across the rotated files).
             docker run -d --name kisna-backend --restart unless-stopped \
+              --log-driver json-file --log-opt max-size=50m --log-opt max-file=5 \
               -p 127.0.0.1:8000:8000 --env-file /opt/kisna/.env \
               "$IMAGE"
             ok=0
@@ -141,9 +154,19 @@ jobs:
               exit 1
             fi
             docker pull "$PREV"
+            # Same log preservation as the deploy step: the failed container's
+            # logs are exactly what a rollback investigation needs.
+            LOG_DIR=/var/log/kisna
+            mkdir -p "$LOG_DIR"
+            if docker inspect kisna-backend >/dev/null 2>&1; then
+              OLD_SHA=$(docker inspect -f '{{.Config.Image}}' kisna-backend | sed 's/.*://' | cut -c1-12)
+              docker logs kisna-backend > "$LOG_DIR/backend-${OLD_SHA}-$(date -u +%Y%m%dT%H%M%SZ)-rolledback.log" 2>&1 || true
+              ls -1t "$LOG_DIR"/backend-*.log 2>/dev/null | tail -n +11 | xargs -r rm -f
+            fi
             docker stop kisna-backend || true
             docker rm kisna-backend || true
             docker run -d --name kisna-backend --restart unless-stopped \
+              --log-driver json-file --log-opt max-size=50m --log-opt max-file=5 \
               -p 127.0.0.1:8000:8000 --env-file /opt/kisna/.env \
               "$PREV"
             ok=0

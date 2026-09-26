@@ -66,7 +66,10 @@ class CallbackFallbackSweepTests(unittest.TestCase):
         ) as armed, patch.object(
             hs.callback_requests, "find_one", return_value=pending_callback
         ), patch.object(
-            hs, "narrate", new_callable=AsyncMock, side_effect=lambda line, **k: line
+            hs, "compose", new_callable=AsyncMock, side_effect=lambda key, text, **k: text
+        ), patch.object(
+            # These cases test episode logic, not the working-hours gate.
+            hs, "_working_delay_elapsed", return_value=True
         ), patch.object(
             hs, "send_text_message_with_retry"
         ) as send_text, patch.object(
@@ -156,7 +159,10 @@ class EpisodeEligibilityTests(unittest.TestCase):
         ) as armed, patch.object(
             hs.callback_requests, "find_one", return_value=None
         ), patch.object(
-            hs, "narrate", new_callable=AsyncMock, side_effect=lambda line, **k: line
+            hs, "compose", new_callable=AsyncMock, side_effect=lambda key, text, **k: text
+        ), patch.object(
+            # These cases test episode logic, not the working-hours gate.
+            hs, "_working_delay_elapsed", return_value=True
         ), patch.object(
             hs, "send_text_message_with_retry"
         ) as send_text, patch.object(

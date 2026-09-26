@@ -1,13 +1,18 @@
 import httpx
 
 from kisna_chatbot.config.gupshup import get_callback_flow_id
+from kisna_chatbot.prompts.form_copy import CALLBACK_PREFORM
 from kisna_chatbot.utils.env_load import gupshup_app_id, gupshup_token
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.support_slots import screen_data_for_date
 
 
-def send_callback_request_flow(phone_number: str):
-    """Sends the callback request WhatsApp Flow."""
+def send_callback_request_flow(phone_number: str, body_text: str | None = None):
+    """Sends the callback request WhatsApp Flow.
+
+    ``body_text`` is the (already localised) pre-form message shown above the
+    form button -- the client's copy from prompts/form_copy.py by default.
+    """
     flow_id = get_callback_flow_id()
     if not flow_id:
         logger.warning(
@@ -42,7 +47,7 @@ def send_callback_request_flow(phone_number: str):
         "interactive": {
             "type": "flow",
             "header": {"type": "text", "text": "Callback Request"},
-            "body": {"text": "Please share your details and we'll call you back."},
+            "body": {"text": body_text or CALLBACK_PREFORM},
             "footer": {"text": "Kisna"},
             "action": {
                 "name": "flow",

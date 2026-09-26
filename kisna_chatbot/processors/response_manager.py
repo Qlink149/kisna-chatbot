@@ -1,7 +1,4 @@
 from kisna_chatbot.whatsapp_functions.cta.send_cta import send_cta_url
-from kisna_chatbot.whatsapp_functions.flow.send_site_visit import (
-    send_site_visit_flow,
-)
 from kisna_chatbot.whatsapp_functions.flow.send_budget_input_flow import (
     send_budget_input_flow,
 )
@@ -16,9 +13,6 @@ from kisna_chatbot.whatsapp_functions.flow.send_video_call_request_flow import (
 )
 from kisna_chatbot.whatsapp_functions.flow.send_store_locator import (
     send_store_locator_flow,
-)
-from kisna_chatbot.whatsapp_functions.flow.send_store_visit_datetime import (
-    send_store_visit_datetime_flow,
 )
 from kisna_chatbot.whatsapp_functions.list.send_service_list import (
     send_service_list,
@@ -320,11 +314,14 @@ class ResponseManager:
         """
         flow_name = bot_response["flow"]
 
-        if flow_name == "site_visit":
-            return send_site_visit_flow(phone_number=phone_number)
-        elif flow_name == "damage_complaint":
+        # The item's "text" is the pre-form message, already localised by
+        # localize_bot_responses; it becomes the Flow body the customer sees.
+        body_text = bot_response.get("text") or None
+        if flow_name == "damage_complaint":
             try:
-                return send_damage_complaint_flow(phone_number=phone_number)
+                return send_damage_complaint_flow(
+                    phone_number=phone_number, body_text=body_text
+                )
             except Exception as e:
                 logger.exception(
                     "Failed to send damage complaint flow",
@@ -342,8 +339,6 @@ class ResponseManager:
                 )
         elif flow_name == "store_locator":
             return send_store_locator_flow(phone_number=phone_number, name=bot_response.get("name", "there"))
-        elif flow_name == "store_visit_datetime":
-            return send_store_visit_datetime_flow(phone_number=phone_number, bot_response=bot_response)
         elif flow_name == "budget_custom_input":
             try:
                 return send_budget_input_flow(phone_number=phone_number)
@@ -363,7 +358,9 @@ class ResponseManager:
                     },
                 )
         elif flow_name == "callback_request":
-            result = send_callback_request_flow(phone_number=phone_number)
+            result = send_callback_request_flow(
+                phone_number=phone_number, body_text=body_text
+            )
             if result is None:
                 return send_text_message_with_retry(
                     phone_number=phone_number,
@@ -374,7 +371,9 @@ class ResponseManager:
                 )
             return result
         elif flow_name == "video_call_request":
-            result = send_video_call_request_flow(phone_number=phone_number)
+            result = send_video_call_request_flow(
+                phone_number=phone_number, body_text=body_text
+            )
             if result is None:
                 return send_text_message_with_retry(
                     phone_number=phone_number,

@@ -66,8 +66,8 @@ class StickyEscapeLlmPrimaryTests(unittest.TestCase):
             ) as mock_llm, patch(
                 "kisna_chatbot.processors.support_handler.send_customer_support_template"
             ), patch(
-                "kisna_chatbot.processors.support_handler.get_support_status",
-                return_value={"status": "open"},
+                "kisna_chatbot.processors.support_handler.is_within_working_hours",
+                return_value=True,
             ):
                 result = await clf.process(data)
             mock_llm.assert_called_once()

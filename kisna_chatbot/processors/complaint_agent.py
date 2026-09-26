@@ -11,6 +11,7 @@ from kisna_chatbot.integrations.crm_adapter import CRMAdapter, CRMError
 from kisna_chatbot.models.enums import FLowId, FlowId
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.prompts.form_copy import complaint_confirmation, confirmation_pins
 from kisna_chatbot.utils.request_ids import generate_request_id
 
 
@@ -132,15 +133,19 @@ def _is_want_to_buy(complaint_type: str) -> bool:
     return complaint_type.strip().lower().startswith(("0_want_to_buy", "want to buy", "want_to_buy"))
 
 
-def _build_confirmation(case_id: str) -> list[dict]:
-    """Build bot_response confirmation text after complaint registration."""
-    lines = [
-        "Thank you for reaching out. Your complaint has been registered.",
+def _build_confirmation(request_id: str) -> list[dict]:
+    """The client's confirmation, carrying the KIS-CMP request ID the customer
+    can quote back to support. (The VTiger case id is not shown: it is
+    usually empty, and the client's copy has one ID line.) Tagged for
+    faithful translation with the ID, brand and SLA pinned."""
+    return [
+        {
+            "type": "text",
+            "text": complaint_confirmation(request_id),
+            "_compose": "complaint_registered",
+            "_pin": confirmation_pins(request_id),
+        }
     ]
-    if case_id:
-        lines.append(f"Case ID: {case_id}")
-    lines.append("Our team will contact you within 24 hours.")
-    return [{"type": "text", "text": "\n".join(lines), "_compose": "complaint_registered"}]
 
 
 class ComplaintAgent(Processor):
@@ -298,7 +303,7 @@ class ComplaintAgent(Processor):
                 )
 
             if mongo_saved or issue_description or order_id:
-                data["bot_response"] = _build_confirmation(case_id)
+                data["bot_response"] = _build_confirmation(request_id)
             else:
                 data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]
 
