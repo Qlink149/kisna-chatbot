@@ -27,10 +27,12 @@ _MAKING_CHARGES_FOOTER = (
 
 _OPEN_ENDED_TO_AMT = 999_999_999
 
+# No figures here, ever: this line is canned, so any percentage in it goes
+# stale the moment the Clara slab changes, and the bot must never quote a
+# making-charge percentage itself (View Offers is the single source).
 _OFFERS_COOLDOWN_POINTER_TEXT = (
-    "Offers are unchanged since I shared them a moment ago — up to 35% off "
-    "making charges on diamond jewellery, up to 20% on gold. Let me know if "
-    "you'd like the full list again."
+    "Offers are unchanged since I shared them a moment ago — scroll up to see "
+    "them, or tap View Offers for the full list again."
 )
 
 

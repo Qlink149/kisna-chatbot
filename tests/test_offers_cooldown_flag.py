@@ -26,7 +26,10 @@ os.environ.setdefault("GUPSHUP_APP_NAME", "test-app")
 os.environ.setdefault("GUPSHUP_API_KEY", "test-api-key")
 os.environ.setdefault("GUPSHUP_WEBHOOK_SECRET", "test-webhook-secret")
 
-from kisna_chatbot.processors.offers_agent import _within_offers_cooldown  # noqa: E402
+from kisna_chatbot.processors.offers_agent import (  # noqa: E402
+    _build_cooldown_response,
+    _within_offers_cooldown,
+)
 
 
 class OffersCooldownTests(unittest.TestCase):
@@ -45,6 +48,15 @@ class OffersCooldownTests(unittest.TestCase):
 
     def test_malformed_timestamp_is_safe(self) -> None:
         self.assertFalse(_within_offers_cooldown({"offers_last_sent_at": "not-a-number"}))
+
+    def test_cooldown_pointer_quotes_no_figures(self) -> None:
+        # Canned text goes stale when the Clara slab changes, and the bot must
+        # never quote a making-charge percentage: no digits, no "%".
+        (reply,) = _build_cooldown_response()
+        self.assertEqual(reply["_compose"], "offers_cooldown")
+        self.assertNotIn("%", reply["text"])
+        self.assertFalse(any(ch.isdigit() for ch in reply["text"]))
+        self.assertIn("View Offers", reply["text"])
 
 
 if __name__ == "__main__":
