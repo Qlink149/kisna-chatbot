@@ -35,10 +35,14 @@ def _fake_auth():
     return {"username": "test-admin", "role": "super_admin"}
 
 
-def _user(updated_at=None):
+def _user(updated_at=None, last_inbound_at=None):
+    """The window is judged on the customer's last INBOUND (last_inbound_at),
+    not updated_at -- agent sends refresh updated_at themselves."""
+    now = int(time.time())
     return {
         "phone_number": "919999999999",
-        "updated_at": updated_at if updated_at is not None else int(time.time()),
+        "updated_at": updated_at if updated_at is not None else now,
+        "last_inbound_at": last_inbound_at if last_inbound_at is not None else now,
     }
 
 
@@ -69,7 +73,7 @@ class SendMessageBaselineTests(ConversationApiBase):
         self.assertIn("takeover", res.json()["detail"].lower())
 
     @patch(f"{_CONV}.get_takeover_status", return_value={"active": True})
-    @patch(f"{_CONV}.get_user_by_phone", return_value=_user(updated_at=int(time.time()) - 90000))
+    @patch(f"{_CONV}.get_user_by_phone", return_value=_user(last_inbound_at=int(time.time()) - 90000))
     def test_400_window_expired(self, _mock_user, _mock_takeover):
         res = self.client.post("/system/conversation/919999999999/send", json={"message": "hi"})
         self.assertEqual(res.status_code, 400)
@@ -109,7 +113,7 @@ class SendMediaTests(ConversationApiBase):
         self.assertIn("takeover", res.json()["detail"].lower())
 
     @patch(f"{_CONV}.get_takeover_status", return_value={"active": True})
-    @patch(f"{_CONV}.get_user_by_phone", return_value=_user(updated_at=int(time.time()) - 90000))
+    @patch(f"{_CONV}.get_user_by_phone", return_value=_user(last_inbound_at=int(time.time()) - 90000))
     def test_400_window_expired(self, _mock_user, _mock_takeover):
         res = self._post_file()
         self.assertEqual(res.status_code, 400)
@@ -210,6 +214,84 @@ class SendMediaTests(ConversationApiBase):
         res = self._post_file()
         self.assertEqual(res.status_code, 502)
         mock_save.assert_not_called()
+
+
+_STALE_INBOUND = int(time.time()) - 25 * 3600
+
+
+class WindowGateOnInboundTests(ConversationApiBase):
+    """Prod, Sept 2026: all 16 Meta 131047 failures came from agent sends.
+    /takeover had no window gate; /send gated on updated_at, which the
+    takeover banner (save_agent_message) itself refreshed. The gate is now the
+    customer's last inbound message."""
+
+    @patch(f"{_CONV}.send_text_message")
+    @patch(f"{_CONV}.get_takeover_status", return_value={"active": True})
+    @patch(
+        f"{_CONV}.get_user_by_phone",
+        return_value=_user(updated_at=int(time.time()), last_inbound_at=_STALE_INBOUND),
+    )
+    def test_send_refused_when_updated_at_fresh_but_inbound_stale(
+        self, _mock_user, _mock_takeover, mock_send
+    ):
+        res = self.client.post("/system/conversation/919999999999/send", json={"message": "hi"})
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("24-hour", res.json()["detail"])
+        mock_send.assert_not_called()
+
+    @patch(f"{_CONV}.pubsub.publish")
+    @patch(f"{_CONV}.save_agent_message")
+    @patch(f"{_CONV}.send_text_message")
+    @patch(f"{_CONV}.set_takeover")
+    @patch(f"{_CONV}.get_user_by_phone", return_value=_user(last_inbound_at=_STALE_INBOUND))
+    def test_takeover_refused_when_window_closed(
+        self, _mock_user, mock_set, mock_send, mock_save, _mock_pub
+    ):
+        res = self.client.post("/system/conversation/919999999999/takeover")
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("24-hour", res.json()["detail"])
+        mock_set.assert_not_called()
+        mock_send.assert_not_called()
+
+    @patch(f"{_CONV}.pubsub.publish")
+    @patch(f"{_CONV}.save_agent_message")
+    @patch(f"{_CONV}.send_text_message")
+    @patch(f"{_CONV}.set_takeover")
+    @patch(f"{_CONV}.get_user_by_phone", return_value=_user())
+    def test_takeover_allowed_when_window_open(
+        self, _mock_user, mock_set, mock_send, mock_save, _mock_pub
+    ):
+        res = self.client.post("/system/conversation/919999999999/takeover")
+        self.assertEqual(res.status_code, 200)
+        mock_set.assert_called_once()
+        mock_send.assert_called_once()
+
+    @patch(f"{_CONV}.pubsub.publish")
+    @patch(f"{_CONV}.users.update_one")
+    @patch(f"{_CONV}.save_agent_message")
+    @patch(f"{_CONV}.send_text_message")
+    @patch(f"{_CONV}.set_takeover")
+    @patch(f"{_CONV}.get_user_by_phone", return_value=_user(last_inbound_at=_STALE_INBOUND))
+    def test_release_with_window_closed_releases_but_sends_nothing(
+        self, _mock_user, mock_set, mock_send, mock_save, _mock_update, _mock_pub
+    ):
+        res = self.client.post("/system/conversation/919999999999/release")
+        self.assertEqual(res.status_code, 200)
+        mock_set.assert_called_once_with("919999999999", active=False)
+        mock_send.assert_not_called()
+
+    @patch(f"{_CONV}.pubsub.publish")
+    @patch(f"{_CONV}.users.update_one")
+    @patch(f"{_CONV}.save_agent_message")
+    @patch(f"{_CONV}.send_text_message")
+    @patch(f"{_CONV}.set_takeover")
+    @patch(f"{_CONV}.get_user_by_phone", return_value=_user())
+    def test_release_with_window_open_sends_release_and_rating(
+        self, _mock_user, mock_set, mock_send, mock_save, _mock_update, _mock_pub
+    ):
+        res = self.client.post("/system/conversation/919999999999/release")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(mock_send.call_count, 2)
 
 
 if __name__ == "__main__":

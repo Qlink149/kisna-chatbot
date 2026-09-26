@@ -19,6 +19,7 @@ from kisna_chatbot.routes.dependencies.system_dependencies import verify_session
 from kisna_chatbot.utils import media_store
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.pubsub import pubsub
+from kisna_chatbot.utils.whatsapp_window import WINDOW_EXPIRED_DETAIL, is_window_open
 from kisna_chatbot.whatsapp_functions.media.send_audio_message import send_audio_message
 from kisna_chatbot.whatsapp_functions.media.send_document_message import send_file_message
 from kisna_chatbot.whatsapp_functions.media.send_image_message import send_image_message
@@ -33,6 +34,18 @@ router = APIRouter(prefix="/conversation", tags=["System - Conversation"])
 
 TAKEOVER_MESSAGE = "You are now connected to a live support agent. Please hold on."
 RELEASE_MESSAGE = "You have been reconnected to our AI assistant. How can I help you?"
+
+
+def _require_open_window(user: dict) -> None:
+    """Refuse an agent-initiated WhatsApp send once Meta's 24h window is shut.
+
+    Gates on the customer's last INBOUND message (is_window_open), never on
+    users.updated_at: agent messages refresh updated_at, so the takeover
+    banner used to re-open the gate for itself and every later send failed
+    at Meta with 131047 (all 16 such failures in prod, Sept 2026).
+    """
+    if not is_window_open(user):
+        raise HTTPException(status_code=400, detail=WINDOW_EXPIRED_DETAIL)
 
 # Mime allowlist per WhatsApp media kind an agent can send from the dashboard.
 _MIME_TO_KIND = {
@@ -104,6 +117,7 @@ async def takeover(phone_number: str):
         user = get_user_by_phone(phone_number)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+        _require_open_window(user)
 
         set_takeover(phone_number, active=True)
 
@@ -143,12 +157,7 @@ async def send_message(phone_number: str, body: SendMessageRequest):
             raise HTTPException(status_code=400, detail="No active takeover for this user")
 
         # Enforce WhatsApp 24-hour conversation window
-        updated_at = user.get("updated_at", 0)
-        if time.time() - updated_at > 86400:
-            raise HTTPException(
-                status_code=400,
-                detail="WhatsApp 24-hour conversation window has expired",
-            )
+        _require_open_window(user)
 
         send_text_message(
             phone_number=phone_number,
@@ -198,12 +207,7 @@ async def send_media(
         if not takeover_status or not takeover_status.get("active"):
             raise HTTPException(status_code=400, detail="No active takeover for this user")
 
-        updated_at = user.get("updated_at", 0)
-        if time.time() - updated_at > 86400:
-            raise HTTPException(
-                status_code=400,
-                detail="WhatsApp 24-hour conversation window has expired",
-            )
+        _require_open_window(user)
 
         if not media_store.is_configured():
             raise HTTPException(status_code=503, detail="Media storage is not configured")
@@ -302,22 +306,31 @@ async def release(phone_number: str):
 
         set_takeover(phone_number, active=False)
 
-        send_text_message(
-            phone_number=phone_number,
-            bot_response={"type": "text", "text": RELEASE_MESSAGE},
-        )
-        save_agent_message(phone_number, RELEASE_MESSAGE)
+        # Releasing always hands the chat back to the bot; the two WhatsApp
+        # messages are only sent while Meta's window is open (they would just
+        # bounce with 131047 otherwise).
+        if is_window_open(user):
+            send_text_message(
+                phone_number=phone_number,
+                bot_response={"type": "text", "text": RELEASE_MESSAGE},
+            )
+            save_agent_message(phone_number, RELEASE_MESSAGE)
 
-        rating_prompt = build_rating_prompt_response()
-        send_text_message(
-            phone_number=phone_number,
-            bot_response=rating_prompt,
-        )
-        save_agent_message(phone_number, rating_prompt["text"])
-        users.update_one(
-            {"phone_number": phone_number},
-            {"$set": {"awaiting_rating": True, "updated_at": int(time.time())}},
-        )
+            rating_prompt = build_rating_prompt_response()
+            send_text_message(
+                phone_number=phone_number,
+                bot_response=rating_prompt,
+            )
+            save_agent_message(phone_number, rating_prompt["text"])
+            users.update_one(
+                {"phone_number": phone_number},
+                {"$set": {"awaiting_rating": True, "updated_at": int(time.time())}},
+            )
+        else:
+            logger.info(
+                "Released with the 24h window closed; release/rating messages not sent",
+                extra={"phone_last4": phone_number[-4:]},
+            )
 
         await pubsub.publish(phone_number, {"type": "release", "phone_number": phone_number})
 

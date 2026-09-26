@@ -116,6 +116,31 @@ def mark_inbound_processed(
         return False
 
 
+def _inbound_epoch(messages: dict) -> int:
+    """When the customer sent this message, for the WhatsApp-window clock.
+
+    Meta's 24h window runs from the customer's message, not from when we got
+    it, so prefer the payload's own timestamp -- capped at now, so a delayed
+    webhook delivery can only make our clock more conservative, never later.
+    """
+    now = int(time.time())
+    try:
+        sent = int(messages.get("timestamp"))
+    except (TypeError, ValueError):
+        return now
+    return min(sent, now) if sent > 0 else now
+
+
+def _stamp_inbound(data: dict) -> None:
+    """Mirror the new inbound time into the in-memory profile, so this turn's
+    own window check (ResponseManager's welcome-template gate) sees it."""
+    profile = data.get("user_profile")
+    if isinstance(profile, dict) and data.get("_inbound_at"):
+        profile["last_inbound_at"] = max(
+            int(profile.get("last_inbound_at") or 0), data["_inbound_at"]
+        )
+
+
 def _ensure_explore_more_cta_last(data: dict) -> None:
     """Keep the "See Collection" button last in the whole turn, not just
     within the search result that built it.
@@ -507,11 +532,31 @@ def _log_gupshup_delivery_failure(request_data: dict) -> bool:
     return False
 
 
+_WINDOW_CLOSED_ERROR_CODE = 131047  # Meta: >24h since the customer last replied
+
+
+def _has_error_code(errors, code: int) -> bool:
+    items = errors if isinstance(errors, list) else [errors]
+    return any(isinstance(e, dict) and str(e.get("code")) == str(code) for e in items)
+
+
 def _log_whatsapp_status_failures(whatsapp_event: dict) -> None:
     """Log Cloud-API style status updates, emphasizing failed deliveries."""
     for status_item in whatsapp_event.get("statuses") or []:
         status = status_item.get("type") or status_item.get("status", "unknown")
         errors = status_item.get("errors") or status_item.get("error")
+        if errors and _has_error_code(errors, _WINDOW_CLOSED_ERROR_CODE):
+            # An expected, non-actionable outcome (we sent after Meta closed
+            # the window) -- not an ERROR. Last four digits only.
+            recipient = str(status_item.get("recipient_id") or "")
+            logger.warning(
+                "WhatsApp send rejected: 24h window closed (131047)",
+                extra={
+                    "recipient_last4": recipient[-4:],
+                    "message_id": status_item.get("id"),
+                },
+            )
+            continue
         is_failure = str(status).lower() in ("failed", "undelivered") or bool(
             errors
         )
@@ -743,6 +788,9 @@ async def process_message(
                 "client_config": client_config,
                 "app_state": app_state,
                 "request_id": request_id,
+                # WhatsApp-window clock. Set here, after rate limit + dedup,
+                # and nowhere else: only a genuine customer inbound moves it.
+                "_inbound_at": _inbound_epoch(messages),
             }
             try:
                 from kisna_chatbot.utils.message_trace import trace_step
@@ -816,7 +864,9 @@ async def process_message(
                             "media": sse_media,
                         },
                     )
-                touch_last_message_at(phone_number, client_id)
+                touch_last_message_at(
+                    phone_number, client_id, inbound_at=data["_inbound_at"]
+                )
 
                 if not bypass_flow:
                     return
@@ -832,6 +882,7 @@ async def process_message(
                     from kisna_chatbot.processors.complaint_agent import ComplaintAgent
 
                     data = await UserRegistration().process(data)
+                    _stamp_inbound(data)
                     data = await Pipeline(
                         [CallbackAgent(), ComplaintAgent()]
                     ).run(data=data)
@@ -857,10 +908,13 @@ async def process_message(
                 typing_task = asyncio.create_task(typing_indicator_loop(message_id, stop_typing_event))
 
             data = await UserRegistration().process(data)
+            _stamp_inbound(data)
 
             non_text_result = handle_non_text_message(data)
             if non_text_result == "silent":
-                touch_last_message_at(phone_number, client_id)
+                touch_last_message_at(
+                    phone_number, client_id, inbound_at=data["_inbound_at"]
+                )
                 return
 
             if non_text_result == "route_store" or "bot_response" in data:

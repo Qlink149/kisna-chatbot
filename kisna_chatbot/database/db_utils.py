@@ -241,7 +241,14 @@ def save_to_mongo(data: dict) -> dict | None:
             if not user_profile_data.get(owned_key):
                 user_profile_data.pop(owned_key, None)
 
-        update = {"$set": user_profile_data}
+        # last_inbound_at is the WhatsApp-window clock and only a customer
+        # inbound may move it (data["_inbound_at"], stamped by main.py). Never
+        # $set it from the in-memory profile, and $max so it can't go back.
+        update = {
+            "$set": {k: v for k, v in user_profile_data.items() if k != "last_inbound_at"}
+        }
+        if data.get("_inbound_at"):
+            update["$max"] = {"last_inbound_at": int(data["_inbound_at"])}
         unset_fields = mongo_unset_for_missing_session_keys(user_profile_data)
         if unset_fields:
             update["$unset"] = unset_fields
@@ -316,13 +323,24 @@ def save_user_message_silent(
         raise
 
 
-def touch_last_message_at(phone_number: str, client_id: str = "kisna") -> None:
-    """Update last inbound message timestamp without a full profile save."""
+def touch_last_message_at(
+    phone_number: str,
+    client_id: str = "kisna",
+    inbound_at: int | None = None,
+) -> None:
+    """Update last inbound message timestamp without a full profile save.
+
+    Only called on the customer-inbound path, so it also advances the
+    WhatsApp-window clock ``last_inbound_at`` when ``inbound_at`` is given.
+    """
     try:
         now = int(time.time())
+        update: dict = {"$set": {"last_message_at": now, "updated_at": now}}
+        if inbound_at:
+            update["$max"] = {"last_inbound_at": int(inbound_at)}
         users.update_one(
             _user_filter(phone_number, client_id),
-            {"$set": {"last_message_at": now, "updated_at": now}},
+            update,
             upsert=True,
         )
     except Exception as e:

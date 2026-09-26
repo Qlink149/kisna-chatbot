@@ -32,6 +32,33 @@ class TestIsWindowOpen:
         assert is_window_open(profile) is True
 
 
+class TestLastInboundClock:
+    """Meta's window runs from the customer's last INBOUND message only."""
+
+    def test_uses_last_inbound_when_present(self):
+        now = int(time.time())
+        profile = {"last_inbound_at": now - 3600, "last_message_at": now - 30 * 3600}
+        assert is_window_open(profile) is True
+
+    def test_falls_back_to_last_message_at(self):
+        now = int(time.time())
+        assert is_window_open({"last_message_at": now - 3600}) is True
+        assert is_window_open({"last_message_at": now - 30 * 3600}) is False
+
+    def test_inbound_23_5h_closed_even_if_last_message_recent(self):
+        now = int(time.time())
+        profile = {"last_inbound_at": now - int(23.5 * 3600), "last_message_at": now - 2 * 3600}
+        assert is_window_open(profile) is False
+
+    def test_updated_at_is_never_the_clock(self):
+        now = int(time.time())
+        assert is_window_open({"updated_at": now}) is False
+
+    def test_malformed_inbound_falls_back(self):
+        now = int(time.time())
+        assert is_window_open({"last_inbound_at": "bad", "last_message_at": now - 60}) is True
+
+
 class TestResponseManagerWindow:
     def test_sends_template_when_window_closed(self):
         data = {

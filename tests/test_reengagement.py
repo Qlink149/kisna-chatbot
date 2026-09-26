@@ -55,6 +55,12 @@ class SkipReasonTests(_EnabledCase):
         p = _profile(last_message_at=_NOW - 1 * _HOUR)
         self.assertEqual(re._skip_reason(p, _NOW), "not_idle_enough")
 
+    def test_not_selected_when_last_inbound_23_5h_despite_recent_last_message(self):
+        # Idle enough by last_message_at (4h), but the customer's last inbound
+        # was 23.5h ago: Meta would reject the send (131047), so skip.
+        p = _profile(last_inbound_at=_NOW - int(23.5 * _HOUR))
+        self.assertEqual(re._skip_reason(p, _NOW), "window_closed")
+
     def test_window_closed_when_too_old(self):
         p = _profile(last_message_at=_NOW - 40 * _HOUR)
         self.assertEqual(re._skip_reason(p, _NOW), "window_closed")
