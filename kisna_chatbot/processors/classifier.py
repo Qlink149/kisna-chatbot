@@ -9,6 +9,10 @@ from kisna_chatbot.ai.types import AgentName
 from kisna_chatbot.models.service_list import ServiceList
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.ad_flow_agent import _PINCODE_ONLY_RE
+from kisna_chatbot.processors.code_served_facts import (
+    is_karat_comparison,
+    serve_karat_comparison,
+)
 from kisna_chatbot.processors.entity_extractor import (
     extract_entities,
     extract_structured_fields,
@@ -588,6 +592,10 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)
     ):
         return ("handoff_status", 0.95)
+    # Fact served by code (processors/code_served_facts.py): the model's prior
+    # ("18K richer colour, 14K more durable") beat three prompt wordings.
+    if is_karat_comparison(normalized):
+        return ("karat_comparison", 0.95)
     if (
         _MAKING_CHARGES_RE.search(normalized)
         and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)
@@ -608,6 +616,8 @@ def _programmatic_intent_fallback(text: str) -> tuple[str, float] | None:
     normalized = (text or "").strip()
     if not normalized:
         return None
+    if is_karat_comparison(normalized):
+        return ("karat_comparison", 0.95)
     if _HUMAN_HANDOFF_RE.search(normalized):
         return ("human_handoff", 0.9)
     if _CALLBACK_RE.search(normalized):
@@ -2417,6 +2427,11 @@ def _route_resolved_intent(
             _handle_custom_jewellery_handoff(data, user_profile, phone_number)
         else:
             _handle_human_handoff(data, user_profile, phone_number)
+        return True
+
+    if intent == "karat_comparison":
+        user_profile["service_selected"] = ""
+        serve_karat_comparison(data)
         return True
 
     if intent == "handoff_status":

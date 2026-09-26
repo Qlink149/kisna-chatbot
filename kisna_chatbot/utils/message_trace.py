@@ -28,6 +28,8 @@ _OUTCOMES = {
     "handoff",
     "error",
     "info_sent",
+    # A fact served by code, not the model (processors/code_served_facts.py).
+    "canned_sent",
 }
 
 _PRODUCTS_PATH = "/api/v1/clara/products"

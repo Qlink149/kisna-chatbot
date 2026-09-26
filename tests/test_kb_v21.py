@@ -5,7 +5,6 @@ GeneralAgent temperature gating."""
 import asyncio
 import os
 import re
-import subprocess
 import unittest
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -49,10 +48,19 @@ _EVENING = "Good Evening! 🌆 Hope you're having a lovely evening!"
 class AssembledPromptContentTests(unittest.TestCase):
     """7.3 / 7.4 on the FINAL assembled prompt string."""
 
+    def test_discreet_only_appears_inside_never_rules(self):
+        # The word may only appear where the prompt forbids it (the packaging
+        # rule and the anti-hallucination example) -- never as a description.
+        lines = [line for line in _PROMPT.splitlines() if "discreet" in line.lower()]
+        self.assertTrue(lines)
+        for line in lines:
+            with self.subTest(line=line[:60]):
+                self.assertRegex(line.lower(), r"never")
+
     def test_stale_or_forbidden_strings_have_zero_hits(self):
         for s in (
             "ecom@kisna.com", "₹100 return", "next-day", "next day",
-            "Express delivery is used", "discreet", "My Orders", "richer colour",
+            "Express delivery is used", "My Orders", "richer colour",
             "6th Aug", "5th Nov", "35%", "20%", "TODO-CLIENT", "sells only gold",
             "web search",
         ):

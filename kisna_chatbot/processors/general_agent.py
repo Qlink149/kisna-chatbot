@@ -6,6 +6,10 @@ from kisna_chatbot.ai import run_general_agent
 from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
+from kisna_chatbot.processors.code_served_facts import (
+    is_karat_comparison,
+    serve_karat_comparison,
+)
 from kisna_chatbot.processors.shopping_wizard import DIGITAL_GOLD_URL, GRP_URL, KMR_URL
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
 from kisna_chatbot.utils.logger_config import logger
@@ -40,6 +44,44 @@ _GRP_RE = re.compile(
     r")\b",
     re.I,
 )
+
+
+# KISNA_VOICE bans "Unfortunately"; the model still opens negatives with it.
+# Replace -- not strip: dropping it would leave "express delivery is not
+# available" opening a sentence with a bare negative, which VOICE also
+# forbids. Only a SENTENCE-INITIAL "Unfortunately" is rewritten -- start of the
+# text or a line, or after . ! ? (emoji/markup between the full stop and the
+# word don't count: "India. 🚚✨ Unfortunately," is a sentence start). The word
+# mid-sentence is left alone.
+_UNFORTUNATELY_RE = re.compile(r"(\*?)unfortunately\b,?[ \t]*(\S*)", re.I)
+# Trailing whitespace, emoji, markup and other non-word symbols -- anything
+# that can sit between a sentence end and the next sentence's first word.
+_BETWEEN_SENTENCES_RE = re.compile(r"[^\w.!?…]*$")
+_KEEP_CASE = {"I", "Kisna", "KIA", "India", "IGI", "GIA", "BIS", "Diwali"}
+
+
+def _is_sentence_start(prefix: str) -> bool:
+    if not prefix.strip() or prefix.rstrip(" \t").endswith("\n"):
+        return True
+    before = _BETWEEN_SENTENCES_RE.sub("", prefix)
+    return not before or before[-1] in ".!?…"
+
+
+def _replace_sentence_unfortunately(text: str) -> str:
+    text = text or ""
+    out, last = [], 0
+    for m in _UNFORTUNATELY_RE.finditer(text):
+        if not _is_sentence_start(text[: m.start()]):
+            continue
+        word = m.group(2)
+        core = word.strip("*_~.,!?")
+        if core and core not in _KEEP_CASE and not core.isupper() and core[:1].isupper():
+            word = word.replace(core, core[0].lower() + core[1:], 1)
+        out.append(text[last : m.start()])
+        out.append(f"{m.group(1)}Please note that {word}")
+        last = m.end()
+    out.append(text[last:])
+    return "".join(out)
 
 
 def _strip_url_mentions(text: str, url: str) -> str:
@@ -194,6 +236,14 @@ class GeneralAgent(Processor):
                 )
                 return await _handoff_to_product_search(category="product_search")
 
+            # Backstop for the classifier's hard override: a karat comparison
+            # that reaches this agent by another route still never goes to the
+            # model (see processors/code_served_facts.py).
+            if is_karat_comparison(user_query):
+                serve_karat_comparison(data)
+                user_profile["service_selected"] = ""
+                return data
+
             chat_history_str = format_recent_history_str(user_profile, 8)
 
             result = await run_general_agent(
@@ -243,6 +293,10 @@ class GeneralAgent(Processor):
                 data["bot_response"] = responses
                 return data
             elif result.message_text:
+                # VOICE: a sentence-initial "Unfortunately" becomes "Please note that".
+                result.message_text = _replace_sentence_unfortunately(
+                    result.message_text
+                )
                 responses: list[dict] = [
                     {"type": "text", "text": result.message_text}
                 ]
