@@ -33,6 +33,9 @@
               },
               "title": {
                 "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
               }
             }
           },
@@ -46,6 +49,21 @@
         "details_error": {
           "type": "string",
           "__example__": ""
+        },
+        "init_values": {
+          "type": "object",
+          "properties": {
+            "first_name": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            }
+          },
+          "__example__": {
+            "first_name": "Priya",
+            "phone": "919812345678"
+          }
         }
       },
       "layout": {
@@ -54,6 +72,7 @@
           {
             "type": "Form",
             "name": "details_form",
+            "init-values": "${data.init_values}",
             "children": [
               {
                 "type": "TextSubheading",
@@ -64,8 +83,7 @@
                 "name": "first_name",
                 "label": "First name",
                 "required": true,
-                "input-type": "text",
-                "init-value": "${data.first_name}"
+                "input-type": "text"
               },
               {
                 "type": "TextInput",
@@ -86,8 +104,7 @@
                 "name": "phone",
                 "label": "Phone number",
                 "required": true,
-                "input-type": "phone",
-                "init-value": "${data.phone}"
+                "input-type": "phone"
               },
               {
                 "type": "Dropdown",
@@ -154,6 +171,9 @@
               },
               "title": {
                 "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
               }
             }
           },
@@ -174,6 +194,9 @@
               },
               "title": {
                 "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
               }
             }
           },
@@ -197,6 +220,9 @@
               },
               "description": {
                 "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
               }
             }
           },
@@ -227,6 +253,21 @@
         "store_error": {
           "type": "string",
           "__example__": ""
+        },
+        "init_values": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string"
+            }
+          },
+          "__example__": {
+            "state": "Delhi",
+            "city": "Delhi-NCR"
+          }
         }
       },
       "layout": {
@@ -235,6 +276,7 @@
           {
             "type": "Form",
             "name": "store_form",
+            "init-values": "${data.init_values}",
             "children": [
               {
                 "type": "TextSubheading",
@@ -246,7 +288,6 @@
                 "label": "State",
                 "required": true,
                 "data-source": "${data.states}",
-                "init-value": "${data.selected_state}",
                 "on-select-action": {
                   "name": "data_exchange",
                   "payload": {
@@ -267,7 +308,6 @@
                 "required": true,
                 "visible": "${data.cities_visible}",
                 "data-source": "${data.cities}",
-                "init-value": "${data.selected_city}",
                 "on-select-action": {
                   "name": "data_exchange",
                   "payload": {
@@ -385,6 +425,9 @@
               },
               "title": {
                 "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
               }
             }
           },
@@ -398,6 +441,17 @@
         "slot_error": {
           "type": "string",
           "__example__": ""
+        },
+        "init_values": {
+          "type": "object",
+          "properties": {
+            "preferred_date": {
+              "type": "string"
+            }
+          },
+          "__example__": {
+            "preferred_date": "2026-09-30"
+          }
         }
       },
       "layout": {
@@ -406,6 +460,7 @@
           {
             "type": "Form",
             "name": "datetime_form",
+            "init-values": "${data.init_values}",
             "children": [
               {
                 "type": "TextSubheading",
@@ -423,7 +478,6 @@
                 "min-date": "${data.min_date}",
                 "max-date": "${data.max_date}",
                 "unavailable-dates": "${data.unavailable_dates}",
-                "init-value": "${data.selected_date}",
                 "on-select-action": {
                   "name": "data_exchange",
                   "payload": {

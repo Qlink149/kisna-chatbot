@@ -339,6 +339,7 @@ class DataExchangeTests(CacheFixture):
         self.assertEqual([s["title"] for s in stores], ["Karol Bagh", "Rajouri Garden"])
         self.assertIn("110005", stores[0]["description"])
         self.assertTrue(r["data"]["stores_visible"])
+        self.assertEqual(r["data"]["init_values"], {"state": "Delhi", "city": "Delhi-NCR"})
         r = svf.build_store_visit_response(
             _req("store", "SV_STORE", state="Delhi", city="Delhi-NCR", store_id="D2", **DETAILS), now=NOW
         )
@@ -349,6 +350,7 @@ class DataExchangeTests(CacheFixture):
         self.assertIn("2026-10-02", d["unavailable_dates"])  # holiday
         self.assertEqual(d["time_slots"][0]["id"], "11:30")   # 09:00 + 2h lead
         self.assertEqual(d["store_name"], "Rajouri Garden - Delhi-NCR - Delhi")
+        self.assertEqual(d["init_values"], {"preferred_date": "2026-09-30"})
 
     def test_date_change_refreshes_slots(self):
         r = svf.build_store_visit_response(
@@ -818,6 +820,18 @@ class RoutingTests(unittest.TestCase):
         for key in ("first_name", "looking_for", "store_id", "preferred_date", "preferred_time"):
             self.assertIn("${form.%s}" % key if key != "store_id" else "${data.store_id}", text)
         self.assertTrue(flow["screens"][2]["terminal"])
+        # Meta rejects component-level init-value in v7.0 (validated on the
+        # draft): prefills go through each Form's dynamic init-values.
+        self.assertNotIn('"init-value"', text)
+        for screen in flow["screens"]:
+            form = screen["layout"]["children"][0]
+            self.assertEqual(form["init-values"], "${data.init_values}")
+            self.assertIn("init_values", screen["data"])
+
+    def test_screens_send_init_values(self):
+        d = svf.details_screen_data("Priya", "919812345678")
+        self.assertEqual(d["init_values"], {"first_name": "Priya", "phone": "919812345678"})
+        self.assertEqual(svf.details_screen_data()["init_values"], {})
 
 
 if __name__ == "__main__":

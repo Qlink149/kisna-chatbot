@@ -102,12 +102,19 @@ def looking_for_options() -> list[dict]:
     return [{"id": i, "title": t} for i, t in LOOKING_FOR_OPTIONS]
 
 
+def _init_values(**values: str) -> dict:
+    """Form prefills (Flow JSON v7.0: Form "init-values", not per component).
+    Empty values are left out -- an empty dropdown prefill is not an option."""
+    return {k: v for k, v in values.items() if v}
+
+
 def details_screen_data(first_name: str = "", phone: str = "", error: str = "") -> dict:
     return {
         "first_name": first_name or "",
         "phone": phone or "",
         "looking_for_options": looking_for_options(),
         "details_error": error,
+        "init_values": _init_values(first_name=first_name or "", phone=phone or ""),
     }
 
 
@@ -127,6 +134,8 @@ def _store_screen(carried: dict, *, state: str = "", city: str = "", error: str 
         "cities_visible": False,
         "stores_visible": False,
         "store_error": error or ("" if states else ERR_NO_STORES),
+        # Keeps the picks when the screen is re-rendered (each tap, BACK).
+        "init_values": _init_values(state=state, city=city),
     }
     if state:
         cities = store_cache.list_cities(state)
@@ -171,6 +180,7 @@ def _datetime_screen(carried: dict, store: dict, iso_date: str | None, now: date
             "selected_date": chosen,
             "time_slots": slots or [{"id": "_none", "title": "—", "enabled": False}],
             "slot_error": error,
+            "init_values": _init_values(preferred_date=chosen),
         },
     }
 
