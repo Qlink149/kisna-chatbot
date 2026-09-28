@@ -455,6 +455,45 @@ _STORE_LOOKUP_RE = re.compile(
     re.I,
 )
 
+# Wanting to VISIT a store (book it, or find "the nearest" with no place
+# named) -> store_visit, which sends the Store Visit form. A message that names
+# the place ("store in Pune", "Mumbai me store", a pincode) stays store_info so
+# the branches there are listed.
+_STORE_VISIT_RE = re.compile(
+    r"\b("
+    r"store\s+visit|showroom\s+visit|visit\s+(?:to\s+)?(?:your\s+|the\s+|a\s+|kisna\s+)?"
+    r"(?:nearest\s+)?(?:store|showroom|shop|outlet)s?|"
+    r"book\s+(?:a\s+|an\s+)?(?:store\s+|showroom\s+)?(?:visit|appointment)|"
+    r"(?:store|showroom)\s+appointment|"
+    r"appointment\s+(?:at|in|for)\s+(?:the\s+|your\s+|a\s+|kisna\s+)?(?:store|showroom|shop)|"
+    r"(?:see|try|check)\s+(?:this|it|these|them|that)\s+(?:on\s+)?(?:in|at)\s+(?:the\s+|a\s+|your\s+)?"
+    r"(?:store|showroom|shop)|"
+    r"nearest\s+(?:kisna\s+)?(?:store|shop|showroom|outlet|branch)|"
+    r"(?:store|shop|showroom|outlet)s?\s+near\s+me|"
+    r"dukaa?n\s+kah?aa?n|"
+    r"(?:store|showroom|dukaa?n)\s+(?:par\s+|pe\s+)?(?:visit\s+)?aa?na\s+hai|"
+    r"visit\s+karna"
+    r")\b",
+    re.I,
+)
+
+_NAMED_PLACE_RE = re.compile(
+    r"\b\d{6}\b|"
+    r"\b(?:in|at)\s+(?!(?:the|a|your|kisna|store|showroom|shop|person)\b)[a-z]{3,}|"
+    r"\b[a-z]{3,}\s+(?:me|mein)\s+(?:store|showroom|shop|dukaa?n)",
+    re.I,
+)
+
+
+def _is_store_visit_request(text: str) -> bool:
+    """A shopping request with a store aside ("gold ring dikhao aur nearest
+    store bhi batao") is product_search + a secondary store intent (rule 26),
+    so it is left to the LLM, like the store-lookup fallback does."""
+    if not _STORE_VISIT_RE.search(text) or _NAMED_PLACE_RE.search(text):
+        return False
+    return not (_CATEGORY_WORD_RE.search(text) and _BROWSE_ACTION_RE.search(text))
+
+
 _PRICE_PRODUCT_INFO_RE = re.compile(
     r"\b("
     r"price|cost|kitna|rate|mrp|how\s+much|weight|"
@@ -640,6 +679,10 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("offers", 0.95)
     if _DIGITAL_GOLD_RE.search(normalized) or _SCHEME_RE.search(normalized):
         return ("general", 0.9)
+    # Booking / visiting a store with no place named -> the Store Visit form.
+    # (A named place stays with the LLM, which routes it to store_info.)
+    if _is_store_visit_request(normalized) and not _CALLBACK_RE.search(normalized):
+        return ("store_visit", 0.93)
     # Policy action/info regexes are HINTS only (see _programmatic_intent_hint).
     return None
 
@@ -667,6 +710,8 @@ def _programmatic_intent_fallback(text: str) -> tuple[str, float] | None:
         return ("video_call", 0.9)
     if _GOLD_RATE_RE.search(normalized):
         return ("gold_rate", 0.9)
+    if _is_store_visit_request(normalized):
+        return ("store_visit", 0.9)
     if _STORE_LOOKUP_RE.search(normalized) and not (
         _CATEGORY_WORD_RE.search(normalized) and _BROWSE_ACTION_RE.search(normalized)
     ):
@@ -1788,6 +1833,7 @@ _STICKY_ESCAPE_INTENTS = frozenset(
         "returns_refund",
         "offers",
         "store_info",
+        "store_visit",
         "menu_help",
         "greeting",
         "repair",
@@ -1885,6 +1931,7 @@ _UNIVERSAL_ESCAPE_INTENTS = frozenset(
         "human_handoff",
         "callback",
         "video_call",
+        "store_visit",
         "complaint",
         "greeting",
         "menu_help",
@@ -2425,6 +2472,7 @@ def _route_resolved_intent(
             "human_handoff": "Live agent handoff",
             "handoff_status": "Handoff status check",
             "callback": "Callback request form",
+            "store_visit": "Store visit form",
             "refund_status": "Refund status",
             "gold_rate": "Gold rate",
             "video_call": "Video call scheduling",
@@ -2502,6 +2550,18 @@ def _route_resolved_intent(
             data["bot_response"] = _start_callback_text_capture(
                 user_profile, request_type="callback"
             )
+        return True
+
+    if intent == "store_visit":
+        from kisna_chatbot.processors.store_visit_agent import (
+            build_store_visit_bot_response,
+        )
+
+        # The form itself (locator link as a secondary line), or only the
+        # link when the form can't be sent. Never a pincode question.
+        user_profile["awaiting_store_pincode"] = False
+        user_profile["service_selected"] = ""
+        data["bot_response"] = build_store_visit_bot_response(user_profile, data)
         return True
 
     if intent == "refund_status":

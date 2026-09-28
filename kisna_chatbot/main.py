@@ -224,6 +224,33 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to create chat_messages / message_traces indexes")
 
+    # Store Visit: the store list, and the bookings (request_id is the
+    # customer-facing ID; flow_token makes a double-tapped submit one booking).
+    # Partial: legacy store_visits rows predate both fields.
+    try:
+        from kisna_chatbot.database.collections import store_visits
+        from kisna_chatbot.stores.repo import ensure_indexes as ensure_store_indexes
+
+        ensure_store_indexes()
+        store_visits.create_index(
+            [("request_id", ASCENDING)],
+            unique=True,
+            name="uniq_store_visit_request_id",
+            partialFilterExpression={"request_id": {"$type": "string"}},
+        )
+        store_visits.create_index(
+            [("flow_token", ASCENDING)],
+            unique=True,
+            name="uniq_store_visit_flow_token",
+            partialFilterExpression={"flow_token": {"$type": "string"}},
+        )
+        store_visits.create_index(
+            [("client_id", ASCENDING), ("created_at", DESCENDING)],
+            name="store_visits_client_created_at",
+        )
+    except Exception:
+        logger.exception("Failed to create stores / store_visits indexes")
+
     # The unique event_id is what makes the outbound event push idempotent.
     try:
         from kisna_chatbot.database.collections import clara_events
@@ -643,10 +670,12 @@ def _is_tracked_flow_submission(messages: dict) -> bool:
     try:
         from kisna_chatbot.processors.callback_agent import _parse_support_request_flow
         from kisna_chatbot.processors.complaint_agent import _parse_complaint_flow
+        from kisna_chatbot.processors.store_visit_agent import _parse_submission
 
         return (
             _parse_complaint_flow(messages) is not None
             or _parse_support_request_flow(messages) is not None
+            or _parse_submission(messages) is not None
         )
     except Exception:
         logger.exception("tracked-flow detection failed")
@@ -880,11 +909,12 @@ async def process_message(
                     from kisna_chatbot.pipelines.pipeline import Pipeline
                     from kisna_chatbot.processors.callback_agent import CallbackAgent
                     from kisna_chatbot.processors.complaint_agent import ComplaintAgent
+                    from kisna_chatbot.processors.store_visit_agent import StoreVisitAgent
 
                     data = await UserRegistration().process(data)
                     _stamp_inbound(data)
                     data = await Pipeline(
-                        [CallbackAgent(), ComplaintAgent()]
+                        [StoreVisitAgent(), CallbackAgent(), ComplaintAgent()]
                     ).run(data=data)
                     if "bot_response" in data:
                         await localize_bot_responses(data)

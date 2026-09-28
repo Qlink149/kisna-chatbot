@@ -255,29 +255,21 @@ class SessionExpiryTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class StorePincodeRetryTipTests(unittest.TestCase):
-    def test_first_failure_no_escape_tip(self):
+    # Store visit (P4): an unreadable reply to a legacy pincode wait no longer
+    # re-asks for a pincode -- it gets the Store Visit offer and the wait ends.
+    def test_unreadable_reply_gets_store_visit_offer_not_pincode_reask(self):
         async def _run():
             from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
             agent = AdFlowAgent()
-            profile = {"awaiting_store_pincode": True, "service_selected": SL.AD_FLOW.value, "store_pincode_attempts": 0}
-            data = {"phone_number": "919999999999", "messages": _make_text_msg("abcdef not a pincode"), "user_profile": profile}
-            result = await agent.process(data)
-            resp_text = result["bot_response"][0]["text"]
-            self.assertNotIn("menu", resp_text.lower())
-            self.assertEqual(result["user_profile"].get("store_pincode_attempts"), 1)
-        asyncio.run(_run())
-
-    def test_second_failure_reprompts_and_tracks_attempts(self):
-        async def _run():
-            from kisna_chatbot.processors.ad_flow_agent import AdFlowAgent
-            agent = AdFlowAgent()
-            profile = {"awaiting_store_pincode": True, "service_selected": SL.AD_FLOW.value, "store_pincode_attempts": 1}
-            data = {"phone_number": "919999999999", "messages": _make_text_msg("abcdef not a pincode"), "user_profile": profile}
-            result = await agent.process(data)
-            resp_text = result["bot_response"][0]["text"]
-            self.assertIn("pincode", resp_text.lower())
-            self.assertEqual(result["user_profile"].get("store_pincode_attempts"), 2)
-            self.assertTrue(result["user_profile"].get("awaiting_store_pincode"))
+            for attempts in (0, 1):
+                profile = {"awaiting_store_pincode": True, "service_selected": SL.AD_FLOW.value, "store_pincode_attempts": attempts}
+                data = {"phone_number": "919999999999", "messages": _make_text_msg("abcdef not a pincode"), "user_profile": profile}
+                result = await agent.process(data)
+                text = " ".join(r.get("text", "") for r in result["bot_response"])
+                self.assertNotIn("pincode", text.lower())
+                self.assertIn("kisna.com/store", text)
+                self.assertFalse(result["user_profile"].get("awaiting_store_pincode"))
+                self.assertEqual(result["user_profile"].get("store_pincode_attempts"), 0)
         asyncio.run(_run())
 
     def test_success_resets_attempt_counter(self):

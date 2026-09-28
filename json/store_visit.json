@@ -1,0 +1,476 @@
+{
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "SV_DETAILS": [
+      "SV_STORE"
+    ],
+    "SV_STORE": [
+      "SV_DATETIME"
+    ],
+    "SV_DATETIME": []
+  },
+  "screens": [
+    {
+      "id": "SV_DETAILS",
+      "title": "Book a Store Visit",
+      "data": {
+        "first_name": {
+          "type": "string",
+          "__example__": "Priya"
+        },
+        "phone": {
+          "type": "string",
+          "__example__": "919812345678"
+        },
+        "looking_for_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "diamond_jewellery",
+              "title": "Diamond Jewellery"
+            }
+          ]
+        },
+        "details_error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "details_form",
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Your details"
+              },
+              {
+                "type": "TextInput",
+                "name": "first_name",
+                "label": "First name",
+                "required": true,
+                "input-type": "text",
+                "init-value": "${data.first_name}"
+              },
+              {
+                "type": "TextInput",
+                "name": "last_name",
+                "label": "Last name",
+                "required": false,
+                "input-type": "text"
+              },
+              {
+                "type": "TextInput",
+                "name": "email",
+                "label": "Email",
+                "required": false,
+                "input-type": "email"
+              },
+              {
+                "type": "TextInput",
+                "name": "phone",
+                "label": "Phone number",
+                "required": true,
+                "input-type": "phone",
+                "init-value": "${data.phone}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "looking_for",
+                "label": "What are you looking for?",
+                "required": true,
+                "data-source": "${data.looking_for_options}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.details_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "details",
+                    "first_name": "${form.first_name}",
+                    "last_name": "${form.last_name}",
+                    "email": "${form.email}",
+                    "phone": "${form.phone}",
+                    "looking_for": "${form.looking_for}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SV_STORE",
+      "title": "Choose a Store",
+      "data": {
+        "first_name": {
+          "type": "string",
+          "__example__": "Priya"
+        },
+        "last_name": {
+          "type": "string",
+          "__example__": ""
+        },
+        "email": {
+          "type": "string",
+          "__example__": ""
+        },
+        "phone": {
+          "type": "string",
+          "__example__": "919812345678"
+        },
+        "looking_for": {
+          "type": "string",
+          "__example__": "diamond_jewellery"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "Maharashtra",
+              "title": "Maharashtra"
+            }
+          ]
+        },
+        "cities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "Mumbai",
+              "title": "Mumbai"
+            }
+          ]
+        },
+        "stores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "F203",
+              "title": "INA Colony - Amritsar - Punjab",
+              "description": "Shop No. 3,4, JK Tower 49, Mall Road, 143001"
+            }
+          ]
+        },
+        "selected_state": {
+          "type": "string",
+          "__example__": "Maharashtra"
+        },
+        "selected_city": {
+          "type": "string",
+          "__example__": ""
+        },
+        "cities_visible": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "stores_visible": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "store_error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "store_form",
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Which store would you like to visit?"
+              },
+              {
+                "type": "Dropdown",
+                "name": "state",
+                "label": "State",
+                "required": true,
+                "data-source": "${data.states}",
+                "init-value": "${data.selected_state}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "state",
+                    "state": "${form.state}",
+                    "first_name": "${data.first_name}",
+                    "last_name": "${data.last_name}",
+                    "email": "${data.email}",
+                    "phone": "${data.phone}",
+                    "looking_for": "${data.looking_for}"
+                  }
+                }
+              },
+              {
+                "type": "Dropdown",
+                "name": "city",
+                "label": "City",
+                "required": true,
+                "visible": "${data.cities_visible}",
+                "data-source": "${data.cities}",
+                "init-value": "${data.selected_city}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "city",
+                    "state": "${form.state}",
+                    "city": "${form.city}",
+                    "first_name": "${data.first_name}",
+                    "last_name": "${data.last_name}",
+                    "email": "${data.email}",
+                    "phone": "${data.phone}",
+                    "looking_for": "${data.looking_for}"
+                  }
+                }
+              },
+              {
+                "type": "Dropdown",
+                "name": "store_id",
+                "label": "Store",
+                "required": true,
+                "visible": "${data.stores_visible}",
+                "data-source": "${data.stores}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.store_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "store",
+                    "state": "${form.state}",
+                    "city": "${form.city}",
+                    "store_id": "${form.store_id}",
+                    "first_name": "${data.first_name}",
+                    "last_name": "${data.last_name}",
+                    "email": "${data.email}",
+                    "phone": "${data.phone}",
+                    "looking_for": "${data.looking_for}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SV_DATETIME",
+      "title": "Choose Date & Time",
+      "terminal": true,
+      "data": {
+        "first_name": {
+          "type": "string",
+          "__example__": "Priya"
+        },
+        "last_name": {
+          "type": "string",
+          "__example__": ""
+        },
+        "email": {
+          "type": "string",
+          "__example__": ""
+        },
+        "phone": {
+          "type": "string",
+          "__example__": "919812345678"
+        },
+        "looking_for": {
+          "type": "string",
+          "__example__": "diamond_jewellery"
+        },
+        "store_id": {
+          "type": "string",
+          "__example__": "F203"
+        },
+        "store_name": {
+          "type": "string",
+          "__example__": "INA Colony - Amritsar - Punjab"
+        },
+        "store_address": {
+          "type": "string",
+          "__example__": "Shop No. 3,4, JK Tower 49, Mall Road, Amritsar 143001"
+        },
+        "min_date": {
+          "type": "string",
+          "__example__": "2026-09-28"
+        },
+        "max_date": {
+          "type": "string",
+          "__example__": "2026-10-04"
+        },
+        "unavailable_dates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "2026-10-02"
+          ]
+        },
+        "selected_date": {
+          "type": "string",
+          "__example__": ""
+        },
+        "time_slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "11:30",
+              "title": "11:30 AM"
+            }
+          ]
+        },
+        "slot_error": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "datetime_form",
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "${data.store_name}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.store_address}"
+              },
+              {
+                "type": "DatePicker",
+                "name": "preferred_date",
+                "label": "Visit date",
+                "required": true,
+                "min-date": "${data.min_date}",
+                "max-date": "${data.max_date}",
+                "unavailable-dates": "${data.unavailable_dates}",
+                "init-value": "${data.selected_date}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "date",
+                    "store_id": "${data.store_id}",
+                    "preferred_date": "${form.preferred_date}",
+                    "first_name": "${data.first_name}",
+                    "last_name": "${data.last_name}",
+                    "email": "${data.email}",
+                    "phone": "${data.phone}",
+                    "looking_for": "${data.looking_for}"
+                  }
+                }
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.slot_error}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "preferred_time",
+                "label": "Visit time",
+                "required": true,
+                "data-source": "${data.time_slots}"
+              },
+              {
+                "type": "Footer",
+                "label": "Book Visit",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "request_type": "store_visit",
+                    "store_id": "${data.store_id}",
+                    "preferred_date": "${form.preferred_date}",
+                    "preferred_time": "${form.preferred_time}",
+                    "first_name": "${data.first_name}",
+                    "last_name": "${data.last_name}",
+                    "email": "${data.email}",
+                    "phone": "${data.phone}",
+                    "looking_for": "${data.looking_for}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

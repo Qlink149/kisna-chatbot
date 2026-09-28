@@ -363,9 +363,6 @@ _SIMILAR_REQUEST_RE = re.compile(
     re.I,
 )
 
-_ASK_PINCODE_TEXT = (
-    "Share your pincode or city and I'll help you find the nearest Kisna store."
-)
 
 _BUDGET_POSTBACK_RE = re.compile(r"^pref\$budget\$(\d+)-(\d+)$")
 _CUSTOM_BUDGET_RANGE_RE = re.compile(
@@ -2456,9 +2453,14 @@ class ProductSearchAgentV3(Processor):
         product_msgid = _product_button_msgid(messages)
         if product_msgid:
             if product_msgid == "product$store":
-                user_profile["service_selected"] = SL.AD_FLOW.value
-                start_store_lookup(user_profile)
-                data["bot_response"] = [{"type": "text", "text": _ASK_PINCODE_TEXT, "_compose": "store_pincode"}]
+                # "See it in store" on a product card -> the Store Visit form.
+                from kisna_chatbot.processors.store_visit_agent import (
+                    build_store_visit_bot_response,
+                )
+
+                user_profile["awaiting_store_pincode"] = False
+                user_profile["service_selected"] = ""
+                data["bot_response"] = build_store_visit_bot_response(user_profile, data)
                 return data
 
             if product_msgid == "product$browse":

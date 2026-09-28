@@ -27,11 +27,12 @@ from kisna_chatbot.processors.classifier import (
 )
 from kisna_chatbot.processors.entity_extractor import extract_entities
 
+# "nearest store" left this matrix with store visit (P4): it is a hard
+# override to store_visit now (tests/test_store_intent_classification.py).
 LLM_INTENT_MATRIX = [
     ("what is the price of Tanishta ring?", "product_info"),
     ("Evil Eye pendant ki price kya hai?", "product_info"),
     ("koi offer hai kya?", "offers"),
-    ("nearest store", "store_info"),
     ("mera order kahan hai?", "track_order"),
     ("delivery kab hogi?", "track_order"),
     ("order status", "order_status"),

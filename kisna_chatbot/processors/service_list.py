@@ -60,16 +60,25 @@ _FLOW_SWITCH_PENDING_TTL = 300  # 5 minutes — FIX 13b
 _GENERIC_ERROR = "Apologies — something went wrong on my end. Could you please try again?"
 
 _TEXT_HELP_PROMPT = (
-    "Just tell me what you need — browse products, check offers, find a store, "
-    "track an order, or get help. I'm here to assist."
+    "Just tell me what you need — browse products, check offers, book a store "
+    "visit, track an order, or get help. I'm here to assist."
 )
 
 _EXPLORE_CAT_LIST_MSGID = "search$cat$list"
 _HELP_CENTER_MSGID = "help$center$list"
 
-_FIND_STORE_TEXT = (
-    "Share your pincode or city and I'll help you find the nearest Kisna store."
-)
+def _offer_store_visit(user_profile: dict, data: dict) -> None:
+    """Every "find a store" entry point sends the Store Visit form (locator
+    link secondary), or only the link when the form can't be sent. It never
+    asks for a pincode, so no store-pincode wait is armed."""
+    from kisna_chatbot.processors.store_visit_agent import (
+        build_store_visit_bot_response,
+    )
+
+    user_profile["awaiting_store_pincode"] = False
+    user_profile["service_selected"] = ""
+    data["classified_category"] = "store_visit"
+    data["bot_response"] = build_store_visit_bot_response(user_profile, data)
 
 _CAPABILITY_HINT = (
     "Just tell me what you're looking for — rings, necklaces, offers, "
@@ -627,7 +636,7 @@ def build_clarification_bot_response(intent: str, confidence: float) -> list[dic
             "check offers, track an order, or find a store?"
         )
     elif intent in ("store_info",):
-        text = "Are you looking for a KISNA store near you? Share your PIN code or city."
+        text = "Are you looking to visit a KISNA store near you?"
     elif intent in ("order_status", "track_order", "complaint", "returns_refund"):
         text = (
             "Is this about tracking an existing order, or reporting an issue with one?"
@@ -664,10 +673,7 @@ def handle_clarification_quick_reply(
             data["bot_response"] = build_track_order_bot_response()
             return True
         if title in ("find store",):
-            user_profile["service_selected"] = SL.AD_FLOW.value
-            start_store_lookup(user_profile)
-            data["classified_category"] = "store_info"
-            data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT, "_compose": "store_pincode"}]
+            _offer_store_visit(user_profile, data)
             return True
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
         data["classified_category"] = "product_search"
@@ -683,10 +689,7 @@ def handle_clarification_quick_reply(
         if "no" in title:
             data["bot_response"] = [build_main_menu_bot_response()]
             return True
-        user_profile["service_selected"] = SL.AD_FLOW.value
-        start_store_lookup(user_profile)
-        data["classified_category"] = "store_info"
-        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT, "_compose": "store_pincode"}]
+        _offer_store_visit(user_profile, data)
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_STORE_NO.value:
@@ -726,10 +729,7 @@ def handle_clarification_quick_reply(
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_FIND_STORE.value:
-        user_profile["service_selected"] = SL.AD_FLOW.value
-        start_store_lookup(user_profile)
-        data["classified_category"] = "store_info"
-        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT, "_compose": "store_pincode"}]
+        _offer_store_visit(user_profile, data)
         return True
 
     if btn_msgid == QuickReplyId.CLARIFY_ASK_QUESTION.value:
@@ -799,12 +799,10 @@ def _handle_menu_selection(
         try_trace(data, "Understood as", "Offers (menu selection)")
         return
 
-    if key in ("find_store", "store_info"):
-        user_profile["service_selected"] = SL.AD_FLOW.value
-        start_store_lookup(user_profile)
-        data["bot_response"] = [{"type": "text", "text": _FIND_STORE_TEXT, "_compose": "store_pincode"}]
-        try_trace(data, "Understood as", "Store locator (menu)")
-        try_trace(data, "Action", "Asked for pincode / city")
+    if key in ("find_store", "store_info", "store_visit"):
+        _offer_store_visit(user_profile, data)
+        try_trace(data, "Understood as", "Store visit (menu)")
+        try_trace(data, "Action", "Sent the Store Visit form")
         return
 
     if key in ("track_order",):

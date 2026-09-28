@@ -23,30 +23,31 @@ _MAX_NEAREST_BY_LOCATION = 5
 _MAX_STORES_SHOWN = 5
 _PINCODE_ONLY_RE = re.compile(r"^\s*([1-9]\d{5})\s*$")
 
-# Names both facts a branch answers -- address AND timings -- because store
-# hours genuinely differ per branch (10:30am-9pm in Ahmedabad, 10am-10pm in
-# Chennai), so "what time do you open?" HAS no single answer. Asking only
-# for a pincode read as a non-sequitur to anyone who had asked about time.
-# Accepting a city as well is honest now -- the LLM resolves one in any script.
-_ASK_PINCODE_TEXT = (
-    "Sure! Share your city or 6-digit pincode and I'll give you that "
-    "KISNA store's address and timings."
-)
-_LOCATION_PINCODE_FALLBACK = (
-    "Thanks for sharing your location! To find the nearest "
-    "KISNA store, please share your PIN code and I'll search "
-    "for you. 📍"
-)
-_UNPARSEABLE_STORE_TEXT = (
-    "I couldn't read that pincode or city. Please send a 6-digit pincode "
-    "(e.g. 400001) or a city name like Mumbai."
-)
-# FIX 5: Retry version (shown from 2nd failed attempt onwards)
-_UNPARSEABLE_STORE_TEXT_RETRY = (
-    "I couldn't read that pincode or city. Please send a 6-digit pincode "
-    "(e.g. 400001) or a city name like Mumbai."
-)
+# The bot never asks for a pincode (store visit, P4): a store question with no
+# place named gets the Store Visit form, whose State -> City -> Store picker
+# does that job. A place the customer DID name is still looked up and listed.
 _ESCAPE_RE = re.compile(r"^(menu|cancel|back)$", re.I)
+
+
+def _store_visit_offer(user_profile: dict, data: dict) -> list[dict]:
+    """Where this agent used to ask for a pincode or city: the Store Visit
+    form (its State -> City -> Store picker replaces the question), with the
+    locator link as a secondary line. No pincode wait is armed."""
+    from kisna_chatbot.processors.store_visit_agent import (
+        build_store_visit_bot_response,
+    )
+
+    user_profile["awaiting_store_pincode"] = False
+    user_profile["store_pincode_attempts"] = 0
+    user_profile["service_selected"] = ""
+    return build_store_visit_bot_response(user_profile, data)
+
+
+def _with_store_visit_form(responses: list[dict], user_profile: dict, data: dict) -> list[dict]:
+    """After a store list: the form, so the customer can book one of them.
+    Only the Flow item -- the list already carries the locator link."""
+    offer = _store_visit_offer(user_profile, data)
+    return responses + [i for i in offer if i.get("type") == "flow"]
 _GENERIC_ERROR = (
     "Sorry, we couldn't look up stores right now. Please try again in a moment."
 )
@@ -575,9 +576,9 @@ class AdFlowAgent(Processor):
                     result = _nearest_stores_from_cache(cached, float(lat), float(lng))
                     stores = result.get("stores") or []
                     if stores:
-                        data["bot_response"] = _build_store_responses(stores)
-                        user_profile["awaiting_store_pincode"] = False
-                        user_profile["service_selected"] = ""
+                        data["bot_response"] = _with_store_visit_form(
+                            _build_store_responses(stores), user_profile, data
+                        )
                         data.pop("inbound_location", None)
                         return data
                 except Exception as e:
@@ -586,14 +587,7 @@ class AdFlowAgent(Processor):
                         extra={"phone_number": phone_number, "error": str(e)},
                     )
 
-            start_store_lookup(user_profile)
-            data["bot_response"] = [
-                {
-                    "type": "text",
-                    "text": _LOCATION_PINCODE_FALLBACK,
-                    "_compose": "store_pincode",
-                }
-            ]
+            data["bot_response"] = _store_visit_offer(user_profile, data)
             data.pop("inbound_location", None)
             return data
 
@@ -668,18 +662,9 @@ class AdFlowAgent(Processor):
                     city = entities.get("city")
                     state = entities.get("state")
                 if not pincode and not city and not state:
-                    # FIX 5: show escape tip from 2nd failed attempt onwards
-                    attempts = user_profile.get("store_pincode_attempts", 0) + 1
-                    user_profile["store_pincode_attempts"] = attempts
-                    reprompt_text = (
-                        _UNPARSEABLE_STORE_TEXT_RETRY if attempts >= 2
-                        else _UNPARSEABLE_STORE_TEXT
-                    )
-                    data["bot_response"] = [
-                        {"type": "text", "text": reprompt_text, "_compose": "store_pincode"}
-                    ]
-                    # Re-arm the wait; attempts counter is preserved above.
-                    user_profile["awaiting_store_pincode"] = True
+                    # Legacy wait (armed before the Store Visit form existed):
+                    # no re-ask for a pincode -- the form picks the store.
+                    data["bot_response"] = _store_visit_offer(user_profile, data)
                     return data
             else:
                 entities = await _location_entities(data, user_message)
@@ -694,14 +679,7 @@ class AdFlowAgent(Processor):
                     state = previous.get("state")
 
                 if not pincode and not city and not state:
-                    start_store_lookup(user_profile)
-                    data["bot_response"] = [
-                        {
-                            "type": "text",
-                            "text": _ASK_PINCODE_TEXT,
-                            "_compose": "store_pincode",
-                        }
-                    ]
+                    data["bot_response"] = _store_visit_offer(user_profile, data)
                     return data
 
             logger.info(
@@ -756,7 +734,11 @@ class AdFlowAgent(Processor):
                 user_profile["awaiting_store_pincode"] = False
                 user_profile["service_selected"] = ""
                 user_profile["store_pincode_attempts"] = 0
-                data["bot_response"] = [{"type": "text", "text": _zero_results_message(), "_compose": "store_none_found"}]
+                data["bot_response"] = _with_store_visit_form(
+                    [{"type": "text", "text": _zero_results_message(), "_compose": "store_none_found"}],
+                    user_profile,
+                    data,
+                )
                 return data
 
             # Remember where we just looked. "what are the timings?" one
@@ -781,10 +763,7 @@ class AdFlowAgent(Processor):
                         "_compose": "store_more",
                     }
                 )
-            data["bot_response"] = responses
-            user_profile["awaiting_store_pincode"] = False
-            user_profile["service_selected"] = ""
-            user_profile["store_pincode_attempts"] = 0
+            data["bot_response"] = _with_store_visit_form(responses, user_profile, data)
             return data
 
         except ClaraAPIError as e:

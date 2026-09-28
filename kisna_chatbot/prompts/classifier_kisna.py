@@ -51,9 +51,15 @@ product_search, NOT repair — repair is dissatisfaction, not a request for more
 
 **offers** — Promotions, discounts, sales, making-charge offers. NOT EMI/policy questions.
 
+**store_visit** — Wants to VISIT a store, with NO city/pincode named: book a visit or
+showroom appointment, "store near me", "nearest Kisna store", "dukaan kahan hai",
+"can I see this in store". ≥0.9. The bot sends the Store Visit booking form.
+NOT picking up an online order at a store ("can I pick it up from a store") → general;
+NOT "visit" with no store meant ("no specific visit") → general.
+
 **store_info** — PHYSICAL retail locations only (Kisna stores / showrooms / outlets /
-shops): city, pincode, address, directions, nearest branch, bare pincode during store
-lookup. NEVER product_search — a store is a PLACE, not a jewellery item.
+shops) when a PLACE is named: city, pincode, address, directions in a city, bare
+pincode during store lookup. NEVER product_search — a store is a PLACE, not a jewellery item.
 The HEAD OFFICE / corporate office / registered office is NOT a retail location →
 **general**, never store_info. We do not share that address, and the knowledge base
 explains why and offers the store locator instead; routing it here asks the customer
@@ -123,8 +129,9 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
 2. Product discovery/browse/search → product_search
 3. A specific product's price, stock, weight or delivery days → product_info (never general)
 4. Offers/discounts/sale/cashback on purchases → offers
-5. PHYSICAL store/showroom/outlet location (city, pincode, address, directions, nearest
-   branch) → store_info, ≥0.9. NEVER product_search. See STORE vs PRODUCT below.
+5. PHYSICAL store/showroom/outlet location with a place named (city, pincode, address)
+   → store_info, ≥0.9; visiting/booking or "nearest store" with no place → store_visit.
+   NEVER product_search. See STORE vs PRODUCT below.
 6. Order confirmed/shipped → order_status; order location/arrival → track_order
 7. Return/refund/exchange action → returns_refund
 8. Damage/wrong delivery → complaint
@@ -193,7 +200,8 @@ Decide by the OBJECT of the sentence, not the phrasing:
 
 A city name beside a place-word is a LOCATION signal.
 A city name with no place-word is not a product filter either.
-"available in store" about a SHOWN product is product_info (stock).
+"available in store" about a SHOWN product is product_info (stock); wanting to SEE
+it in a store is store_visit.
 
 ### LIVE PERSON vs CALLBACK vs VIDEO
 
@@ -364,9 +372,16 @@ Fallback for unclear or spam/gibberish:
 "Tell me about KISNA" -> general .9
 "making charges pe discount" -> offers .85
 "400001" -> store_info .92                            (bare pincode)
-"any store near me" -> store_info .93
 "where is your store in Hyderabad" -> store_info .93
 "Mumbai me store hai kya" -> store_info .93
+"book a store visit" -> store_visit .95
+"I want to visit your store" -> store_visit .93
+"store near me" -> store_visit .92
+"nearest Kisna store" -> store_visit .92
+"can I see this in store" |s -> store_visit .88
+"appointment at the showroom" -> store_visit .93
+"dukaan kahan hai" -> store_visit .9
+"store visit karna hai" -> store_visit .93
 "do you have diamond rings?" -> product_search .93    (item, not a place)
 "mera order kahan hai?" -> track_order .95
 "मेरा ऑर्डर कहां है?" -> track_order .93 (hi)

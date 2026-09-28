@@ -6,6 +6,8 @@ users = db["users"]
 complaints = db["complaints"]
 callback_requests = db["callback_requests"]
 store_visits = db["store_visits"]
+# Bookable stores for the Store Visit Flow (kisna_chatbot/stores).
+stores = db["stores"]
 ratings = db["ratings"]
 ai_usage_logs = db["ai_usage_logs"]
 processed_inbound_messages = db["processed_inbound_messages"]
@@ -23,6 +25,7 @@ COLLECTIONS = (
     complaints,
     callback_requests,
     store_visits,
+    stores,
     ratings,
     ai_usage_logs,
     processed_inbound_messages,

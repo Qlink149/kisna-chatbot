@@ -370,6 +370,38 @@ class ResponseManager:
                     },
                 )
             return result
+        elif flow_name == "store_visit":
+            from kisna_chatbot.processors.store_visit_agent import (
+                LOCATOR_ONLY,
+                store_locator_url,
+            )
+            from kisna_chatbot.whatsapp_functions.flow.send_store_visit_flow import (
+                send_store_visit_flow,
+            )
+
+            try:
+                result = send_store_visit_flow(
+                    phone_number=phone_number,
+                    body_text=body_text,
+                    first_name=bot_response.get("name") or "",
+                )
+            except Exception as e:
+                logger.exception(
+                    "Failed to send store visit flow",
+                    extra={"phone_number": phone_number, "error": str(e)},
+                )
+                result = None
+            if result is None:
+                # No form (unset flow id / no bookable store / send failed):
+                # the locator link, never a pincode question.
+                return send_text_message_with_retry(
+                    phone_number=phone_number,
+                    bot_response={
+                        "type": "text",
+                        "text": LOCATOR_ONLY.format(url=store_locator_url()),
+                    },
+                )
+            return result
         elif flow_name == "video_call_request":
             result = send_video_call_request_flow(
                 phone_number=phone_number, body_text=body_text

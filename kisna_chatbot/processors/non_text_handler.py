@@ -28,13 +28,6 @@ _MEDIA_FALLBACK_COOLDOWN_SECONDS = 60
 
 _STICKER_TEXT = "Lovely! 😊 What jewellery can I help you find today?"
 
-_LOCATION_PINCODE_TEXT = (
-    "Thanks for sharing your location! To find the nearest "
-    "KISNA store, please share your PIN code and I'll search "
-    "for you. 📍"
-)
-
-
 def handle_non_text_message(data: dict) -> NonTextResult:
     """
     Handle non-text inbound messages before classifier/agents run.
@@ -66,9 +59,15 @@ def handle_non_text_message(data: dict) -> NonTextResult:
             data["inbound_location"] = {"lat": float(lat), "lng": float(lng)}
             data["classified_category"] = "store_info"
             return "route_store"
-        data["bot_response"] = [{"type": "text", "text": _LOCATION_PINCODE_TEXT, "_compose": "store_pincode"}]
-        user_profile["service_selected"] = SL.AD_FLOW.value
-        start_store_lookup(user_profile)
+        # A location with no coordinates: the Store Visit form, never a
+        # pincode question.
+        from kisna_chatbot.processors.store_visit_agent import (
+            build_store_visit_bot_response,
+        )
+
+        user_profile["awaiting_store_pincode"] = False
+        user_profile["service_selected"] = ""
+        data["bot_response"] = build_store_visit_bot_response(user_profile, data)
         return None
 
     if msg_type == "sticker":

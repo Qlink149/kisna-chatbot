@@ -1,0 +1,6052 @@
+{
+ "summary": {
+  "total": 480,
+  "correct": 474,
+  "per_intent": {
+   "callback": {
+    "correct": 15,
+    "total": 15,
+    "acc": 1.0
+   },
+   "complaint": {
+    "correct": 18,
+    "total": 18,
+    "acc": 1.0
+   },
+   "general": {
+    "correct": 81,
+    "total": 81,
+    "acc": 1.0
+   },
+   "gold_rate": {
+    "correct": 12,
+    "total": 12,
+    "acc": 1.0
+   },
+   "greeting": {
+    "correct": 15,
+    "total": 15,
+    "acc": 1.0
+   },
+   "human_handoff": {
+    "correct": 21,
+    "total": 21,
+    "acc": 1.0
+   },
+   "menu_help": {
+    "correct": 9,
+    "total": 9,
+    "acc": 1.0
+   },
+   "offers": {
+    "correct": 24,
+    "total": 30,
+    "acc": 0.8
+   },
+   "order_status": {
+    "correct": 9,
+    "total": 9,
+    "acc": 1.0
+   },
+   "product_info": {
+    "correct": 6,
+    "total": 6,
+    "acc": 1.0
+   },
+   "product_search": {
+    "correct": 99,
+    "total": 99,
+    "acc": 1.0
+   },
+   "refund_status": {
+    "correct": 6,
+    "total": 6,
+    "acc": 1.0
+   },
+   "repair": {
+    "correct": 6,
+    "total": 6,
+    "acc": 1.0
+   },
+   "returns_refund": {
+    "correct": 12,
+    "total": 12,
+    "acc": 1.0
+   },
+   "store_info": {
+    "correct": 39,
+    "total": 39,
+    "acc": 1.0
+   },
+   "store_visit": {
+    "correct": 57,
+    "total": 57,
+    "acc": 1.0
+   },
+   "track_order": {
+    "correct": 18,
+    "total": 18,
+    "acc": 1.0
+   },
+   "unsubscribe": {
+    "correct": 12,
+    "total": 12,
+    "acc": 1.0
+   },
+   "video_call": {
+    "correct": 15,
+    "total": 15,
+    "acc": 1.0
+   }
+  },
+  "per_tag": {
+   "ambiguous": {
+    "correct": 84,
+    "total": 84,
+    "acc": 1.0
+   },
+   "hinglish": {
+    "correct": 150,
+    "total": 150,
+    "acc": 1.0
+   },
+   "new_store_visit": {
+    "correct": 57,
+    "total": 57,
+    "acc": 1.0
+   },
+   "untagged": {
+    "correct": 222,
+    "total": 228,
+    "acc": 0.974
+   }
+  }
+ },
+ "results": [
+  {
+   "run": 0,
+   "text": "book a store visit",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want to visit your store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "store near me",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "nearest Kisna store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can I see this in store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "appointment at the showroom",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "dukaan kahan hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "store visit karna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I'd like to book an appointment to see diamond rings in person",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can I come to the showroom tomorrow?",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "schedule a visit to the nearest showroom",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "where is the nearest outlet",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "store pe aana hai kal",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "showroom visit book karo",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "paas mein koi Kisna store hai?",
+   "expected": [
+    "store_visit",
+    "store_info"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "मुझे आपके स्टोर पर आना है",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want to try the ring in store before buying",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "any store near me",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Can I pick it up from a store?",
+   "expected": [
+    "general",
+    "store_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "No specific visit",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want near by shop",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "do you have a store in Mumbai",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Mumbai me store hai kya",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "where is your store in Hyderabad",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "store address in Pune",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "is there a showroom in Jaipur",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "400001",
+   "expected": [
+    "store_info",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "what time does the Ahmedabad store open",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Patna mein Kisna showroom kahan hai",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Lucknow outlet timings",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "stores in Delhi",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "hi",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "namaste",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "good morning",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "kaise ho",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "menu",
+   "expected": [
+    "menu_help"
+   ],
+   "tags": [],
+   "intent": "menu_help",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "show me the options",
+   "expected": [
+    "menu_help"
+   ],
+   "tags": [],
+   "intent": "menu_help",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "show me diamond rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "gold necklace under 50k",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "diamond ring dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "mujhe jhumka dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "sone ki anguthi dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "earrings for my wife",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "mangalsutra designs",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "anniversary ke liye kuch accha dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "men's bracelet in gold",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "kids pendant",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "evil eye collection",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "ready to ship rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "heere ki bali 50k tak",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "do you have diamond rings?",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "gold",
+   "expected": [
+    "product_search",
+    "gold_rate",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "kuch dikhao",
+   "expected": [
+    "product_search",
+    "menu_help"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "1 lakh",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "accha sa kuch",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "gifts",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "something for my mom",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "what is the price of Tanishta ring?",
+   "expected": [
+    "product_info",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Evil Eye pendant ki price kya hai?",
+   "expected": [
+    "product_info",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "koi offer hai kya?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "What are current offers available?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "any discount on making charges",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "aaj kya discount hai?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "is there a sale going on",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "koi cashback milega?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Diwali offers",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": false
+  },
+  {
+   "run": 0,
+   "text": "aaj ka gold rate kya hai?",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "today's gold rate",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "22kt ka bhav batao",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "gold price today in Mumbai",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "mera order kahan hai?",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "track my order",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "when will my order arrive",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "order kab tak milega",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "order status",
+   "expected": [
+    "order_status",
+    "track_order"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "order confirm hua kya?",
+   "expected": [
+    "order_status"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "has my order shipped",
+   "expected": [
+    "order_status",
+    "track_order"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "return karna hai",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want to return my order",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "exchange karna hai",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Can I exchange it for another size?",
+   "expected": [
+    "returns_refund",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "my refund hasn't come",
+   "expected": [
+    "refund_status"
+   ],
+   "tags": [],
+   "intent": "refund_status",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "refund kab milega",
+   "expected": [
+    "refund_status"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "refund_status",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "product damage ho gaya",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I received a wrong item",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "the ring is broken",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "complaint darz karni hai",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "stone fell off my earring",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "talk to a human",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "agent se baat karni hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "customer care",
+   "expected": [
+    "human_handoff",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "custom ring banwana hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "order cancel karna hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want to modify my order",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "call me back",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "mujhe call karo",
+   "expected": [
+    "callback"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "please arrange a callback",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can someone call me tomorrow",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "video call schedule karna hai",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can you schedule a video call?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "video pe jewellery dikha sakte ho?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want a video consultation",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "What is kisna Jewellery?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "return policy kya hai",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "is your jewellery hallmarked?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "EMI available hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "How do I return the chain that I ordered?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "gold kaise maintain kare",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "buyback kitna milega",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "koi scheme hai kya? KMR vgera",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "do you ship internationally",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "how long does delivery take",
+   "expected": [
+    "general",
+    "track_order",
+    "product_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "what is 14KT vs 18KT",
+   "expected": [
+    "general",
+    "karat_comparison"
+   ],
+   "tags": [],
+   "intent": "karat_comparison",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "is lab grown diamond available",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "where is your head office",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "thank you",
+   "expected": [
+    "general",
+    "acknowledgement"
+   ],
+   "tags": [],
+   "intent": "acknowledgement",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "book me a flight to Delhi",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Talk to me in English",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "careers at kisna",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "is the gift card available",
+   "expected": [
+    "general",
+    "offers"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "What is the making charge on gold?",
+   "expected": [
+    "offers",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "offers",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "do you sell platinum",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "unsubscribe",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "mujhe message mat bhejo",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "remove my number",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "nahi ye nahi",
+   "expected": [
+    "repair",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "repair",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "galat hai",
+   "expected": [
+    "repair",
+    "general"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "repair",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "help",
+   "expected": [
+    "menu_help",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "menu_help",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "asdfghjkl",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "gold ring dikhao aur nearest store bhi batao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "do you have this ring in the Surat store?",
+   "expected": [
+    "store_info",
+    "product_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "visit karna hai Kolkata store",
+   "expected": [
+    "store_info",
+    "store_visit"
+   ],
+   "tags": [
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Kolkata",
+   "expected": [
+    "store_info",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "diamond earrings for daily wear",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "solitaire rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "gemstone pendants",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "bridal necklace set",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "engagement ring for her",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "chain for men 20k",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "bangles dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "light weight earrings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "nose pin",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "rose gold ring",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "office wear pendant",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "couple rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "is there any offer on diamond jewellery",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "coupon code",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": false
+  },
+  {
+   "run": 0,
+   "text": "where is my parcel",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "delivery status of my order",
+   "expected": [
+    "track_order",
+    "order_status"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I got a damaged product",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "connect me with an agent",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "phone karo mujhe",
+   "expected": [
+    "callback"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "video shopping available?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "BIS certified hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "how to clean diamond ring",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "insurance on jewellery?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "digital gold kaise kharide",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "do you have gold coins",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "stop",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "hello there",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "book a store visit",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want to visit your store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "store near me",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "nearest Kisna store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can I see this in store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "appointment at the showroom",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "dukaan kahan hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "store visit karna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I'd like to book an appointment to see diamond rings in person",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can I come to the showroom tomorrow?",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "schedule a visit to the nearest showroom",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "where is the nearest outlet",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "store pe aana hai kal",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "showroom visit book karo",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "paas mein koi Kisna store hai?",
+   "expected": [
+    "store_visit",
+    "store_info"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "मुझे आपके स्टोर पर आना है",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want to try the ring in store before buying",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "any store near me",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Can I pick it up from a store?",
+   "expected": [
+    "general",
+    "store_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "No specific visit",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want near by shop",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "do you have a store in Mumbai",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Mumbai me store hai kya",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "where is your store in Hyderabad",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "store address in Pune",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "is there a showroom in Jaipur",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "400001",
+   "expected": [
+    "store_info",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "what time does the Ahmedabad store open",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Patna mein Kisna showroom kahan hai",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Lucknow outlet timings",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "stores in Delhi",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "hi",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "namaste",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "good morning",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "kaise ho",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "menu",
+   "expected": [
+    "menu_help"
+   ],
+   "tags": [],
+   "intent": "menu_help",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "show me the options",
+   "expected": [
+    "menu_help"
+   ],
+   "tags": [],
+   "intent": "menu_help",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "show me diamond rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "gold necklace under 50k",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "diamond ring dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "mujhe jhumka dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "sone ki anguthi dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "earrings for my wife",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "mangalsutra designs",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "anniversary ke liye kuch accha dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "men's bracelet in gold",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "kids pendant",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "evil eye collection",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "ready to ship rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "heere ki bali 50k tak",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "do you have diamond rings?",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "gold",
+   "expected": [
+    "product_search",
+    "gold_rate",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "kuch dikhao",
+   "expected": [
+    "product_search",
+    "menu_help"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "1 lakh",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "accha sa kuch",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "gifts",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "something for my mom",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "what is the price of Tanishta ring?",
+   "expected": [
+    "product_info",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Evil Eye pendant ki price kya hai?",
+   "expected": [
+    "product_info",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "koi offer hai kya?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "What are current offers available?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "any discount on making charges",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "aaj kya discount hai?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "is there a sale going on",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "koi cashback milega?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Diwali offers",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": false
+  },
+  {
+   "run": 1,
+   "text": "aaj ka gold rate kya hai?",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "today's gold rate",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "22kt ka bhav batao",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "gold price today in Mumbai",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "mera order kahan hai?",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "track my order",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "when will my order arrive",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "order kab tak milega",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "order status",
+   "expected": [
+    "order_status",
+    "track_order"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "order confirm hua kya?",
+   "expected": [
+    "order_status"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "has my order shipped",
+   "expected": [
+    "order_status",
+    "track_order"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "return karna hai",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want to return my order",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "exchange karna hai",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Can I exchange it for another size?",
+   "expected": [
+    "returns_refund",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "my refund hasn't come",
+   "expected": [
+    "refund_status"
+   ],
+   "tags": [],
+   "intent": "refund_status",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "refund kab milega",
+   "expected": [
+    "refund_status"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "refund_status",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "product damage ho gaya",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I received a wrong item",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "the ring is broken",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "complaint darz karni hai",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "stone fell off my earring",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "talk to a human",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "agent se baat karni hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "customer care",
+   "expected": [
+    "human_handoff",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "custom ring banwana hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "order cancel karna hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want to modify my order",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "call me back",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "mujhe call karo",
+   "expected": [
+    "callback"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "please arrange a callback",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can someone call me tomorrow",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "video call schedule karna hai",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can you schedule a video call?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "video pe jewellery dikha sakte ho?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want a video consultation",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "What is kisna Jewellery?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "return policy kya hai",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "is your jewellery hallmarked?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "EMI available hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "How do I return the chain that I ordered?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "gold kaise maintain kare",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "buyback kitna milega",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "koi scheme hai kya? KMR vgera",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "do you ship internationally",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "how long does delivery take",
+   "expected": [
+    "general",
+    "track_order",
+    "product_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "what is 14KT vs 18KT",
+   "expected": [
+    "general",
+    "karat_comparison"
+   ],
+   "tags": [],
+   "intent": "karat_comparison",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "is lab grown diamond available",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "where is your head office",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "thank you",
+   "expected": [
+    "general",
+    "acknowledgement"
+   ],
+   "tags": [],
+   "intent": "acknowledgement",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "book me a flight to Delhi",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Talk to me in English",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "careers at kisna",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "is the gift card available",
+   "expected": [
+    "general",
+    "offers"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "What is the making charge on gold?",
+   "expected": [
+    "offers",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "offers",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "do you sell platinum",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "unsubscribe",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "mujhe message mat bhejo",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "remove my number",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "nahi ye nahi",
+   "expected": [
+    "repair",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "repair",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "galat hai",
+   "expected": [
+    "repair",
+    "general"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "repair",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "help",
+   "expected": [
+    "menu_help",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "menu_help",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "asdfghjkl",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "gold ring dikhao aur nearest store bhi batao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "do you have this ring in the Surat store?",
+   "expected": [
+    "store_info",
+    "product_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "visit karna hai Kolkata store",
+   "expected": [
+    "store_info",
+    "store_visit"
+   ],
+   "tags": [
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Kolkata",
+   "expected": [
+    "store_info",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "diamond earrings for daily wear",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "solitaire rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "gemstone pendants",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "bridal necklace set",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "engagement ring for her",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "chain for men 20k",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "bangles dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "light weight earrings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "nose pin",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "rose gold ring",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "office wear pendant",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "couple rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "is there any offer on diamond jewellery",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "coupon code",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": false
+  },
+  {
+   "run": 1,
+   "text": "where is my parcel",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "delivery status of my order",
+   "expected": [
+    "track_order",
+    "order_status"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I got a damaged product",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "connect me with an agent",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "phone karo mujhe",
+   "expected": [
+    "callback"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "video shopping available?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "BIS certified hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "how to clean diamond ring",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "insurance on jewellery?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "digital gold kaise kharide",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "do you have gold coins",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "stop",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "hello there",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "book a store visit",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want to visit your store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "store near me",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "nearest Kisna store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can I see this in store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "appointment at the showroom",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "dukaan kahan hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "store visit karna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I'd like to book an appointment to see diamond rings in person",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can I come to the showroom tomorrow?",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "schedule a visit to the nearest showroom",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "where is the nearest outlet",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "store pe aana hai kal",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "showroom visit book karo",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "paas mein koi Kisna store hai?",
+   "expected": [
+    "store_visit",
+    "store_info"
+   ],
+   "tags": [
+    "new_store_visit",
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "मुझे आपके स्टोर पर आना है",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want to try the ring in store before buying",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "any store near me",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Can I pick it up from a store?",
+   "expected": [
+    "general",
+    "store_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "No specific visit",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want near by shop",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "do you have a store in Mumbai",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Mumbai me store hai kya",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "where is your store in Hyderabad",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "store address in Pune",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "is there a showroom in Jaipur",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "400001",
+   "expected": [
+    "store_info",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "what time does the Ahmedabad store open",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Patna mein Kisna showroom kahan hai",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Lucknow outlet timings",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "stores in Delhi",
+   "expected": [
+    "store_info"
+   ],
+   "tags": [],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "hi",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "namaste",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "good morning",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "kaise ho",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "menu",
+   "expected": [
+    "menu_help"
+   ],
+   "tags": [],
+   "intent": "menu_help",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "show me the options",
+   "expected": [
+    "menu_help"
+   ],
+   "tags": [],
+   "intent": "menu_help",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "show me diamond rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "gold necklace under 50k",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "diamond ring dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "mujhe jhumka dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "sone ki anguthi dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "earrings for my wife",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "mangalsutra designs",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "anniversary ke liye kuch accha dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "men's bracelet in gold",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "kids pendant",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "evil eye collection",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "ready to ship rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "heere ki bali 50k tak",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "do you have diamond rings?",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "gold",
+   "expected": [
+    "product_search",
+    "gold_rate",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "kuch dikhao",
+   "expected": [
+    "product_search",
+    "menu_help"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "1 lakh",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "accha sa kuch",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "gifts",
+   "expected": [
+    "product_search",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "something for my mom",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "what is the price of Tanishta ring?",
+   "expected": [
+    "product_info",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Evil Eye pendant ki price kya hai?",
+   "expected": [
+    "product_info",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "product_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "koi offer hai kya?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "What are current offers available?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "any discount on making charges",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "aaj kya discount hai?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "is there a sale going on",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "koi cashback milega?",
+   "expected": [
+    "offers"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Diwali offers",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": false
+  },
+  {
+   "run": 2,
+   "text": "aaj ka gold rate kya hai?",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "today's gold rate",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "22kt ka bhav batao",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "gold price today in Mumbai",
+   "expected": [
+    "gold_rate"
+   ],
+   "tags": [],
+   "intent": "gold_rate",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "mera order kahan hai?",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "track my order",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "when will my order arrive",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "order kab tak milega",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "order status",
+   "expected": [
+    "order_status",
+    "track_order"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "order confirm hua kya?",
+   "expected": [
+    "order_status"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "has my order shipped",
+   "expected": [
+    "order_status",
+    "track_order"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "order_status",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "return karna hai",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want to return my order",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "exchange karna hai",
+   "expected": [
+    "returns_refund"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Can I exchange it for another size?",
+   "expected": [
+    "returns_refund",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "returns_refund",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "my refund hasn't come",
+   "expected": [
+    "refund_status"
+   ],
+   "tags": [],
+   "intent": "refund_status",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "refund kab milega",
+   "expected": [
+    "refund_status"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "refund_status",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "product damage ho gaya",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I received a wrong item",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "the ring is broken",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "complaint darz karni hai",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "stone fell off my earring",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "talk to a human",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "agent se baat karni hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "customer care",
+   "expected": [
+    "human_handoff",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "custom ring banwana hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "order cancel karna hai",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want to modify my order",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "call me back",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "mujhe call karo",
+   "expected": [
+    "callback"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "please arrange a callback",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can someone call me tomorrow",
+   "expected": [
+    "callback"
+   ],
+   "tags": [],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "video call schedule karna hai",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can you schedule a video call?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "video pe jewellery dikha sakte ho?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want a video consultation",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "What is kisna Jewellery?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "return policy kya hai",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "is your jewellery hallmarked?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "EMI available hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "How do I return the chain that I ordered?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "gold kaise maintain kare",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "buyback kitna milega",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "koi scheme hai kya? KMR vgera",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "do you ship internationally",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "how long does delivery take",
+   "expected": [
+    "general",
+    "track_order",
+    "product_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "what is 14KT vs 18KT",
+   "expected": [
+    "general",
+    "karat_comparison"
+   ],
+   "tags": [],
+   "intent": "karat_comparison",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "is lab grown diamond available",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "where is your head office",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "thank you",
+   "expected": [
+    "general",
+    "acknowledgement"
+   ],
+   "tags": [],
+   "intent": "acknowledgement",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "book me a flight to Delhi",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Talk to me in English",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "careers at kisna",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "is the gift card available",
+   "expected": [
+    "general",
+    "offers"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "What is the making charge on gold?",
+   "expected": [
+    "offers",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "offers",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "do you sell platinum",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "unsubscribe",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "mujhe message mat bhejo",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "remove my number",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "nahi ye nahi",
+   "expected": [
+    "repair",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "repair",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "galat hai",
+   "expected": [
+    "repair",
+    "general"
+   ],
+   "tags": [
+    "ambiguous",
+    "hinglish"
+   ],
+   "intent": "repair",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "help",
+   "expected": [
+    "menu_help",
+    "general"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "menu_help",
+   "source": "shortcut",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "asdfghjkl",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "gold ring dikhao aur nearest store bhi batao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "do you have this ring in the Surat store?",
+   "expected": [
+    "store_info",
+    "product_info"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "visit karna hai Kolkata store",
+   "expected": [
+    "store_info",
+    "store_visit"
+   ],
+   "tags": [
+    "hinglish",
+    "ambiguous"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Kolkata",
+   "expected": [
+    "store_info",
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "diamond earrings for daily wear",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "solitaire rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "gemstone pendants",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "bridal necklace set",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "engagement ring for her",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "chain for men 20k",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "bangles dikhao",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "light weight earrings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "nose pin",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "rose gold ring",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "office wear pendant",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "couple rings",
+   "expected": [
+    "product_search"
+   ],
+   "tags": [],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "is there any offer on diamond jewellery",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "offers",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "coupon code",
+   "expected": [
+    "offers"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": false
+  },
+  {
+   "run": 2,
+   "text": "where is my parcel",
+   "expected": [
+    "track_order"
+   ],
+   "tags": [],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "delivery status of my order",
+   "expected": [
+    "track_order",
+    "order_status"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "track_order",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I got a damaged product",
+   "expected": [
+    "complaint"
+   ],
+   "tags": [],
+   "intent": "complaint",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "connect me with an agent",
+   "expected": [
+    "human_handoff"
+   ],
+   "tags": [],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "phone karo mujhe",
+   "expected": [
+    "callback"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "callback",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "video shopping available?",
+   "expected": [
+    "video_call"
+   ],
+   "tags": [],
+   "intent": "video_call",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "BIS certified hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "how to clean diamond ring",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "insurance on jewellery?",
+   "expected": [
+    "general"
+   ],
+   "tags": [],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "digital gold kaise kharide",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "do you have gold coins",
+   "expected": [
+    "general",
+    "product_search"
+   ],
+   "tags": [
+    "ambiguous"
+   ],
+   "intent": "product_search",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "stop",
+   "expected": [
+    "unsubscribe"
+   ],
+   "tags": [],
+   "intent": "unsubscribe",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "hello there",
+   "expected": [
+    "greeting"
+   ],
+   "tags": [],
+   "intent": "greeting",
+   "source": "shortcut",
+   "ok": true
+  }
+ ]
+}

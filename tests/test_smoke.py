@@ -43,10 +43,7 @@ from kisna_chatbot.processors.product_details_agent import (
 )
 from kisna_chatbot.prompts.general_agent_kisna import build_general_agent_prompt
 from kisna_chatbot.processors.classifier import Classifier
-from kisna_chatbot.processors.ad_flow_agent import (
-    _filter_cached_stores,
-    _UNPARSEABLE_STORE_TEXT,
-)
+from kisna_chatbot.processors.ad_flow_agent import _filter_cached_stores
 from kisna_chatbot.processors.entity_extractor import (
     is_unrecognizable_input,
     normalize_category_for_api,
@@ -1036,15 +1033,18 @@ class StoreFlowTests(unittest.TestCase):
         result = _filter_cached_stores(cached, pincode="999999")
         self.assertEqual(result["stores"], [])
 
-    def test_find_store_menu_sets_awaiting_pincode(self):
+    def test_find_store_menu_offers_store_visit_without_pincode(self):
+        # Store visit (P4): "Find Store" sends the Store Visit form -- or,
+        # with no Flow id configured (as here), the locator link. It never
+        # asks for a pincode, so no pincode wait is armed.
         user_profile = {}
         data = {}
         _handle_menu_selection("Find Store", user_profile, data, "find_store")
-        self.assertTrue(user_profile["awaiting_store_pincode"])
-        self.assertEqual(user_profile["service_selected"], SL.AD_FLOW.value)
-
-    def test_unparseable_store_input_message_defined(self):
-        self.assertIn("6-digit pincode", _UNPARSEABLE_STORE_TEXT)
+        self.assertFalse(user_profile["awaiting_store_pincode"])
+        self.assertEqual(user_profile["service_selected"], "")
+        text = " ".join(r.get("text", "") for r in data["bot_response"])
+        self.assertIn("kisna.com/store", text)
+        self.assertNotIn("pincode", text.lower())
 
 
 class TrackOrderTests(unittest.TestCase):
