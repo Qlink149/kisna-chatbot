@@ -4,7 +4,7 @@ import httpx
 
 from kisna_chatbot.config.store_visit import FLOW_TOKEN_PREFIX, get_store_visit_flow_id
 from kisna_chatbot.processors.store_visit_flow import SCREEN_DETAILS, details_screen_data
-from kisna_chatbot.prompts.form_copy import STORE_VISIT_PREFORM
+from kisna_chatbot.prompts.form_copy import STORE_VISIT_PREFORM, fit_flow_body
 from kisna_chatbot.stores import cache as store_cache
 from kisna_chatbot.utils.env_load import gupshup_app_id, gupshup_token
 from kisna_chatbot.utils.logger_config import logger
@@ -56,7 +56,7 @@ def send_store_visit_flow(
         "interactive": {
             "type": "flow",
             "header": {"type": "text", "text": "Store Visit"},
-            "body": {"text": body_text or STORE_VISIT_PREFORM},
+            "body": {"text": fit_flow_body(body_text, STORE_VISIT_PREFORM)},
             "footer": {"text": "Kisna"},
             "action": {
                 "name": "flow",

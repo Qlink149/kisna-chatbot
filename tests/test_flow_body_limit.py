@@ -14,7 +14,7 @@ from kisna_chatbot.prompts.form_copy import FLOW_BODY_MAX_CHARS, fit_flow_body  
 
 class FitFlowBodyTests(unittest.TestCase):
     def test_every_english_copy_fits(self):
-        for name in ("COMPLAINT_PREFORM", "CALLBACK_PREFORM", "VIDEO_CALL_PREFORM", "HANDOFF_FALLBACK"):
+        for name in ("COMPLAINT_PREFORM", "CALLBACK_PREFORM", "VIDEO_CALL_PREFORM", "HANDOFF_FALLBACK", "STORE_VISIT_PREFORM"):
             self.assertLessEqual(len(getattr(form_copy, name)), FLOW_BODY_MAX_CHARS, name)
 
     def test_translation_within_limit_is_kept(self):

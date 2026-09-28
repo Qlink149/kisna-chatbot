@@ -671,6 +671,18 @@ class OfferTests(CacheFixture):
         self.assertEqual(params["flow_action_payload"]["data"]["first_name"], "Priya")
         self.assertEqual(params["flow_action_payload"]["data"]["phone"], "919812345678")
 
+    def test_sender_body_over_1024_chars_falls_back_to_english(self):
+        from kisna_chatbot.whatsapp_functions.flow import send_store_visit_flow as sender
+
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = {"ok": True}
+        with patch.dict(os.environ, {"KISNA_STORE_VISIT_FLOW_ID": "123"}), patch.object(
+            sender.httpx, "post", return_value=resp
+        ) as post:
+            sender.send_store_visit_flow("919812345678", "த" * 1100)
+        body = post.call_args.kwargs["json"]["interactive"]["body"]["text"]
+        self.assertEqual(body, form_copy.STORE_VISIT_PREFORM)
+
     def test_sender_returns_none_without_stores(self):
         from kisna_chatbot.whatsapp_functions.flow import send_store_visit_flow as sender
 
