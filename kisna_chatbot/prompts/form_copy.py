@@ -141,6 +141,31 @@ HANDOFF_FALLBACK = "\n".join(
 )
 
 
+# ------------------------------------------------------- Flow body length
+# WhatsApp caps an interactive message body (the Flow's pre-form text) at
+# 1,024 characters. The English copy is well under it; a translation can
+# grow. Over the limit, Gupshup rejects the send and the customer gets no
+# form, so the client's English copy is sent instead -- never a cut-off one.
+FLOW_BODY_MAX_CHARS = 1024
+
+
+def fit_flow_body(body_text: str | None, english: str) -> str:
+    """The (translated) body if it fits in a Flow message, else ``english``."""
+    text = (body_text or "").strip()
+    if not text:
+        return english
+    if len(text) <= FLOW_BODY_MAX_CHARS:
+        return text
+    from kisna_chatbot.utils.logger_config import logger
+
+    logger.warning(
+        "Flow body over %s chars after translation; sending the English copy",
+        FLOW_BODY_MAX_CHARS,
+        extra={"chars": len(text), "english_chars": len(english)},
+    )
+    return english
+
+
 # ------------------------------------------------------------ localisation
 def confirmation_pins(
     request_id: str, scheduled_for: str | None = None
