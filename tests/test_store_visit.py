@@ -278,6 +278,15 @@ class DataExchangeTests(CacheFixture):
             self.assertEqual(r["screen"], "SV_DETAILS")
             self.assertEqual(r["data"]["details_error"], err)
 
+    def test_phone_is_optional(self):
+        r = svf.build_store_visit_response(_req("details", **{**DETAILS, "phone": ""}), now=NOW)
+        self.assertEqual(r["screen"], "SV_STORE")
+        with open(os.path.join(ROOT, "json", "store_visit.json"), encoding="utf-8") as f:
+            flow = json.load(f)
+        fields = flow["screens"][0]["layout"]["children"][0]["children"]
+        phone = next(c for c in fields if c.get("name") == "phone")
+        self.assertFalse(phone["required"])
+
     def test_state_then_city_then_store(self):
         r = svf.build_store_visit_response(_req("state", "SV_STORE", state="Delhi", **DETAILS), now=NOW)
         self.assertEqual([o["id"] for o in r["data"]["cities"]], ["Delhi-NCR"])
@@ -553,6 +562,12 @@ class SubmissionTests(CacheFixture):
         self.assertIn("Scheduled for: 1 October 2026 · 10:30 AM", text)
         self.assertIn("Store: Karol Bagh - Delhi-NCR - Delhi, Ajmal Khan Road, Delhi-NCR 110005", text)
         self.assertEqual(out["bot_response"][0]["_compose"], "store_visit_confirmed")
+
+    def test_blank_phone_books_with_the_whatsapp_number(self):
+        _, col, enqueue = self._run(_submission(phone=""))
+        doc = col.insert_one.call_args[0][0]
+        self.assertEqual(doc["mobile"], "919812345678")
+        self.assertEqual(enqueue.call_args[0][0]["data"]["mobile"], "919812345678")
 
     def test_event_push_off_by_flag(self):
         _, col, enqueue = self._run(_submission(), events=False)

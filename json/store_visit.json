@@ -103,7 +103,8 @@
                 "type": "TextInput",
                 "name": "phone",
                 "label": "Phone number",
-                "required": true,
+                "required": false,
+                "helper-text": "Leave blank to use this WhatsApp number.",
                 "input-type": "phone"
               },
               {

@@ -36,7 +36,7 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 
 ERR_FIRST_NAME = "Please enter your first name."
 ERR_EMAIL = "Please enter a valid email address, or leave it blank."
-ERR_PHONE = "Please enter a valid 10-digit mobile number."
+ERR_PHONE = "Please enter a valid 10-digit mobile number, or leave it blank."
 ERR_LOOKING_FOR = "Please choose what you're looking for."
 ERR_NO_STORES = "Store booking isn't available right now. Please try again later."
 ERR_PICK_STORE = "Please choose a store."
@@ -190,8 +190,10 @@ def _validate_details(carried: dict) -> str:
         return ERR_FIRST_NAME
     if carried["email"] and not _EMAIL_RE.match(carried["email"]):
         return ERR_EMAIL
+    # Optional: blank means "use this WhatsApp number" (the submission falls
+    # back to it). A number that IS typed must look like one.
     digits = re.sub(r"\D", "", carried["phone"])
-    if not (10 <= len(digits) <= 13):
+    if digits and not (10 <= len(digits) <= 13):
         return ERR_PHONE
     if carried["looking_for"] not in dict(LOOKING_FOR_OPTIONS):
         return ERR_LOOKING_FOR

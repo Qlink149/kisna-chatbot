@@ -14,7 +14,8 @@
 | 1.2 | Look at First name | Prefilled with the WhatsApp profile name | ☐ |
 | 1.3 | Look at Phone number | Prefilled with the WhatsApp number (e.g. 91XXXXXXXXXX) | ☐ |
 | 1.4 | Leave Last name and Email empty; fill the rest; Next | Goes to screen 2 (both optional) | ☐ |
-| 1.5 | Clear Phone number, try Next | Blocked: phone is required. The spec says phone can be left empty; it is required in this build. See note A | ☐ |
+| 1.5 | Clear Phone number, Next | Goes to screen 2 (optional). After submit, the dashboard row's mobile is the WhatsApp number | ☐ |
+| 1.5b | Phone `12345`; Next | Rejected: "Please enter a valid 10-digit mobile number, or leave it blank." | ☐ |
 | 1.6 | Email `abc@`; Next | Rejected, either by WhatsApp's email field or by "Please enter a valid email address, or leave it blank." | ☐ |
 | 1.7 | Leave "What are you looking for?" unselected; Next | Blocked: field is required | ☐ |
 | 1.8 | "What are you looking for?" options | Diamond Jewellery, Gold Jewellery, Solitaires, Engagement & Bridal, Gemstone Jewellery, Other | ☐ |
@@ -48,7 +49,7 @@
 | 5.1 | New test user: send "मुझे आपके स्टोर पर आना है" | Form arrives; body is the pre-form text in Hindi | ☐ |
 | 5.2 | Complete the form and submit | Confirmation in Hindi. Request ID, store name, store address, "1 October 2026" and "11:00 AM" appear **unchanged** (not translated or transliterated) | ☐ |
 
-**Note A (phone field).** The spec lists phone as prefilled and as optional in the empty-fields row. The build makes it required, so every booking has a callable number. If you want it optional, it's one line in `json/store_visit.json`; the booking then falls back to the WhatsApp number.
+**Note A (phone field).** Phone is prefilled and optional. Left blank, the booking uses the WhatsApp number.
 
 **Note B (Salesforce).** With the flag off, nothing is written to the outbox, so the event is not queued. If you want it queued but held until the flag is turned on, that needs a small outbox change (a `held` status). Not done yet; say if you want it.
 
