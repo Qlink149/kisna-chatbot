@@ -144,6 +144,29 @@ def _retry_items(text: str, user_profile: dict, data: dict) -> list[dict]:
     return items + (flow or offer)
 
 
+def store_visit_event_from_doc(doc: dict) -> dict:
+    """The store_visit_requested payload for a saved booking. Used at booking
+    time and by scripts/backfill_store_visit_events.py, so both send the same
+    thing. event_id == request_id: the outbox is idempotent on it."""
+    return build_store_visit_event(
+        request_id=doc["request_id"],
+        client_id=doc.get("client_id") or "kisna",
+        phone_number=doc.get("phone_number", ""),
+        customer_name=f"{doc.get('first_name', '')} {doc.get('last_name', '')}".strip(),
+        first_name=doc.get("first_name", ""),
+        last_name=doc.get("last_name", ""),
+        email=doc.get("email", ""),
+        mobile=doc.get("mobile", ""),
+        looking_for=doc.get("looking_for", ""),
+        looking_for_label=doc.get("looking_for_label", ""),
+        store=doc.get("store") or {},
+        preferred_date=doc.get("preferred_date", ""),
+        preferred_time=doc.get("preferred_time", ""),
+        preferred_time_label=doc.get("preferred_time_label", ""),
+        occurred_at_epoch=doc.get("created_at"),
+    )
+
+
 def store_snapshot(store: dict) -> dict:
     return {
         k: store.get(k, "")
@@ -238,25 +261,7 @@ class StoreVisitAgent(Processor):
         doc.pop("_id", None)
 
         if store_visit_events_enabled():
-            await enqueue_clara_event(
-                build_store_visit_event(
-                    request_id=doc["request_id"],
-                    client_id=client_id,
-                    phone_number=phone_number,
-                    customer_name=f"{first_name} {doc['last_name']}".strip(),
-                    first_name=first_name,
-                    last_name=doc["last_name"],
-                    email=doc["email"],
-                    mobile=mobile,
-                    looking_for=looking_for,
-                    looking_for_label=doc["looking_for_label"],
-                    store=doc["store"],
-                    preferred_date=preferred_date,
-                    preferred_time=preferred_time,
-                    preferred_time_label=doc["preferred_time_label"],
-                    occurred_at_epoch=now,
-                )
-            )
+            await enqueue_clara_event(store_visit_event_from_doc(doc))
 
         logger.info(
             "Store visit booked",

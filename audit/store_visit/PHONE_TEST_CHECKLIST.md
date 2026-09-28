@@ -51,7 +51,7 @@
 
 **Note A (phone field).** Phone is prefilled and optional. Left blank, the booking uses the WhatsApp number.
 
-**Note B (Salesforce).** With the flag off, nothing is written to the outbox, so the event is not queued. If you want it queued but held until the flag is turned on, that needs a small outbox change (a `held` status). Not done yet; say if you want it.
+**Note B (Salesforce).** With the flag off, nothing is written to the outbox. When the push is turned on, send the bookings made in the meantime with `python scripts/backfill_store_visit_events.py --dry-run` (lists them), then without `--dry-run`. It's idempotent on request ID.
 
 **Preview prerequisites (interactive mode)**
 1. A host running `feat/store-visit` whose `/whatsapp/flows/data-exchange` is reachable. Prod runs code without the store-visit screens, so prod can't serve this preview.
