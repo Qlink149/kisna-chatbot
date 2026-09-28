@@ -1,7 +1,7 @@
 import httpx
 
 from kisna_chatbot.config.gupshup import get_damage_complaint_flow_id
-from kisna_chatbot.prompts.form_copy import COMPLAINT_PREFORM
+from kisna_chatbot.prompts.form_copy import COMPLAINT_PREFORM, fit_flow_body
 from kisna_chatbot.utils.env_load import (
     gupshup_app_id,
     gupshup_token
@@ -30,7 +30,7 @@ def send_damage_complaint_flow(phone_number: str, body_text: str | None = None):
         "interactive": {
             "type": "flow",
             "header": {"type": "text", "text": "Raise a complaint"},
-            "body": {"text": body_text or COMPLAINT_PREFORM},
+            "body": {"text": fit_flow_body(body_text, COMPLAINT_PREFORM)},
             "footer": {"text": "Kisna"},
             "action": {
                 "name": "flow",
