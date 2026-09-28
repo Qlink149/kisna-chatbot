@@ -69,7 +69,7 @@ class CallbackFallbackSweepTests(unittest.TestCase):
             hs, "compose", new_callable=AsyncMock, side_effect=lambda key, text, **k: text
         ), patch.object(
             # These cases test episode logic, not the working-hours gate.
-            hs, "_working_delay_elapsed", return_value=True
+            hs, "_fallback_kind", return_value=hs.FALLBACK
         ), patch.object(
             hs, "send_text_message_with_retry"
         ) as send_text, patch.object(
@@ -86,8 +86,9 @@ class CallbackFallbackSweepTests(unittest.TestCase):
     def test_pending_handoff_gets_callback_fallback(self):
         sent, send_text, send_flow, armed = self._sweep([_handoff_profile()])
         self.assertEqual(sent, 1)
-        send_text.assert_called_once()
-        send_flow.assert_called_once_with("919812345678")
+        # ONE message: the callback form with the fallback text as its body.
+        send_flow.assert_called_once_with("919812345678", hs._FALLBACK_TEXT)
+        send_text.assert_not_called()
         # Idempotency filter: marker absent, or older than THIS episode's request.
         filter_arg = armed.call_args[0][0]
         self.assertEqual(
@@ -162,21 +163,22 @@ class EpisodeEligibilityTests(unittest.TestCase):
             hs, "compose", new_callable=AsyncMock, side_effect=lambda key, text, **k: text
         ), patch.object(
             # These cases test episode logic, not the working-hours gate.
-            hs, "_working_delay_elapsed", return_value=True
+            hs, "_fallback_kind", return_value=hs.FALLBACK
         ), patch.object(
             hs, "send_text_message_with_retry"
-        ) as send_text, patch.object(
+        ), patch.object(
             hs, "send_callback_request_flow"
-        ), patch.object(hs, "save_agent_message"):
+        ) as delivered, patch.object(hs, "save_agent_message"):
             sent = asyncio.run(hs._sweep_callback_fallback(25))
-        return sent, send_text, armed
+        # The single delivered message is the callback form (text as its body).
+        return sent, delivered, armed
 
     def test_episode1_fires_and_arms(self):
-        sent, send_text, armed = self._run(
+        sent, delivered, armed = self._run(
             _handoff_profile(live_agent_requested_at=self.T)
         )
         self.assertEqual(sent, 1)
-        send_text.assert_called_once()
+        delivered.assert_called_once()
         self.assertEqual(armed.call_args[0][1], {"$set": {"handoff_callback_sent_at": ANY}})
 
     def test_episode2_same_user_fires_again(self):
@@ -187,9 +189,9 @@ class EpisodeEligibilityTests(unittest.TestCase):
             handoff_callback_sent_at=self.T + 300,
         )
         self.assertTrue(hs._eligible_for_fallback(profile))
-        sent, send_text, armed = self._run(profile)
+        sent, delivered, armed = self._run(profile)
         self.assertEqual(sent, 1)
-        send_text.assert_called_once()
+        delivered.assert_called_once()
         self.assertIn(
             {"handoff_callback_sent_at": {"$lt": self.T + 3600}},
             armed.call_args[0][0]["$or"],
@@ -201,16 +203,16 @@ class EpisodeEligibilityTests(unittest.TestCase):
             handoff_callback_sent_at=self.T + 300,
         )
         self.assertFalse(hs._eligible_for_fallback(profile))
-        sent, send_text, armed = self._run(profile)
+        sent, delivered, armed = self._run(profile)
         self.assertEqual(sent, 0)
-        send_text.assert_not_called()
+        delivered.assert_not_called()
         armed.assert_not_called()
 
     def test_stale_marker_without_request_not_eligible(self):
         profile = _handoff_profile(handoff_callback_sent_at=self.T)
         profile.pop("live_agent_requested_at")
         self.assertFalse(hs._eligible_for_fallback(profile))
-        sent, send_text, armed = self._run(profile)
+        sent, delivered, armed = self._run(profile)
         self.assertEqual(sent, 0)
         armed.assert_not_called()
 

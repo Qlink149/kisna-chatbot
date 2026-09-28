@@ -206,7 +206,7 @@ class TestCallbackAgent(unittest.TestCase):
         self.assertEqual(saved["preferred_time"], "13-15")
         text = result["bot_response"][0]["text"].lower()
         self.assertIn("full", text)
-        self.assertTrue("13-15" in text or "1 pm" in text)
+        self.assertIn("1:00 pm–3:00 pm", text)  # client format, rebooked slot
         mock_notify.assert_called()
 
     @patch("kisna_chatbot.processors.callback_agent.callback_requests")

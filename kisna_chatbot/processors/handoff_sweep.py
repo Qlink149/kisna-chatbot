@@ -26,10 +26,14 @@ from datetime import datetime, timezone
 
 from kisna_chatbot.database.collections import callback_requests, users
 from kisna_chatbot.database.db_utils import _user_filter, save_agent_message, set_takeover
-from kisna_chatbot.prompts.form_copy import HANDOFF_FALLBACK
+from kisna_chatbot.prompts.form_copy import CALLBACK_PREFORM, HANDOFF_FALLBACK
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.reply_composer import compose, normalize_language
-from kisna_chatbot.utils.support_hours import working_seconds_between
+from kisna_chatbot.utils.support_hours import (
+    close_of_working_day,
+    start_of_day_ist,
+    working_seconds_between,
+)
 from kisna_chatbot.whatsapp_functions.flow.send_callback_request_flow import (
     send_callback_request_flow,
 )
@@ -44,6 +48,7 @@ _DEFAULT_BATCH_LIMIT = 25
 # The client's fallback copy (P3): apology, high-volume line, then the form.
 _FALLBACK_TEXT = HANDOFF_FALLBACK
 _FALLBACK_TEMPLATE_KEY = "handoff_fallback"
+_AT_CLOSE_TEMPLATE_KEY = "handoff_at_close"
 
 
 # --------------------------------------------------------------------------
@@ -105,21 +110,38 @@ def _eligible_for_fallback(user_profile: dict) -> bool:
         return False
 
 
-def _working_delay_elapsed(requested_at: int, now: int, delay: int) -> bool:
-    """The working-hours gate (P3 5.2): the fallback fires only once ``delay``
-    seconds of WORKING time (Mon–Fri 10:00–18:30, Sat 10:00–16:00 IST, not
-    Sunday, not a holiday) have passed since the request.
+FALLBACK = "fallback"  # 5 working minutes passed: apology + high-volume text
+AT_CLOSE = "at_close"  # desk closed first: after-hours callback form, no apology
 
-    So a request at 18:28 on a weekday has 2 working minutes by 18:33 and does
-    not fire; it fires once 3 more working minutes accrue -- 10:03 on the next
-    working day. A request at 09:58 fires at 10:05 (the clock starts at
-    10:00), not at 10:03. A handoff made outside hours already gave the
-    customer the callback form (support_handler) and never sets
-    live_agent_required, so the sweep does not see it at all.
+
+def _fallback_kind(requested_at: int, now: int, delay: int) -> str | None:
+    """Which fallback, if any, is due for an unanswered handoff (P3 5.2).
+
+    Fires at ``delay`` WORKING seconds after the request, or at the close of
+    working hours if the request is still unanswered then -- whichever comes
+    first -- and never on a later day:
+
+    * 18:25 request -> FALLBACK at 18:30 (5 working minutes, before close).
+    * 18:28 request -> AT_CLOSE at 18:30 (the desk closes before 5 minutes
+      accrue); nothing the next morning.
+    * 09:58 request -> FALLBACK at 10:05 (the clock starts at 10:00).
+    * Checked on a later IST day than the request -> None, always.
+
+    A handoff made outside hours already got the callback form (support_
+    handler) and never sets live_agent_required, so it is never a candidate.
     """
-    start = datetime.fromtimestamp(int(requested_at), tz=timezone.utc)
-    end = datetime.fromtimestamp(int(now), tz=timezone.utc)
-    return working_seconds_between(start, end) >= delay
+    req = datetime.fromtimestamp(int(requested_at), tz=timezone.utc)
+    cur = datetime.fromtimestamp(int(now), tz=timezone.utc)
+    if start_of_day_ist(cur) != start_of_day_ist(req):
+        return None
+    close = close_of_working_day(req)
+    if close is None:
+        return None
+    if working_seconds_between(req, min(cur, close)) >= delay:
+        return FALLBACK
+    if cur >= close:
+        return AT_CLOSE
+    return None
 
 
 def _has_pending_callback(phone: str, client_id: str) -> bool:
@@ -137,9 +159,9 @@ async def _process_one_handoff(user_profile: dict, now: int) -> bool:
     if not phone or not _eligible_for_fallback(user_profile):
         return False
     requested_at = user_profile["live_agent_requested_at"]
-    if not _working_delay_elapsed(requested_at, now, _callback_delay_seconds()):
-        # Not enough WORKING time yet -- leave the marker unarmed so a later
-        # sweep can fire once the desk has been open for the full delay.
+    kind = _fallback_kind(requested_at, now, _callback_delay_seconds())
+    if kind is None:
+        # Not due yet (or the day is over) -- leave the marker unarmed.
         return False
 
     # At-most-once per episode: arm the marker atomically BEFORE sending. The
@@ -166,46 +188,60 @@ async def _process_one_handoff(user_profile: dict, now: int) -> bool:
         # for this handoff episode.
         return False
 
-    # Sent straight to Gupshup from this background sweep, never through the
-    # bot_response / localize_bot_responses pipeline -- so it is localised
-    # here the same way as the drop-off message: verbatim in English, a
-    # faithful compose() translation otherwise, English on any failure.
+    # ONE message: the callback form, with the text as its Flow body --
+    # FALLBACK: the client's apology + high-volume text; AT_CLOSE: the
+    # after-hours pre-form text, no apology. Sent straight to Gupshup from
+    # this background sweep, so it is localised here like the drop-off
+    # message: verbatim in English, faithful compose() otherwise, English on
+    # any failure.
+    source, key = (
+        (_FALLBACK_TEXT, _FALLBACK_TEMPLATE_KEY)
+        if kind == FALLBACK
+        else (CALLBACK_PREFORM, _AT_CLOSE_TEMPLATE_KEY)
+    )
     language = normalize_language(user_profile.get("language") or "en")
-    text = _FALLBACK_TEXT
+    text = source
     if language != "en":
         text = (
             await compose(
-                _FALLBACK_TEMPLATE_KEY,
-                _FALLBACK_TEXT,
-                language=language,
-                phone_number=phone,
-                client_id=client_id,
+                key, source, language=language, phone_number=phone, client_id=client_id
             )
-            or _FALLBACK_TEXT
+            or source
         )
 
-    await asyncio.to_thread(
-        send_text_message_with_retry, phone, {"type": "text", "text": text}
-    )
+    sent_as_form = None
     try:
-        await asyncio.to_thread(send_callback_request_flow, phone)
+        sent_as_form = await asyncio.to_thread(send_callback_request_flow, phone, text)
     except Exception:
         logger.exception(
             "handoff-fallback callback flow send failed",
             extra={"phone_number": phone},
+        )
+    if sent_as_form is None:
+        # No Flow configured or the Flow send failed: the words must still
+        # reach the customer, so send them as plain text.
+        await asyncio.to_thread(
+            send_text_message_with_retry, phone, {"type": "text", "text": text}
         )
     try:
         await asyncio.to_thread(save_agent_message, phone, text, client_id)
     except Exception:
         logger.warning("handoff-fallback chat_history log skipped", exc_info=True)
 
-    logger.info("handoff-fallback callback sent", extra={"phone_number": phone})
+    logger.info(
+        "handoff-fallback callback sent",
+        extra={"phone_number": phone, "kind": kind, "as_form": sent_as_form is not None},
+    )
     return True
 
 
 async def _sweep_callback_fallback(limit: int) -> int:
     now = int(time.time())
-    delay = _callback_delay_seconds()
+    # Only today's requests (IST): a fallback never fires on a later day, and
+    # bounding the query keeps older unanswered handoffs from filling the
+    # batch. No lower delay bound -- an 18:28 request is due at 18:30 (close),
+    # before 5 minutes pass; _fallback_kind decides.
+    today_start = int(start_of_day_ist(datetime.fromtimestamp(now, tz=timezone.utc)).timestamp())
     try:
         candidates = list(
             users.find(
@@ -213,8 +249,8 @@ async def _sweep_callback_fallback(limit: int) -> int:
                     "client_id": _DEFAULT_CLIENT_ID,
                     "live_agent_required": True,
                     "live_agent_requested_at": {
-                        "$lte": now - delay,
-                        "$gte": now - _MAX_AGE_SECONDS,
+                        "$lte": now,
+                        "$gte": max(today_start, now - _MAX_AGE_SECONDS),
                     },
                     "human_takeover.active": {"$ne": True},
                     **_MARKER_FROM_EARLIER_EPISODE,

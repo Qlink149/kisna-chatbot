@@ -13,7 +13,11 @@ from kisna_chatbot.integrations.clara_events import (
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.utils.logger_config import logger
-from kisna_chatbot.prompts.form_copy import callback_confirmation, confirmation_pins
+from kisna_chatbot.prompts.form_copy import (
+    callback_confirmation,
+    confirmation_pins,
+    format_scheduled_for,
+)
 from kisna_chatbot.utils.request_ids import generate_request_id
 from kisna_chatbot.utils.support_slots import (
     SLOT_LABELS,
@@ -229,12 +233,13 @@ def _build_confirmation(
     now: datetime | None = None,
 ) -> list[dict]:
     """The client's confirmation -- the working-hours or offline variant,
-    chosen at submission time (form_copy.callback_confirmation). The
-    "{date} · {slot}" line is built exactly as before. Tagged for faithful
-    translation with the ID, date, slot and brand pinned."""
-    slot_label = _display_time(preferred_time) if preferred_time else preferred_time
+    chosen at submission time (form_copy.callback_confirmation). "Scheduled
+    for" is in the client's format ("29 September 2026 · 10:00 AM–1:00 PM").
+    Tagged for faithful translation with the ID, date, slot and brand pinned."""
     scheduled_for = (
-        f"{preferred_date} · {slot_label}" if preferred_date and preferred_time else ""
+        format_scheduled_for(preferred_date, preferred_time)
+        if preferred_date and preferred_time
+        else ""
     )
     text = callback_confirmation(
         request_id,

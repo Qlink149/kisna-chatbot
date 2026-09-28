@@ -54,7 +54,7 @@ SAT = date(2026, 10, 3)
 SUN = date(2026, 10, 4)
 HOLIDAY = date(2026, 10, 2)  # Gandhi Jayanti (a Friday)
 ID = "KIS-CB-20260928-A1B2"
-SLOT = "2026-09-29 · Morning — 10 AM–1 PM"
+SLOT = "29 September 2026 · 10:00 AM–1:00 PM"
 
 
 def at(d: date, h: int, m: int = 0) -> datetime:
@@ -123,6 +123,20 @@ class ClientCopyVerbatimTests(unittest.TestCase):
                     form_copy.callback_confirmation(ID, kind, scheduled_for=SLOT, now=now),
                     expected,
                 )
+
+    def test_scheduled_for_uses_the_client_format(self):
+        self.assertEqual(form_copy.format_scheduled_for("2026-09-29", "10-13"),
+                         "29 September 2026 · 10:00 AM–1:00 PM")
+        self.assertEqual(form_copy.format_scheduled_for("2026-10-05", "13-15"),
+                         "5 October 2026 · 1:00 PM–3:00 PM")
+        self.assertEqual(form_copy.format_scheduled_for("2026-10-03", "10-16"),
+                         "3 October 2026 · 10:00 AM–4:00 PM")
+        self.assertEqual(form_copy.format_scheduled_for("2026-09-29", "morning"),
+                         "29 September 2026 · 10:00 AM–1:00 PM")  # legacy id
+        (item,) = cba._build_confirmation(ID, "callback", preferred_date="2026-09-29",
+                                          preferred_time="15-18", now=at(MON, 11))
+        self.assertIn("Scheduled for: 29 September 2026 · 3:00 PM–6:00 PM\n", item["text"])
+        self.assertNotIn("Evening", item["text"])
 
     def test_handoff_fallback_text(self):
         self.assertEqual(
@@ -202,64 +216,111 @@ class FallbackGateTests(unittest.TestCase):
     def _epoch(self, dt: datetime) -> int:
         return int(dt.timestamp())
 
-    def test_request_at_1828_does_not_fire_at_1833(self):
-        self.assertEqual(working_seconds_between(at(MON, 18, 28), at(MON, 18, 33)), 120)
-        self.assertFalse(hs._working_delay_elapsed(self._epoch(at(MON, 18, 28)), self._epoch(at(MON, 18, 33)), 300))
+    def kind(self, req: datetime, now: datetime):
+        return hs._fallback_kind(self._epoch(req), self._epoch(now), 300)
 
     def test_request_at_0958_fires_at_1005_not_1003(self):
-        self.assertFalse(hs._working_delay_elapsed(self._epoch(at(MON, 9, 58)), self._epoch(at(MON, 10, 3)), 300))
-        self.assertTrue(hs._working_delay_elapsed(self._epoch(at(MON, 9, 58)), self._epoch(at(MON, 10, 5)), 300))
+        self.assertIsNone(self.kind(at(MON, 9, 58), at(MON, 10, 3)))
+        self.assertEqual(self.kind(at(MON, 9, 58), at(MON, 10, 5)), hs.FALLBACK)
 
-    def test_evening_request_fires_next_working_morning(self):
+    def test_five_working_minutes_before_close_is_the_fallback(self):
+        self.assertIsNone(self.kind(at(MON, 12, 0), at(MON, 12, 4)))
+        self.assertEqual(self.kind(at(MON, 12, 0), at(MON, 12, 5)), hs.FALLBACK)
+        self.assertEqual(self.kind(at(MON, 18, 25), at(MON, 18, 30)), hs.FALLBACK)
+
+    def test_request_at_1828_gets_the_at_close_form_at_1830_and_nothing_next_morning(self):
         tue = MON + timedelta(days=1)
-        self.assertTrue(hs._working_delay_elapsed(self._epoch(at(MON, 18, 28)), self._epoch(at(tue, 10, 3)), 300))
+        self.assertEqual(working_seconds_between(at(MON, 18, 28), at(MON, 18, 33)), 120)
+        self.assertIsNone(self.kind(at(MON, 18, 28), at(MON, 18, 29)))
+        self.assertEqual(self.kind(at(MON, 18, 28), at(MON, 18, 30)), hs.AT_CLOSE)
+        self.assertIsNone(self.kind(at(MON, 18, 28), at(tue, 10, 3)))
+        self.assertIsNone(self.kind(at(MON, 18, 28), at(tue, 18, 30)))
+
+    def test_saturday_close_is_1600(self):
+        self.assertEqual(self.kind(at(SAT, 15, 58), at(SAT, 16, 0)), hs.AT_CLOSE)
+
+    def test_never_fires_on_a_later_day_even_when_long_overdue(self):
+        tue = MON + timedelta(days=1)
+        self.assertIsNone(self.kind(at(MON, 12, 0), at(tue, 12, 0)))
 
     def test_sunday_and_holiday_accrue_nothing(self):
         self.assertEqual(working_seconds_between(at(SUN, 10), at(SUN, 18)), 0)
         self.assertEqual(working_seconds_between(at(HOLIDAY, 10), at(HOLIDAY, 18)), 0)
+        self.assertIsNone(self.kind(at(SUN, 12), at(SUN, 19)))
 
-    def test_sweep_leaves_marker_unarmed_until_working_delay_passes(self):
+    def test_candidate_query_is_bounded_to_today_ist(self):
+        find = MagicMock()
+        find.sort.return_value.limit.return_value = []
+        now = at(MON, 18, 30)
+        with patch.object(hs.time, "time", return_value=now.timestamp()), patch.object(
+            hs.users, "find", return_value=find
+        ) as find_mock:
+            asyncio.run(hs._sweep_callback_fallback(25))
+        bounds = find_mock.call_args[0][0]["live_agent_requested_at"]
+        self.assertEqual(bounds["$gte"], self._epoch(at(MON, 0, 0)))
+        self.assertEqual(bounds["$lte"], self._epoch(now))
+
+    def _deliver(self, requested: datetime, now: datetime, language="en", compose_result=""):
         profile = {
-            "phone_number": "919812345678", "client_id": "kisna", "language": "en",
-            "live_agent_required": True,
-            "live_agent_requested_at": self._epoch(at(MON, 18, 28)),
+            "phone_number": "919812345678", "client_id": "kisna", "language": language,
+            "live_agent_required": True, "live_agent_requested_at": self._epoch(requested),
         }
-        with patch.object(hs.users, "find_one_and_update") as armed, patch.object(
-            hs, "send_text_message_with_retry"
-        ) as send:
-            fired = asyncio.run(hs._process_one_handoff(profile, self._epoch(at(MON, 18, 33))))
+        with patch.object(
+            hs.users, "find_one_and_update", return_value={"phone_number": "919812345678"}
+        ) as armed, patch.object(hs.callback_requests, "find_one", return_value=None), patch.object(
+            hs, "compose", new_callable=AsyncMock, return_value=compose_result
+        ) as comp, patch.object(hs, "send_text_message_with_retry") as text, patch.object(
+            hs, "send_callback_request_flow", return_value={"ok": True}
+        ) as form, patch.object(hs, "save_agent_message"):
+            fired = asyncio.run(hs._process_one_handoff(profile, self._epoch(now)))
+        return fired, armed, comp, text, form
+
+    def test_1828_unanswered_sends_the_after_hours_form_at_1830_as_one_message(self):
+        fired, armed, _, text, form = self._deliver(at(MON, 18, 28), at(MON, 18, 30))
+        self.assertTrue(fired)
+        armed.assert_called_once()
+        form.assert_called_once_with("919812345678", form_copy.CALLBACK_PREFORM)
+        self.assertNotIn("Apologies", form.call_args[0][1])
+        text.assert_not_called()
+        # ...and nothing the next morning.
+        tue = MON + timedelta(days=1)
+        fired, armed, _, text, form = self._deliver(at(MON, 18, 28), at(tue, 10, 3))
         self.assertFalse(fired)
         armed.assert_not_called()
-        send.assert_not_called()
+        form.assert_not_called()
+        text.assert_not_called()
 
-    def test_fallback_is_english_verbatim_and_translated_faithfully(self):
-        def run(language, compose_result):
-            profile = {
-                "phone_number": "919812345678", "client_id": "kisna", "language": language,
-                "live_agent_required": True, "live_agent_requested_at": 1,
-            }
-            with patch.object(hs, "_working_delay_elapsed", return_value=True), patch.object(
-                hs.users, "find_one_and_update", return_value={"phone_number": "919812345678"}
-            ), patch.object(hs.callback_requests, "find_one", return_value=None), patch.object(
-                hs, "compose", new_callable=AsyncMock, return_value=compose_result
-            ) as comp, patch.object(hs, "send_text_message_with_retry") as send, patch.object(
-                hs, "send_callback_request_flow"
-            ) as flow, patch.object(hs, "save_agent_message"):
-                asyncio.run(hs._process_one_handoff(profile, 1000))
-            return comp, send.call_args[0][1]["text"], flow
-
-        comp, sent, flow = run("en", "IGNORED")
+    def test_fallback_is_one_form_message_with_the_fallback_text_as_body(self):
+        fired, _, comp, text, form = self._deliver(at(MON, 12, 0), at(MON, 12, 5))
+        self.assertTrue(fired)
         comp.assert_not_awaited()
-        self.assertEqual(sent, form_copy.HANDOFF_FALLBACK)
-        flow.assert_called_once()
+        form.assert_called_once_with("919812345678", form_copy.HANDOFF_FALLBACK)
+        text.assert_not_called()
 
-        comp, sent, _ = run("hi", "अनुवाद")
+    def test_fallback_translated_faithfully_and_english_on_failure(self):
+        _, _, comp, _, form = self._deliver(at(MON, 12, 0), at(MON, 12, 5), "hi", "अनुवाद")
         self.assertEqual(comp.await_args.kwargs["language"], "hi")
         self.assertEqual(comp.await_args.args[0], "handoff_fallback")
-        self.assertEqual(sent, "अनुवाद")
+        self.assertEqual(form.call_args[0][1], "अनुवाद")
+        _, _, comp, _, form = self._deliver(at(MON, 18, 28), at(MON, 18, 30), "hi", "अनुवाद")
+        self.assertEqual(comp.await_args.args[0], "handoff_at_close")
+        _, _, _, _, form = self._deliver(at(MON, 12, 0), at(MON, 12, 5), "ta", "")
+        self.assertEqual(form.call_args[0][1], form_copy.HANDOFF_FALLBACK)
 
-        comp, sent, _ = run("ta", "")  # translation failure -> English
-        self.assertEqual(sent, form_copy.HANDOFF_FALLBACK)
+    def test_no_flow_configured_falls_back_to_plain_text(self):
+        profile = {
+            "phone_number": "919812345678", "client_id": "kisna", "language": "en",
+            "live_agent_required": True, "live_agent_requested_at": self._epoch(at(MON, 12, 0)),
+        }
+        with patch.object(
+            hs.users, "find_one_and_update", return_value={"phone_number": "919812345678"}
+        ), patch.object(hs.callback_requests, "find_one", return_value=None), patch.object(
+            hs, "send_text_message_with_retry"
+        ) as text, patch.object(hs, "send_callback_request_flow", return_value=None), patch.object(
+            hs, "save_agent_message"
+        ):
+            asyncio.run(hs._process_one_handoff(profile, self._epoch(at(MON, 12, 5))))
+        self.assertEqual(text.call_args[0][1]["text"], form_copy.HANDOFF_FALLBACK)
 
 
 # ------------------------------------------------------ routing (Part 7)
@@ -322,7 +383,7 @@ class LocalisationPinsTests(unittest.TestCase):
                                           preferred_time="10-13", now=at(MON, 11))
         out, comp = self._localize(item)
         self.assertTrue(out["text"].startswith("MARKER"))
-        for token in (ID, "2026-09-29", "Morning — 10 AM–1 PM", "Kisna Diamond & Gold"):
+        for token in (ID, "29 September 2026", "10:00 AM–1:00 PM", "Kisna Diamond & Gold"):
             self.assertIn(token, out["text"])
         self.assertNotIn("_pin", out)
         self.assertEqual(comp.call_args.kwargs["language"], "hi")

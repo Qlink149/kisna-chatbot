@@ -43,6 +43,38 @@ def complaint_confirmation(request_id: str) -> str:
     )
 
 
+def _clock(hour: int) -> str:
+    """13 -> "1:00 PM", 10 -> "10:00 AM", 12 -> "12:00 PM"."""
+    suffix = "AM" if hour < 12 else "PM"
+    return f"{(hour - 1) % 12 + 1}:00 {suffix}"
+
+
+def format_scheduled_for(iso_date: str, slot_id: str) -> str:
+    """The client's "Scheduled for" format: "29 September 2026 · 10:00 AM–1:00 PM".
+
+    ``slot_id`` is the booked slot ("10-13", or a legacy id, normalised to its
+    block). Anything unparseable is passed through rather than guessed. The
+    stored ``preferred_time_label`` (Mongo, dashboard, Clara event) is a
+    separate field and keeps its existing format.
+    """
+    from datetime import date as _date
+
+    from kisna_chatbot.utils.support_slots import normalize_slot_id
+
+    try:
+        day = _date.fromisoformat(iso_date)
+        date_text = f"{day.day} {day.strftime('%B')} {day.year}"
+    except (TypeError, ValueError):
+        date_text = iso_date or ""
+    block = normalize_slot_id(slot_id, iso_date) if slot_id else ""
+    start, _, end = block.partition("-")
+    if start.isdigit() and end.isdigit():
+        slot_text = f"{_clock(int(start))}–{_clock(int(end))}"
+    else:
+        slot_text = slot_id or ""
+    return f"{date_text} · {slot_text}" if date_text and slot_text else ""
+
+
 _RESCHEDULED_LINE = (
     "Your preferred slot was full, so we booked the next available time for you."
 )

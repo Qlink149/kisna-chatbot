@@ -117,6 +117,22 @@ def is_within_working_hours(now: datetime | None = None) -> bool:
     return open_at <= current.time() < close_at
 
 
+def close_of_working_day(when: datetime) -> datetime | None:
+    """When the desk closes (IST) on the day of ``when``; None if that day is
+    not a working day (Sunday / holiday)."""
+    current = _to_ist(when)
+    window = _open_window(current.date())
+    if window is None:
+        return None
+    return datetime.combine(current.date(), window[1], tzinfo=IST)
+
+
+def start_of_day_ist(when: datetime | None = None) -> datetime:
+    """IST midnight of the day of ``when`` (default: now)."""
+    current = _to_ist(when)
+    return datetime.combine(current.date(), time(0, 0), tzinfo=IST)
+
+
 def get_support_status(now: datetime | None = None) -> dict:
     """
     Return support availability status.
