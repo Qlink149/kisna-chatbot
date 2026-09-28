@@ -1,7 +1,7 @@
 {
  "summary": {
-  "total": 480,
-  "correct": 474,
+  "total": 543,
+  "correct": 538,
   "per_intent": {
    "callback": {
     "correct": 15,
@@ -14,9 +14,9 @@
     "acc": 1.0
    },
    "general": {
-    "correct": 81,
-    "total": 81,
-    "acc": 1.0
+    "correct": 113,
+    "total": 114,
+    "acc": 0.991
    },
    "gold_rate": {
     "correct": 12,
@@ -39,9 +39,9 @@
     "acc": 1.0
    },
    "offers": {
-    "correct": 24,
+    "correct": 27,
     "total": 30,
-    "acc": 0.8
+    "acc": 0.9
    },
    "order_status": {
     "correct": 9,
@@ -79,9 +79,9 @@
     "acc": 1.0
    },
    "store_visit": {
-    "correct": 57,
-    "total": 57,
-    "acc": 1.0
+    "correct": 86,
+    "total": 87,
+    "acc": 0.989
    },
    "track_order": {
     "correct": 18,
@@ -101,24 +101,34 @@
   },
   "per_tag": {
    "ambiguous": {
-    "correct": 84,
-    "total": 84,
+    "correct": 81,
+    "total": 81,
     "acc": 1.0
    },
    "hinglish": {
-    "correct": 150,
-    "total": 150,
+    "correct": 171,
+    "total": 171,
     "acc": 1.0
    },
    "new_store_visit": {
-    "correct": 57,
-    "total": 57,
-    "acc": 1.0
+    "correct": 86,
+    "total": 87,
+    "acc": 0.989
+   },
+   "store_pickup": {
+    "correct": 35,
+    "total": 36,
+    "acc": 0.972
    },
    "untagged": {
-    "correct": 222,
+    "correct": 225,
     "total": 228,
-    "acc": 0.974
+    "acc": 0.987
+   },
+   "visit_neighbour": {
+    "correct": 30,
+    "total": 30,
+    "acc": 1.0
    }
   }
  },
@@ -366,20 +376,6 @@
   },
   {
    "run": 0,
-   "text": "Can I pick it up from a store?",
-   "expected": [
-    "general",
-    "store_info"
-   ],
-   "tags": [
-    "ambiguous"
-   ],
-   "intent": "general",
-   "source": "llm_batch",
-   "ok": true
-  },
-  {
-   "run": 0,
    "text": "No specific visit",
    "expected": [
     "general"
@@ -397,6 +393,309 @@
    ],
    "tags": [
     "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Can I pick it up from a store?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "store pickup available?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can I collect my order from the store",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "deliver it to the Kisna store near me",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "Is in-store delivery available?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can I pick up my online order at the showroom",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can you deliver to a store instead of home",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "buy online and collect in store?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "human_handoff",
+   "source": "llm_batch",
+   "ok": false
+  },
+  {
+   "run": 0,
+   "text": "store se pickup kar sakte hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "order store pe deliver ho sakta hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "kya main store se order le sakti hoon",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "online order karke dukaan se le lu?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want to see it in the store before buying",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "visit the store to try it on",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want to check the design at your store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can I try it on in person before ordering?",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I'd like to come to the store and see the bangles",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "store aake dekhna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "showroom mein try karna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "kal store aana hai ring dekhne",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "can I visit and see the solitaires first",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 0,
+   "text": "I want to see the necklace physically at a store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
    ],
    "intent": "store_visit",
    "source": "llm_batch",
@@ -946,9 +1245,9 @@
     "offers"
    ],
    "tags": [],
-   "intent": "product_search",
+   "intent": "offers",
    "source": "llm_batch",
-   "ok": false
+   "ok": true
   },
   {
    "run": 0,
@@ -1964,7 +2263,7 @@
    "tags": [
     "ambiguous"
    ],
-   "intent": "track_order",
+   "intent": "order_status",
    "source": "llm_batch",
    "ok": true
   },
@@ -2341,20 +2640,6 @@
   },
   {
    "run": 1,
-   "text": "Can I pick it up from a store?",
-   "expected": [
-    "general",
-    "store_info"
-   ],
-   "tags": [
-    "ambiguous"
-   ],
-   "intent": "general",
-   "source": "llm_batch",
-   "ok": true
-  },
-  {
-   "run": 1,
    "text": "No specific visit",
    "expected": [
     "general"
@@ -2372,6 +2657,309 @@
    ],
    "tags": [
     "new_store_visit"
+   ],
+   "intent": "store_info",
+   "source": "llm_batch",
+   "ok": false
+  },
+  {
+   "run": 1,
+   "text": "Can I pick it up from a store?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "store pickup available?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can I collect my order from the store",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "deliver it to the Kisna store near me",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "Is in-store delivery available?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can I pick up my online order at the showroom",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can you deliver to a store instead of home",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "buy online and collect in store?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "store se pickup kar sakte hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "order store pe deliver ho sakta hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "kya main store se order le sakti hoon",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "online order karke dukaan se le lu?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want to see it in the store before buying",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "visit the store to try it on",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want to check the design at your store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can I try it on in person before ordering?",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I'd like to come to the store and see the bangles",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "store aake dekhna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "showroom mein try karna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "kal store aana hai ring dekhne",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "can I visit and see the solitaires first",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 1,
+   "text": "I want to see the necklace physically at a store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
    ],
    "intent": "store_visit",
    "source": "llm_batch",
@@ -2740,7 +3328,7 @@
    "tags": [
     "ambiguous"
    ],
-   "intent": "product_search",
+   "intent": "general",
    "source": "llm_batch",
    "ok": true
   },
@@ -2921,9 +3509,9 @@
     "offers"
    ],
    "tags": [],
-   "intent": "product_search",
+   "intent": "offers",
    "source": "llm_batch",
-   "ok": false
+   "ok": true
   },
   {
    "run": 1,
@@ -3939,7 +4527,7 @@
    "tags": [
     "ambiguous"
    ],
-   "intent": "track_order",
+   "intent": "order_status",
    "source": "llm_batch",
    "ok": true
   },
@@ -4316,20 +4904,6 @@
   },
   {
    "run": 2,
-   "text": "Can I pick it up from a store?",
-   "expected": [
-    "general",
-    "store_info"
-   ],
-   "tags": [
-    "ambiguous"
-   ],
-   "intent": "general",
-   "source": "llm_batch",
-   "ok": true
-  },
-  {
-   "run": 2,
    "text": "No specific visit",
    "expected": [
     "general"
@@ -4347,6 +4921,309 @@
    ],
    "tags": [
     "new_store_visit"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Can I pick it up from a store?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "store pickup available?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can I collect my order from the store",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "deliver it to the Kisna store near me",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "Is in-store delivery available?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can I pick up my online order at the showroom",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can you deliver to a store instead of home",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "buy online and collect in store?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup"
+   ],
+   "intent": "general",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "store se pickup kar sakte hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "order store pe deliver ho sakta hai?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "kya main store se order le sakti hoon",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "online order karke dukaan se le lu?",
+   "expected": [
+    "general"
+   ],
+   "tags": [
+    "store_pickup",
+    "hinglish"
+   ],
+   "intent": "general",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want to see it in the store before buying",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "visit the store to try it on",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want to check the design at your store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can I try it on in person before ordering?",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I'd like to come to the store and see the bangles",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "store aake dekhna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "showroom mein try karna hai",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "kal store aana hai ring dekhne",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour",
+    "hinglish"
+   ],
+   "intent": "store_visit",
+   "source": "override",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "can I visit and see the solitaires first",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
+   ],
+   "intent": "store_visit",
+   "source": "llm_batch",
+   "ok": true
+  },
+  {
+   "run": 2,
+   "text": "I want to see the necklace physically at a store",
+   "expected": [
+    "store_visit"
+   ],
+   "tags": [
+    "new_store_visit",
+    "visit_neighbour"
    ],
    "intent": "store_visit",
    "source": "llm_batch",
@@ -4896,9 +5773,9 @@
     "offers"
    ],
    "tags": [],
-   "intent": "product_search",
+   "intent": "offers",
    "source": "llm_batch",
-   "ok": false
+   "ok": true
   },
   {
    "run": 2,
@@ -5914,7 +6791,7 @@
    "tags": [
     "ambiguous"
    ],
-   "intent": "track_order",
+   "intent": "order_status",
    "source": "llm_batch",
    "ok": true
   },

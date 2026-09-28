@@ -477,6 +477,26 @@ _STORE_VISIT_RE = re.compile(
     re.I,
 )
 
+# Collecting an ONLINE order at a store ("In-Store Delivery" at checkout) is a
+# delivery question the GeneralAgent answers from the KB -- never the Store
+# Visit form, which books an appointment.
+_STORE_PICKUP_RE = re.compile(
+    r"\b("
+    # "pick it up from a store", "pick up my online order at the showroom"
+    r"(?:pick(?:ed|ing)?\s+(?:\w+\s+){0,3}?up|pick-?up)\s+(?:\w+\s+){0,3}?"
+    r"(?:from|at|in)\s+(?:the\s+|a\s+|your\s+|any\s+|kisna\s+)?(?:nearest\s+)?(?:store|showroom|shop|outlet)|"
+    r"(?:store|showroom|in[-\s]?store)\s+pick\s*-?\s*up|"
+    r"(?:collect|collection)\s+(?:\w+\s+){0,3}?(?:from|at|in)\s+"
+    r"(?:the\s+|a\s+|your\s+|kisna\s+)?(?:store|showroom|shop)|"
+    r"deliver(?:ed|y)?\s+(?:it\s+|my\s+order\s+|the\s+order\s+)?(?:to|at)\s+(?:the\s+|a\s+|your\s+|my\s+nearest\s+|nearest\s+)?"
+    r"(?:kisna\s+)?(?:store|showroom|shop)|"
+    r"in[-\s]?store\s+delivery|"
+    r"(?:store|showroom|dukaa?n)\s+(?:se|par|pe)\s+(?:order\s+)?(?:pick\s*-?\s*up|le\s+(?:lu|loon|sakte|sakta|sakti)|collect)|"
+    r"(?:store|showroom|dukaa?n)\s+(?:par|pe|mein|me)\s+(?:order\s+)?deliver\w*"
+    r")\b",
+    re.I,
+)
+
 _NAMED_PLACE_RE = re.compile(
     r"\b\d{6}\b|"
     r"\b(?:in|at)\s+(?!(?:the|a|your|kisna|store|showroom|shop|person)\b)[a-z]{3,}|"
@@ -679,6 +699,10 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("offers", 0.95)
     if _DIGITAL_GOLD_RE.search(normalized) or _SCHEME_RE.search(normalized):
         return ("general", 0.9)
+    # Picking up an online order at a store: a delivery FAQ (In-Store
+    # Delivery), answered by the GeneralAgent -- checked before store_visit.
+    if _STORE_PICKUP_RE.search(normalized):
+        return ("general", 0.93)
     # Booking / visiting a store with no place named -> the Store Visit form.
     # (A named place stays with the LLM, which routes it to store_info.)
     if _is_store_visit_request(normalized) and not _CALLBACK_RE.search(normalized):
@@ -710,6 +734,8 @@ def _programmatic_intent_fallback(text: str) -> tuple[str, float] | None:
         return ("video_call", 0.9)
     if _GOLD_RATE_RE.search(normalized):
         return ("gold_rate", 0.9)
+    if _STORE_PICKUP_RE.search(normalized):
+        return ("general", 0.9)
     if _is_store_visit_request(normalized):
         return ("store_visit", 0.9)
     if _STORE_LOOKUP_RE.search(normalized) and not (
@@ -3661,6 +3687,8 @@ class Classifier(Processor):
                 # always wins → store_info.
                 if (
                     _STORE_LOOKUP_RE.search(raw_query)
+                    # Store pickup of an online order is a delivery FAQ.
+                    and not _STORE_PICKUP_RE.search(raw_query)
                     and not sanitized_entities.get("category")
                     and not (
                         _CATEGORY_WORD_RE.search(raw_query)

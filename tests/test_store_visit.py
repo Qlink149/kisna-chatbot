@@ -741,6 +741,74 @@ class RoutingTests(unittest.TestCase):
         ):
             self.assertNotEqual((_programmatic_intent_override(msg) or ("",))[0], "store_visit", msg)
 
+    PICKUP = (
+        "Can I pick it up from a store?",
+        "store pickup available?",
+        "can I collect my order from the store",
+        "deliver it to the Kisna store near me",
+        "Is in-store delivery available?",
+        "can I pick up my online order at the showroom",
+        "can you deliver to a store instead of home",
+        "buy online and collect in store?",
+        "store se pickup kar sakte hai?",
+        "order store pe deliver ho sakta hai?",
+        "kya main store se order le sakti hoon",
+        "online order karke dukaan se le lu?",
+    )
+    VISIT = (
+        "I want to see it in the store before buying",
+        "visit the store to try it on",
+        "book a store visit",
+        "showroom visit book karo",
+    )
+
+    def test_store_pickup_is_general_never_the_form(self):
+        from kisna_chatbot.processors.classifier import (
+            _programmatic_intent_fallback,
+            _programmatic_intent_override,
+        )
+
+        for msg in self.PICKUP:
+            self.assertEqual(_programmatic_intent_override(msg), ("general", 0.93), msg)
+            self.assertEqual(_programmatic_intent_fallback(msg)[0], "general", msg)
+        for msg in self.VISIT:
+            self.assertEqual(_programmatic_intent_override(msg), ("store_visit", 0.93), msg)
+        for msg in ("pick a ring for me", "I will pick one up later"):
+            self.assertIsNone(_programmatic_intent_override(msg), msg)
+
+    def test_general_agent_pickup_answer_gets_store_locator_button(self):
+        from kisna_chatbot.ai.types import GeneralAgentResult, ProviderName
+        from kisna_chatbot.processors.general_agent import GeneralAgent
+
+        def run(query, text):
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": query}},
+                "user_profile": {"service_selected": ""},
+                "client_id": "kisna",
+            }
+            with patch(
+                "kisna_chatbot.processors.general_agent.run_general_agent",
+                new_callable=AsyncMock,
+                return_value=GeneralAgentResult(
+                    message_text=text, live_agent_requested=False,
+                    provider=ProviderName.OPENAI, model="test-model",
+                ),
+            ):
+                return asyncio.run(GeneralAgent().process(data))["bot_response"]
+
+        out = run(
+            "Can I pick it up from a store?",
+            'Absolutely! Choose "In-Store Delivery" at checkout. Stores: kisna.com/store',
+        )
+        self.assertNotIn("kisna.com/store", out[0]["text"])
+        cta = out[-1]
+        self.assertEqual((cta["type"], cta["display_text"]), ("cta_url", "Find a Store"))
+        self.assertIn("kisna.com/store", cta["url"])
+        self.assertEqual(cta["_compose"], "store_pickup_cta")
+        other = run("what is your return policy?", "Returns within 7 days.")
+        self.assertNotIn("cta_url", [r.get("type") for r in other])
+
     def test_json_flow_screens_and_payload_keys(self):
         with open(os.path.join(ROOT, "json", "store_visit.json"), encoding="utf-8") as f:
             flow = json.load(f)

@@ -54,7 +54,8 @@ product_search, NOT repair — repair is dissatisfaction, not a request for more
 **store_visit** — Wants to VISIT a store, with NO city/pincode named: book a visit or
 showroom appointment, "store near me", "nearest Kisna store", "dukaan kahan hai",
 "can I see this in store". ≥0.9. The bot sends the Store Visit booking form.
-NOT picking up an online order at a store ("can I pick it up from a store") → general;
+NOT collecting an online order at a store ("pick it up from a store", "store pickup",
+"deliver to a store") → general;
 NOT "visit" with no store meant ("no specific visit") → general.
 
 **store_info** — PHYSICAL retail locations only (Kisna stores / showrooms / outlets /
