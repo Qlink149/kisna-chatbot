@@ -134,6 +134,12 @@ def _hours_from_kisna(store_hours: Any) -> tuple[str, str, list[str]]:
 def from_kisna_record(raw: dict) -> dict:
     """Map one kisna.com ``allStores`` record (as trimmed in stores_seed.json)."""
     addr = raw.get("address") or {}
+
+    def place(value: Any) -> Any:
+        # The live API nests {"_id", "name"}; the trimmed seed file has the name.
+        return value.get("name") if isinstance(value, dict) else value
+
+    addr = {**addr, "city": place(addr.get("city")), "state": place(addr.get("state"))}
     open_time, close_time, weekly_off = _hours_from_kisna(raw.get("storeHours"))
     active = bool(raw.get("active")) and str(raw.get("status", "active")).lower() == "active"
     return {
@@ -165,69 +171,78 @@ def _as_bool(value: Any, default: bool) -> bool:
     raise ValueError(f"not a yes/no value: {value!r}")
 
 
-def from_csv_row(row: dict) -> dict:
-    """Validate and map one dashboard CSV row. Raises ValueError listing every
-    problem in the row, so the importer can report them all at once."""
-    row = {clean_text(k).lower(): v for k, v in (row or {}).items() if k is not None}
+# Field ownership (see stores/sync.py): the dashboard may change only these.
+OVERRIDE_FIELDS = ("bookable", "open_time", "close_time", "weekly_off")
+SYNCED_FIELDS = ("name", "address", "city", "state", "pincode", "phone")
+_SYNCED_NORMALISERS = {
+    "name": clean_text,
+    "address": clean_text,
+    "city": title_place,
+    "state": normalise_state,
+    "pincode": clean_text,
+    "phone": clean_text,
+}
+
+
+def validate_overrides(values: dict, current: dict) -> tuple[dict, list[str]]:
+    """Check dashboard-supplied override values against the stored store.
+
+    ``values`` may hold any subset of OVERRIDE_FIELDS (raw strings from a CSV
+    or typed values from the API). Returns (update, errors); ``update`` has
+    only the fields that were supplied, normalised."""
     errors: list[str] = []
-
-    store_id = clean_text(row.get("store_id"))
-    name = clean_text(row.get("name"))
-    city = title_place(row.get("city"))
-    state = normalise_state(row.get("state"))
-    pincode = clean_text(row.get("pincode"))
-    for field, value in (("store_id", store_id), ("name", name), ("city", city), ("state", state)):
-        if not value:
-            errors.append(f"{field} is required")
-    if pincode and not _PINCODE_RE.match(pincode):
-        errors.append(f"pincode {pincode!r} is not a 6-digit PIN")
-
-    open_raw, close_raw = row.get("open_time"), row.get("close_time")
-    open_time = normalise_hhmm(open_raw) if clean_text(open_raw) else DEFAULT_OPEN
-    close_time = normalise_hhmm(close_raw) if clean_text(close_raw) else DEFAULT_CLOSE
-    if open_time is None:
-        errors.append(f"open_time {open_raw!r} is not HH:MM")
-    if close_time is None:
-        errors.append(f"close_time {close_raw!r} is not HH:MM")
-    if open_time and close_time and minutes(close_time) - minutes(open_time) < 60:
+    update: dict[str, Any] = {}
+    if "bookable" in values:
+        try:
+            v = values["bookable"]
+            update["bookable"] = v if isinstance(v, bool) else _as_bool(v, bool(current.get("bookable", True)))
+        except ValueError as e:
+            errors.append(f"bookable: {e}")
+    for field in ("open_time", "close_time"):
+        if field in values:
+            raw = values[field]
+            if clean_text(raw) == "":
+                continue  # blank = unchanged
+            hhmm = normalise_hhmm(raw)
+            if hhmm is None:
+                errors.append(f"{field} {raw!r} is not HH:MM")
+            else:
+                update[field] = hhmm
+    if "weekly_off" in values:
+        try:
+            update["weekly_off"] = normalise_weekly_off(values["weekly_off"])
+        except ValueError as e:
+            errors.append(str(e))
+        else:
+            if len(update["weekly_off"]) == len(WEEKDAYS):
+                errors.append("weekly_off cannot be every day")
+    open_t = update.get("open_time") or current.get("open_time") or DEFAULT_OPEN
+    close_t = update.get("close_time") or current.get("close_time") or DEFAULT_CLOSE
+    if not any("_time" in e for e in errors) and minutes(close_t) - minutes(open_t) < 60:
         errors.append("close_time must be at least 1 hour after open_time")
+    return update, errors
 
-    weekly_off: list[str] = []
-    try:
-        weekly_off = normalise_weekly_off(row.get("weekly_off"))
-    except ValueError as e:
-        errors.append(str(e))
-    if len(weekly_off) == len(WEEKDAYS):
-        errors.append("weekly_off cannot be every day")
 
-    bookable = active = True
-    try:
-        bookable = _as_bool(row.get("bookable"), True)
-    except ValueError as e:
-        errors.append(f"bookable: {e}")
-    try:
-        active = _as_bool(row.get("active"), True)
-    except ValueError as e:
-        errors.append(f"active: {e}")
-
-    if errors:
-        raise ValueError("; ".join(errors))
-    return {
-        "store_id": store_id,
-        "name": name,
-        "address": clean_text(row.get("address")),
-        "city": city,
-        "state": state,
-        "pincode": pincode,
-        "phone": clean_text(row.get("phone")),
-        "open_time": open_time,
-        "close_time": close_time,
-        "weekly_off": weekly_off,
-        "bookable": bookable,
-        "active": active,
-        "source": "csv",
-        "updated_at": int(time.time()),
-    }
+def synced_field_conflicts(row: dict, current: dict) -> list[str]:
+    """Synced columns may be present (a downloaded CSV re-uploaded) but must
+    match what kisna.com gave us; any change is an error."""
+    errors = []
+    for field, norm in _SYNCED_NORMALISERS.items():
+        if field not in row or row[field] is None:
+            continue
+        given = norm(row[field])
+        if given != norm(current.get(field, "")):
+            errors.append(
+                f"{field} {given!r} differs from kisna.com ({current.get(field, '')!r}): "
+                f"{field} comes from the website and can't be changed here"
+            )
+    if "active" in row and clean_text(row["active"]) != "":
+        try:
+            if _as_bool(row["active"], True) != bool(current.get("active")):
+                errors.append("active is set by the kisna.com sync and can't be changed here")
+        except ValueError as e:
+            errors.append(f"active: {e}")
+    return errors
 
 
 def duplicate_report(stores: list[dict]) -> dict[str, list]:

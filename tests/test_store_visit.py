@@ -133,57 +133,7 @@ class ModelTests(unittest.TestCase):
                 self.assertLessEqual(sum(1 for s in stores if s["state"] == st and s["city"] == c), 200)
 
 
-# ------------------------------------------------------------ CSV import
-_CSV_OK = (
-    "store_id,name,address,city,state,pincode,phone,open_time,close_time,weekly_off,bookable,active\n"
-    "S1,Andheri West,Link Road,mumbai,maharashtra,400053,,11:00,21:00,,true,true\n"
-    "S2,Bandra,Hill Road,Mumbai,Maharashtra,400050,,10:30,20:30,tue;sun,yes,\n"
-)
-
-
-class CsvImportTests(unittest.TestCase):
-    def test_valid_file_upserts_and_busts_cache(self):
-        col = MagicMock()
-        col.bulk_write.return_value = MagicMock(upserted_count=2, modified_count=0)
-        with patch.object(store_cache, "bust") as bust:
-            result = repo.import_csv(_CSV_OK.encode("utf-8"), collection=col)
-        self.assertTrue(result["ok"])
-        self.assertEqual((result["rows"], result["inserted"]), (2, 2))
-        bust.assert_called_once()
-        ops = col.bulk_write.call_args[0][0]
-        self.assertEqual(len(ops), 2)
-
-    def test_one_bad_row_rejects_whole_file(self):
-        bad = _CSV_OK + "S3,,Road,Pune,Maharashtra,4110,,25:00,21:00,funday,maybe,true\n"
-        col = MagicMock()
-        result = repo.import_csv(bad, collection=col)
-        self.assertFalse(result["ok"])
-        col.bulk_write.assert_not_called()
-        self.assertEqual(len(result["errors"]), 1)
-        err = result["errors"][0]
-        self.assertEqual(err["row"], 4)
-        for bit in ("name is required", "pincode", "open_time", "weekday", "bookable"):
-            self.assertIn(bit, err["error"])
-
-    def test_duplicate_store_id_in_file_rejected(self):
-        dup = _CSV_OK + "S1,Other,Road,Pune,Maharashtra,411001,,11:00,21:00,,true,true\n"
-        result = repo.import_csv(dup, collection=MagicMock())
-        self.assertFalse(result["ok"])
-        self.assertIn("repeats line 2", result["errors"][0]["error"])
-
-    def test_missing_column_rejected(self):
-        result = repo.import_csv("store_id,name\nS1,x\n", collection=MagicMock())
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["errors"][0]["row"], 1)
-
-    def test_csv_round_trip(self):
-        stores, errors = repo.parse_csv(_CSV_OK)
-        self.assertEqual(errors, [])
-        again, errors = repo.parse_csv(repo.to_csv(stores))
-        self.assertEqual(errors, [])
-        strip = lambda rows: [{k: v for k, v in r.items() if k not in ("updated_at", "source")} for r in rows]
-        self.assertEqual(strip(again), strip(stores))
-        self.assertEqual(stores[1]["weekly_off"], ["tuesday", "sunday"])
+# CSV import (overrides only) and the kisna.com sync: tests/test_store_sync.py
 
 
 # ----------------------------------------------------------------- cache

@@ -248,6 +248,12 @@ async def lifespan(app: FastAPI):
             [("client_id", ASCENDING), ("created_at", DESCENDING)],
             name="store_visits_client_created_at",
         )
+        from kisna_chatbot.database.collections import store_sync_runs
+
+        store_sync_runs.create_index(
+            [("status", ASCENDING), ("started_at", DESCENDING)],
+            name="store_sync_runs_status_started_at",
+        )
     except Exception:
         logger.exception("Failed to create stores / store_visits indexes")
 
@@ -403,9 +409,18 @@ async def lifespan(app: FastAPI):
 
     handoff_task = asyncio.create_task(_sweep_handoff_loop())
 
+    # Store sync from kisna.com: daily at 02:00 IST, plus a catch-up at
+    # startup when the last good sync is > 26 h old (restart-safe).
+    from kisna_chatbot.stores.sync import sync_loop as store_sync_loop
+
+    store_sync_task = asyncio.create_task(store_sync_loop())
+
     try:
         yield
     finally:
+        store_sync_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await store_sync_task
         if sweep_task is not None:
             sweep_task.cancel()
             with suppress(asyncio.CancelledError):
