@@ -94,11 +94,13 @@ class TestNonTextHandler:
         assert data["user_profile"]["service_selected"] == SL.AD_FLOW.value
         assert data["user_profile"]["awaiting_store_pincode"] is False
 
-    def test_location_without_coords_asks_pincode(self):
+    def test_location_without_coords_offers_store_visit_not_pincode(self):
         data = _base_data("location", location={})
         handle_non_text_message(data)
-        assert "PIN code" in data["bot_response"][0]["text"]
-        assert data["user_profile"]["awaiting_store_pincode"] is True
+        text = " ".join(r.get("text", "") for r in data["bot_response"])
+        assert "pin" not in text.lower()
+        assert "kisna.com/store" in text
+        assert data["user_profile"]["awaiting_store_pincode"] is False
 
     def test_contacts_reply(self):
         data = _base_data("contacts", contacts=[{"name": {"formatted_name": "A"}}])

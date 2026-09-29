@@ -380,7 +380,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Bot handling rule: asked about discreet or plain packaging, just describe the sealed KISNA-branded poly bag; never repeat or confirm the word.
 - Shipment cannot be rerouted once dispatched.
 - Report delivery issues immediately to Customer Support.
-- Buy online, pick up in store: select "In-Store Delivery" at checkout and choose your store.
+- Buy online, pick up in store: select "In-Store Delivery" at checkout and choose a KISNA store; the order is delivered there for collection.
 - Delivery to another city: yes, subject to availability at the destination.
 - Packages are fully insured throughout storage and transit.
 - Delivery address change: possible while the order has not yet been dispatched. The customer contacts the team as soon as possible and the team checks whether the address can be updated. Once dispatched, the address cannot be changed.

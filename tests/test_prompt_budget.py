@@ -33,7 +33,10 @@ from kisna_chatbot.prompts.classifier_kisna import (
 # phrasing and every non-English equivalent was ignored — a compliance
 # problem. Assamese shares Bengali's script, so without a marker rule the
 # model labels it "bn" and Assamese customers are answered in Bengali.
-MAX_CLASSIFIER_INTENT_TOKENS = 6800
+# Raised (6800 -> 8000) for the store_visit intent and its few-shots. The
+# ceiling test below still binds first: above ~7,758 est the classifier would
+# leave under 3,000 real tokens for context, so that test fails before this one.
+MAX_CLASSIFIER_INTENT_TOKENS = 8000
 # Raised from 6500 so the gender rule could state a PRINCIPLE ("kinship words
 # are lexically gendered — read the word") instead of a closed list of terms.
 # The list was the bug: "chachi" was not on it, so the model followed the

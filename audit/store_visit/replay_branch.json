@@ -1,0 +1,142 @@
+[
+ {
+  "id": "916376925843_s0",
+  "phone": "xxxxxx5843",
+  "message": "Hi",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "916376925843_s2",
+  "phone": "xxxxxx5843",
+  "message": "Hii",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "916376925843_s4",
+  "phone": "xxxxxx5843",
+  "message": "Hai",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "916376925843_s5",
+  "phone": "xxxxxx5843",
+  "message": "Hi",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "916376925843_s6",
+  "phone": "xxxxxx5843",
+  "message": "hi",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "916376925843_s7",
+  "phone": "xxxxxx5843",
+  "message": "Hii",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "916376925843_s8",
+  "phone": "xxxxxx5843",
+  "message": "I want a category from your evileye collection",
+  "prod_logged_intent": "product_search",
+  "intents": {
+   "product_search": 3
+  },
+  "intent": "product_search"
+ },
+ {
+  "id": "916376925843_s9",
+  "phone": "xxxxxx5843",
+  "message": "Hii",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "918696979791_s0",
+  "phone": "xxxxxx9791",
+  "message": "hi",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "918696979791_s1",
+  "phone": "xxxxxx9791",
+  "message": "Do you have rakhis?",
+  "prod_logged_intent": "product_search",
+  "intents": {
+   "product_search": 3
+  },
+  "intent": "product_search"
+ },
+ {
+  "id": "918696979791_s2",
+  "phone": "xxxxxx9791",
+  "message": "hi",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "918696979791_s3",
+  "phone": "xxxxxx9791",
+  "message": "Do you have something with evil eye in it?",
+  "prod_logged_intent": "product_search",
+  "intents": {
+   "product_search": 3
+  },
+  "intent": "product_search"
+ },
+ {
+  "id": "916376925843_s1",
+  "phone": "xxxxxx5843",
+  "message": "Hii",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ },
+ {
+  "id": "916376925843_s3",
+  "phone": "xxxxxx5843",
+  "message": "Hii",
+  "prod_logged_intent": "greeting",
+  "intents": {
+   "greeting": 3
+  },
+  "intent": "greeting"
+ }
+]

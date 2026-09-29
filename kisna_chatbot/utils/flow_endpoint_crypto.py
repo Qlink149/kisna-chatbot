@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import base64
+import threading
 from base64 import b64decode, b64encode
 
 from cryptography.hazmat.primitives.asymmetric.padding import MGF1, OAEP
@@ -48,6 +50,38 @@ def load_flow_private_key(
     return load_pem_private_key(_normalize_pem(pem), password=password)
 
 
+# Parsing the PEM costs 100-300 ms, on every Flow request. The parsed key is
+# kept in memory and reused; the cache key is a fingerprint of the env values
+# it came from, so a rotated key (new env value) is picked up on the next
+# request without a restart or a code change.
+_key_lock = threading.Lock()
+_cached_key = None
+_cached_fingerprint: str | None = None
+
+
+def _env_fingerprint() -> str:
+    parts = (
+        os.getenv("KISNA_FLOW_PRIVATE_KEY_B64", ""),
+        os.getenv("KISNA_FLOW_PRIVATE_KEY", ""),
+        os.getenv("KISNA_FLOW_PRIVATE_KEY_PASSPHRASE", ""),
+    )
+    return hashlib.sha256("\x00".join(parts).encode("utf-8")).hexdigest()
+
+
+def get_flow_private_key():
+    """The env-configured key, parsed once and reused until the env changes."""
+    global _cached_key, _cached_fingerprint
+    fingerprint = _env_fingerprint()
+    key = _cached_key
+    if key is not None and _cached_fingerprint == fingerprint:
+        return key
+    with _key_lock:
+        if _cached_key is None or _cached_fingerprint != fingerprint:
+            _cached_key = load_flow_private_key()
+            _cached_fingerprint = fingerprint
+        return _cached_key
+
+
 def decrypt_request(
     encrypted_flow_data_b64: str,
     encrypted_aes_key_b64: str,
@@ -64,7 +98,7 @@ def decrypt_request(
         flow_data = b64decode(encrypted_flow_data_b64)
         iv = b64decode(initial_vector_b64)
         encrypted_aes_key = b64decode(encrypted_aes_key_b64)
-        key = private_key or load_flow_private_key()
+        key = private_key or get_flow_private_key()
         aes_key = key.decrypt(
             encrypted_aes_key,
             OAEP(

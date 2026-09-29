@@ -53,6 +53,7 @@ _RETRYABLE_STATUS = frozenset({408, 425, 429})
 EVENT_COMPLAINT = "complaint_submitted"
 EVENT_CALLBACK = "callback_requested"
 EVENT_VIDEO_CALL = "video_call_requested"
+EVENT_STORE_VISIT = "store_visit_requested"
 
 
 # --------------------------------------------------------------------------
@@ -225,6 +226,58 @@ def build_support_request_event(
         customer_name=customer_name,
         occurred_at_epoch=occurred_at_epoch,
         data=data,
+    )
+
+
+def build_store_visit_event(
+    *,
+    request_id: str,
+    client_id: str,
+    phone_number: str,
+    customer_name: str,
+    first_name: str,
+    last_name: str,
+    email: str,
+    mobile: str,
+    looking_for: str,
+    looking_for_label: str,
+    store: dict[str, Any],
+    preferred_date: str,
+    preferred_time: str,
+    preferred_time_label: str,
+    occurred_at_epoch: int | float | None = None,
+) -> dict[str, Any]:
+    """Build a ``store_visit_requested`` payload (same envelope as callback).
+
+    ``store`` is the snapshot saved with the booking, so what reaches Salesforce
+    is the store the customer saw, even if the store list changes later.
+    """
+    return _envelope(
+        event_id=request_id,
+        event_type=EVENT_STORE_VISIT,
+        client_id=client_id,
+        phone_number=phone_number,
+        customer_name=customer_name,
+        occurred_at_epoch=occurred_at_epoch,
+        data={
+            "request_id": request_id,
+            "request_type": "store_visit",
+            "first_name": first_name or "",
+            "last_name": last_name or "",
+            "email": email or "",
+            "mobile": _digits(mobile),
+            "looking_for": looking_for or "",
+            "looking_for_label": looking_for_label or "",
+            "store_id": store.get("store_id") or "",
+            "store_name": store.get("name") or "",
+            "store_address": store.get("address") or "",
+            "city": store.get("city") or "",
+            "state": store.get("state") or "",
+            "pincode": store.get("pincode") or "",
+            "preferred_date": preferred_date or "",
+            "preferred_time": preferred_time or "",
+            "preferred_time_label": _ascii_dashes(preferred_time_label),
+        },
     )
 
 

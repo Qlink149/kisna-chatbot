@@ -31,9 +31,10 @@ _ANSWERABLE = ("offers", "gold_rate")
 # Acknowledged only — answering properly would need input we would have to ask
 # for, and the primary reply has usually just asked a question of its own.
 _ACKNOWLEDGE_ONLY = {
+    # Never a pincode question: just say "book a store visit" when ready.
     "store_info": (
-        "And about our stores — tell me your city or pincode whenever you're "
-        "ready and I'll find the nearest one 📍"
+        "And about our stores — just say \"book a store visit\" whenever you're "
+        "ready and I'll help you pick the nearest one 📍"
     ),
     "general": (
         "I'll answer your other question too — just send it again on its own "

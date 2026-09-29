@@ -25,6 +25,11 @@ CALLBACK_PREFORM = (
     "jewellery expert will connect with you at your preferred time. 📞💎"
 )
 VIDEO_CALL_PREFORM = CALLBACK_PREFORM
+STORE_VISIT_PREFORM = (
+    "Would you like to schedule a store visit? 💎\n"
+    "Please share your details below, and our jewellery expert will get in "
+    "touch with you to assist with your visit. ✨"
+)
 
 # ------------------------------------------------------------ confirmations
 COMPLAINT_RESPONSE_TIME = "1 working day"
@@ -124,6 +129,51 @@ def callback_confirmation(
     elif video:
         lines.append("Thank you for your patience. We look forward to assisting you!")
     return "\n".join(lines)
+
+
+def format_visit_scheduled_for(iso_date: str, hhmm: str) -> str:
+    """Store visit "Scheduled for": "29 September 2026 · 11:00 AM"."""
+    from datetime import date as _date
+
+    from kisna_chatbot.utils.store_visit_slots import clock_label
+
+    try:
+        day = _date.fromisoformat(iso_date)
+        date_text = f"{day.day} {day.strftime('%B')} {day.year}"
+    except (TypeError, ValueError):
+        date_text = iso_date or ""
+    try:
+        time_text = clock_label(hhmm)
+    except (AttributeError, ValueError):
+        time_text = hhmm or ""
+    return f"{date_text} · {time_text}" if date_text and time_text else ""
+
+
+def store_visit_confirmation(
+    request_id: str, store_line: str, scheduled_for: str
+) -> str:
+    """``store_line`` is "{store name}, {address}"."""
+    return "\n".join(
+        [
+            "Your appointment is confirmed! 📍✨",
+            f"Request ID: {request_id}",
+            f"Store: {store_line}",
+            f"Scheduled for: {scheduled_for}",
+            "Our store jewellery expert will get in touch with you shortly to "
+            "assist with your visit.",
+            "We appreciate your patience and look forward to welcoming you. 💎",
+            f"Thank you for choosing {BRAND}! 💙",
+        ]
+    )
+
+
+def store_visit_pins(
+    request_id: str, store_name: str, address: str, scheduled_for: str
+) -> tuple[str, ...]:
+    """Request ID, store name, address, date and time stay verbatim."""
+    pins = list(confirmation_pins(request_id, scheduled_for))
+    pins.extend(p for p in (store_name, address) if p)
+    return tuple(pins)
 
 
 # -------------------------------------------------- 5-minute handoff fallback

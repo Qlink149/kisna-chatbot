@@ -1,4 +1,5 @@
-"""Business logic for WhatsApp Flow data_exchange (callback / video call)."""
+"""Business logic for WhatsApp Flow data_exchange (callback / video call,
+and the Store Visit Flow via processors/store_visit_flow.py)."""
 
 from __future__ import annotations
 
@@ -47,6 +48,16 @@ def build_flow_response(decrypted: dict) -> dict:
 
     if action == "ping":
         return {"data": {"status": "active"}}
+
+    # Store Visit has its own screens and a per-send flow_token; everything
+    # below this line is the callback / video-call slot picker.
+    from kisna_chatbot.processors.store_visit_flow import (
+        build_store_visit_response,
+        is_store_visit_request,
+    )
+
+    if is_store_visit_request(decrypted):
+        return build_store_visit_response(decrypted)
 
     screen = _resolve_screen(decrypted)
 

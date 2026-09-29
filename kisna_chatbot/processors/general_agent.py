@@ -379,6 +379,32 @@ class GeneralAgent(Processor):
                             "footer": "KISNA Diamond & Gold",
                         }
                     )
+                # Store pickup of an online order ("In-Store Delivery"): the KB
+                # answers it; the customer also needs the list of stores to
+                # pick one. The model dropped the link when only told to add
+                # it, so it is attached here, like the CTAs above.
+                from kisna_chatbot.processors.classifier import _STORE_PICKUP_RE
+
+                if _STORE_PICKUP_RE.search(user_query or ""):
+                    from kisna_chatbot.processors.store_visit_agent import (
+                        store_locator_url,
+                    )
+
+                    locator = store_locator_url()  # carries UTM parameters
+                    for plain in ("https://www.kisna.com/store", "https://kisna.com/store"):
+                        responses[0]["text"] = _strip_url_mentions(
+                            responses[0]["text"], plain
+                        )
+                    responses.append(
+                        {
+                            "type": "cta_url",
+                            "text": "Find a KISNA store for In-Store Delivery.",
+                            "_compose": "store_pickup_cta",
+                            "display_text": "Find a Store",
+                            "url": locator,
+                            "footer": "KISNA Diamond & Gold",
+                        }
+                    )
                 data["bot_response"] = responses
             else:
                 data["bot_response"] = [{"type": "text", "text": _GENERIC_ERROR, "_compose": "system_error"}]

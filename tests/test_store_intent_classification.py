@@ -66,9 +66,15 @@ class StoreLookupRegexTests(unittest.TestCase):
 
 
 class StoreHintTests(unittest.TestCase):
+    # Store visit (P4): wanting "the nearest store" with no place named is a
+    # hard override to store_visit (the Store Visit form). A named place is
+    # still only a hint, left to the LLM as store_info.
+    VISIT_QUERIES = ("any store near me", "nearest shop", "nearest store")
+
     def test_store_is_hint_not_hard_override(self):
         for text in STORE_QUERIES:
-            self.assertIsNone(_programmatic_intent_override(text), msg=text)
+            expected = ("store_visit", 0.93) if text in self.VISIT_QUERIES else None
+            self.assertEqual(_programmatic_intent_override(text), expected, msg=text)
             hint = _programmatic_intent_hint(text)
             self.assertIsNotNone(hint, msg=text)
             self.assertIn("store_info", hint, msg=text)

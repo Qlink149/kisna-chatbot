@@ -12,6 +12,7 @@ from kisna_chatbot.processors.product_details_agent import ProductDetailsAgent
 from kisna_chatbot.processors.product_search_agent_v3 import ProductSearchAgentV3
 from kisna_chatbot.processors.returns_refund_agent import ReturnsRefundAgent
 from kisna_chatbot.processors.service_list import ServiceList
+from kisna_chatbot.processors.store_visit_agent import StoreVisitAgent
 from kisna_chatbot.processors.user_registration import UserRegistration
 
 
@@ -26,6 +27,7 @@ class InitialPipeline(Pipeline):
         # never lands in Mongo / the dashboard.
         processors = [
             UserRegistration(),
+            StoreVisitAgent(),
             CallbackAgent(),
             ComplaintAgent(),
             Classifier(),
