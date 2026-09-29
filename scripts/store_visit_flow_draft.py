@@ -35,8 +35,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FLOW_JSON = ROOT / "json" / "store_visit.json"
 
 
-def create_draft(app_id: str, token: str, name: str, endpoint_uri: str | None) -> str:
-    body: dict = {"name": name, "categories": ["APPOINTMENT_BOOKING"]}
+def create_draft(app_id: str, token: str, name: str, endpoint_uri: str | None, category: str) -> str:
+    body: dict = {"name": name, "categories": [category]}
     if endpoint_uri:
         body["endpoint_uri"] = endpoint_uri
     r = g.request_with_retries(
@@ -87,6 +87,8 @@ def main() -> int:
     ap.add_argument("--name", default="kisna_store_visit_draft_v1")
     ap.add_argument("--flow-id", help="existing DRAFT to re-upload the JSON to")
     ap.add_argument("--endpoint-uri")
+    # OTHER mirrors the live kisna_*_droplet flows (callback, video call).
+    ap.add_argument("--category", default="OTHER")
     args = ap.parse_args()
 
     app_id = g.require_env("GUPSHUP_APP_ID")
@@ -101,7 +103,7 @@ def main() -> int:
         existing = g.find_flow_by_name(g.list_flows(app_id, token), args.name)
         if existing:
             raise SystemExit(f"A flow named {args.name} exists (id {existing.get('id')}). Use --flow-id or a new --name.")
-        flow_id = create_draft(app_id, token, args.name, args.endpoint_uri)
+        flow_id = create_draft(app_id, token, args.name, args.endpoint_uri, args.category)
         print(f"created DRAFT {args.name}: {flow_id}")
 
     upload = g.upload_flow_json(app_id, token, flow_id, FLOW_JSON)
