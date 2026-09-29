@@ -831,6 +831,28 @@ class RoutingTests(unittest.TestCase):
             self.assertEqual(form["init-values"], "${data.init_values}")
             self.assertIn("init_values", screen["data"])
 
+    def test_input_labels_fit_whatsapp_20_chars(self):
+        """Meta's preview flags labels over 20 characters (truncated on small
+        screens) -- "What are you looking for?" was 25."""
+        with open(os.path.join(ROOT, "json", "store_visit.json"), encoding="utf-8") as f:
+            flow = json.load(f)
+        labels = []
+
+        def walk(node):
+            if isinstance(node, dict):
+                if node.get("type") in ("TextInput", "TextArea", "Dropdown", "DatePicker"):
+                    labels.append(node.get("label", ""))
+                for v in node.values():
+                    walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    walk(v)
+
+        walk(flow)
+        self.assertEqual(len(labels), 10)
+        for label in labels:
+            self.assertLessEqual(len(label), 20, label)
+
     def test_screens_send_init_values(self):
         d = svf.details_screen_data("Priya", "919812345678")
         self.assertEqual(d["init_values"], {"first_name": "Priya", "phone": "919812345678"})

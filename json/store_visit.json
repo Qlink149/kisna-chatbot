@@ -110,7 +110,7 @@
               {
                 "type": "Dropdown",
                 "name": "looking_for",
-                "label": "What are you looking for?",
+                "label": "Looking for",
                 "required": true,
                 "data-source": "${data.looking_for_options}"
               },
