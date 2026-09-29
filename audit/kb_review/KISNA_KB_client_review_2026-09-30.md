@@ -1,6 +1,6 @@
 # KISNA chatbot knowledge — client review
 
-Generated 30 September 2026, 01:36 IST from code `8a67e20`, for conversations on **30 September 2026**.
+Generated 30 September 2026, 01:53 IST from code `306a281`, for conversations on **30 September 2026**.
 
 This is exactly what the chatbot reads when it answers questions: the knowledge base, today's live campaigns and the fixed values it must quote word for word. Each block below was checked to appear verbatim in the bot's prompt. Lines starting "Bot handling rule" are instructions to the bot rather than customer-facing facts.
 
