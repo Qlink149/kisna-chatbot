@@ -292,7 +292,12 @@ REQUEST_LIVE_AGENT_DESCRIPTION = (
     "Flag this conversation for a human agent. Call when the user explicitly requests a human "
     "(e.g. 'talk to a person', 'connect me to an agent') OR when a non-product KISNA "
     "policy/FAQ question is not answerable from the knowledge base. "
-    "Do NOT call for product/price/stock/live-data queries — direct to menu instead."
+    "Do NOT call for product/price/stock/live-data queries — direct to menu instead. "
+    "Don't call the handoff for general certification questions — which lab certifies Kisna "
+    "diamonds, whether a diamond is certified, or whether GIA is available — even when the "
+    "customer says 'my diamond'. Answer from the knowledge base. Problems with a specific "
+    "order's certificate (missing, not matching the product, damaged) are order issues: route "
+    "them as today."
 )
 
 request_live_agent_tool = {

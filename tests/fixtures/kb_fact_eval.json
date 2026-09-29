@@ -1,5 +1,5 @@
 {
-  "_about": "KB fact eval (single call per question, GeneralAgent request shape). Each row: q, must (every regex must match), any (at least one must match), must_not (none may match). Regexes are case-insensitive. Facts from KISNA_KNOWLEDGE_BASE_V2. Run: python scripts/eval_kb_facts.py",
+  "_about": "KB fact eval (single call per question, GeneralAgent request shape). Each row: q, must (every regex must match), any (at least one must match), must_not (none may match). Regexes are case-insensitive. Facts from KISNA_KNOWLEDGE_BASE_V2. Run: python scripts/eval_kb_facts.py Optional \"handoff\": true/false asserts whether the live-agent tool was called. A row with \"intent\" is checked at the classifier instead (an order issue must route there, never reach a generic KB answer). \"empathy_ok\": true lets the answer open with the VOICE empathy line (upset-customer rule).",
   "rows": [
     {
       "topic": "KMR",
@@ -546,7 +546,30 @@
       "any": [
         "on request",
         "solitaire"
-      ]
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Certification",
+      "q": "My diamond came without a certificate",
+      "intent": "complaint"
+    },
+    {
+      "topic": "Certification",
+      "q": "The certificate number doesn't match my ring",
+      "intent": "complaint"
+    },
+    {
+      "topic": "Certification",
+      "q": "I lost my certificate",
+      "must": [
+        "₹\\s?500|Rs\\.?\\s?500|INR\\s?500"
+      ],
+      "any": [
+        "duplicate"
+      ],
+      "handoff": false,
+      "empathy_ok": true
     }
   ]
 }

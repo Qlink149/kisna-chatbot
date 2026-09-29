@@ -6,9 +6,13 @@ effects: a live-agent tool call is answered locally; nothing is sent or saved.
 
     python scripts/eval_kb_facts.py [--runs 1] [--out results.json]
 
-Per question: the row's must / any / must_not regexes, plus the generic
+Per question: the row's must / any / must_not regexes, its optional
+"handoff" (true/false: whether the live-agent tool must be called), plus the generic
 checks (banned phrases incl. any pincode ask, unlocked % figures, the bot
-naming itself, the VOICE opener). Prints every failure with the full answer.
+naming itself, the VOICE opener; "empathy_ok" allows the empathy line
+first). A row with "intent" is checked at the
+classifier instead (one LLM classification per run): order issues must route
+there and never reach a KB answer. Prints every failure with the full answer.
 """
 
 from __future__ import annotations
@@ -33,6 +37,7 @@ ALLOWED_PCT = {"95", "100", "90", "97", "25", "75", "50", "37.5", "91.6", "99.5"
 NEG = re.compile(r"\b(unable|not (?:currently )?(?:able|accept\w*|available|offer\w*|possible)|cannot|can't|don't|do not|no longer)\b", re.I)
 VOICE_OPENERS = ("yes", "absolutely", "certainly", "no worries", "please note that", "currently")
 HANDOFF = ("let me connect you with a kisna representative", "i'm connecting you", "i've connected you")
+EMPATHY = "i'm sorry for the inconvenience"
 
 
 def c_banned(a: str) -> list[str]:
@@ -68,10 +73,14 @@ def c_name(a: str) -> list[str]:
     return []
 
 
-def c_voice(a: str, tool: bool) -> list[str]:
+def c_voice(a: str, tool: bool, empathy_ok: bool = False) -> list[str]:
+    # empathy_ok: a row where VOICE's upset-customer rule puts the empathy
+    # line first (e.g. a lost certificate).
     lead = re.sub(r"^[\W_]+", "", a, flags=re.U).lower()
     if tool and lead.startswith(HANDOFF):
         return []
+    if empathy_ok and lead.startswith(EMPATHY):
+        return ["contains 'Unfortunately'"] if re.search(r"\bunfortunately\b", a, re.I) else []
     if re.search(r"\bunfortunately\b", a, re.I):
         return ["contains 'Unfortunately'"]
     if re.match(r"no\b", lead) and not lead.startswith("no worries"):
@@ -81,7 +90,7 @@ def c_voice(a: str, tool: bool) -> list[str]:
     return []
 
 
-def c_row(row: dict, a: str) -> list[str]:
+def c_row(row: dict, a: str, tool: bool = False) -> list[str]:
     probs = []
     for rx in row.get("must", []):
         if not re.search(rx, a, re.I):
@@ -92,7 +101,17 @@ def c_row(row: dict, a: str) -> list[str]:
     for rx in row.get("must_not", []):
         if re.search(rx, a, re.I):
             probs.append(f"forbidden /{rx}/")
+    if "handoff" in row and row["handoff"] != tool:
+        probs.append("expected a live-agent handoff" if row["handoff"] else "handed off to a live agent")
     return probs
+
+
+async def classify(q: str, sem: asyncio.Semaphore) -> dict:
+    from kisna_chatbot.processors.classifier import classify_query_for_audit
+
+    async with sem:
+        got = await classify_query_for_audit(q, use_llm=True)
+    return {"q": q, "a": f"[routed: {got.get('intent')}]", "intent": got.get("intent"), "tool": False}
 
 
 # ------------------------------------------------------------------ ask
@@ -189,11 +208,18 @@ async def main() -> int:
     sem = asyncio.Semaphore(4)
     results = []
     for run in range(args.runs):
-        answers = await asyncio.gather(*(ask(rows[i - 1]["q"], prompt_for(rows[i - 1]), sem) for i in picked))
+        answers = await asyncio.gather(*(
+            classify(rows[i - 1]["q"], sem) if rows[i - 1].get("intent")
+            else ask(rows[i - 1]["q"], prompt_for(rows[i - 1]), sem)
+            for i in picked
+        ))
         for i, ans in zip(picked, answers):
             row = rows[i - 1]
             a = ans["a"]
-            problems = c_row(row, a) + c_banned(a) + c_locked(a) + c_name(a) + c_voice(a, ans["tool"])
+            if row.get("intent"):
+                problems = [] if ans["intent"] == row["intent"] else [f"routed to {ans['intent']!r}, expected {row['intent']!r}"]
+            else:
+                problems = c_row(row, a, ans["tool"]) + c_banned(a) + c_locked(a) + c_name(a) + c_voice(a, ans["tool"], row.get("empathy_ok", False))
             results.append({"run": run, "n": i, "topic": row["topic"], "q": row["q"] + (f" [as of {row['date']}]" if row.get("date") else ""), "a": a,
                             "tool": ans["tool"], "problems": problems})
 
