@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.parse
 from pathlib import Path
@@ -64,20 +65,53 @@ def flow_details(app_id: str, token: str, flow_id: str) -> dict:
     return g.ensure_ok(r, "Get flow")
 
 
-def interactive_preview(preview_url: str, phone: str = "919812345678") -> str:
-    """Meta preview in interactive mode: the endpoint's data_exchange runs live."""
+def _digits(value: str | None) -> str:
+    return "".join(c for c in str(value or "") if c.isdigit())
+
+
+def business_phone_number(app_id: str, token: str) -> str:
+    """Kisna's WhatsApp business number (the Gupshup source number customers
+    message), read from Gupshup's app config, never guessed.
+
+    Meta's interactive preview needs it for flows with an endpoint: it must be
+    the business number whose public key the endpoint decrypts with. Any env
+    value (GUPSHUP_PHONE_NUMBER / GUPSHUP_SOURCE) must agree with Gupshup."""
+    r = requests.get(
+        f"{g.PARTNER_BASE_URL}/partner/app/{app_id}/waba/info",
+        headers=g.auth_headers(token),
+        timeout=60,
+    )
+    info = (g.ensure_ok(r, "Get WABA info") or {}).get("wabaInfo") or {}
+    phone = _digits(info.get("phone"))
+    if len(phone) < 10:
+        raise SystemExit(f"Gupshup waba/info returned no usable business number: {info.get('phone')!r}")
+    env_phone = _digits(os.getenv("GUPSHUP_PHONE_NUMBER") or os.getenv("GUPSHUP_SOURCE"))
+    if env_phone and env_phone != phone:
+        raise SystemExit(
+            f"Business number mismatch: Gupshup says {phone}, env GUPSHUP_PHONE_NUMBER/"
+            f"GUPSHUP_SOURCE says {env_phone}. Fix the env before previewing."
+        )
+    return phone
+
+
+def interactive_preview(preview_url: str, business_phone: str) -> str:
+    """Meta preview in interactive mode: the endpoint's data_exchange runs live.
+
+    ``phone_number`` is REQUIRED for flows with an endpoint and must be the
+    business number (a customer or made-up number is rejected)."""
     from kisna_chatbot.processors.store_visit_flow import SCREEN_DETAILS, details_screen_data
 
-    # Exactly what send_store_visit_flow sends as the first screen.
-    payload = {"screen": SCREEN_DETAILS, "data": details_screen_data("Preview", phone)}
+    if len(_digits(business_phone)) < 10:
+        raise ValueError("interactive preview needs the WhatsApp business phone number")
+    # What send_store_visit_flow sends as the first screen (name/phone prefill
+    # are sample values here; on WhatsApp they are the customer's).
+    payload = {"screen": SCREEN_DETAILS, "data": details_screen_data("Preview", "")}
     params = {
         "interactive": "true",
         "flow_action": "navigate",
         "flow_token": "sv:preview:0001",
         "flow_action_payload": json.dumps(payload, separators=(",", ":")),
-        # No "phone_number": Meta checks it against the WhatsApp business
-        # number holding our public key, and a customer number is rejected
-        # ("Invalid URL parameter").
+        "phone_number": _digits(business_phone),
     }
     return preview_url + "&" + urllib.parse.urlencode(params)
 
@@ -118,7 +152,9 @@ def main() -> int:
           "| data_api_version:", details.get("data_api_version"))
     print("preview (static):", preview)
     if preview:
-        print("preview (interactive):", interactive_preview(preview))
+        phone = business_phone_number(app_id, token)
+        print("business number (Gupshup waba/info):", phone)
+        print("preview (interactive):", interactive_preview(preview, phone))
     return 1 if errors else 0
 
 
