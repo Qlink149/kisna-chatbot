@@ -18,8 +18,12 @@ App token for subscription API (pick one):
   else fetched via partner token + GET /partner/app/{appId}/token
 
 Usage:
-  python scripts/setup_gupshup_webhook.py
-  python scripts/setup_gupshup_webhook.py --list
+  python scripts/setup_gupshup_webhook.py            # prints current, then sets WEBHOOK_URL
+  python scripts/setup_gupshup_webhook.py --list     # prints current, changes nothing
+  python scripts/setup_gupshup_webhook.py --force    # allow a URL outside kisna-api.claraai.tech
+
+Refuses any WEBHOOK_URL not under https://kisna-api.claraai.tech/ unless
+--force is passed. The current subscriptions are printed first, every run.
 """
 
 from __future__ import annotations
@@ -192,17 +196,43 @@ def upsert_subscription(
     return {"action": "created", "subscription": data.get("subscription") or {}}
 
 
+# Prod's inbound webhook lives here (Caddy on the droplet). Anything else --
+# e.g. the retired kisna-chatbot.vercel.app, still in WEBHOOK_URL on the
+# server -- would silently cut off every inbound customer message.
+ALLOWED_WEBHOOK_PREFIX = "https://kisna-api.claraai.tech/"
+
+
+def check_webhook_url(webhook_url: str, force: bool) -> str | None:
+    """None when the URL may be set; otherwise the reason to refuse."""
+    if webhook_url.startswith(ALLOWED_WEBHOOK_PREFIX) or force:
+        return None
+    return (
+        f"REFUSED: WEBHOOK_URL {webhook_url!r} is not under {ALLOWED_WEBHOOK_PREFIX}. "
+        "Setting it would move the inbound webhook away from the live bot. "
+        "Pass --force only if you really mean to."
+    )
+
+
+def _summary(subscriptions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = ("id", "tag", "url", "active", "version", "modes")
+    return [{k: s.get(k) for k in keys} for s in subscriptions]
+
+
 def main() -> None:
     app_id = require_env("GUPSHUP_APP_ID")
+    app_token = get_app_token(app_id)
+    current = get_existing_subscriptions(app_id, app_token)
+    # Always show what is live before anything can change it.
+    print(json.dumps({"current_subscriptions": _summary(current)}, indent=2))
 
     if "--list" in sys.argv:
-        app_token = get_app_token(app_id)
-        subs = get_existing_subscriptions(app_id, app_token)
-        print(json.dumps({"subscriptions": subs}, indent=2))
         return
 
     webhook_url = require_env("WEBHOOK_URL")
-    app_token = get_app_token(app_id)
+    refusal = check_webhook_url(webhook_url, force="--force" in sys.argv)
+    if refusal:
+        print(refusal, file=sys.stderr)
+        raise SystemExit(2)
     result = upsert_subscription(app_id, app_token, webhook_url)
     subscription = result["subscription"]
     print(
