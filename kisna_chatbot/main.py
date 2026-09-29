@@ -254,6 +254,14 @@ async def lifespan(app: FastAPI):
             [("status", ASCENDING), ("started_at", DESCENDING)],
             name="store_sync_runs_status_started_at",
         )
+        from kisna_chatbot.database.collections import store_visit_flow_sessions
+
+        store_visit_flow_sessions.create_index(
+            [("flow_token", ASCENDING)], unique=True, name="uniq_sv_session_flow_token"
+        )
+        store_visit_flow_sessions.create_index(
+            [("created_at", ASCENDING)], expireAfterSeconds=7 * 24 * 3600, name="sv_session_ttl"
+        )
     except Exception:
         logger.exception("Failed to create stores / store_visits indexes")
 

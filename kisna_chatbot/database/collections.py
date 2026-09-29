@@ -10,6 +10,8 @@ store_visits = db["store_visits"]
 stores = db["stores"]
 # One row per kisna.com store sync run (kisna_chatbot/stores/sync.py).
 store_sync_runs = db["store_sync_runs"]
+# Store Visit form prefill (name, number) per sent flow_token, read at INIT.
+store_visit_flow_sessions = db["store_visit_flow_sessions"]
 ratings = db["ratings"]
 ai_usage_logs = db["ai_usage_logs"]
 processed_inbound_messages = db["processed_inbound_messages"]
@@ -29,6 +31,7 @@ COLLECTIONS = (
     store_visits,
     stores,
     store_sync_runs,
+    store_visit_flow_sessions,
     ratings,
     ai_usage_logs,
     processed_inbound_messages,

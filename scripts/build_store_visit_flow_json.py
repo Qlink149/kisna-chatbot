@@ -5,10 +5,17 @@
 
 Layout (mirrors the client's reference form):
   SV_DETAILS  "Schedule a Store Visit!" / "Find Your Nearest Store":
-              First Name*, Last Name, Email ID, Phone No, Looking for*,
-              Select your State*, Select your City*, Nearest Kisna Store*.
+              First Name, Last Name (optional), Email ID (optional),
+              Phone No (optional), Looking for, Select your State,
+              Select your City, Nearest Kisna Store. WhatsApp itself marks
+              optional fields "(Optional)"; required ones carry no marker.
               State -> City -> Store refresh this same screen via
-              data_exchange (processors/store_visit_flow.py).
+              data_exchange (processors/store_visit_flow.py). Every dropdown
+              has a data-source from the first render: all states; City and
+              Store start as one disabled placeholder.
+              The first screen always comes from the endpoint's INIT (the
+              WhatsApp send and the preview both use flow_action
+              data_exchange).
   SV_DATETIME date + time, "Submit".
 
 Typed text survives a State / City refresh on the server side regardless of
@@ -52,10 +59,6 @@ def s(example=""):
     return {"type": "string", "__example__": example}
 
 
-def b(example):
-    return {"type": "boolean", "__example__": example}
-
-
 def arr(items, example):
     return {"type": "array", "items": items, "__example__": example}
 
@@ -87,13 +90,11 @@ details_screen = {
     "data": {
         "looking_for_options": arr(OPTION, [{"id": "diamond_jewellery", "title": "Diamond Jewellery"}]),
         "states": arr(OPTION, [{"id": "Punjab", "title": "Punjab"}]),
-        "cities": arr(OPTION, [{"id": "Amritsar", "title": "Amritsar"}]),
+        "cities": arr(OPTION, [{"id": "_none", "title": "Select a state first", "enabled": False}]),
         "stores": arr(
             STORE_OPTION,
-            [{"id": "F203", "title": "INA Colony", "description": "Mall Road, Amritsar 143001"}],
+            [{"id": "_none", "title": "Select a city first", "enabled": False}],
         ),
-        "cities_visible": b(False),
-        "stores_visible": b(False),
         "details_error": s(""),
         "init_values": init_obj(
             {
@@ -119,7 +120,7 @@ details_screen = {
                     {
                         "type": "TextInput",
                         "name": "first_name",
-                        "label": "First Name*",
+                        "label": "First Name",
                         "required": True,
                         "input-type": "text",
                     },
@@ -148,14 +149,14 @@ details_screen = {
                     {
                         "type": "Dropdown",
                         "name": "looking_for",
-                        "label": "Looking for*",
+                        "label": "Looking for",
                         "required": True,
                         "data-source": "${data.looking_for_options}",
                     },
                     {
                         "type": "Dropdown",
                         "name": "state",
-                        "label": "Select your State*",
+                        "label": "Select your State",
                         "required": True,
                         "data-source": "${data.states}",
                         "on-select-action": {
@@ -166,9 +167,8 @@ details_screen = {
                     {
                         "type": "Dropdown",
                         "name": "city",
-                        "label": "Select your City*",
+                        "label": "Select your City",
                         "required": True,
-                        "visible": "${data.cities_visible}",
                         "data-source": "${data.cities}",
                         "on-select-action": {
                             "name": "data_exchange",
@@ -183,9 +183,8 @@ details_screen = {
                     {
                         "type": "Dropdown",
                         "name": "store_id",
-                        "label": "Nearest Kisna Store*",
+                        "label": "Nearest Kisna Store",
                         "required": True,
-                        "visible": "${data.stores_visible}",
                         "data-source": "${data.stores}",
                     },
                     {"type": "TextBody", "text": "${data.details_error}"},
@@ -239,7 +238,7 @@ datetime_screen = {
                     {
                         "type": "DatePicker",
                         "name": "preferred_date",
-                        "label": "Visit date*",
+                        "label": "Visit date",
                         "required": True,
                         "min-date": "${data.min_date}",
                         "max-date": "${data.max_date}",
@@ -258,7 +257,7 @@ datetime_screen = {
                     {
                         "type": "Dropdown",
                         "name": "preferred_time",
-                        "label": "Visit time*",
+                        "label": "Visit time",
                         "required": True,
                         "data-source": "${data.time_slots}",
                     },

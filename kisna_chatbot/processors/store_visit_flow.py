@@ -100,6 +100,43 @@ def _carried(data_in: dict) -> dict:
     return {k: str(data_in.get(k) or "").strip() for k in DETAIL_FIELDS}
 
 
+def remember_send(flow_token: str, first_name: str, phone: str) -> None:
+    """Called when the form is sent: the prefill for this form's INIT.
+
+    The first screen always comes from the endpoint (flow_action
+    data_exchange -> INIT), in WhatsApp and in the preview alike, and INIT
+    carries only the flow_token -- so the customer's name and number are
+    kept here, keyed by it (TTL-expired, see main.py)."""
+    from kisna_chatbot.database.collections import store_visit_flow_sessions
+
+    store_visit_flow_sessions.update_one(
+        {"flow_token": flow_token},
+        {
+            "$set": {
+                "first_name": (first_name or "").strip()[:60],
+                "phone": str(phone or ""),
+                "created_at": datetime.utcnow(),
+            }
+        },
+        upsert=True,
+    )
+
+
+def send_prefill(flow_token: str | None) -> dict:
+    """{"first_name", "phone"} saved when this form was sent, or {} (the
+    preview, an expired token, or a lookup failure -- never an error)."""
+    if not flow_token:
+        return {}
+    try:
+        from kisna_chatbot.database.collections import store_visit_flow_sessions
+
+        doc = store_visit_flow_sessions.find_one({"flow_token": flow_token}, {"_id": 0})
+    except Exception:
+        logger.exception("Store visit prefill lookup failed")
+        return {}
+    return {"first_name": doc.get("first_name", ""), "phone": doc.get("phone", "")} if doc else {}
+
+
 def looking_for_options() -> list[dict]:
     return [{"id": i, "title": t} for i, t in LOOKING_FOR_OPTIONS]
 
@@ -151,20 +188,29 @@ def _details_screen(form: dict, *, state: str = "", city: str = "", error: str =
     }
 
 
+PLACEHOLDER_CITY = "Select a state first"
+PLACEHOLDER_STORE = "Select a city first"
+PLACEHOLDER_EMPTY = "No stores available"
+
+
+def _placeholder(title: str) -> list[dict]:
+    """One disabled option: every Dropdown needs a data-source from the first
+    render, and a disabled item cannot be picked, so Next stays locked."""
+    return [{"id": "_none", "title": title, "enabled": False}]
+
+
 def _cascade(state: str = "", city: str = "") -> dict:
-    """States (always), cities for ``state``, stores for ``state`` + ``city``."""
+    """All states always; cities once a state is picked, stores once a city is
+    picked -- until then, a disabled placeholder that says what to pick."""
     states = store_cache.list_states()
     data = {
-        "states": _cap(_options(states), "state"),
-        "cities": [],
-        "stores": [],
-        "cities_visible": False,
-        "stores_visible": False,
+        "states": _cap(_options(states), "state") or _placeholder(PLACEHOLDER_EMPTY),
+        "cities": _placeholder(PLACEHOLDER_CITY),
+        "stores": _placeholder(PLACEHOLDER_STORE),
     }
     if state:
         cities = store_cache.list_cities(state)
-        data["cities"] = _cap(_options(cities), "city")
-        data["cities_visible"] = bool(cities)
+        data["cities"] = _cap(_options(cities), "city") or _placeholder(PLACEHOLDER_EMPTY)
     if state and city:
         stores = store_cache.list_stores(state, city)
         data["stores"] = _cap(
@@ -177,12 +223,7 @@ def _cascade(state: str = "", city: str = "") -> dict:
                 for s in stores
             ],
             "store",
-        )
-        data["stores_visible"] = bool(stores)
-    # WhatsApp rejects an empty data-source array; keep a disabled placeholder.
-    for key in ("states", "cities", "stores"):
-        if not data[key]:
-            data[key] = [{"id": "_none", "title": "—", "enabled": False}]
+        ) or _placeholder(PLACEHOLDER_EMPTY)
     return data
 
 
@@ -230,19 +271,24 @@ def build_store_visit_response(decrypted: dict, now: datetime | None = None) -> 
     screen = str(decrypted.get("screen") or "").strip()
     data_in = decrypted.get("data") if isinstance(decrypted.get("data"), dict) else {}
     try:
-        return _route(action, screen, data_in, now)
+        return _route(action, screen, data_in, now, flow_token=str(decrypted.get("flow_token") or ""))
     except Exception:
         logger.exception("Store visit data_exchange failed", extra={"screen": screen})
         return {"screen": SCREEN_DETAILS, "data": details_screen_data(error=ERR_GENERIC)}
 
 
-def _route(action: str, screen: str, data_in: dict, now: datetime | None) -> dict:
+def _route(action: str, screen: str, data_in: dict, now: datetime | None, *, flow_token: str = "") -> dict:
     form = _carried(data_in)
     state = str(data_in.get("state") or "").strip()
     city = str(data_in.get("city") or "").strip()
 
     if action == "INIT":
-        return {"screen": SCREEN_DETAILS, "data": details_screen_data()}
+        # The form's first screen, for WhatsApp and the preview alike.
+        prefill = send_prefill(flow_token)
+        return {
+            "screen": SCREEN_DETAILS,
+            "data": details_screen_data(prefill.get("first_name", ""), prefill.get("phone", "")),
+        }
 
     if action == "BACK":
         # Back from date/time: the details + cascade screen, text kept.

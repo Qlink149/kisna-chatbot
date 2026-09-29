@@ -76,8 +76,9 @@
           },
           "__example__": [
             {
-              "id": "Amritsar",
-              "title": "Amritsar"
+              "id": "_none",
+              "title": "Select a state first",
+              "enabled": false
             }
           ]
         },
@@ -102,19 +103,11 @@
           },
           "__example__": [
             {
-              "id": "F203",
-              "title": "INA Colony",
-              "description": "Mall Road, Amritsar 143001"
+              "id": "_none",
+              "title": "Select a city first",
+              "enabled": false
             }
           ]
-        },
-        "cities_visible": {
-          "type": "boolean",
-          "__example__": false
-        },
-        "stores_visible": {
-          "type": "boolean",
-          "__example__": false
         },
         "details_error": {
           "type": "string",
@@ -171,7 +164,7 @@
               {
                 "type": "TextInput",
                 "name": "first_name",
-                "label": "First Name*",
+                "label": "First Name",
                 "required": true,
                 "input-type": "text"
               },
@@ -200,14 +193,14 @@
               {
                 "type": "Dropdown",
                 "name": "looking_for",
-                "label": "Looking for*",
+                "label": "Looking for",
                 "required": true,
                 "data-source": "${data.looking_for_options}"
               },
               {
                 "type": "Dropdown",
                 "name": "state",
-                "label": "Select your State*",
+                "label": "Select your State",
                 "required": true,
                 "data-source": "${data.states}",
                 "on-select-action": {
@@ -226,9 +219,8 @@
               {
                 "type": "Dropdown",
                 "name": "city",
-                "label": "Select your City*",
+                "label": "Select your City",
                 "required": true,
-                "visible": "${data.cities_visible}",
                 "data-source": "${data.cities}",
                 "on-select-action": {
                   "name": "data_exchange",
@@ -247,9 +239,8 @@
               {
                 "type": "Dropdown",
                 "name": "store_id",
-                "label": "Nearest Kisna Store*",
+                "label": "Nearest Kisna Store",
                 "required": true,
-                "visible": "${data.stores_visible}",
                 "data-source": "${data.stores}"
               },
               {
@@ -395,7 +386,7 @@
               {
                 "type": "DatePicker",
                 "name": "preferred_date",
-                "label": "Visit date*",
+                "label": "Visit date",
                 "required": true,
                 "min-date": "${data.min_date}",
                 "max-date": "${data.max_date}",
@@ -421,7 +412,7 @@
               {
                 "type": "Dropdown",
                 "name": "preferred_time",
-                "label": "Visit time*",
+                "label": "Visit time",
                 "required": true,
                 "data-source": "${data.time_slots}"
               },

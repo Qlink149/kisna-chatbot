@@ -268,10 +268,40 @@ class DataExchangeTests(CacheFixture):
     def test_first_screen_has_states_and_prefill(self):
         d = svf.details_screen_data("Priya", "919812345678")
         self.assertEqual([o["id"] for o in d["states"]], ["Delhi", "Punjab"])
-        self.assertFalse(d["cities_visible"])
-        self.assertFalse(d["stores_visible"])
+        # Every dropdown has a data-source from the first render.
+        self.assertEqual(d["cities"], [{"id": "_none", "title": "Select a state first", "enabled": False}])
+        self.assertEqual(d["stores"], [{"id": "_none", "title": "Select a city first", "enabled": False}])
         self.assertEqual(d["init_values"], {"first_name": "Priya", "phone": "919812345678"})
         self.assertEqual(len(d["looking_for_options"]), len(LOOKING_FOR_OPTIONS))
+
+    def test_init_prefills_from_the_send_and_preview_opens_blank(self):
+        with patch.object(svf, "send_prefill", side_effect=lambda t: {"first_name": "Priya", "phone": "919812345678"} if t == "sv:1:abc" else {}):
+            r = svf.build_store_visit_response({"action": "INIT", "flow_token": "sv:1:abc"})
+            self.assertEqual(r["screen"], "SV_DETAILS")
+            self.assertEqual(r["data"]["init_values"], {"first_name": "Priya", "phone": "919812345678"})
+            self.assertEqual([o["id"] for o in r["data"]["states"]], ["Delhi", "Punjab"])
+            preview = svf.build_store_visit_response({"action": "INIT", "flow_token": "sv:preview:0001"})
+            self.assertEqual(preview["data"]["init_values"], {})
+            self.assertEqual(preview["data"]["cities"][0]["title"], "Select a state first")
+
+    def test_send_prefill_round_trip_and_failure_is_harmless(self):
+        store = {}
+
+        class Coll:
+            def update_one(self, q, u, upsert=False):
+                store[q["flow_token"]] = u["$set"]
+
+            def find_one(self, q, projection=None):
+                return store.get(q["flow_token"])
+
+        with patch("kisna_chatbot.database.collections.store_visit_flow_sessions", Coll()):
+            svf.remember_send("sv:1:abc", " Priya ", "919812345678")
+            self.assertEqual(svf.send_prefill("sv:1:abc"), {"first_name": "Priya", "phone": "919812345678"})
+            self.assertEqual(svf.send_prefill("sv:1:other"), {})
+        broken = MagicMock()
+        broken.find_one.side_effect = RuntimeError("mongo down")
+        with patch("kisna_chatbot.database.collections.store_visit_flow_sessions", broken):
+            self.assertEqual(svf.send_prefill("sv:1:abc"), {})
 
     def test_typed_text_survives_state_and_city_refresh(self):
         """The refresh returns every typed field as init-values -- for text
@@ -280,8 +310,7 @@ class DataExchangeTests(CacheFixture):
         self.assertEqual(r["screen"], "SV_DETAILS")
         self.assertEqual(r["data"]["init_values"], {**self.TYPED, "state": "Delhi"})
         self.assertEqual([o["id"] for o in r["data"]["cities"]], ["Delhi-NCR"])
-        self.assertTrue(r["data"]["cities_visible"])
-        self.assertFalse(r["data"]["stores_visible"])
+        self.assertEqual(r["data"]["stores"][0]["title"], "Select a city first")
         edited = {**self.TYPED, "email": "priya.s@example.com", "last_name": ""}
         r = svf.build_store_visit_response(
             _req("city", state="Delhi", city="Delhi-NCR", **edited), now=NOW
@@ -292,7 +321,7 @@ class DataExchangeTests(CacheFixture):
         )
         self.assertEqual([s["title"] for s in r["data"]["stores"]], ["Karol Bagh", "Rajouri Garden"])
         self.assertIn("110005", r["data"]["stores"][0]["description"])
-        self.assertTrue(r["data"]["stores_visible"])
+        self.assertNotEqual(r["data"]["stores"][0]["id"], "_none")
 
     def test_changing_state_drops_the_old_city(self):
         r = svf.build_store_visit_response(_req("state", state="Punjab", city="Delhi-NCR", **self.TYPED), now=NOW)
@@ -340,7 +369,7 @@ class DataExchangeTests(CacheFixture):
             # The picks and the rest of the text are still there.
             self.assertEqual(r["data"]["init_values"]["state"], "Delhi")
             self.assertEqual(r["data"]["init_values"]["city"], "Delhi-NCR")
-            self.assertTrue(r["data"]["stores_visible"])
+            self.assertEqual(len(r["data"]["stores"]), 2)
 
     def test_phone_is_optional(self):
         r = svf.build_store_visit_response(
@@ -737,7 +766,7 @@ class OfferTests(CacheFixture):
         resp.json.return_value = {"ok": True}
         with patch.dict(os.environ, {"KISNA_STORE_VISIT_FLOW_ID": "123"}), patch.object(
             sender.httpx, "post", return_value=resp
-        ) as post:
+        ) as post, patch.object(sender, "remember_send") as remember:
             sender.send_store_visit_flow("919812345678", "Body", first_name="Priya")
             sender.send_store_visit_flow("919812345678", "Body", first_name="Priya")
         p1 = post.call_args_list[0].kwargs["json"]["interactive"]
@@ -747,10 +776,11 @@ class OfferTests(CacheFixture):
         self.assertEqual(params["flow_id"], "123")
         self.assertTrue(params["flow_token"].startswith("sv:123:"))
         self.assertNotEqual(params["flow_token"], p2["action"]["parameters"]["flow_token"])
-        self.assertEqual(params["flow_action_payload"]["screen"], "SV_DETAILS")
-        first = params["flow_action_payload"]["data"]
-        self.assertEqual(first["init_values"], {"first_name": "Priya", "phone": "919812345678"})
-        self.assertEqual([o["id"] for o in first["states"]], ["Delhi", "Punjab"])
+        # Same start as the preview: WhatsApp asks the endpoint (INIT).
+        self.assertEqual(params["flow_action"], "data_exchange")
+        self.assertNotIn("flow_action_payload", params)
+        # The prefill INIT will read, saved under this form's token.
+        remember.assert_any_call(params["flow_token"], "Priya", "919812345678")
 
     def test_sender_body_over_1024_chars_falls_back_to_english(self):
         from kisna_chatbot.whatsapp_functions.flow import send_store_visit_flow as sender
@@ -760,7 +790,8 @@ class OfferTests(CacheFixture):
         with patch.dict(os.environ, {"KISNA_STORE_VISIT_FLOW_ID": "123"}), patch.object(
             sender.httpx, "post", return_value=resp
         ) as post:
-            sender.send_store_visit_flow("919812345678", "த" * 1100)
+            with patch.object(sender, "remember_send"):
+                sender.send_store_visit_flow("919812345678", "த" * 1100)
         body = post.call_args.kwargs["json"]["interactive"]["body"]["text"]
         self.assertEqual(body, form_copy.STORE_VISIT_PREFORM)
 
@@ -880,8 +911,8 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(form_children[0], {"type": "TextHeading", "text": "Find Your Nearest Store"})
         self.assertEqual(
             [c["label"] for c in form_children if "label" in c and c["type"] != "Footer"],
-            ["First Name*", "Last Name", "Email ID", "Phone No", "Looking for*",
-             "Select your State*", "Select your City*", "Nearest Kisna Store*"],
+            ["First Name", "Last Name", "Email ID", "Phone No", "Looking for",
+             "Select your State", "Select your City", "Nearest Kisna Store"],
         )
         last = flow["screens"][1]["layout"]["children"][0]["children"][-1]
         self.assertEqual((last["type"], last["label"]), ("Footer", "Submit"))

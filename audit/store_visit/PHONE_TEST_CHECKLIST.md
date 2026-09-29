@@ -3,7 +3,8 @@
 **Before you start**
 - **Draft Flow:** `kisna_store_visit_droplet` (id `1750678739319405`), status DRAFT, not published. Endpoint `https://kisna-api.claraai.tech/whatsapp/flows/data-exchange`.
 - **Endpoint code:** the live taps (State, City, Next, date) need prod running the branch with the 2-screen layout (`feat/store-visit-test-gate`, or later). With older code the preview fails at the first tap.
-- **Interactive preview:** `python scripts/store_visit_flow_draft.py --flow-id 1750678739319405` prints it. It uses `flow_action=data_exchange`, so screen 1 comes from the endpoint (INIT), and `phone_number` = Kisna's business number from Gupshup (917304278561). In the preview, name and phone are not prefilled (there's no customer); on WhatsApp they are.
+- **Same start everywhere:** the WhatsApp send and the interactive preview both use `flow_action=data_exchange`, so screen 1 always comes from the endpoint's INIT. On WhatsApp, INIT prefills the name and number saved when the form was sent (`store_visit_flow_sessions`, keyed by the form's token). The preview has no customer, so it opens with them blank.
+- **Interactive preview:** `python scripts/store_visit_flow_draft.py --flow-id 1750678739319405` prints it, with `phone_number` = Kisna's business number from Gupshup (917304278561).
 - **Stores:** 170 synced from kisna.com (nightly 02:00 IST).
 - **Weekly-off:** no store has one in the kisna.com data. Before row 3.1, set one in the dashboard (Stores → Lulu Mall - Lucknow → weekly off = the next Tuesday's weekday).
 - **Dates:** examples assume testing between 29 Sep and 1 Oct 2026. The next holidays are 2 Oct (Gandhi Jayanti) and 20 Oct (Store Holiday).
@@ -12,14 +13,15 @@
 |---|------|-----------------|---|
 | **Screen 1: "Schedule a Store Visit!"** | | | |
 | 1.1 | Open the form from "book a store visit" (WhatsApp) | Header "Store Visit". Body is the client pre-form text. Button "Book a Store Visit" | ☐ |
-| 1.2 | Look at the screen | Title "Schedule a Store Visit!", heading "Find Your Nearest Store". Fields in order: First Name*, Last Name, Email ID, Phone No, Looking for*, Select your State*. City and Store appear later | ☐ |
-| 1.3 | Look at First Name* and Phone No (WhatsApp only) | Prefilled with the WhatsApp profile name and number. Phone No shows "Leave blank to use this WhatsApp number" | ☐ |
+| 1.2 | Look at the screen | Title "Schedule a Store Visit!", heading "Find Your Nearest Store". Fields in order: First Name, Last Name (Optional), Email ID (Optional), Phone No (Optional), Looking for, Select your State, Select your City, Nearest Kisna Store. No "*" anywhere; no "missing data-source" error | ☐ |
+| 1.2b | Open Select your City and Nearest Kisna Store before picking anything | One greyed-out item each: "Select a state first" / "Select a city first"; can't be picked | ☐ |
+| 1.3 | Look at First Name and Phone No (WhatsApp only) | Prefilled with the WhatsApp profile name and number. Phone No shows "Leave blank to use this WhatsApp number" | ☐ |
 | 1.4 | Looking for* options | Diamond Jewellery, Gold Jewellery, Solitaires, Engagement & Bridal, Gemstone Jewellery, Other | ☐ |
 | 1.5 | Select your State* | 25 states, A→Z, only states with a bookable store. "Chhattisgarh" spelled with "hh" | ☐ |
 | **Typed text survives the cascade (the key check)** | | | |
-| 1.6 | Type First Name, Last Name, Email ID and Phone No, pick Looking for, **then** pick State = Uttar Pradesh | Select your City* appears with **22** cities. **Every typed field and Looking for are unchanged** | ☐ |
-| 1.7 | Now edit Email ID, then pick City = Lucknow | Nearest Kisna Store* appears with 5 stores (Alambagh, Hazratganj, Indira Nagar, Lulu Mall, Tiwariganj), address + PIN under each. **The edited email and all other text are unchanged** | ☐ |
-| 1.8 | Change State to Delhi | City list reloads (Delhi-NCR); City and Store selections clear; **typed text unchanged** | ☐ |
+| 1.6 | Type First Name, Last Name, Email ID and Phone No, pick Looking for, **then** pick State = Uttar Pradesh | Select your City now lists **22** cities. **Every typed field and Looking for are unchanged** | ☐ |
+| 1.7 | Now edit Email ID, then pick City = Lucknow | Nearest Kisna Store now lists 5 stores (Alambagh, Hazratganj, Indira Nagar, Lulu Mall, Tiwariganj), address + PIN under each. **The edited email and all other text are unchanged** | ☐ |
+| 1.8 | Change State to Delhi | City list reloads (Delhi-NCR); City clears and Store goes back to "Select a city first"; **typed text unchanged** | ☐ |
 | 1.9 | City = Delhi-NCR | **8** stores (the largest store list) | ☐ |
 | 1.10 | State = Uttar Pradesh → City = Delhi-NCR | 4 stores (Spectrum Mall - Noida, Sector 18 - Noida, Blue Sapphire Plaza - Greater Noida, Nehru Nagar - Ghaziabad) | ☐ |
 | 1.11 | Single-store city: Uttar Pradesh → Kushinagar | Exactly 1 store | ☐ |
@@ -27,7 +29,7 @@
 | 1.12 | Leave Last Name, Email ID and Phone No empty; everything else filled; Next | Goes to screen 2 (all three optional) | ☐ |
 | 1.13 | Phone No `12345`; Next | Stays on screen 1: "Please enter a valid 10-digit mobile number, or leave it blank." Everything typed and picked is still there | ☐ |
 | 1.14 | Email ID `abc@`; Next | Rejected by WhatsApp's email field, or "Please enter a valid email address, or leave it blank." | ☐ |
-| 1.15 | Leave First Name*, Looking for* or Nearest Kisna Store* empty | Next stays disabled (required) | ☐ |
+| 1.15 | Leave First Name, Looking for or Nearest Kisna Store empty | Next stays disabled (required) | ☐ |
 | **Screen 2: "Choose Date & Time"** | | | |
 | 2.1 | Store name + address shown at the top | The store picked on screen 1 | ☐ |
 | 2.2 | Back to screen 1 | All text, State, City and Store still as entered | ☐ |
