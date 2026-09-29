@@ -274,6 +274,36 @@ class DataExchangeTests(CacheFixture):
         self.assertEqual(d["init_values"], {"first_name": "Priya", "phone": "919812345678"})
         self.assertEqual(len(d["looking_for_options"]), len(LOOKING_FOR_OPTIONS))
 
+    def test_init_response_matches_the_flow_json_schema_exactly(self):
+        """INIT must return what the Flow JSON's first screen declares: that
+        screen's id, exactly its data keys, and every list item an object with
+        string id + title. (The preview's empty State list came from INIT and
+        JSON disagreeing.)"""
+        with open(os.path.join(ROOT, "json", "store_visit.json"), encoding="utf-8") as f:
+            flow = json.load(f)
+        first = flow["screens"][0]
+        with patch.object(svf, "send_prefill", return_value={}):
+            r = svf.build_store_visit_response({"action": "INIT", "flow_token": "sv:preview:0001"})
+        self.assertEqual(r["screen"], first["id"])
+        self.assertEqual(r["screen"], list(flow["routing_model"])[0])
+        self.assertEqual(sorted(r["data"]), sorted(first["data"]))
+        fields = {c.get("name"): c for c in first["layout"]["children"][0]["children"] if c.get("name")}
+        for name, key in (("looking_for", "looking_for_options"), ("state", "states"),
+                          ("city", "cities"), ("store_id", "stores")):
+            self.assertEqual(fields[name]["data-source"], "${data.%s}" % key)
+            schema = first["data"][key]["items"]
+            self.assertEqual(schema["type"], "object")
+            self.assertEqual(schema["properties"]["id"]["type"], "string")
+            self.assertEqual(schema["properties"]["title"]["type"], "string")
+            self.assertTrue(r["data"][key], key)
+            for item in r["data"][key]:
+                self.assertIsInstance(item.get("id"), str, (key, item))
+                self.assertIsInstance(item.get("title"), str, (key, item))
+                self.assertLessEqual(set(item), set(schema["properties"]), (key, item))
+        self.assertEqual(len(r["data"]["states"]), 2)
+        self.assertEqual(r["data"]["states"][0], {"id": "Delhi", "title": "Delhi"})
+        self.assertLessEqual(set(r["data"]["init_values"]), set(first["data"]["init_values"]["properties"]))
+
     def test_init_prefills_from_the_send_and_preview_opens_blank(self):
         with patch.object(svf, "send_prefill", side_effect=lambda t: {"first_name": "Priya", "phone": "919812345678"} if t == "sv:1:abc" else {}):
             r = svf.build_store_visit_response({"action": "INIT", "flow_token": "sv:1:abc"})
