@@ -5,16 +5,16 @@ Condensed from the official KISNA team knowledge base (June 2026).
 All numbers are the resolved authoritative values. Do NOT approximate
 or let the model round these — quote them exactly.
 
-When this KB exceeds ~12k tokens, switch GeneralAgent from prompt-injection
-injected into the GeneralAgent system prompt (no vector DB).
+The KB is injected into the GeneralAgent system prompt (no vector DB). If it
+grows past ~12k tokens, move GeneralAgent from prompt injection to retrieval.
 
 Two versions live here side by side:
   - KISNA_KNOWLEDGE_BASE     -- the original KB. UNUSED since KB v2.1: kept
     for history only; nothing imports it and it never reaches the prompt.
   - KISNA_KNOWLEDGE_BASE_V2  -- the client's September 2026 re-scrape, adopted
-    verbatim EXCEPT the flagship-store count, which the client separately
-    confirmed stays at "160+" (their new doc says "120+"; that single figure
-    was overridden here, everything else in their doc is used as supplied).
+    verbatim with one exception: the flagship-store count. The client's new
+    doc says "120+", but the client separately confirmed the figure stays
+    "160+", so V2 says 160+.
     This is the live KB. Also now includes the client's September FAQ
     additions (ring sizing, customisation, karat guide, gifting, and
     extensions to certification/payment/exchange/delivery).
@@ -248,7 +248,8 @@ KISNA_KNOWLEDGE_BASE = """\
 """
 
 # KB v2.1 — client answers received 2026-09-26. No open client questions.
-KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of truth)
+KISNA_KNOWLEDGE_BASE_V2 = """\
+# KISNA KNOWLEDGE BASE (authoritative source of truth)
 
 ## COMPANY
 - Brand: KISNA (Diamond & Gold Jewellery), by Hari Krishna Group / Hari Krishna Exports Pvt. Ltd.
@@ -263,7 +264,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Sister brands (under House of HK): Kisna, Siva, RARE, Platinum, Oro, Rang.
 
 ## BRAND PROMISE
-- Certified jewellery (BIS Hallmark for gold; IGI/GIA for diamonds).
+- Certified jewellery (BIS Hallmark for gold; IGI for diamonds, GIA on request for solitaires).
 - 7-day money-back guarantee.
 - Free shipping in both directions within India — no charges for delivery or for returns.
 - Easy exchange & buyback.
@@ -309,6 +310,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Old gold (distinct from Kisna-jewellery exchange): can be exchanged at any physical Kisna store for 100% value, no deductions.
 - Old gold exchange is available at Kisna offline stores only. It has not been launched for online purchases.
 - Jewellery purchased from another brand can be exchanged through Kisna's old gold exchange facility, at offline stores only. Its valuation may vary depending on detailed examination and assessment; the final value is determined by the product examination report. Never quote a percentage for it.
+- The 100% old-gold value does not apply to jewellery from other brands; for those, the value comes from the examination report.
 - Bot handling rule: "will I get cash or store credit?" is ambiguous between exchange and buyback -- ask the customer which one they mean (or infer it from context) before answering. Exchange is adjusted only against the next online order (see above); buyback pays out as RTGS/NEFT (see BUYBACK POLICY below). Never answer this question without disambiguating first.
 
 ## BUYBACK POLICY (authoritative — /buyback-and-exchange-policy)
@@ -361,7 +363,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Fraud prevention: payment partners monitor for suspicious activity; flagged transactions held for manual review; ID may be requested to confirm the cardholder.
 - Payment security: online payments are processed through Kisna's secure payment system; recommend completing payments only through the official checkout.
 - Price composition: the price may include gold value, making charges, stone charges, applicable taxes and discounts; a detailed price breakdown is on the website. (Never quote a making-charge percentage.)
-- Partial payment: accepted only against the gold rate under Gold Rate Protection (25% advance); it cannot be made against any specific jewellery product. Standard online orders require full payment at checkout.
+- Partial payment: accepted only against the gold rate under Gold Rate Protection (25% advance), and only while GRP is running (listed under LIVE CAMPAIGNS); it cannot be made against any specific jewellery product. Standard online orders require full payment at checkout.
 - One payment method per order: multiple payment methods cannot be combined directly at checkout. The Support Team can arrange payment using multiple options from the backend, wherever applicable.
 - Vouchers issued by Kisna stores or through events and promotions are not redeemable for online purchases.
 
@@ -396,8 +398,9 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 
 ## GOLD RATE PROTECTION PLAN (GRP) — https://www.kisna.com/pages/gold-rate-protection
 - Allows customers to lock the prevailing gold rate at the time of booking, protecting them from future gold price increases during the offer period.
-- Never quote GRP dates — always direct customers to the page for current dates.
-- Every GRP answer, not just the validity one, must end by pointing the customer to https://www.kisna.com/pages/gold-rate-protection for full details — this is the page itself, not a generic "visit our website."
+- Availability is seasonal. If GRP is listed under LIVE CAMPAIGNS, answer from this section. If it is NOT listed, say GRP isn't running right now and point the customer to the GRP page for the next season.
+- Never quote GRP dates, whether it is running or not — always direct customers to the page for current dates.
+- The GRP button attached to the answer carries the page link; don't type the URL.
 
 ### GRP — Full FAQ (verified from live site)
 - Q: Who is eligible for the Gold Rate Protection Scheme benefit?
@@ -464,7 +467,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 ## STORE & IN-STORE SERVICES
 - Store locator: kisna.com/store (searchable by city). Authorized dealers: kisna.com/kisna-authorized-dealers.
 - In-store: jewellery consultation (no purchase obligation), try-on, servicing, exchange/buyback at any store.
-- Online and in-store pricing/offers are uniform.
+- Online and in-store pricing is uniform.
 - Store visit booking: customers can book a store visit right here in the chat — a form asks their state, city, store, date and time, and a store jewellery expert then gets in touch. When someone wants to visit or see pieces in a store, tell them they can book a visit here (they can type "book a store visit"); never ask for a pincode.
 
 ## SUPPORT & CONTACT
@@ -494,8 +497,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 
 ### KYC Requirements
 - Aadhaar Card or Passport required at store enrollment.
-- PAN Card required if the monthly installment amount is ₹19,000 or above.
-- PAN Card mandatory at redemption for any redemption value above ₹2,00,000 (per RBI guidelines).
+- PAN is required in two cases: (a) at enrollment if the monthly installment is ₹19,000 or above; (b) at redemption above ₹2,00,000.
 
 ### Installment Rules
 - Minimum monthly installment: ₹2,000 (in multiples of ₹500 — e.g. ₹2,000 / ₹2,500 / ₹3,000). No maximum cap.
@@ -534,11 +536,11 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 ### Pre-Maturity Redemption
 - Eligible after paying MORE THAN 6 monthly installments (not yet at full maturity).
 - Pre-maturity benefit:
-  - Diamond jewellery: 50% of the 1st installment value as discount (e.g. ₹2,000/month → ₹1,000 discount).
-  - Gold jewellery: 37.5% of the 1st installment value as discount (e.g. ₹2,000/month → ₹750 discount).
+  - Diamond jewellery: 50% of the 1st installment value as discount, only after more than 6 installments (e.g. ₹2,000/month → ₹1,000 discount).
+  - Gold jewellery: 37.5% of the 1st installment value as discount, only after more than 6 installments (e.g. ₹2,000/month → ₹750 discount).
 
 ### Redemption Rules
-- Where to redeem: KMR redemption is available online via Customer Support (phone or email). The KMR support line is for other KMR queries.
+- Where to redeem: at any Kisna exclusive store, or online via Customer Support (phone or email). The KMR support line is for other KMR queries.
 - Eligible products: diamond jewellery and gold jewellery ONLY.
 - NOT eligible for redemption: Gold Coins, Silver Coins, Rare Solitaire, Plain Platinum jewellery, Studded Diamond Platinum jewellery.
 - Cannot split one plan across diamond and gold — must choose ONE category per plan at redemption.
@@ -584,8 +586,7 @@ same reply. Every "not available" is followed by "however, you can..." or
 "our team will...".
 
 ## Hedging
-For customisation, engraving, stone change, resizing feasibility, address
-change and gift messages, always hedge: "may be possible", "may not be
+For resizing feasibility and address change, always hedge: "may be possible", "may not be
 available for all designs", "subject to availability", "depending on the
 status of your order". Never promise. State flatly only: certification,
 pricing uniformity, free delivery, free resizing, insurance.
@@ -636,6 +637,7 @@ Exchange & buyback
 - Buyback, gold: 97% of current gold value
 - Buyback payment: within 5 to 10 days, by RTGS or NEFT
 - Old gold at store: 100% value, no deductions
+- Other brands' jewellery: the 100% old-gold value does not apply; the value comes from the examination report (never quote a percentage)
 
 Resizing
 - Resizing turnaround: 7-10 business days

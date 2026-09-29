@@ -67,10 +67,18 @@ class KbV21AssemblyTests(unittest.TestCase):
 
     def test_every_grp_answer_points_to_the_page(self) -> None:
         # Client-reported gap: "What is GRP?" answered with no pointer to the
-        # page. The rule survives; the link itself is carried by the button.
+        # page. The page is carried by the GRP button GeneralAgent attaches;
+        # the model must point at it, not type the URL.
         self.assertIn(
-            "Every GRP answer, not just the validity one, must end by pointing the "
-            "customer to https://www.kisna.com/pages/gold-rate-protection",
+            "The GRP button attached to the answer carries the page link; don't type the URL.",
+            self.prompt,
+        )
+        self.assertNotIn("Every GRP answer, not just the validity one", self.prompt)
+
+    def test_grp_availability_is_seasonal(self) -> None:
+        self.assertIn(
+            "If it is NOT listed, say GRP isn't running right now and point the "
+            "customer to the GRP page",
             self.prompt,
         )
 

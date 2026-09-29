@@ -431,6 +431,122 @@
       "must_not": [
         "pin\\s?-?code"
       ]
+    },
+    {
+      "topic": "KMR",
+      "q": "Can I redeem KMR at a store?",
+      "must": [
+        "store"
+      ],
+      "any": [
+        "exclusive store",
+        "any kisna",
+        "at a (kisna )?store",
+        "in[- ]store"
+      ],
+      "must_not": [
+        "only (available )?online",
+        "not (available )?(at|in) (a |the )?store"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "q": "Is GRP available right now?",
+      "date": "2026-09-30",
+      "any": [
+        "running",
+        "available",
+        "live",
+        "yes"
+      ],
+      "must": [
+        "gold-rate-protection"
+      ],
+      "must_not": [
+        "\\b\\d{1,2}(st|nd|rd|th)?\\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)",
+        "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\s+\\d{1,2}\\b",
+        "\\b20(26|27)\\b",
+        "not running",
+        "isn't running",
+        "not available right now"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "q": "Is GRP available right now?",
+      "date": "2026-11-11",
+      "any": [
+        "not running",
+        "isn't running",
+        "not (currently )?available",
+        "not active",
+        "not live",
+        "currently not",
+        "not (currently )?running"
+      ],
+      "must": [
+        "gold-rate-protection"
+      ],
+      "must_not": [
+        "\\b\\d{1,2}(st|nd|rd|th)?\\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)",
+        "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\s+\\d{1,2}\\b",
+        "\\b20(26|27)\\b",
+        "\\bis running now\\b",
+        "yes,? (it|grp) is (running|available)"
+      ]
+    },
+    {
+      "topic": "Customisation",
+      "q": "Can I get a custom engraving?",
+      "any": [
+        "unable",
+        "not (currently )?(able|accept|offer|possible|available)",
+        "cannot",
+        "can't",
+        "don't"
+      ],
+      "must_not": [
+        "may be possible",
+        "subject to availability",
+        "yes,? (you can|we can|absolutely)"
+      ]
+    },
+    {
+      "topic": "Store",
+      "q": "Are offers the same online and in store?",
+      "any": [
+        "pric"
+      ],
+      "must_not": [
+        "offers are (the same|uniform|identical)",
+        "same offers",
+        "offers (are )?also (the same|uniform)",
+        "pricing and offers are"
+      ]
+    },
+    {
+      "topic": "Exchange/Buyback",
+      "q": "Will I get 100% for my old Tanishq gold?",
+      "any": [
+        "examination",
+        "assess",
+        "evaluat"
+      ],
+      "must_not": [
+        "you('ll| will) (get|receive) (the )?100\\s*%",
+        "yes,? you('ll| will| can)"
+      ]
+    },
+    {
+      "topic": "Certification",
+      "q": "Is my diamond GIA certified?",
+      "must": [
+        "IGI"
+      ],
+      "any": [
+        "on request",
+        "solitaire"
+      ]
     }
   ]
 }

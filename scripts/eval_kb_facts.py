@@ -18,6 +18,7 @@ import asyncio
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -175,16 +176,25 @@ async def main() -> int:
 
     rows = json.loads(FIXTURE.read_text(encoding="utf-8"))["rows"]
     picked = [int(x) for x in args.only.split(",")] if args.only else range(1, len(rows) + 1)
-    instructions = build_general_agent_prompt()
+    # A row may carry "date": the prompt is built for that day (live
+    # campaigns change by date -- e.g. GRP listed or not).
+    prompts: dict[str, str] = {}
+
+    def prompt_for(row: dict) -> str:
+        key = row.get("date") or ""
+        if key not in prompts:
+            prompts[key] = build_general_agent_prompt(date.fromisoformat(key) if key else None)
+        return prompts[key]
+
     sem = asyncio.Semaphore(4)
     results = []
     for run in range(args.runs):
-        answers = await asyncio.gather(*(ask(rows[i - 1]["q"], instructions, sem) for i in picked))
+        answers = await asyncio.gather(*(ask(rows[i - 1]["q"], prompt_for(rows[i - 1]), sem) for i in picked))
         for i, ans in zip(picked, answers):
             row = rows[i - 1]
             a = ans["a"]
             problems = c_row(row, a) + c_banned(a) + c_locked(a) + c_name(a) + c_voice(a, ans["tool"])
-            results.append({"run": run, "n": i, "topic": row["topic"], "q": row["q"], "a": a,
+            results.append({"run": run, "n": i, "topic": row["topic"], "q": row["q"] + (f" [as of {row['date']}]" if row.get("date") else ""), "a": a,
                             "tool": ans["tool"], "problems": problems})
 
     by_topic: dict[str, list[int]] = {}
