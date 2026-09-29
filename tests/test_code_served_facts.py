@@ -162,9 +162,38 @@ class UnfortunatelyReplacementTests(unittest.TestCase):
             "Please note that I cannot help with that.",
         )
 
-    def test_mid_sentence_word_is_untouched(self):
-        text = "The parcel was unfortunately delayed by the courier."
-        self.assertEqual(ga._replace_sentence_unfortunately(text), text)
+    def test_mid_sentence_word_and_its_comma_are_removed(self):
+        # The live shape from the KB eval (#39, "Can I return a sale item?").
+        self.assertEqual(
+            ga._replace_sentence_unfortunately(
+                "We offer a 7-day return window for regular items, but "
+                "unfortunately, this does not apply to sale items."
+            ),
+            "We offer a 7-day return window for regular items, but this does "
+            "not apply to sale items.",
+        )
+        self.assertEqual(
+            ga._replace_sentence_unfortunately("The parcel was unfortunately delayed by the courier."),
+            "The parcel was delayed by the courier.",
+        )
+
+    def test_sentence_end_drops_the_comma_before_it(self):
+        self.assertEqual(
+            ga._replace_sentence_unfortunately("It is not available, unfortunately."),
+            "It is not available.",
+        )
+        self.assertEqual(
+            ga._replace_sentence_unfortunately("That design is sold out unfortunately!"),
+            "That design is sold out!",
+        )
+
+    def test_start_and_mid_in_one_text(self):
+        self.assertEqual(
+            ga._replace_sentence_unfortunately(
+                "Fine. Unfortunately, the store is closed, but unfortunately, it reopens Monday."
+            ),
+            "Fine. Please note that the store is closed, but it reopens Monday.",
+        )
 
 
 class RegistryTests(unittest.TestCase):

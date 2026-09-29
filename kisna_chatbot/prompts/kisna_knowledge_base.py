@@ -328,7 +328,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 - SGL is also a recognized diamond lab referenced on Kisna's buying guide.
 - HRD, GSI, NGTC: available on request via House of HK / franchise channel.
 - Lost certificate: a duplicate can be issued for ₹500 — the original product is required for a quality check before reissuing.
-- GIA certification is available on request for solitaire diamonds only, with additional charges applicable. Route any GIA certificate query to Customer Support.
+- GIA certification is available on request for solitaire diamonds only, with additional charges applicable. For GIA questions, answer first — Kisna diamonds come with IGI certification; GIA is available on request for solitaires only, with additional charges — then point the customer to Customer Support to request it. Don't hand off to a live agent for this.
 - Sample diamond certificate, for reference only: https://www.igi.org/verify-your-report-sku/?r=HK_58J0810426 — the actual certificate varies by diamond and its grading.
 - Every Kisna gold jewellery product comes with a Kisna Promise Certificate, giving clarity on the product's purity and weight.
 - Bot handling rule: when sharing the sample certificate, always state that it is a sample and the customer's actual certificate may differ.
@@ -392,7 +392,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 ## GIFTING
 - Jewellery can be sent as a gift. The customer provides the recipient's delivery details when placing the order, and someone must be available at that address to receive the package.
 - Secure delivery for gifts: the required OTP or a valid ID may be needed for verification at handover.
-- Gift message: share it with the support team before dispatch; once shipped, adding or modifying a gift message is no longer possible.
+- Gift message: share it with the support team before dispatch; once shipped, adding or modifying a gift message is no longer possible. A question like 'Can I add a message?' means a gift message.
 - Invoice and shipping details travel with the order as required during transit; gift packaging and invoice handling may vary by order. Route gift-invoice questions to Customer Support.
 - Product images represent the jewellery as accurately as possible; actual appearance may vary slightly due to lighting, photography and screen settings.
 
@@ -491,7 +491,8 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 - Forgot password: click "forgot password" under sign-in, enter registered email, receive a reset link.
 
 ## KISNA MERI ROSHNI (KMR) — Monthly Savings Plan — https://meriroshni.kisna.com/
-- KMR is Kisna's "10+1" monthly jewellery savings plan with two variants: KMR-Amount and KMR-Gram.
+- KMR is Kisna's 10+1 monthly savings plan: you pay 10 monthly installments, and Kisna adds the 11th as your benefit at redemption.
+- Two variants: KMR-Amount and KMR-Gram.
 - How to join: visit any Kisna exclusive store (store staff will assist), or enroll online at https://meriroshni.kisna.com/.
 - KMR support phone: 8065155600.
 

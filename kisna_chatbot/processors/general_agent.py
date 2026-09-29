@@ -51,8 +51,10 @@ _GRP_RE = re.compile(
 # available" opening a sentence with a bare negative, which VOICE also
 # forbids. Only a SENTENCE-INITIAL "Unfortunately" is rewritten -- start of the
 # text or a line, or after . ! ? (emoji/markup between the full stop and the
-# word don't count: "India. 🚚✨ Unfortunately," is a sentence start). The word
-# mid-sentence is left alone.
+# word don't count: "India. 🚚✨ Unfortunately," is a sentence start).
+# Mid-sentence the word and its trailing comma are simply removed ("but
+# unfortunately, this" -> "but this"); at a sentence end the preceding comma
+# goes too ("..., unfortunately." -> "...").
 _UNFORTUNATELY_RE = re.compile(r"(\*?)unfortunately\b,?[ \t]*(\S*)", re.I)
 # Trailing whitespace, emoji, markup and other non-word symbols -- anything
 # that can sit between a sentence end and the next sentence's first word.
@@ -72,6 +74,15 @@ def _replace_sentence_unfortunately(text: str) -> str:
     out, last = [], 0
     for m in _UNFORTUNATELY_RE.finditer(text):
         if not _is_sentence_start(text[: m.start()]):
+            before = text[last : m.start()]
+            word = m.group(2)
+            if not word or not (word[0].isalnum() or word[0] in "*_~"):
+                # "..., unfortunately." / "... unfortunately!" -- drop the
+                # comma/space before it so the punctuation closes the clause.
+                before = before.rstrip(" 	,")
+            out.append(before)
+            out.append(f"{m.group(1)}{word}")
+            last = m.end()
             continue
         word = m.group(2)
         core = word.strip("*_~.,!?")
