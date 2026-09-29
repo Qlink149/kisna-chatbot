@@ -75,7 +75,9 @@ def interactive_preview(preview_url: str, phone: str = "919812345678") -> str:
         "flow_action": "navigate",
         "flow_token": "sv:preview:0001",
         "flow_action_payload": json.dumps(payload, separators=(",", ":")),
-        "phone_number": phone,
+        # No "phone_number": Meta checks it against the WhatsApp business
+        # number holding our public key, and a customer number is rejected
+        # ("Invalid URL parameter").
     }
     return preview_url + "&" + urllib.parse.urlencode(params)
 
