@@ -95,22 +95,21 @@ def business_phone_number(app_id: str, token: str) -> str:
 
 
 def interactive_preview(preview_url: str, business_phone: str) -> str:
-    """Meta preview in interactive mode: the endpoint's data_exchange runs live.
+    """Meta preview in interactive mode, driven entirely by the live endpoint.
+
+    flow_action=data_exchange makes the preview ask the endpoint for the first
+    screen (INIT) instead of carrying it in the URL, so the State list etc.
+    come from prod's store cache and never go stale in a link. Every later
+    tap (State, City, Next, date) is a live data_exchange too.
 
     ``phone_number`` is REQUIRED for flows with an endpoint and must be the
     business number (a customer or made-up number is rejected)."""
-    from kisna_chatbot.processors.store_visit_flow import SCREEN_DETAILS, details_screen_data
-
     if len(_digits(business_phone)) < 10:
         raise ValueError("interactive preview needs the WhatsApp business phone number")
-    # What send_store_visit_flow sends as the first screen (name/phone prefill
-    # are sample values here; on WhatsApp they are the customer's).
-    payload = {"screen": SCREEN_DETAILS, "data": details_screen_data("Preview", "")}
     params = {
         "interactive": "true",
-        "flow_action": "navigate",
+        "flow_action": "data_exchange",
         "flow_token": "sv:preview:0001",
-        "flow_action_payload": json.dumps(payload, separators=(",", ":")),
         "phone_number": _digits(business_phone),
     }
     return preview_url + "&" + urllib.parse.urlencode(params)

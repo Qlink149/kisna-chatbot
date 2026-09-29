@@ -29,7 +29,10 @@ class PreviewLinkTests(unittest.TestCase):
         q = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
         self.assertEqual(q["phone_number"], ["917304278561"])
         self.assertEqual(q["interactive"], ["true"])
-        self.assertIn("SV_DETAILS", q["flow_action_payload"][0])
+        # First screen comes from the endpoint (INIT), not the URL.
+        self.assertEqual(q["flow_action"], ["data_exchange"])
+        self.assertNotIn("flow_action_payload", q)
+        self.assertTrue(q["flow_token"][0].startswith("sv:"))
 
     def test_no_number_no_link(self):
         with self.assertRaises(ValueError):

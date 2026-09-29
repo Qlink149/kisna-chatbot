@@ -3,9 +3,6 @@
   "data_api_version": "3.0",
   "routing_model": {
     "SV_DETAILS": [
-      "SV_STORE"
-    ],
-    "SV_STORE": [
       "SV_DATETIME"
     ],
     "SV_DATETIME": []
@@ -13,16 +10,8 @@
   "screens": [
     {
       "id": "SV_DETAILS",
-      "title": "Book a Store Visit",
+      "title": "Schedule a Store Visit!",
       "data": {
-        "first_name": {
-          "type": "string",
-          "__example__": "Priya"
-        },
-        "phone": {
-          "type": "string",
-          "__example__": "919812345678"
-        },
         "looking_for_options": {
           "type": "array",
           "items": {
@@ -46,122 +35,6 @@
             }
           ]
         },
-        "details_error": {
-          "type": "string",
-          "__example__": ""
-        },
-        "init_values": {
-          "type": "object",
-          "properties": {
-            "first_name": {
-              "type": "string"
-            },
-            "phone": {
-              "type": "string"
-            }
-          },
-          "__example__": {
-            "first_name": "Priya",
-            "phone": "919812345678"
-          }
-        }
-      },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          {
-            "type": "Form",
-            "name": "details_form",
-            "init-values": "${data.init_values}",
-            "children": [
-              {
-                "type": "TextSubheading",
-                "text": "Your details"
-              },
-              {
-                "type": "TextInput",
-                "name": "first_name",
-                "label": "First name",
-                "required": true,
-                "input-type": "text"
-              },
-              {
-                "type": "TextInput",
-                "name": "last_name",
-                "label": "Last name",
-                "required": false,
-                "input-type": "text"
-              },
-              {
-                "type": "TextInput",
-                "name": "email",
-                "label": "Email",
-                "required": false,
-                "input-type": "email"
-              },
-              {
-                "type": "TextInput",
-                "name": "phone",
-                "label": "Phone number",
-                "required": false,
-                "helper-text": "Leave blank to use this WhatsApp number.",
-                "input-type": "phone"
-              },
-              {
-                "type": "Dropdown",
-                "name": "looking_for",
-                "label": "Looking for",
-                "required": true,
-                "data-source": "${data.looking_for_options}"
-              },
-              {
-                "type": "TextBody",
-                "text": "${data.details_error}"
-              },
-              {
-                "type": "Footer",
-                "label": "Next",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "step": "details",
-                    "first_name": "${form.first_name}",
-                    "last_name": "${form.last_name}",
-                    "email": "${form.email}",
-                    "phone": "${form.phone}",
-                    "looking_for": "${form.looking_for}"
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "SV_STORE",
-      "title": "Choose a Store",
-      "data": {
-        "first_name": {
-          "type": "string",
-          "__example__": "Priya"
-        },
-        "last_name": {
-          "type": "string",
-          "__example__": ""
-        },
-        "email": {
-          "type": "string",
-          "__example__": ""
-        },
-        "phone": {
-          "type": "string",
-          "__example__": "919812345678"
-        },
-        "looking_for": {
-          "type": "string",
-          "__example__": "diamond_jewellery"
-        },
         "states": {
           "type": "array",
           "items": {
@@ -180,8 +53,8 @@
           },
           "__example__": [
             {
-              "id": "Maharashtra",
-              "title": "Maharashtra"
+              "id": "Punjab",
+              "title": "Punjab"
             }
           ]
         },
@@ -203,8 +76,8 @@
           },
           "__example__": [
             {
-              "id": "Mumbai",
-              "title": "Mumbai"
+              "id": "Amritsar",
+              "title": "Amritsar"
             }
           ]
         },
@@ -230,18 +103,10 @@
           "__example__": [
             {
               "id": "F203",
-              "title": "INA Colony - Amritsar - Punjab",
-              "description": "Shop No. 3,4, JK Tower 49, Mall Road, 143001"
+              "title": "INA Colony",
+              "description": "Mall Road, Amritsar 143001"
             }
           ]
-        },
-        "selected_state": {
-          "type": "string",
-          "__example__": "Maharashtra"
-        },
-        "selected_city": {
-          "type": "string",
-          "__example__": ""
         },
         "cities_visible": {
           "type": "boolean",
@@ -251,13 +116,28 @@
           "type": "boolean",
           "__example__": false
         },
-        "store_error": {
+        "details_error": {
           "type": "string",
           "__example__": ""
         },
         "init_values": {
           "type": "object",
           "properties": {
+            "first_name": {
+              "type": "string"
+            },
+            "last_name": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            },
+            "looking_for": {
+              "type": "string"
+            },
             "state": {
               "type": "string"
             },
@@ -266,8 +146,13 @@
             }
           },
           "__example__": {
-            "state": "Delhi",
-            "city": "Delhi-NCR"
+            "first_name": "Priya",
+            "last_name": "",
+            "email": "",
+            "phone": "919812345678",
+            "looking_for": "",
+            "state": "",
+            "city": ""
           }
         }
       },
@@ -276,17 +161,53 @@
         "children": [
           {
             "type": "Form",
-            "name": "store_form",
+            "name": "details_form",
             "init-values": "${data.init_values}",
             "children": [
               {
-                "type": "TextSubheading",
-                "text": "Which store would you like to visit?"
+                "type": "TextHeading",
+                "text": "Find Your Nearest Store"
+              },
+              {
+                "type": "TextInput",
+                "name": "first_name",
+                "label": "First Name*",
+                "required": true,
+                "input-type": "text"
+              },
+              {
+                "type": "TextInput",
+                "name": "last_name",
+                "label": "Last Name",
+                "required": false,
+                "input-type": "text"
+              },
+              {
+                "type": "TextInput",
+                "name": "email",
+                "label": "Email ID",
+                "required": false,
+                "input-type": "email"
+              },
+              {
+                "type": "TextInput",
+                "name": "phone",
+                "label": "Phone No",
+                "required": false,
+                "input-type": "phone",
+                "helper-text": "Leave blank to use this WhatsApp number"
+              },
+              {
+                "type": "Dropdown",
+                "name": "looking_for",
+                "label": "Looking for*",
+                "required": true,
+                "data-source": "${data.looking_for_options}"
               },
               {
                 "type": "Dropdown",
                 "name": "state",
-                "label": "State",
+                "label": "Select your State*",
                 "required": true,
                 "data-source": "${data.states}",
                 "on-select-action": {
@@ -294,18 +215,18 @@
                   "payload": {
                     "step": "state",
                     "state": "${form.state}",
-                    "first_name": "${data.first_name}",
-                    "last_name": "${data.last_name}",
-                    "email": "${data.email}",
-                    "phone": "${data.phone}",
-                    "looking_for": "${data.looking_for}"
+                    "first_name": "${form.first_name}",
+                    "last_name": "${form.last_name}",
+                    "email": "${form.email}",
+                    "phone": "${form.phone}",
+                    "looking_for": "${form.looking_for}"
                   }
                 }
               },
               {
                 "type": "Dropdown",
                 "name": "city",
-                "label": "City",
+                "label": "Select your City*",
                 "required": true,
                 "visible": "${data.cities_visible}",
                 "data-source": "${data.cities}",
@@ -315,25 +236,25 @@
                     "step": "city",
                     "state": "${form.state}",
                     "city": "${form.city}",
-                    "first_name": "${data.first_name}",
-                    "last_name": "${data.last_name}",
-                    "email": "${data.email}",
-                    "phone": "${data.phone}",
-                    "looking_for": "${data.looking_for}"
+                    "first_name": "${form.first_name}",
+                    "last_name": "${form.last_name}",
+                    "email": "${form.email}",
+                    "phone": "${form.phone}",
+                    "looking_for": "${form.looking_for}"
                   }
                 }
               },
               {
                 "type": "Dropdown",
                 "name": "store_id",
-                "label": "Store",
+                "label": "Nearest Kisna Store*",
                 "required": true,
                 "visible": "${data.stores_visible}",
                 "data-source": "${data.stores}"
               },
               {
                 "type": "TextBody",
-                "text": "${data.store_error}"
+                "text": "${data.details_error}"
               },
               {
                 "type": "Footer",
@@ -345,11 +266,11 @@
                     "state": "${form.state}",
                     "city": "${form.city}",
                     "store_id": "${form.store_id}",
-                    "first_name": "${data.first_name}",
-                    "last_name": "${data.last_name}",
-                    "email": "${data.email}",
-                    "phone": "${data.phone}",
-                    "looking_for": "${data.looking_for}"
+                    "first_name": "${form.first_name}",
+                    "last_name": "${form.last_name}",
+                    "email": "${form.email}",
+                    "phone": "${form.phone}",
+                    "looking_for": "${form.looking_for}"
                   }
                 }
               }
@@ -365,7 +286,7 @@
       "data": {
         "first_name": {
           "type": "string",
-          "__example__": "Priya"
+          "__example__": ""
         },
         "last_name": {
           "type": "string",
@@ -377,11 +298,11 @@
         },
         "phone": {
           "type": "string",
-          "__example__": "919812345678"
+          "__example__": ""
         },
         "looking_for": {
           "type": "string",
-          "__example__": "diamond_jewellery"
+          "__example__": ""
         },
         "store_id": {
           "type": "string",
@@ -393,15 +314,15 @@
         },
         "store_address": {
           "type": "string",
-          "__example__": "Shop No. 3,4, JK Tower 49, Mall Road, Amritsar 143001"
+          "__example__": "Mall Road, Amritsar 143001"
         },
         "min_date": {
           "type": "string",
-          "__example__": "2026-09-28"
+          "__example__": "2026-09-30"
         },
         "max_date": {
           "type": "string",
-          "__example__": "2026-10-04"
+          "__example__": "2026-10-06"
         },
         "unavailable_dates": {
           "type": "array",
@@ -474,7 +395,7 @@
               {
                 "type": "DatePicker",
                 "name": "preferred_date",
-                "label": "Visit date",
+                "label": "Visit date*",
                 "required": true,
                 "min-date": "${data.min_date}",
                 "max-date": "${data.max_date}",
@@ -500,13 +421,13 @@
               {
                 "type": "Dropdown",
                 "name": "preferred_time",
-                "label": "Visit time",
+                "label": "Visit time*",
                 "required": true,
                 "data-source": "${data.time_slots}"
               },
               {
                 "type": "Footer",
-                "label": "Book Visit",
+                "label": "Submit",
                 "on-click-action": {
                   "name": "complete",
                   "payload": {

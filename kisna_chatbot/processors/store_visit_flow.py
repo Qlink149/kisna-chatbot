@@ -1,9 +1,12 @@
 """data_exchange handler for the Store Visit Flow (json/store_visit.json).
 
-Screens: SV_DETAILS -> SV_STORE (State -> City -> Store, each a round trip)
--> SV_DATETIME (dates and hourly slots refreshed on date change). The
-customer's details ride along in each screen's data, so this handler is
-stateless: every answer is built from the request alone plus the store cache.
+Screens: SV_DETAILS (details + State -> City -> Store on one screen, each
+pick a round trip that refreshes it) -> SV_DATETIME (dates and hourly slots
+refreshed on date change). Each State / City pick sends every typed field
+back, and the refreshed screen returns them as init-values, so typed text is
+never lost. The customer's details then ride along in SV_DATETIME's data, so
+this handler is stateless: every answer is built from the request alone plus
+the store cache. Layout: scripts/build_store_visit_flow_json.py.
 """
 
 from __future__ import annotations
@@ -22,9 +25,8 @@ from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.store_visit_slots import date_window, slots_for_date
 
 SCREEN_DETAILS = "SV_DETAILS"
-SCREEN_STORE = "SV_STORE"
 SCREEN_DATETIME = "SV_DATETIME"
-SCREENS = frozenset({SCREEN_DETAILS, SCREEN_STORE, SCREEN_DATETIME})
+SCREENS = frozenset({SCREEN_DETAILS, SCREEN_DATETIME})
 
 DETAIL_FIELDS = ("first_name", "last_name", "email", "phone", "looking_for")
 
@@ -108,13 +110,33 @@ def _init_values(**values: str) -> dict:
     return {k: v for k, v in values.items() if v}
 
 
-def details_screen_data(first_name: str = "", phone: str = "", error: str = "") -> dict:
+def details_screen_data(
+    first_name: str = "",
+    phone: str = "",
+    error: str = "",
+    *,
+    form: dict | None = None,
+    state: str = "",
+    city: str = "",
+) -> dict:
+    """SV_DETAILS: the customer's details AND the State -> City -> Store
+    cascade on one screen (mirrors the client's reference form).
+
+    ``form`` is what the customer has typed so far (sent back by every
+    on-select); it is returned as the Form's init-values so a State / City
+    refresh never loses typed text, whatever the client does with form state.
+    Without ``form`` (first send, INIT) only name + phone are prefilled."""
+    values = dict(form) if form is not None else {"first_name": first_name, "phone": phone}
+    cascade = _cascade(state, city)
     return {
-        "first_name": first_name or "",
-        "phone": phone or "",
         "looking_for_options": looking_for_options(),
-        "details_error": error,
-        "init_values": _init_values(first_name=first_name or "", phone=phone or ""),
+        **cascade,
+        "details_error": error or ("" if cascade["states"][0]["id"] != "_none" else ERR_NO_STORES),
+        "init_values": _init_values(
+            **{k: str(values.get(k) or "") for k in DETAIL_FIELDS},
+            state=state,
+            city=city if state else "",
+        ),
     }
 
 
@@ -122,20 +144,22 @@ def _options(values: list[str]) -> list[dict]:
     return [{"id": v, "title": _clip(v, _TITLE_MAX)} for v in values]
 
 
-def _store_screen(carried: dict, *, state: str = "", city: str = "", error: str = "") -> dict:
+def _details_screen(form: dict, *, state: str = "", city: str = "", error: str = "") -> dict:
+    return {
+        "screen": SCREEN_DETAILS,
+        "data": details_screen_data(error=error, form=form, state=state, city=city),
+    }
+
+
+def _cascade(state: str = "", city: str = "") -> dict:
+    """States (always), cities for ``state``, stores for ``state`` + ``city``."""
     states = store_cache.list_states()
     data = {
-        **carried,
         "states": _cap(_options(states), "state"),
         "cities": [],
         "stores": [],
-        "selected_state": state,
-        "selected_city": city,
         "cities_visible": False,
         "stores_visible": False,
-        "store_error": error or ("" if states else ERR_NO_STORES),
-        # Keeps the picks when the screen is re-rendered (each tap, BACK).
-        "init_values": _init_values(state=state, city=city),
     }
     if state:
         cities = store_cache.list_cities(state)
@@ -156,10 +180,10 @@ def _store_screen(carried: dict, *, state: str = "", city: str = "", error: str 
         )
         data["stores_visible"] = bool(stores)
     # WhatsApp rejects an empty data-source array; keep a disabled placeholder.
-    for key in ("cities", "stores"):
+    for key in ("states", "cities", "stores"):
         if not data[key]:
             data[key] = [{"id": "_none", "title": "—", "enabled": False}]
-    return {"screen": SCREEN_STORE, "data": data}
+    return data
 
 
 def _datetime_screen(carried: dict, store: dict, iso_date: str | None, now: datetime | None) -> dict:
@@ -213,66 +237,50 @@ def build_store_visit_response(decrypted: dict, now: datetime | None = None) -> 
 
 
 def _route(action: str, screen: str, data_in: dict, now: datetime | None) -> dict:
-    carried = _carried(data_in)
+    form = _carried(data_in)
+    state = str(data_in.get("state") or "").strip()
+    city = str(data_in.get("city") or "").strip()
 
     if action == "INIT":
         return {"screen": SCREEN_DETAILS, "data": details_screen_data()}
 
     if action == "BACK":
-        if screen == SCREEN_DATETIME:
-            return _store_screen(carried)
-        return {
-            "screen": SCREEN_DETAILS,
-            "data": details_screen_data(carried["first_name"], carried["phone"]),
-        }
+        # Back from date/time: the details + cascade screen, text kept.
+        return _details_screen(form, state=state, city=city)
 
     step = str(data_in.get("step") or "").strip()
 
-    if step == "details":
-        error = _validate_details(carried)
-        if error:
-            return {
-                "screen": SCREEN_DETAILS,
-                "data": details_screen_data(carried["first_name"], carried["phone"], error),
-            }
-        return _store_screen(carried)
-
+    # State / City picked: refresh screen 1 with the next list. Everything
+    # typed so far comes back as init-values.
     if step == "state":
-        return _store_screen(carried, state=str(data_in.get("state") or "").strip())
+        return _details_screen(form, state=state)
 
     if step == "city":
-        return _store_screen(
-            carried,
-            state=str(data_in.get("state") or "").strip(),
-            city=str(data_in.get("city") or "").strip(),
-        )
+        return _details_screen(form, state=state, city=city)
 
+    # Next on screen 1: details and store checked together.
     if step == "store":
-        state = str(data_in.get("state") or "").strip()
-        city = str(data_in.get("city") or "").strip()
+        error = _validate_details(form)
+        if error:
+            return _details_screen(form, state=state, city=city, error=error)
         store_id = str(data_in.get("store_id") or "").strip()
         if not store_id or store_id == "_none":
-            return _store_screen(carried, state=state, city=city, error=ERR_PICK_STORE)
+            return _details_screen(form, state=state, city=city, error=ERR_PICK_STORE)
         store = store_cache.get_store(store_id)
         if store is None:
-            return _store_screen(carried, state=state, city=city, error=ERR_STORE_GONE)
+            return _details_screen(form, state=state, city=city, error=ERR_STORE_GONE)
         if not date_window(store, now)["has_dates"]:
-            return _store_screen(carried, state=state, city=city, error=ERR_STORE_NO_DATES)
-        return _datetime_screen(carried, store, None, now)
+            return _details_screen(form, state=state, city=city, error=ERR_STORE_NO_DATES)
+        return _datetime_screen(form, store, None, now)
 
     if step == "date":
         store = store_cache.get_store(str(data_in.get("store_id") or "").strip())
         if store is None:
-            return _store_screen(carried, error=ERR_STORE_GONE)
-        return _datetime_screen(carried, store, str(data_in.get("preferred_date") or ""), now)
+            return _details_screen(form, error=ERR_STORE_GONE)
+        return _datetime_screen(form, store, str(data_in.get("preferred_date") or ""), now)
 
     logger.warning(
         "Store visit data_exchange: unknown step",
         extra={"action": action, "screen": screen, "step": step},
     )
-    if screen == SCREEN_STORE:
-        return _store_screen(carried, error=ERR_GENERIC)
-    return {
-        "screen": SCREEN_DETAILS,
-        "data": details_screen_data(carried["first_name"], carried["phone"], ERR_GENERIC),
-    }
+    return _details_screen(form, state=state, city=city, error=ERR_GENERIC)

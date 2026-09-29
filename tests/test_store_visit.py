@@ -260,56 +260,99 @@ DETAILS = {"first_name": "Priya", "last_name": "", "email": "p@example.com", "ph
 
 
 class DataExchangeTests(CacheFixture):
-    def test_details_to_store_screen_with_states(self):
-        r = svf.build_store_visit_response(_req("details", **DETAILS), now=NOW)
-        self.assertEqual(r["screen"], "SV_STORE")
-        self.assertEqual([o["id"] for o in r["data"]["states"]], ["Delhi", "Punjab"])
-        self.assertFalse(r["data"]["cities_visible"])
-        self.assertEqual(r["data"]["first_name"], "Priya")
+    """SV_DETAILS holds the details AND the State -> City -> Store cascade."""
 
-    def test_details_validation(self):
-        for bad, err in (
-            ({"first_name": ""}, svf.ERR_FIRST_NAME),
-            ({"email": "not-an-email"}, svf.ERR_EMAIL),
-            ({"phone": "12"}, svf.ERR_PHONE),
-            ({"looking_for": "silver"}, svf.ERR_LOOKING_FOR),
-        ):
-            r = svf.build_store_visit_response(_req("details", **{**DETAILS, **bad}), now=NOW)
-            self.assertEqual(r["screen"], "SV_DETAILS")
-            self.assertEqual(r["data"]["details_error"], err)
+    TYPED = {"first_name": "Priya", "last_name": "Sharma", "email": "p@example.com",
+             "phone": "919812345678", "looking_for": "diamond_jewellery"}
 
-    def test_phone_is_optional(self):
-        r = svf.build_store_visit_response(_req("details", **{**DETAILS, "phone": ""}), now=NOW)
-        self.assertEqual(r["screen"], "SV_STORE")
-        with open(os.path.join(ROOT, "json", "store_visit.json"), encoding="utf-8") as f:
-            flow = json.load(f)
-        fields = flow["screens"][0]["layout"]["children"][0]["children"]
-        phone = next(c for c in fields if c.get("name") == "phone")
-        self.assertFalse(phone["required"])
+    def test_first_screen_has_states_and_prefill(self):
+        d = svf.details_screen_data("Priya", "919812345678")
+        self.assertEqual([o["id"] for o in d["states"]], ["Delhi", "Punjab"])
+        self.assertFalse(d["cities_visible"])
+        self.assertFalse(d["stores_visible"])
+        self.assertEqual(d["init_values"], {"first_name": "Priya", "phone": "919812345678"})
+        self.assertEqual(len(d["looking_for_options"]), len(LOOKING_FOR_OPTIONS))
 
-    def test_state_then_city_then_store(self):
-        r = svf.build_store_visit_response(_req("state", "SV_STORE", state="Delhi", **DETAILS), now=NOW)
+    def test_typed_text_survives_state_and_city_refresh(self):
+        """The refresh returns every typed field as init-values -- for text
+        entered before AND after picking the state."""
+        r = svf.build_store_visit_response(_req("state", state="Delhi", **self.TYPED), now=NOW)
+        self.assertEqual(r["screen"], "SV_DETAILS")
+        self.assertEqual(r["data"]["init_values"], {**self.TYPED, "state": "Delhi"})
         self.assertEqual([o["id"] for o in r["data"]["cities"]], ["Delhi-NCR"])
         self.assertTrue(r["data"]["cities_visible"])
+        self.assertFalse(r["data"]["stores_visible"])
+        edited = {**self.TYPED, "email": "priya.s@example.com", "last_name": ""}
         r = svf.build_store_visit_response(
-            _req("city", "SV_STORE", state="Delhi", city="Delhi-NCR", **DETAILS), now=NOW
+            _req("city", state="Delhi", city="Delhi-NCR", **edited), now=NOW
         )
-        stores = r["data"]["stores"]
-        self.assertEqual([s["title"] for s in stores], ["Karol Bagh", "Rajouri Garden"])
-        self.assertIn("110005", stores[0]["description"])
+        self.assertEqual(
+            r["data"]["init_values"],
+            {k: v for k, v in {**edited, "state": "Delhi", "city": "Delhi-NCR"}.items() if v},
+        )
+        self.assertEqual([s["title"] for s in r["data"]["stores"]], ["Karol Bagh", "Rajouri Garden"])
+        self.assertIn("110005", r["data"]["stores"][0]["description"])
         self.assertTrue(r["data"]["stores_visible"])
-        self.assertEqual(r["data"]["init_values"], {"state": "Delhi", "city": "Delhi-NCR"})
+
+    def test_changing_state_drops_the_old_city(self):
+        r = svf.build_store_visit_response(_req("state", state="Punjab", city="Delhi-NCR", **self.TYPED), now=NOW)
+        self.assertNotIn("city", r["data"]["init_values"])
+        self.assertEqual([o["id"] for o in r["data"]["cities"]], ["Amritsar"])
+
+    def test_every_on_select_payload_carries_all_typed_fields(self):
+        """The Flow JSON side of the same guarantee: State and City send
+        ${form.*} for every field, so the endpoint has the text to echo."""
+        with open(os.path.join(ROOT, "json", "store_visit.json"), encoding="utf-8") as f:
+            screen = json.load(f)["screens"][0]
+        fields = {c.get("name"): c for c in screen["layout"]["children"][0]["children"]}
+        for name in ("state", "city"):
+            payload = fields[name]["on-select-action"]["payload"]
+            for k in ("first_name", "last_name", "email", "phone", "looking_for"):
+                self.assertEqual(payload[k], "${form.%s}" % k, (name, k))
+        self.assertEqual(screen["layout"]["children"][0]["init-values"], "${data.init_values}")
+
+    def test_next_goes_to_date_time_with_details_carried(self):
         r = svf.build_store_visit_response(
-            _req("store", "SV_STORE", state="Delhi", city="Delhi-NCR", store_id="D2", **DETAILS), now=NOW
+            _req("store", state="Delhi", city="Delhi-NCR", store_id="D2", **self.TYPED), now=NOW
         )
         self.assertEqual(r["screen"], "SV_DATETIME")
         d = r["data"]
+        self.assertEqual((d["first_name"], d["last_name"], d["email"]), ("Priya", "Sharma", "p@example.com"))
         self.assertEqual((d["min_date"], d["max_date"]), ("2026-09-30", "2026-10-06"))
         self.assertIn("2026-10-06", d["unavailable_dates"])  # Tuesday off
         self.assertIn("2026-10-02", d["unavailable_dates"])  # holiday
         self.assertEqual(d["time_slots"][0]["id"], "11:30")   # 09:00 + 2h lead
         self.assertEqual(d["store_name"], "Rajouri Garden - Delhi-NCR - Delhi")
         self.assertEqual(d["init_values"], {"preferred_date": "2026-09-30"})
+
+    def test_details_validation_keeps_everything(self):
+        for bad, err in (
+            ({"first_name": ""}, svf.ERR_FIRST_NAME),
+            ({"email": "not-an-email"}, svf.ERR_EMAIL),
+            ({"phone": "12"}, svf.ERR_PHONE),
+            ({"looking_for": "silver"}, svf.ERR_LOOKING_FOR),
+        ):
+            r = svf.build_store_visit_response(
+                _req("store", state="Delhi", city="Delhi-NCR", store_id="D1", **{**self.TYPED, **bad}), now=NOW
+            )
+            self.assertEqual(r["screen"], "SV_DETAILS")
+            self.assertEqual(r["data"]["details_error"], err)
+            # The picks and the rest of the text are still there.
+            self.assertEqual(r["data"]["init_values"]["state"], "Delhi")
+            self.assertEqual(r["data"]["init_values"]["city"], "Delhi-NCR")
+            self.assertTrue(r["data"]["stores_visible"])
+
+    def test_phone_is_optional(self):
+        r = svf.build_store_visit_response(
+            _req("store", state="Delhi", city="Delhi-NCR", store_id="D1", **{**self.TYPED, "phone": ""}), now=NOW
+        )
+        self.assertEqual(r["screen"], "SV_DATETIME")
+        with open(os.path.join(ROOT, "json", "store_visit.json"), encoding="utf-8") as f:
+            flow = json.load(f)
+        fields = {c.get("name"): c for c in flow["screens"][0]["layout"]["children"][0]["children"]}
+        for name in ("last_name", "email", "phone"):
+            self.assertFalse(fields[name]["required"], name)
+        self.assertEqual(fields["phone"]["helper-text"], "Leave blank to use this WhatsApp number")
 
     def test_date_change_refreshes_slots(self):
         r = svf.build_store_visit_response(
@@ -324,30 +367,42 @@ class DataExchangeTests(CacheFixture):
         self.assertFalse(r["data"]["time_slots"][0]["enabled"])
 
     def test_unknown_store_and_placeholder(self):
-        r = svf.build_store_visit_response(_req("store", "SV_STORE", store_id="_none", **DETAILS), now=NOW)
-        self.assertEqual(r["data"]["store_error"], svf.ERR_PICK_STORE)
-        r = svf.build_store_visit_response(_req("store", "SV_STORE", store_id="GONE", **DETAILS), now=NOW)
-        self.assertEqual(r["data"]["store_error"], svf.ERR_STORE_GONE)
+        r = svf.build_store_visit_response(_req("store", state="Delhi", city="Delhi-NCR", store_id="_none", **DETAILS), now=NOW)
+        self.assertEqual(r["data"]["details_error"], svf.ERR_PICK_STORE)
+        r = svf.build_store_visit_response(_req("store", state="Delhi", city="Delhi-NCR", store_id="GONE", **DETAILS), now=NOW)
+        self.assertEqual(r["data"]["details_error"], svf.ERR_STORE_GONE)
 
     def test_malformed_and_unknown_step(self):
         r = svf.build_store_visit_response({"action": "data_exchange", "screen": "SV_DETAILS", "data": "junk"})
         self.assertEqual(r["screen"], "SV_DETAILS")
         self.assertEqual(r["data"]["details_error"], svf.ERR_GENERIC)
-        r = svf.build_store_visit_response(_req("teleport", "SV_STORE"))
-        self.assertEqual(r["screen"], "SV_STORE")
-        self.assertEqual(r["data"]["store_error"], svf.ERR_GENERIC)
+        r = svf.build_store_visit_response(_req("teleport", **DETAILS))
+        self.assertEqual(r["screen"], "SV_DETAILS")
+        self.assertEqual(r["data"]["details_error"], svf.ERR_GENERIC)
+        self.assertEqual(r["data"]["init_values"]["first_name"], "Priya")
 
     def test_handler_exception_is_contained(self):
         with patch.object(svf, "_route", side_effect=RuntimeError("boom")):
-            r = svf.build_store_visit_response(_req("details", **DETAILS))
+            r = svf.build_store_visit_response(_req("state", **DETAILS))
         self.assertEqual(r["data"]["details_error"], svf.ERR_GENERIC)
 
     def test_init_and_back(self):
         r = svf.build_store_visit_response({"action": "INIT", "flow_token": "sv:1:2"})
         self.assertEqual(r["screen"], "SV_DETAILS")
         self.assertEqual(len(r["data"]["looking_for_options"]), len(LOOKING_FOR_OPTIONS))
-        r = svf.build_store_visit_response({"action": "BACK", "screen": "SV_DATETIME", "data": DETAILS})
-        self.assertEqual(r["screen"], "SV_STORE")
+        r = svf.build_store_visit_response(
+            {"action": "BACK", "screen": "SV_DATETIME", "data": {**DETAILS, "state": "Delhi", "city": "Delhi-NCR"}}
+        )
+        self.assertEqual(r["screen"], "SV_DETAILS")
+        self.assertEqual(r["data"]["init_values"]["first_name"], "Priya")
+        self.assertEqual(r["data"]["init_values"]["city"], "Delhi-NCR")
+
+    def test_no_bookable_stores_says_so(self):
+        self.load.side_effect = lambda: []
+        store_cache.bust()
+        d = svf.details_screen_data("Priya", "")
+        self.assertEqual(d["details_error"], svf.ERR_NO_STORES)
+        self.assertFalse(d["states"][0]["enabled"])
 
     def test_zero_store_state_is_hidden(self):
         self.rows = [_store(), _store(store_id="G", state="Goa", city="Panaji", bookable=False)]
@@ -360,12 +415,12 @@ class DataExchangeTests(CacheFixture):
         many = [_store(store_id=f"S{i}", city=f"City{i:03d}") for i in range(250)]
         self.load.side_effect = lambda: many
         store_cache.bust()
-        r = svf.build_store_visit_response(_req("state", "SV_STORE", state="Punjab", **DETAILS), now=NOW)
+        r = svf.build_store_visit_response(_req("state", state="Punjab", **DETAILS), now=NOW)
         self.assertEqual(len(r["data"]["cities"]), 200)
 
     def test_router_sends_store_visit_to_its_handler_and_keeps_callback(self):
-        r = build_flow_response(_req("details", **DETAILS))
-        self.assertEqual(r["screen"], "SV_STORE")
+        r = build_flow_response(_req("state", state="Delhi", **DETAILS))
+        self.assertEqual(r["screen"], "SV_DETAILS")
         self.assertEqual(build_flow_response({"action": "ping"}), {"data": {"status": "active"}})
         from kisna_chatbot.utils.support_slots import (
             clear_capacity_overrides,
@@ -446,10 +501,9 @@ class EncryptedEndpointTests(CacheFixture):
 
     def test_full_walk_encrypted(self):
         steps = [
-            _req("details", **DETAILS),
-            _req("state", "SV_STORE", state="Delhi", **DETAILS),
-            _req("city", "SV_STORE", state="Delhi", city="Delhi-NCR", **DETAILS),
-            _req("store", "SV_STORE", state="Delhi", city="Delhi-NCR", store_id="D1", **DETAILS),
+            _req("state", state="Delhi", **DETAILS),
+            _req("city", state="Delhi", city="Delhi-NCR", **DETAILS),
+            _req("store", state="Delhi", city="Delhi-NCR", store_id="D1", **DETAILS),
             _req("date", "SV_DATETIME", store_id="D1", preferred_date="2026-12-01", **DETAILS),
         ]
         screens = []
@@ -457,7 +511,7 @@ class EncryptedEndpointTests(CacheFixture):
             resp, k, iv = self._post(payload)
             self.assertEqual(resp.status_code, 200, resp.text)
             screens.append(_decrypt_response(resp.text, k, iv)["screen"])
-        self.assertEqual(screens, ["SV_STORE", "SV_STORE", "SV_STORE", "SV_DATETIME", "SV_DATETIME"])
+        self.assertEqual(screens, ["SV_DETAILS", "SV_DETAILS", "SV_DATETIME", "SV_DATETIME"])
 
     def test_bad_ciphertext_is_421(self):
         body, _, _ = _encrypt(self.key, {"action": "ping"})
@@ -477,7 +531,7 @@ class EncryptedEndpointTests(CacheFixture):
         private key from PEM on EVERY request (~100-300 ms here, for every
         Flow, callback included). That layer is out of scope for this change,
         so the round trip gets only a loose bound, well inside Meta's 10 s."""
-        payload = _req("city", "SV_STORE", state="Delhi", city="Delhi-NCR", **DETAILS)
+        payload = _req("city", state="Delhi", city="Delhi-NCR", **DETAILS)
         p95 = lambda xs: statistics.quantiles(xs, n=20)[18]  # noqa: E731
 
         def handler_only(bust):
@@ -694,8 +748,9 @@ class OfferTests(CacheFixture):
         self.assertTrue(params["flow_token"].startswith("sv:123:"))
         self.assertNotEqual(params["flow_token"], p2["action"]["parameters"]["flow_token"])
         self.assertEqual(params["flow_action_payload"]["screen"], "SV_DETAILS")
-        self.assertEqual(params["flow_action_payload"]["data"]["first_name"], "Priya")
-        self.assertEqual(params["flow_action_payload"]["data"]["phone"], "919812345678")
+        first = params["flow_action_payload"]["data"]
+        self.assertEqual(first["init_values"], {"first_name": "Priya", "phone": "919812345678"})
+        self.assertEqual([o["id"] for o in first["states"]], ["Delhi", "Punjab"])
 
     def test_sender_body_over_1024_chars_falls_back_to_english(self):
         from kisna_chatbot.whatsapp_functions.flow import send_store_visit_flow as sender
@@ -818,11 +873,22 @@ class RoutingTests(unittest.TestCase):
         with open(os.path.join(ROOT, "json", "store_visit.json"), encoding="utf-8") as f:
             flow = json.load(f)
         self.assertEqual(flow["version"], "7.0")
-        self.assertEqual([s["id"] for s in flow["screens"]], ["SV_DETAILS", "SV_STORE", "SV_DATETIME"])
+        self.assertEqual([s["id"] for s in flow["screens"]], ["SV_DETAILS", "SV_DATETIME"])
+        first = flow["screens"][0]
+        self.assertEqual(first["title"], "Schedule a Store Visit!")
+        form_children = first["layout"]["children"][0]["children"]
+        self.assertEqual(form_children[0], {"type": "TextHeading", "text": "Find Your Nearest Store"})
+        self.assertEqual(
+            [c["label"] for c in form_children if "label" in c and c["type"] != "Footer"],
+            ["First Name*", "Last Name", "Email ID", "Phone No", "Looking for*",
+             "Select your State*", "Select your City*", "Nearest Kisna Store*"],
+        )
+        last = flow["screens"][1]["layout"]["children"][0]["children"][-1]
+        self.assertEqual((last["type"], last["label"]), ("Footer", "Submit"))
         text = json.dumps(flow)
         for key in ("first_name", "looking_for", "store_id", "preferred_date", "preferred_time"):
             self.assertIn("${form.%s}" % key if key != "store_id" else "${data.store_id}", text)
-        self.assertTrue(flow["screens"][2]["terminal"])
+        self.assertTrue(flow["screens"][1]["terminal"])
         # Meta rejects component-level init-value in v7.0 (validated on the
         # draft): prefills go through each Form's dynamic init-values.
         self.assertNotIn('"init-value"', text)
@@ -852,11 +918,6 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(len(labels), 10)
         for label in labels:
             self.assertLessEqual(len(label), 20, label)
-
-    def test_screens_send_init_values(self):
-        d = svf.details_screen_data("Priya", "919812345678")
-        self.assertEqual(d["init_values"], {"first_name": "Priya", "phone": "919812345678"})
-        self.assertEqual(svf.details_screen_data()["init_values"], {})
 
 
 if __name__ == "__main__":
