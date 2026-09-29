@@ -13,7 +13,9 @@ from pymongo.errors import DuplicateKeyError
 from kisna_chatbot.config.store_visit import (
     LOOKING_FOR_OPTIONS,
     looking_for_title,
+    store_visit_allowed_for,
     store_visit_events_enabled,
+    store_visit_test_numbers,
 )
 from kisna_chatbot.database.collections import store_visits
 from kisna_chatbot.integrations.clara_events import (
@@ -65,14 +67,26 @@ def store_locator_url() -> str:
 def build_store_visit_bot_response(user_profile: dict | None = None, data: dict | None = None) -> list[dict]:
     """The Store Visit offer: the form (client pre-form text as its body) with
     the locator link as a secondary line -- or only the link when the form
-    can't be sent (flow id unset, or no bookable store). Never asks for a
-    pincode."""
+    can't be sent (flow id unset, or no bookable store) or the number is not
+    on KISNA_STORE_VISIT_TEST_NUMBERS while that list is set. Never asks for
+    a pincode. The path taken is logged ("Store visit offer")."""
     from kisna_chatbot.whatsapp_functions.flow.send_store_visit_flow import (
         store_visit_form_available,
     )
 
     url = store_locator_url()
-    if not store_visit_form_available():
+    phone = (data or {}).get("phone_number", "")
+    if not store_visit_allowed_for(phone):
+        path, reason = "locator_link", "not_a_test_number"
+    elif not store_visit_form_available():
+        path, reason = "locator_link", "form_unavailable"
+    else:
+        path, reason = "form", "test_number" if store_visit_test_numbers() else "all_numbers"
+    logger.info(
+        "Store visit offer",
+        extra={"phone_number": phone, "path": path, "reason": reason},
+    )
+    if path == "locator_link":
         return [
             {
                 "type": "text",

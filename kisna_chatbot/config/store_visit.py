@@ -42,5 +42,24 @@ def store_visit_events_enabled() -> bool:
     )
 
 
+def _last10(value: str) -> str:
+    digits = "".join(c for c in str(value or "") if c.isdigit())
+    return digits[-10:]
+
+
+def store_visit_test_numbers() -> frozenset[str]:
+    """KISNA_STORE_VISIT_TEST_NUMBERS: comma-separated WhatsApp numbers, any
+    format ("+91 98123 45678", "919812345678"). Compared on the last 10 digits."""
+    raw = os.getenv("KISNA_STORE_VISIT_TEST_NUMBERS", "")
+    return frozenset(n for n in (_last10(p) for p in raw.split(",")) if len(n) == 10)
+
+
+def store_visit_allowed_for(phone_number: str) -> bool:
+    """Test-number gate: with the list set, only those numbers get the Store
+    Visit form (everyone else keeps the locator link); with it empty, all do."""
+    numbers = store_visit_test_numbers()
+    return not numbers or _last10(phone_number) in numbers
+
+
 def looking_for_title(option_id: str) -> str:
     return dict(LOOKING_FOR_OPTIONS).get(option_id, option_id)

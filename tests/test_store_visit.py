@@ -650,6 +650,32 @@ class OfferTests(CacheFixture):
         self.assertEqual([i["type"] for i in items], ["text"])
         self.assertNotIn("pincode", items[0]["text"].lower())
 
+    def _offer(self, phone, test_numbers):
+        env = {"KISNA_STORE_VISIT_FLOW_ID": "123", "KISNA_STORE_VISIT_TEST_NUMBERS": test_numbers}
+        with patch.dict(os.environ, env), patch.object(sva, "logger") as log:
+            items = sva.build_store_visit_bot_response({}, {"phone_number": phone})
+        extra = log.info.call_args.kwargs["extra"]
+        return [i["type"] for i in items], extra["path"], extra["reason"]
+
+    def test_test_number_gate_set_only_listed_numbers_get_the_form(self):
+        listed = "+91 91169 14178, 919812345678"
+        self.assertEqual(self._offer("919116914178", listed), (["flow", "text"], "form", "test_number"))
+        # Any format of the same number matches (last 10 digits).
+        self.assertEqual(self._offer("9812345678", listed)[1], "form")
+        # Everyone else keeps today's behaviour: the locator link only.
+        types, path, reason = self._offer("919999999999", listed)
+        self.assertEqual((types, path, reason), (["text"], "locator_link", "not_a_test_number"))
+
+    def test_test_number_gate_empty_everyone_gets_the_form(self):
+        self.assertEqual(self._offer("919999999999", ""), (["flow", "text"], "form", "all_numbers"))
+        # Garbage entries are ignored rather than locking everyone out.
+        self.assertEqual(self._offer("919999999999", " , abc,")[1], "form")
+
+    def test_test_number_gate_still_needs_the_form_to_be_available(self):
+        self.load.side_effect = lambda: []
+        store_cache.bust()
+        self.assertEqual(self._offer("919116914178", "919116914178"), (["text"], "locator_link", "form_unavailable"))
+
     def test_sender_prefills_and_uses_unique_token(self):
         from kisna_chatbot.whatsapp_functions.flow import send_store_visit_flow as sender
 
