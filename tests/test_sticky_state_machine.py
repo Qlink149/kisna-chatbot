@@ -496,9 +496,16 @@ class LanguageOverrideTests(unittest.TestCase):
         self.assertEqual(profile.get("language_override"), "en")
         self.assertEqual(profile["language"], "en")
 
-        # A later Devanagari-labelled turn must not undo the request.
-        _store_language(profile, "hi", "मुझे पेंडेंट दिखाओ")
+        # A later Hinglish (Latin-script) turn must not undo the request.
+        _store_language(profile, "hi-Latn", "mujhe pendant dikhao")
         self.assertEqual(profile["language"], "en")
+
+        # Audit §14 R1 (deliberate change): writing in Devanagari afterwards
+        # is a clearer signal than the old request -- the reply follows the
+        # customer's script and the override is dropped.
+        _store_language(profile, "hi", "मुझे पेंडेंट दिखाओ")
+        self.assertEqual(profile["language"], "hi")
+        self.assertNotIn("language_override", profile)
 
     def test_override_cleared_on_fresh_start(self):
         from kisna_chatbot.utils.session_state import reset_session_on_fresh_start

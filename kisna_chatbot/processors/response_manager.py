@@ -123,6 +123,20 @@ def _fix_whatsapp_markdown(text: str) -> str:
     return "\n".join(lines)
 
 
+def _send_accepted(result: dict) -> bool:
+    """Did Gupshup accept the send? Two reply shapes are in use:
+    - the /wa/api/v1/msg senders (text, lists, ...): {"status": "submitted"}
+    - the v3 /message senders (all Flows, CTA): Meta's shape,
+      {"messages": [{"id": ...}], "contacts": [...]}, with no "status".
+    Treating only the first as accepted logged every Flow send as
+    "Message not confirmed" and skipped the post-send pacing delay, which is
+    what made the next item trip the outbound rate limiter."""
+    if result.get("status") == "submitted":
+        return True
+    messages = result.get("messages")
+    return isinstance(messages, list) and bool(messages) and bool((messages[0] or {}).get("id"))
+
+
 def _sanitize_response_text(response: dict) -> dict:
     """Fix Markdown emphasis in every user-visible text field of one response."""
     for key in ("text", "caption"):
@@ -205,7 +219,7 @@ class ResponseManager:
                     )
                     continue
                 if result:
-                    if result.get("status") != "submitted":
+                    if not _send_accepted(result):
                         logger.warning(f"Message not confirmed: {result}")
                     else:
                         logger.info("message submitted")

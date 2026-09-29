@@ -1693,14 +1693,20 @@ def detect_language_override(text: str) -> str | None:
 # Anything containing Indic characters is excluded up front: that DOES prove a
 # script, however short the message is.
 #
-# Greeting words are low-signal only when they ARE the whole message (+ trailing
-# punctuation): "hi" says nothing, but "Hi, I'm looking for jewellery" is plainly
-# English prose and must be allowed to correct a stale stored language. Bare acks
-# (yes / ok / thanks) keep the looser \b match so a native-script session is not
-# demoted by "yes please ...".
+# Greetings and acks are low-signal only when they ARE the whole message:
+# "hi", "ok thanks", "yes please" say nothing about language, but "Hi, I'm
+# looking for jewellery" and "ok, what is your return policy for rings?" are
+# plainly English prose and must be allowed to correct a stale stored
+# language (audit §14 R2: a leading "ok" used to make the whole sentence
+# low-signal because the ack pattern matched as a prefix).
+_ACK_WORDS = (
+    r"yes|no|ok|okay|okk+|yeah|yup|sure|thanks|thank\s+you|thankyou|thx|ty"
+    r"|please|pls|plz|ji|sir|ma'?am|fine|done|great|cool|nice"
+    r"|a\s+lot|alot|so\s+much|very\s+much"
+)
 _LOW_SIGNAL_ALWAYS_RE = re.compile(
     r"^[\W\d]*$"  # digits / punctuation / emoji only ("50000", "?", "😍")
-    r"|^\s*(?:yes|no|ok|okay|yeah|yup|sure|thanks|ty)\b"
+    rf"|^\s*(?:(?:{_ACK_WORDS})[\s.,!🙏👍]*)+$"  # only ack/filler words
     r"|^\s*(?:hi|hii+|hey|hello)[\s.,!]*$",
     re.I,
 )
@@ -1771,6 +1777,40 @@ def _is_sibling_flip(stored: str | None, resolved: str, user_text: str) -> bool:
     return len((user_text or "").split()) <= _SIBLING_STICKY_MAX_WORDS
 
 
+def _script_language(text: str, label: str | None) -> tuple[str, frozenset] | None:
+    """(language, languages sharing that script) when the message is written
+    in a native script, else None. The LLM label picks within the script's
+    languages (hi vs mr in Devanagari); otherwise the script's default."""
+    for script_re, valid_bases, default_base in _SCRIPT_LANG_RANGES:
+        if script_re.search(text or ""):
+            lang = resolve_reply_language(label or default_base, text)
+            return lang, frozenset(valid_bases)
+    return None
+
+
+def _override_yields_to_script(override: str, label: str | None, user_text: str) -> str | None:
+    """Audit §14 R1: a stored "reply in X" must yield when the customer's
+    SCRIPT clearly says otherwise -- Devanagari after "reply in English" is
+    Hindi. Only a different script family counts: romanized Hindi after
+    "reply in English" keeps English (still Latin script), and Devanagari
+    after "reply in Marathi" keeps Marathi (same script). Returns the
+    language to use, or None to keep the override."""
+    found = _script_language(user_text, label)
+    if found is None:
+        return None
+    lang, same_script = found
+    if override.split("-")[0] in same_script:
+        return None
+    # "Clearly": the native script must carry most of the message. One Hindi
+    # word in an English sentence ("a gold ring for my दादी") does not
+    # overturn an explicit "reply in English".
+    letters = [c for c in user_text if c.isalpha()]
+    native = sum(1 for c in letters if not ("a" <= c.lower() <= "z"))
+    if not letters or native * 2 <= len(letters):
+        return None
+    return lang
+
+
 def _store_language(
     user_profile: dict, language: str | None, user_text: str = ""
 ) -> None:
@@ -1790,7 +1830,15 @@ def _store_language(
         user_profile["language_override"] = requested
     override = user_profile.get("language_override")
     if override:
-        user_profile["language"] = override
+        switched = None if requested else _override_yields_to_script(override, language, user_text)
+        if not switched:
+            user_profile["language"] = override
+            return
+        # The customer now writes in another script: that is the newest and
+        # strongest signal, so the old request is dropped, not just skipped
+        # for one turn.
+        user_profile.pop("language_override", None)
+        user_profile["language"] = switched
         return
     stored = user_profile.get("language")
     if stored and _is_low_language_signal(user_text):

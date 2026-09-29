@@ -1,0 +1,436 @@
+{
+  "_about": "KB fact eval (single call per question, GeneralAgent request shape). Each row: q, must (every regex must match), any (at least one must match), must_not (none may match). Regexes are case-insensitive. Facts from KISNA_KNOWLEDGE_BASE_V2. Run: python scripts/eval_kb_facts.py",
+  "rows": [
+    {
+      "topic": "KMR",
+      "q": "What is Kisna Meri Roshni?",
+      "must": [
+        "amount",
+        "gram"
+      ],
+      "any": [
+        "10\\s*\\+\\s*1",
+        "11th",
+        "ten"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "What is the minimum monthly installment for the KMR plan?",
+      "must": [
+        "2,?000"
+      ],
+      "any": [
+        "500"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "If I pay 2000 a month in the KMR Amount plan, what discount do I get on diamond jewellery at maturity?",
+      "must": [
+        "2,?000"
+      ],
+      "must_not": [
+        "1,?500 (?:discount )?on diamond"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "In the KMR Amount plan at 2000 a month, what discount do I get on gold jewellery at maturity?",
+      "must": [
+        "1,?500"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "What is the KMR pre-maturity benefit on diamond jewellery?",
+      "must": [
+        "50\\s*%"
+      ],
+      "any": [
+        "6\\b",
+        "six"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "What is the KMR pre-maturity benefit on gold jewellery?",
+      "must": [
+        "37\\.5\\s*%"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "Do I need a PAN card for KMR?",
+      "must": [
+        "19,?000"
+      ],
+      "any": [
+        "2,?00,?000",
+        "2 lakh"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "How does the KMR Gram plan work?",
+      "must": [
+        "24\\s*K"
+      ],
+      "any": [
+        "bonus"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "In the KMR Gram plan, what is the maturity bonus on gold jewellery?",
+      "must": [
+        "75\\s*%"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "What happens if I miss a KMR installment?",
+      "any": [
+        "forfeit",
+        "lose the (maturity )?benefit",
+        "no benefit"
+      ],
+      "must": [
+        "principal|paid amount|amount (you )?(have )?paid"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "Can I close my KMR plan early and get my money back?",
+      "any": [
+        "15 (banking )?working days",
+        "15 banking"
+      ],
+      "must_not": [
+        "cash refund(s)? (is|are) (available|given)"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "Can I redeem my KMR plan for gold coins?",
+      "any": [
+        "not eligible",
+        "cannot",
+        "can't",
+        "can not",
+        "excluded",
+        "not available",
+        "not for",
+        "only for diamond",
+        "only (?:for )?(?:diamond|gold) jewellery"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "Can I take cash instead of jewellery from my KMR plan?",
+      "any": [
+        "not allowed",
+        "cannot",
+        "can't",
+        "not possible",
+        "not available"
+      ]
+    },
+    {
+      "topic": "KMR",
+      "q": "Can I change my KMR installment amount after starting?",
+      "any": [
+        "cannot",
+        "can't",
+        "not possible",
+        "cannot be changed",
+        "can not"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "What is the minimum amount to buy Kisna digital gold?",
+      "must": [
+        "₹\\s?10\\b|rs\\.?\\s?10\\b|10 rupees|\\b10\\b"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "What is the minimum amount to sell digital gold?",
+      "must": [
+        "100"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "How soon after buying digital gold can I redeem it for jewellery?",
+      "must": [
+        "3 working days|three working days"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "Where is my Kisna digital gold stored?",
+      "must": [
+        "brink"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "Is there any storage fee for digital gold?",
+      "must": [
+        "5 years|five years"
+      ],
+      "any": [
+        "free"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "Can NRIs buy Kisna digital gold?",
+      "any": [
+        "not permitted",
+        "not allowed",
+        "cannot",
+        "can't",
+        "not eligible",
+        "only indian"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "Can I cancel a digital gold purchase?",
+      "any": [
+        "not possible",
+        "cannot",
+        "can't",
+        "not be cancel",
+        "no cancel"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "What is the purity of Kisna digital gold?",
+      "must": [
+        "24"
+      ],
+      "any": [
+        "995",
+        "99\\.5"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "Can I redeem digital gold bought on another app at Kisna?",
+      "any": [
+        "not eligible",
+        "cannot",
+        "can't",
+        "only",
+        "not accepted"
+      ]
+    },
+    {
+      "topic": "Digital Gold",
+      "q": "What is the minimum digital gold I can redeem online against jewellery?",
+      "must": [
+        "100"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "q": "What is Kisna's Gold Rate Protection plan?",
+      "must": [
+        "gold-rate-protection"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "q": "How much advance do I need to pay for gold rate protection?",
+      "must": [
+        "25\\s*%",
+        "gold-rate-protection"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "q": "With gold rate protection, can I buy jewellery worth more than my advance?",
+      "any": [
+        "4x",
+        "4 times",
+        "four times",
+        "4 ×",
+        "4×"
+      ],
+      "must": [
+        "gold-rate-protection"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "q": "Till when is the gold rate protection offer valid?",
+      "must": [
+        "gold-rate-protection"
+      ],
+      "must_not": [
+        "\\b\\d{1,2}(st|nd|rd|th)?\\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)",
+        "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\s+\\d{1,2}\\b",
+        "\\b20(26|27)\\b"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "q": "Is gold rate protection applicable on gold coins?",
+      "any": [
+        "not covered",
+        "excluded",
+        "not applicable",
+        "not eligible",
+        "cannot",
+        "can't",
+        "does not cover",
+        "doesn't cover",
+        "not cover",
+        "only (?:on|for)"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "q": "Can I use the gold rate protection benefit twice?",
+      "any": [
+        "once",
+        "one time",
+        "single"
+      ]
+    },
+    {
+      "topic": "Exchange/Buyback",
+      "q": "What value do I get if I exchange my Kisna diamond jewellery?",
+      "must": [
+        "95\\s*%"
+      ]
+    },
+    {
+      "topic": "Exchange/Buyback",
+      "q": "What exchange value do I get for Kisna gold jewellery?",
+      "must": [
+        "100\\s*%"
+      ]
+    },
+    {
+      "topic": "Exchange/Buyback",
+      "q": "What is the buyback value for Kisna diamond jewellery?",
+      "must": [
+        "90\\s*%"
+      ]
+    },
+    {
+      "topic": "Exchange/Buyback",
+      "q": "What is the buyback value for Kisna gold jewellery?",
+      "must": [
+        "97\\s*%"
+      ]
+    },
+    {
+      "topic": "Exchange/Buyback",
+      "q": "How is the buyback amount paid?",
+      "any": [
+        "rtgs",
+        "neft"
+      ]
+    },
+    {
+      "topic": "Exchange/Buyback",
+      "q": "Can I exchange jewellery bought from another brand at Kisna?",
+      "any": [
+        "store",
+        "offline"
+      ],
+      "must_not": [
+        "\\b\\d{2,3}\\s*%"
+      ]
+    },
+    {
+      "topic": "Returns",
+      "q": "What is your return policy?",
+      "must": [
+        "7[- ]day|7 days|seven days"
+      ],
+      "must_not": [
+        "₹\\s?100 return"
+      ]
+    },
+    {
+      "topic": "Returns",
+      "q": "How long does a refund take?",
+      "must": [
+        "10 business days"
+      ]
+    },
+    {
+      "topic": "Returns",
+      "q": "Can I return a sale item?",
+      "any": [
+        "not eligible",
+        "cannot",
+        "can't",
+        "not be returned",
+        "non-returnable",
+        "not returnable"
+      ]
+    },
+    {
+      "topic": "Franchise",
+      "q": "How can I get a Kisna franchise?",
+      "must": [
+        "franchise@kisna\\.com"
+      ]
+    },
+    {
+      "topic": "Franchise",
+      "q": "What is the franchise contact number?",
+      "any": [
+        "6716",
+        "91524",
+        "9152484423"
+      ]
+    },
+    {
+      "topic": "Care",
+      "q": "How do I clean my diamond jewellery at home?",
+      "must": [
+        "warm water"
+      ],
+      "any": [
+        "soap"
+      ]
+    },
+    {
+      "topic": "Care",
+      "q": "How should I store my jewellery?",
+      "any": [
+        "separate",
+        "individually"
+      ]
+    },
+    {
+      "topic": "Care",
+      "q": "How do I clean gemstone jewellery?",
+      "any": [
+        "seltzer",
+        "club soda"
+      ]
+    },
+    {
+      "topic": "Store visit",
+      "q": "Can I visit a Kisna store to see the jewellery in person?",
+      "any": [
+        "book (a )?(store )?visit",
+        "store visit"
+      ],
+      "must_not": [
+        "pin\\s?-?code"
+      ]
+    }
+  ]
+}

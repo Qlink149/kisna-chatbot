@@ -465,6 +465,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\n# KISNA KNOWLEDGE BASE (authoritative source of t
 - Store locator: kisna.com/store (searchable by city). Authorized dealers: kisna.com/kisna-authorized-dealers.
 - In-store: jewellery consultation (no purchase obligation), try-on, servicing, exchange/buyback at any store.
 - Online and in-store pricing/offers are uniform.
+- Store visit booking: customers can book a store visit right here in the chat — a form asks their state, city, store, date and time, and a store jewellery expert then gets in touch. When someone wants to visit or see pieces in a store, tell them they can book a visit here (they can type "book a store visit"); never ask for a pincode.
 
 ## SUPPORT & CONTACT
 - Customer Support phone, email, hours, WhatsApp and other contacts: see LOCKED VALUES. The support email there is the ONLY active customer email, for ALL queries.
