@@ -17,7 +17,7 @@
 | 1.2 | Look at the screen | Title "Schedule a Store Visit!", heading "Find Your Nearest Store". Fields in order: First Name, Last Name (Optional), Email ID (Optional), Phone No (Optional), Looking for, Select your State, Select your City, Nearest Kisna Store. No "*" anywhere; no "missing data-source" error | ☐ |
 | 1.2b | Open Select your City and Nearest Kisna Store before picking anything | One greyed-out item each: "Select a state first" / "Select a city first"; can't be picked | ☐ |
 | 1.3 | Look at First Name and Phone No (WhatsApp only) | Prefilled with the WhatsApp profile name and number. Phone No shows "Leave blank to use this WhatsApp number" | ☐ |
-| 1.4 | Looking for* options | Diamond Jewellery, Gold Jewellery, Solitaires, Engagement & Bridal, Gemstone Jewellery, Other | ☐ |
+| 1.4 | Looking for* options | Bracelets, Earrings, Mangalsutra, Necklace, Pendants, Rings (in this order) | ☐ |
 | 1.5 | Select your State* | 25 states, A→Z, only states with a bookable store. "Chhattisgarh" spelled with "hh" | ☐ |
 | **Typed text survives the cascade (the key check)** | | | |
 | 1.6 | Type First Name, Last Name, Email ID and Phone No, pick Looking for, **then** pick State = Uttar Pradesh | Select your City now lists **22** cities. **Every typed field and Looking for are unchanged** | ☐ |
@@ -50,8 +50,8 @@
 | **Hindi user** | | | |
 | 4.1 | Test number: send "मुझे आपके स्टोर पर आना है" | Form arrives; body is the pre-form text in Hindi | ☐ |
 | 4.2 | Complete and submit | Confirmation in Hindi. Request ID, store name, store address, "1 October 2026" and "11:00 AM" appear **unchanged** | ☐ |
-| **Test-number gate** | | | |
-| 5.1 | From a number NOT in `KISNA_STORE_VISIT_TEST_NUMBERS`: "book a store visit" | Only the store locator link; log `Store visit offer ... path: locator_link, reason: not_a_test_number` | ☐ |
+| **Go-live (test-number gate removed)** | | | |
+| 5.1 | With `KISNA_STORE_VISIT_TEST_NUMBERS` removed from the env, from any number: "book a store visit" | The form arrives; log `Store visit offer ... path: form, reason: all_numbers` | ☐ |
 
 **If 1.6–1.8 fail** (typed text cleared when State or City changes): tell me. The endpoint already sends every typed field back as the form's init-values on each refresh (tested), so a failure means WhatsApp ignores init-values on a same-screen refresh. The fix is to put the cascade back on its own screen, as in the previous layout.
 

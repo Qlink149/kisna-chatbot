@@ -7,12 +7,12 @@ import os
 # "What are you looking for?" -- (id, title). Ids are stored and sent to
 # Salesforce; titles are what the customer sees. Edit here, not in the JSON.
 LOOKING_FOR_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("diamond_jewellery", "Diamond Jewellery"),
-    ("gold_jewellery", "Gold Jewellery"),
-    ("solitaires", "Solitaires"),
-    ("engagement_bridal", "Engagement & Bridal"),
-    ("gemstone_jewellery", "Gemstone Jewellery"),
-    ("other", "Other"),
+    ("bracelets", "Bracelets"),
+    ("earrings", "Earrings"),
+    ("mangalsutra", "Mangalsutra"),
+    ("necklace", "Necklace"),
+    ("pendants", "Pendants"),
+    ("rings", "Rings"),
 )
 
 BOOKING_DAYS = 7          # today + the next 6 days

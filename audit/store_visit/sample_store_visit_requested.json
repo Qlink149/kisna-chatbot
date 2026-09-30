@@ -1,0 +1,30 @@
+{
+  "event_id": "KIS-SV-20261001-3F9A",
+  "event_type": "store_visit_requested",
+  "occurred_at": "2026-10-01T04:45:00Z",
+  "source": "whatsapp_chatbot",
+  "brand": "kisna",
+  "customer": {
+    "whatsapp_number": "919876543210",
+    "name": "Asha Sharma"
+  },
+  "data": {
+    "request_id": "KIS-SV-20261001-3F9A",
+    "request_type": "store_visit",
+    "first_name": "Asha",
+    "last_name": "Sharma",
+    "email": "asha.sharma@example.com",
+    "mobile": "919876543210",
+    "looking_for": "rings",
+    "looking_for_label": "Rings",
+    "store_id": "F061",
+    "store_name": "Lulu Mall - Lucknow - Uttar Pradesh",
+    "store_address": "Ground Floor, Lulu Mall, Unit G-009, Lulu Mall Rd, Golf City, Hariharpur",
+    "city": "Lucknow",
+    "state": "Uttar Pradesh",
+    "pincode": "226030",
+    "preferred_date": "2026-10-02",
+    "preferred_time": "11:00",
+    "preferred_time_label": "11:00 AM"
+  }
+}

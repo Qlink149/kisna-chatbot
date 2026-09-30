@@ -287,14 +287,14 @@ def _req(step=None, screen="SV_DETAILS", action="data_exchange", **data):
 
 
 DETAILS = {"first_name": "Priya", "last_name": "", "email": "p@example.com", "phone": "919812345678",
-           "looking_for": "diamond_jewellery"}
+           "looking_for": "rings"}
 
 
 class DataExchangeTests(CacheFixture):
     """SV_DETAILS holds the details AND the State -> City -> Store cascade."""
 
     TYPED = {"first_name": "Priya", "last_name": "Sharma", "email": "p@example.com",
-             "phone": "919812345678", "looking_for": "diamond_jewellery"}
+             "phone": "919812345678", "looking_for": "rings"}
 
     def test_first_screen_has_states_and_prefill(self):
         d = svf.details_screen_data("Priya", "919812345678")
@@ -304,6 +304,17 @@ class DataExchangeTests(CacheFixture):
         self.assertEqual(d["stores"], [{"id": "_none", "title": "Select a city first", "enabled": False}])
         self.assertEqual(d["init_values"], {"first_name": "Priya", "phone": "919812345678"})
         self.assertEqual(len(d["looking_for_options"]), len(LOOKING_FOR_OPTIONS))
+
+    def test_looking_for_options_are_the_clients_six_in_order(self):
+        d = svf.details_screen_data("Priya", "919812345678")
+        self.assertEqual(
+            [o["title"] for o in d["looking_for_options"]],
+            ["Bracelets", "Earrings", "Mangalsutra", "Necklace", "Pendants", "Rings"],
+        )
+        self.assertEqual(
+            [o["id"] for o in d["looking_for_options"]],
+            ["bracelets", "earrings", "mangalsutra", "necklace", "pendants", "rings"],
+        )
 
     def test_init_response_matches_the_flow_json_schema_exactly(self):
         """INIT must return what the Flow JSON's first screen declares: that
