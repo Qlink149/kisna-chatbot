@@ -108,11 +108,11 @@ def kisna_greeting_line(now: datetime | None = None) -> str:
         now = now.astimezone(_IST)
     hour = now.hour
     if 5 <= hour < 12:
-        return "Good Morning! ☀️ Hope you're doing well!"
+        return "Good Morning! ☀️ Hope you’re doing well!"
     if 12 <= hour < 17:
-        return "Good Afternoon! 🌤️ Hope you're having a good day!"
+        return "Good Afternoon! 🌤️ Hope you’re having a good day!"
     if 17 <= hour < 21:
-        return "Good Evening! 🌆 Hope you're having a lovely evening!"
+        return "Good Evening! 🌆 Hope you’re having a lovely evening!"
     return ""
 
 _WHAT_TODAY = "What would you like to do today?"

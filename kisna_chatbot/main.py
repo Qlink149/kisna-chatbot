@@ -894,7 +894,7 @@ async def process_message(
                 )
                 content = format_user(messages, phone_number)
                 if content:
-                    saved_ts = save_user_message_silent(
+                    saved_ts, message_id = save_user_message_silent(
                         phone_number, content, client_id, media=inbound_media
                     )
                     sse_media = None
@@ -911,6 +911,7 @@ async def process_message(
                         phone_number,
                         {
                             "type": "user_message",
+                            "id": message_id,
                             "content": content,
                             "timestamp": saved_ts,
                             "media": sse_media,

@@ -80,7 +80,7 @@ class SendMessageBaselineTests(ConversationApiBase):
         self.assertIn("24-hour", res.json()["detail"])
 
     @patch(f"{_CONV}.pubsub.publish")
-    @patch(f"{_CONV}.save_agent_message", return_value=123)
+    @patch(f"{_CONV}.save_agent_message", return_value=(123, "65f000000000000000000001"))
     @patch(f"{_CONV}.send_text_message")
     @patch(f"{_CONV}.get_takeover_status", return_value={"active": True})
     @patch(f"{_CONV}.get_user_by_phone", return_value=_user())
@@ -89,6 +89,11 @@ class SendMessageBaselineTests(ConversationApiBase):
         self.assertEqual(res.status_code, 200)
         mock_send.assert_called_once()
         mock_save.assert_called_once()
+        # The live event carries the saved row's id: the dashboard
+        # de-duplicates by message id only.
+        event = _mock_pub.call_args[0][1]
+        self.assertEqual((event["type"], event["id"], event["timestamp"]),
+                         ("agent_message", "65f000000000000000000001", 123))
 
 
 class SendMediaTests(ConversationApiBase):
@@ -144,7 +149,7 @@ class SendMediaTests(ConversationApiBase):
         self.assertIn("20 MB", res.json()["detail"])
 
     @patch(f"{_CONV}.pubsub.publish")
-    @patch(f"{_CONV}.save_agent_message", return_value=123)
+    @patch(f"{_CONV}.save_agent_message", return_value=(123, "65f000000000000000000001"))
     @patch(f"{_CONV}.send_image_message", return_value={"status": "submitted"})
     @patch(f"{_CONV}.media_store.presign_get", return_value="https://b2.example/signed")
     @patch(f"{_CONV}.media_store.put_bytes", return_value=True)
@@ -169,7 +174,7 @@ class SendMediaTests(ConversationApiBase):
         self.assertEqual(mock_save.call_args.kwargs["media"]["kind"], "image")
 
     @patch(f"{_CONV}.pubsub.publish")
-    @patch(f"{_CONV}.save_agent_message", return_value=123)
+    @patch(f"{_CONV}.save_agent_message", return_value=(123, "65f000000000000000000001"))
     @patch(f"{_CONV}.send_file_message", return_value={"status": "submitted"})
     @patch(f"{_CONV}.media_store.presign_get", return_value="https://b2.example/signed")
     @patch(f"{_CONV}.media_store.put_bytes", return_value=True)
@@ -186,7 +191,7 @@ class SendMediaTests(ConversationApiBase):
         self.assertEqual(mock_save.call_args[0][1], "[Document] quote.pdf")
 
     @patch(f"{_CONV}.pubsub.publish")
-    @patch(f"{_CONV}.save_agent_message", return_value=123)
+    @patch(f"{_CONV}.save_agent_message", return_value=(123, "65f000000000000000000001"))
     @patch(f"{_CONV}.send_image_message", return_value={"status": "submitted"})
     @patch(f"{_CONV}.media_store.presign_get", return_value=None)
     @patch(f"{_CONV}.media_store.put_bytes", return_value=True)
@@ -201,7 +206,7 @@ class SendMediaTests(ConversationApiBase):
         mock_send.assert_not_called()
 
     @patch(f"{_CONV}.pubsub.publish")
-    @patch(f"{_CONV}.save_agent_message", return_value=123)
+    @patch(f"{_CONV}.save_agent_message", return_value=(123, "65f000000000000000000001"))
     @patch(f"{_CONV}.send_image_message", return_value={"status": "error", "message": "rejected"})
     @patch(f"{_CONV}.media_store.presign_get", return_value="https://b2.example/signed")
     @patch(f"{_CONV}.media_store.put_bytes", return_value=True)

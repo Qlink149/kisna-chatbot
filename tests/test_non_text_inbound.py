@@ -219,7 +219,7 @@ def test_process_message_captures_media_during_takeover():
                 "kisna_chatbot.processors.media_capture.capture_inbound_media",
                 new=AsyncMock(return_value=captured_media),
             ),
-            patch.object(main_mod, "save_user_message_silent", return_value=123) as mock_save,
+            patch.object(main_mod, "save_user_message_silent", return_value=(123, "65f000000000000000000002")) as mock_save,
             patch.object(main_mod, "touch_last_message_at"),
             patch.object(main_mod.pubsub, "publish", new=AsyncMock()) as mock_publish,
         ):
@@ -267,7 +267,7 @@ def test_process_message_media_capture_disabled_unchanged_behaviour():
         with (
             patch.object(main_mod, "mark_inbound_processed", return_value=True),
             patch.object(main_mod, "get_takeover_status", return_value={"active": True}),
-            patch.object(main_mod, "save_user_message_silent", return_value=123) as mock_save,
+            patch.object(main_mod, "save_user_message_silent", return_value=(123, "65f000000000000000000002")) as mock_save,
             patch.object(main_mod, "touch_last_message_at"),
             patch.object(main_mod.pubsub, "publish", new=AsyncMock()),
         ):

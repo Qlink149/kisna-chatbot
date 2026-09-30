@@ -71,7 +71,7 @@ class TestMenuGreeting(unittest.TestCase):
             KISNA_WELCOME_BODY,
             "Namaste and welcome to Kisna Diamond & Gold. 💎\n\n"
             "I’m KIA – your personal jewellery assistant, and I’m delighted to assist you.\n\n"
-            "Whether you're exploring our latest collections, looking for the perfect jewellery, "
+            "Whether you’re exploring our latest collections, looking for the perfect jewellery, "
             "checking offers, tracking an order, or need any assistance — I’m here to make your "
             "Kisna experience simple and delightful. ✨\n\n"
             "How may I assist you today? 😊\n",
@@ -79,6 +79,22 @@ class TestMenuGreeting(unittest.TestCase):
         # Curly apostrophes, en dash after KIA, em dash before "I’m here".
         self.assertIn("I’m KIA – your", KISNA_WELCOME_BODY)
         self.assertIn("assistance — I’m here", KISNA_WELCOME_BODY)
+
+    def test_full_morning_welcome_is_the_clients_copy(self):
+        from datetime import datetime
+
+        text = build_greeting_text(chat_history=[], user_profile={}, now=datetime(2026, 9, 30, 9, 0))
+        self.assertEqual(
+            text,
+            "Good Morning! ☀️ Hope you’re doing well!\n\n"
+            "Namaste and welcome to Kisna Diamond & Gold. 💎\n\n"
+            "I’m KIA – your personal jewellery assistant, and I’m delighted to assist you.\n\n"
+            "Whether you’re exploring our latest collections, looking for the perfect jewellery, "
+            "checking offers, tracking an order, or need any assistance — I’m here to make your "
+            "Kisna experience simple and delightful. ✨\n\n"
+            "How may I assist you today? 😊",
+        )
+        self.assertNotIn("'", text)  # no straight apostrophe anywhere
 
     def test_greeting_without_name(self):
         text = build_greeting_text(chat_history=[], user_profile={})

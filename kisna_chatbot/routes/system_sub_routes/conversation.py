@@ -163,12 +163,13 @@ async def send_message(phone_number: str, body: SendMessageRequest):
             phone_number=phone_number,
             bot_response={"type": "text", "text": body.message},
         )
-        saved_ts = save_agent_message(phone_number, body.message)
+        saved_ts, message_id = save_agent_message(phone_number, body.message)
 
         await pubsub.publish(
             phone_number,
             {
                 "type": "agent_message",
+                "id": message_id,
                 "content": body.message,
                 "timestamp": saved_ts,
             },
@@ -272,12 +273,13 @@ async def send_media(
             "source": "agent",
         }
         content = _agent_media_label(kind, caption, filename)
-        saved_ts = save_agent_message(phone_number, content, media=media)
+        saved_ts, message_id = save_agent_message(phone_number, content, media=media)
 
         await pubsub.publish(
             phone_number,
             {
                 "type": "agent_message",
+                "id": message_id,
                 "content": content,
                 "timestamp": saved_ts,
                 "media": {**media, "url": signed},

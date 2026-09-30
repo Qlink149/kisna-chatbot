@@ -40,9 +40,9 @@ from kisna_chatbot.utils import reply_composer  # noqa: E402
 _IST = ZoneInfo("Asia/Kolkata")
 _PROMPT = build_general_agent_prompt(date(2026, 9, 26))
 
-_MORNING = "Good Morning! ☀️ Hope you're doing well!"
-_AFTERNOON = "Good Afternoon! 🌤️ Hope you're having a good day!"
-_EVENING = "Good Evening! 🌆 Hope you're having a lovely evening!"
+_MORNING = "Good Morning! ☀️ Hope you’re doing well!"
+_AFTERNOON = "Good Afternoon! 🌤️ Hope you’re having a good day!"
+_EVENING = "Good Evening! 🌆 Hope you’re having a lovely evening!"
 
 
 class AssembledPromptContentTests(unittest.TestCase):

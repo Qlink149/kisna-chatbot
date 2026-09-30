@@ -53,10 +53,14 @@ def _insert_chat_message(
     msg_type: str | None = None,
     migrated: bool = False,
     media: dict | None = None,
-) -> None:
-    """Dual-write a single message into chat_messages (fire-and-forget safe)."""
+) -> str | None:
+    """Dual-write a single message into chat_messages (fire-and-forget safe).
+    Returns the row's _id as a string (None if the write failed)."""
+    from bson import ObjectId
+
     try:
         doc = {
+            "_id": ObjectId(),
             "phone": phone,
             "client_id": client_id,
             "role": role,
@@ -72,20 +76,23 @@ def _insert_chat_message(
         if media:
             doc["media"] = media
         chat_messages.insert_one(doc)
+        return str(doc["_id"])
     except Exception:
         logger.warning(
             "chat_messages dual-write failed",
             extra={"phone": phone, "client_id": client_id, "role": role},
             exc_info=True,
         )
+        return None
 
 
 def dual_write_chat_entries(
     phone: str,
     client_id: str,
     entries: list[dict],
-) -> None:
-    for entry in entries or []:
+) -> list[str | None]:
+    """chat_messages _id per entry, in order (None where a write failed)."""
+    return [
         _insert_chat_message(
             phone=phone,
             client_id=client_id,
@@ -96,6 +103,8 @@ def dual_write_chat_entries(
             msg_type=entry.get("type"),
             media=entry.get("media"),
         )
+        for entry in entries or []
+    ]
 
 
 def _attach_trace_outcomes(messages: list[dict], client_id: str) -> None:
@@ -280,10 +289,11 @@ def save_user_message_silent(
     client_id: str = "kisna",
     request_id: str | None = None,
     media: dict | None = None,
-) -> int | None:
+) -> tuple[int, str | None]:
     """Append user message to chat_history without bot response (human takeover).
 
-    Returns the timestamp written so the SSE publish can carry the same value.
+    Returns (timestamp, chat_messages _id) so the SSE publish can carry the
+    saved row's id -- the dashboard de-duplicates by message id only.
     """
     try:
         now = int(time.time())
@@ -309,12 +319,13 @@ def save_user_message_silent(
             },
             upsert=True,
         )
-        dual_write_chat_entries(phone_number, client_id, [entry])
+        ids = dual_write_chat_entries(phone_number, client_id, [entry])
+        message_id = ids[0] if ids else None
         logger.info(
             "Silent user message saved",
             extra={"phone_number": phone_number, "client_id": client_id},
         )
-        return now
+        return now, message_id
     except Exception as e:
         logger.exception(
             "Failed to save silent message",
@@ -638,12 +649,11 @@ def save_agent_message(
     client_id: str = "kisna",
     request_id: str | None = None,
     media: dict | None = None,
-) -> int | None:
+) -> tuple[int, str | None]:
     """Append an agent message to chat_history.
 
-    Returns the timestamp written, so the SSE publish can carry the identical
-    value — the dashboard dedupes the optimistic copy against the saved one by
-    (role, timestamp, content), and a mismatch shows the message twice.
+    Returns (timestamp, chat_messages _id): the SSE publish carries the saved
+    row's id, which is what the dashboard de-duplicates the live copy by.
     """
     try:
         now = int(time.time())
@@ -668,12 +678,13 @@ def save_agent_message(
                 "$set": {"updated_at": now},
             },
         )
-        dual_write_chat_entries(phone_number, client_id, [entry])
+        ids = dual_write_chat_entries(phone_number, client_id, [entry])
+        message_id = ids[0] if ids else None
         logger.info(
             "Agent message saved",
             extra={"phone_number": phone_number, "client_id": client_id},
         )
-        return now
+        return now, message_id
     except Exception as e:
         logger.exception(
             "Failed to save agent message",

@@ -69,6 +69,19 @@ class TestChatPagination(unittest.TestCase):
         self.assertEqual(doc["request_id"], "rid-1")
 
     @patch("kisna_chatbot.database.db_utils.chat_messages")
+    def test_dual_write_returns_the_row_ids(self, mock_coll):
+        from kisna_chatbot.database.db_utils import dual_write_chat_entries
+
+        ids = dual_write_chat_entries(
+            "9199", "kisna", [{"role": "user", "content": "a", "timestamp": 1}, {"role": "user", "content": "b"}]
+        )
+        written = [c[0][0]["_id"] for c in mock_coll.insert_one.call_args_list]
+        self.assertEqual(ids, [str(i) for i in written])
+        self.assertNotEqual(ids[0], ids[1])
+        mock_coll.insert_one.side_effect = RuntimeError("down")
+        self.assertEqual(dual_write_chat_entries("9199", "kisna", [{"role": "user", "content": "c"}]), [None])
+
+    @patch("kisna_chatbot.database.db_utils.chat_messages")
     def test_dual_write_persists_media(self, mock_coll):
         from kisna_chatbot.database.db_utils import dual_write_chat_entries
 

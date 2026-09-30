@@ -799,7 +799,7 @@ Namaste and welcome to Kisna Diamond & Gold. 💎
 
 I’m KIA – your personal jewellery assistant, and I’m delighted to assist you.
 
-Whether you're exploring our latest collections, looking for the perfect jewellery, checking offers, tracking an order, or need any assistance — I’m here to make your Kisna experience simple and delightful. ✨
+Whether you’re exploring our latest collections, looking for the perfect jewellery, checking offers, tracking an order, or need any assistance — I’m here to make your Kisna experience simple and delightful. ✨
 
 How may I assist you today? 😊
 """
