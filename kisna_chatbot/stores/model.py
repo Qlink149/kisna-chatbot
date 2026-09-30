@@ -2,7 +2,8 @@
 
 Stored fields: store_id, name, address, city, state, pincode, phone,
 open_time ("HH:MM"), close_time, weekly_off (lower-case day names), bookable,
-active, source, updated_at.
+active, source, updated_at, hours_overridden (open/close set by the dashboard;
+only then do they set visit slots -- see effective_hours).
 """
 
 from __future__ import annotations
@@ -14,6 +15,12 @@ from typing import Any
 
 DEFAULT_OPEN = "11:00"
 DEFAULT_CLOSE = "21:00"
+
+# Store-visit slot hours when the dashboard has not set a store's hours: the
+# client's hourly 11:00 AM ... 8:00 PM (a slot must end by close, so the last
+# one starts 20:00). kisna.com hours are stored but no longer set slots.
+SLOT_DEFAULT_OPEN = "11:00"
+SLOT_DEFAULT_CLOSE = "21:00"
 
 WEEKDAYS = (
     "monday",
@@ -216,11 +223,34 @@ def validate_overrides(values: dict, current: dict) -> tuple[dict, list[str]]:
         else:
             if len(update["weekly_off"]) == len(WEEKDAYS):
                 errors.append("weekly_off cannot be every day")
-    open_t = update.get("open_time") or current.get("open_time") or DEFAULT_OPEN
-    close_t = update.get("close_time") or current.get("close_time") or DEFAULT_CLOSE
+    shown_open, shown_close = effective_hours(current)
+    open_t = update.get("open_time") or shown_open
+    close_t = update.get("close_time") or shown_close
     if not any("_time" in e for e in errors) and minutes(close_t) - minutes(open_t) < 60:
         errors.append("close_time must be at least 1 hour after open_time")
+    # Hours become the store's own only when they differ from what the
+    # dashboard shows: its edit form (and a re-uploaded CSV) sends the shown
+    # hours back unchanged, and that must not pin anything.
+    update.pop("open_time", None)
+    update.pop("close_time", None)
+    if (open_t, close_t) != (shown_open, shown_close):
+        update.update(open_time=open_t, close_time=close_t, hours_overridden=True)
     return update, errors
+
+
+def effective_hours(store: dict) -> tuple[str, str]:
+    """(open, close) that set the store's visit slots: the dashboard's hours
+    once it has set them, else the client's default."""
+    if store.get("hours_overridden"):
+        return (store.get("open_time") or SLOT_DEFAULT_OPEN, store.get("close_time") or SLOT_DEFAULT_CLOSE)
+    return SLOT_DEFAULT_OPEN, SLOT_DEFAULT_CLOSE
+
+
+def for_dashboard(store: dict) -> dict:
+    """The store as the dashboard shows and downloads it: open/close are the
+    hours that set slots, not kisna.com's."""
+    open_t, close_t = effective_hours(store)
+    return {**store, "open_time": open_t, "close_time": close_t, "hours_overridden": bool(store.get("hours_overridden"))}
 
 
 def synced_field_conflicts(row: dict, current: dict) -> list[str]:
@@ -261,6 +291,7 @@ def duplicate_report(stores: list[dict]) -> dict[str, list]:
 
 def to_csv_row(store: dict) -> dict:
     row = {k: store.get(k, "") for k in STORE_FIELDS}
+    row["open_time"], row["close_time"] = effective_hours(store)
     row["weekly_off"] = ";".join(store.get("weekly_off") or [])
     row["bookable"] = "true" if store.get("bookable") else "false"
     row["active"] = "true" if store.get("active") else "false"

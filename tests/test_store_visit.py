@@ -46,6 +46,7 @@ def _store(**over):
         "phone": "",
         "open_time": "10:30",
         "close_time": "20:00",
+        "hours_overridden": True,  # hours set in the dashboard; see DefaultSlotTests
         "weekly_off": [],
         "bookable": True,
         "active": True,
@@ -205,6 +206,36 @@ class SlotTests(unittest.TestCase):
         s = _store(close_time="20:00")
         late = NOW.replace(hour=18, minute=10)
         self.assertEqual(slots.date_window(s, late)["min_date"], "2026-10-01")
+
+    def test_kisna_com_hours_no_longer_set_slots(self):
+        # Not set in the dashboard: the client's default, 11:00 AM ... 8:00 PM.
+        s = _store(open_time="10:30", close_time="20:00", hours_overridden=False)
+        slot_list = slots.slots_for_date(s, "2026-10-01", NOW)
+        self.assertEqual([x["id"] for x in slot_list], [f"{h:02d}:00" for h in range(11, 21)])
+        self.assertEqual(slot_list[0]["title"], "11:00 AM")
+        self.assertEqual(slot_list[-1]["title"], "8:00 PM")
+        # Same for a store kisna.com lists as 10:00-22:00 or without the flag at all.
+        for s in (_store(open_time="10:00", close_time="22:00", hours_overridden=False), {
+            k: v for k, v in _store().items() if k != "hours_overridden"
+        }):
+            with self.subTest(s=(s["open_time"], s["close_time"])):
+                ids = [x["id"] for x in slots.slots_for_date(s, "2026-10-01", NOW)]
+                self.assertEqual((ids[0], ids[-1], len(ids)), ("11:00", "20:00", 10))
+
+    def test_default_keeps_two_hour_lead_weekly_off_and_holidays(self):
+        s = _store(hours_overridden=False, weekly_off=["thursday"])
+        ids = [x["id"] for x in slots.slots_for_date(s, "2026-09-30", NOW.replace(hour=12, minute=45))]
+        self.assertEqual((ids[0], ids[-1]), ("15:00", "20:00"))  # 12:45 + 2h = 14:45
+        dates = [d.isoformat() for d in slots.bookable_dates(s, NOW)]
+        self.assertNotIn("2026-10-01", dates)  # Thursday off
+        self.assertNotIn("2026-10-02", dates)  # Gandhi Jayanti
+        # 18:10 + 2h = 20:10, after the 8:00 PM slot: today is closed; the
+        # next day is Thursday (off) and then Gandhi Jayanti, so 3 Oct.
+        self.assertEqual(slots.date_window(s, NOW.replace(hour=18, minute=10))["min_date"], "2026-10-03")
+        self.assertEqual(
+            slots.date_window(_store(hours_overridden=False), NOW.replace(hour=18, minute=10))["min_date"],
+            "2026-10-01",
+        )
 
     def test_clock_label(self):
         self.assertEqual(slots.clock_label("18:30"), "6:30 PM")

@@ -109,34 +109,66 @@ class CampaignExpiryTests(unittest.TestCase):
         self.assertIn("Lucky Draw", nov30)
         self.assertEqual(build_campaigns_block(date(2026, 12, 1)), "")
 
-    def test_dropoff_message_by_date(self):
-        nov5 = build_dropoff_message(date(2026, 11, 5))
-        self.assertIn("Gold Rate Protection", nov5)
-        self.assertIn("Lucky Draw", nov5)
-        nov6 = build_dropoff_message(date(2026, 11, 6))
-        self.assertNotIn("Gold Rate Protection", nov6)  # dropoff_until 2026-11-05
-        self.assertIn("Lucky Draw", nov6)
-        nov30 = build_dropoff_message(date(2026, 11, 30))
-        self.assertIn("Lucky Draw", nov30)
-        dec1 = build_dropoff_message(date(2026, 12, 1))
-        self.assertNotIn("Lucky Draw", dec1)
-        # Permanent lines, header and footer always present, in original order.
-        for msg in (nov5, nov6, nov30, dec1):
-            self.assertTrue(msg.startswith("Just a quick reminder before you go"))
-            self.assertIn("Need help? Just reply here and I'll be happy to assist! 😊", msg)
-            self.assertIn("Up to 35% off making charges", msg)
-            self.assertLess(msg.index("35% off"), msg.index("Free 1-Year Jewellery Insurance"))
+    # The client's drop-off message, pasted as sent (curly apostrophes, en and
+    # em dashes, emoji with variation selectors).
+    CLIENT_DROPOFF = """\
+✨ Exclusive Benefits, Just for You!
 
-    def test_dropoff_on_2026_09_26_is_the_clients_message_verbatim(self):
+Shop beautiful jewellery at KISNA and enjoy:
+
+💎 Diamond Jewellery: Up to 35% OFF on Making Charges
+✨ Gold Jewellery: Up to 20% OFF on Making Charges
+🛡️ Free 1-Year Jewellery Insurance with every purchase
+
+Discounts apply only to making charges. T&Cs apply.
+
+💰 Gold Rate Protection (GRP): Lock today’s gold rate with just 25% advance and purchase jewellery worth up to 4X your advance. Available on eligible Gold, Diamond, Platinum & Solitaire Jewellery.
+
+https://www.kisna.com/pages/gold-rate-protection
+
+🎉 Lucky Draw: Win 2 Scooters + 1 Car!
+📅 Offer: 21 Aug – 30 Nov 2026 | Indian citizens 18+ (excluding Tamil Nadu). T&Cs apply.
+
+https://www.kisna.com/pages/jewellery-offers
+
+💬 Need help? Just reach out to us—we’re always happy to assist!"""
+    GRP_BLOCK = (
+        "💰 Gold Rate Protection (GRP): Lock today’s gold rate with just 25% advance and purchase "
+        "jewellery worth up to 4X your advance. Available on eligible Gold, Diamond, Platinum & "
+        "Solitaire Jewellery.\n\nhttps://www.kisna.com/pages/gold-rate-protection\n\n"
+    )
+    LUCKY_BLOCK = (
+        "🎉 Lucky Draw: Win 2 Scooters + 1 Car!\n📅 Offer: 21 Aug – 30 Nov 2026 | Indian citizens "
+        "18+ (excluding Tamil Nadu). T&Cs apply.\n\nhttps://www.kisna.com/pages/jewellery-offers\n\n"
+    )
+
+    def test_dropoff_is_the_clients_message_character_for_character(self):
+        for day in (date(2026, 9, 30), date(2026, 11, 5)):
+            with self.subTest(day=day):
+                self.assertEqual(build_dropoff_message(day), self.CLIENT_DROPOFF)
+        # The typographic characters survive (an editor must not straighten them).
+        for ch in ("’", "–", "—", "\U0001F6E1️"):
+            self.assertIn(ch, build_dropoff_message(date(2026, 9, 30)))
+
+    def test_dropoff_blocks_expire_by_date(self):
+        without_grp = self.CLIENT_DROPOFF.replace(self.GRP_BLOCK, "")
+        without_both = without_grp.replace(self.LUCKY_BLOCK, "")
+        self.assertNotEqual(without_grp, self.CLIENT_DROPOFF)
+        self.assertNotEqual(without_both, without_grp)
+        self.assertEqual(build_dropoff_message(date(2026, 11, 6)), without_grp)   # GRP until 5 Nov
+        self.assertEqual(build_dropoff_message(date(2026, 11, 30)), without_grp)  # Lucky Draw until 30 Nov
+        # Header, the permanent benefits block and footer always.
         self.assertEqual(
-            build_dropoff_message(date(2026, 9, 26)),
-            "Just a quick reminder before you go — here's what you don't want to miss at Kisna! ✨\n\n"
-            "• Up to 35% off making charges on diamond jewellery, and up to 20% off on gold jewellery.\n"
-            "• Free 1-Year Jewellery Insurance with every purchase.\n"
-            "• Gold Rate Protection — lock in today's gold rate before it changes: https://www.kisna.com/pages/gold-rate-protection\n"
-            "• Lucky Draw — stand a chance to win 2 scooters and 1 car: https://www.kisna.com/pages/jewellery-offers\n\n"
-            "Need help? Just reply here and I'll be happy to assist! 😊\n",
+            build_dropoff_message(date(2026, 12, 1)),
+            "✨ Exclusive Benefits, Just for You!\n\n"
+            "Shop beautiful jewellery at KISNA and enjoy:\n\n"
+            "💎 Diamond Jewellery: Up to 35% OFF on Making Charges\n"
+            "✨ Gold Jewellery: Up to 20% OFF on Making Charges\n"
+            "🛡️ Free 1-Year Jewellery Insurance with every purchase\n\n"
+            "Discounts apply only to making charges. T&Cs apply.\n\n"
+            "💬 Need help? Just reach out to us—we’re always happy to assist!",
         )
+        self.assertEqual(build_dropoff_message(date(2026, 12, 1)), without_both)
 
 
 class GreetingLineTests(unittest.TestCase):

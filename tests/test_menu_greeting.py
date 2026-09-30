@@ -61,8 +61,24 @@ class TestMenuGreeting(unittest.TestCase):
             user_profile={"username": "Priya"},
         )
         self.assertIn("Namaste and welcome to Kisna Diamond & Gold. 💎", text)
-        self.assertIn("I'm KIA - your personal jewellery assistant", text)
+        self.assertIn("I’m KIA – your personal jewellery assistant", text)
         self.assertIn("How may I assist you today? 😊", text)
+
+    def test_welcome_body_matches_the_clients_punctuation(self):
+        from kisna_chatbot.prompts.kisna_knowledge_base import KISNA_WELCOME_BODY
+
+        self.assertEqual(
+            KISNA_WELCOME_BODY,
+            "Namaste and welcome to Kisna Diamond & Gold. 💎\n\n"
+            "I’m KIA – your personal jewellery assistant, and I’m delighted to assist you.\n\n"
+            "Whether you're exploring our latest collections, looking for the perfect jewellery, "
+            "checking offers, tracking an order, or need any assistance — I’m here to make your "
+            "Kisna experience simple and delightful. ✨\n\n"
+            "How may I assist you today? 😊\n",
+        )
+        # Curly apostrophes, en dash after KIA, em dash before "I’m here".
+        self.assertIn("I’m KIA – your", KISNA_WELCOME_BODY)
+        self.assertIn("assistance — I’m here", KISNA_WELCOME_BODY)
 
     def test_greeting_without_name(self):
         text = build_greeting_text(chat_history=[], user_profile={})

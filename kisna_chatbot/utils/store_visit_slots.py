@@ -2,9 +2,10 @@
 
 Dates: today + the next ``BOOKING_DAYS - 1`` days (IST), minus the store's
 weekly_off days and the company holiday calendar. Slots: hourly from the
-store's open_time while the hour still ends by close_time (10:30-20:00 gives
-10:30 ... 18:30 starts), minus anything already past or under
-``MIN_LEAD_MINUTES`` away.
+store's effective open time while the hour still ends by its close time --
+the client's default 11:00-21:00 gives 11:00 AM ... 8:00 PM starts; hours set
+in the dashboard override it (stores.model.effective_hours) -- minus anything
+already past or under ``MIN_LEAD_MINUTES`` away.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 from kisna_chatbot.config.store_visit import BOOKING_DAYS, MIN_LEAD_MINUTES, SLOT_MINUTES
-from kisna_chatbot.stores.model import WEEKDAYS, minutes
+from kisna_chatbot.stores.model import WEEKDAYS, effective_hours, minutes
 from kisna_chatbot.utils.support_hours import IST, is_holiday
 
 
@@ -32,7 +33,8 @@ def clock_label(hhmm: str) -> str:
 
 
 def _starts(store: dict) -> list[str]:
-    open_m, close_m = minutes(store["open_time"]), minutes(store["close_time"])
+    open_t, close_t = effective_hours(store)
+    open_m, close_m = minutes(open_t), minutes(close_t)
     out = []
     t = open_m
     while t + SLOT_MINUTES <= close_m:

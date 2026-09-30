@@ -6,6 +6,7 @@
 - **Same start everywhere:** the WhatsApp send and the interactive preview both use `flow_action=data_exchange`, so screen 1 always comes from the endpoint's INIT. On WhatsApp, INIT prefills the name and number saved when the form was sent (`store_visit_flow_sessions`, keyed by the form's token). The preview has no customer, so it opens with them blank.
 - **Interactive preview:** `python scripts/store_visit_flow_draft.py --flow-id 1750678739319405` prints it, with `phone_number` = Kisna's business number from Gupshup (917304278561).
 - **Stores:** 170 synced from kisna.com (nightly 02:00 IST).
+- **Slot hours:** hourly 11:00 AM … 8:00 PM for every store, unless its open/close is set in Dashboard → Stores (the dashboard shows 11:00–21:00 for those; close is when the last one-hour slot ends). kisna.com's hours no longer set slots.
 - **Weekly-off:** no store has one in the kisna.com data. Before row 3.1, set one in the dashboard (Stores → Lulu Mall - Lucknow → weekly off = the next Tuesday's weekday).
 - **Dates:** examples assume testing between 29 Sep and 1 Oct 2026. The next holidays are 2 Oct (Gandhi Jayanti) and 20 Oct (Store Holiday).
 
@@ -35,10 +36,10 @@
 | 2.2 | Back to screen 1 | All text, State, City and Store still as entered | ☐ |
 | 2.3 | Store with a weekly-off set (Lulu Mall - Lucknow, see before you start) | That weekday is greyed out | ☐ |
 | 2.4 | Any store, date picker | Range is today → today+6. **2 Oct** greyed out (holiday) | ☐ |
-| 2.5 | Pick today (before ~17:00) | First slot ≥ 2 h from now (e.g. at 12:45, first slot 3:30 PM for a 10:30 store) | ☐ |
-| 2.6 | Pick tomorrow, default store (10:30–20:00) | Slots 10:30 AM … 6:30 PM, hourly (9 slots) | ☐ |
-| 2.7 | Non-default hours: Tamil Nadu → Chennai → Nexus Vijaya Mall (10:00–22:00) | Slots 10:00 AM … 9:00 PM (12 slots) | ☐ |
-| 2.8 | Non-default hours: Uttar Pradesh → Kanpur → Saket Nagar (11:00–21:30) | Slots 11:00 AM … 8:00 PM (10 slots) | ☐ |
+| 2.5 | Pick today (before ~17:00) | First slot ≥ 2 h from now, on the hour (e.g. at 12:45, first slot 3:00 PM) | ☐ |
+| 2.6 | Pick tomorrow, any store whose hours weren't set in the dashboard | Slots 11:00 AM … 8:00 PM, hourly (10 slots) — the client's default | ☐ |
+| 2.7 | kisna.com hours no longer count: Tamil Nadu → Chennai → Nexus Vijaya Mall (kisna.com lists 10:00–22:00) | Still 11:00 AM … 8:00 PM (10 slots) | ☐ |
+| 2.8 | Dashboard hours win: Dashboard → Stores → Saket Nagar - Kanpur → open 10:00, close 18:00 → save. Then Uttar Pradesh → Kanpur → Saket Nagar, tomorrow | Slots 10:00 AM … 5:00 PM (8 slots; a slot must end by close). Afterwards set it back to 11:00–21:00 | ☐ |
 | 2.9 | Change the date | Time list refreshes for the new date | ☐ |
 | **Submit (WhatsApp only; a preview submit creates no booking)** | | | |
 | 3.1 | Tap **Submit** | Confirmation: "Your appointment is confirmed! 📍✨", Request ID `KIS-SV-YYYYMMDD-XXXX`, Store: name + address, "Scheduled for: 1 October 2026 · 11:00 AM", then the client's closing lines | ☐ |

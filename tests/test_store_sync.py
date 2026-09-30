@@ -288,16 +288,45 @@ class OverrideCsvTests(unittest.TestCase):
         self._bust.stop()
 
     def test_overrides_only_file_applies(self):
-        csv_text = "store_id,bookable,open_time,close_time,weekly_off\nS1,false,11:00,21:00,tue;sun\nS2,,,,\n"
+        csv_text = "store_id,bookable,open_time,close_time,weekly_off\nS1,false,12:00,18:00,tue;sun\nS2,,,,\n"
         result = repo.import_csv(csv_text, collection=self.col)
         self.assertTrue(result["ok"], result)
         s1 = self.col.docs[0]
-        self.assertEqual((s1["bookable"], s1["open_time"], s1["weekly_off"]), (False, "11:00", ["tuesday", "sunday"]))
+        self.assertEqual(
+            (s1["bookable"], s1["open_time"], s1["close_time"], s1["hours_overridden"], s1["weekly_off"]),
+            (False, "12:00", "18:00", True, ["tuesday", "sunday"]),
+        )
         self.assertEqual(result["updated"], 1)
 
+    def test_shown_default_hours_do_not_pin(self):
+        # 11:00-21:00 is what the dashboard shows for a store it hasn't set,
+        # so sending it back changes nothing about the hours.
+        csv_text = "store_id,open_time,close_time,weekly_off\nS1,11:00,21:00,sun\n"
+        self.assertTrue(repo.import_csv(csv_text, collection=self.col)["ok"])
+        s1 = self.col.docs[0]
+        self.assertNotIn("hours_overridden", s1)
+        self.assertEqual((s1["open_time"], s1["weekly_off"]), ("10:30", ["sunday"]))  # kisna.com value kept
+
     def test_downloaded_csv_reuploads_cleanly(self):
-        result = repo.import_csv(repo.to_csv(self.col.docs), collection=self.col)
+        text = repo.to_csv(self.col.docs)
+        self.assertIn(",11:00,21:00,", text)  # the hours that set slots, not kisna.com's
+        result = repo.import_csv(text, collection=self.col)
         self.assertTrue(result["ok"], result)
+        self.assertEqual(result["updated"], 0)
+
+    def test_dashboard_shows_the_hours_that_set_slots(self):
+        shown = {s["store_id"]: s for s in repo.list_all(collection=self.col)}
+        self.assertEqual(
+            (shown["S1"]["open_time"], shown["S1"]["close_time"], shown["S1"]["hours_overridden"]),
+            ("11:00", "21:00", False),
+        )
+        doc, errors = repo.set_overrides(
+            "S1", {"open_time": "11:00", "close_time": "21:00", "weekly_off": ["tue"]}, collection=self.col
+        )
+        self.assertEqual(errors, [])
+        self.assertFalse(doc["hours_overridden"])  # the edit form resends the shown hours
+        doc, _ = repo.set_overrides("S1", {"open_time": "10:00", "close_time": "21:00"}, collection=self.col)
+        self.assertEqual((doc["open_time"], doc["close_time"], doc["hours_overridden"]), ("10:00", "21:00", True))
 
     def test_changed_name_or_address_rejected_with_row_error(self):
         text = repo.to_csv(self.col.docs).replace("Hill Road", "Hill Road Shop 2").replace("Andheri West", "Andheri W")

@@ -108,7 +108,7 @@ _DROPOFF_TEMPLATE_KEY = "reengage_dropoff"
 # One message now, not a rotation; kept so reengage_last_line stays populated.
 _DROPOFF_LINE_INDEX = 0
 _URL_RE = re.compile(r"https?://\S+")
-_PINNED_FIGURES = ("35%", "20%", "1-Year")
+_PINNED_FIGURES = ("35%", "20%", "1-Year", "25%", "4X", "18+")
 
 
 def build_reengagement_message(user_profile: dict) -> tuple[str, int]:

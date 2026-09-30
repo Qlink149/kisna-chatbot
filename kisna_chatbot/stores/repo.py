@@ -21,6 +21,7 @@ from kisna_chatbot.stores.model import (
     STORE_FIELDS,
     clean_text,
     synced_field_conflicts,
+    for_dashboard,
     to_csv_row,
     validate_overrides,
 )
@@ -151,9 +152,10 @@ def import_csv(content: bytes | str, *, collection=None) -> dict[str, Any]:
 
 def list_all(*, collection=None) -> list[dict]:
     col = collection if collection is not None else _stores
-    return list(
-        col.find({}, {"_id": 0}).sort([("state", ASCENDING), ("city", ASCENDING), ("name", ASCENDING)])
-    )
+    return [
+        for_dashboard(s)
+        for s in col.find({}, {"_id": 0}).sort([("state", ASCENDING), ("city", ASCENDING), ("name", ASCENDING)])
+    ]
 
 
 def set_overrides(store_id: str, values: dict, *, by: str = "", collection=None) -> tuple[dict | None, list[str]]:
@@ -174,7 +176,7 @@ def set_overrides(store_id: str, values: dict, *, by: str = "", collection=None)
             return_document=True,
         )
         cache.bust()
-    return current, []
+    return for_dashboard(current), []
 
 
 def to_csv(stores: list[dict]) -> str:

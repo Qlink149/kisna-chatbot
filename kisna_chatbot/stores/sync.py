@@ -7,7 +7,9 @@ Field ownership (enforced here, in the CSV import and in the dashboard API):
 - OVERRIDE_FIELDS belong to the dashboard and are never written by a sync of
   an existing store. A NEW store gets them once, from the same normalisation
   as the seed (hours from kisna.com, bookable from
-  KISNA_NEW_STORE_BOOKABLE_DEFAULT).
+  KISNA_NEW_STORE_BOOKABLE_DEFAULT). The kisna.com hours are kept for
+  reference only: visit slots use the client's default until the dashboard
+  sets hours (stores.model.effective_hours).
 
 Safety: nothing is written unless the fetch succeeded, the response parsed,
 and it holds at least MIN_ACTIVE_RATIO of the currently active stores. Every

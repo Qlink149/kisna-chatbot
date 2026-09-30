@@ -723,32 +723,32 @@ def build_locked_values(*, support_phone: str, support_email: str, support_hours
 # ---------------------------------------------------------------------------
 # Campaigns: records with structural expiry. An item is live ON its *_until
 # date and gone the day after. prompt_text is what the model may know (None:
-# nothing); dropoff_line is the exact line for the drop-off broadcast. The
-# making-charge percentages exist ONLY as a drop-off line -- the model never
-# sees them. Lines are the client's copy, moved verbatim from the former
-# KISNA_DROPOFF_MESSAGE.
+# nothing); dropoff_block is its exact block in the drop-off broadcast (one or
+# more lines; blocks are separated by a blank line). The making-charge
+# percentages exist ONLY in the drop-off -- the model never sees them. Blocks
+# are the client's copy character for character (curly apostrophes, dashes
+# and emoji written as escapes so an editor can't straighten them).
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class CampaignItem:
     id: str
     prompt_text: str | None
-    dropoff_line: str | None
+    dropoff_block: str | None
     prompt_until: date | None
     dropoff_until: date | None
 
 
 KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
     CampaignItem(
-        id="making_charges",
-        prompt_text=None,
-        dropoff_line='• Up to 35% off making charges on diamond jewellery, and up to 20% off on gold jewellery.',
-        prompt_until=None,
-        dropoff_until=None,
-    ),
-    CampaignItem(
-        id="insurance",
-        prompt_text=None,  # permanent benefit -- lives in BRAND PROMISE
-        dropoff_line='• Free 1-Year Jewellery Insurance with every purchase.',
+        id="making_charges",  # with insurance: one permanent block
+        prompt_text=None,  # insurance lives in BRAND PROMISE; percentages nowhere
+        dropoff_block=(
+            "\U0001F48E Diamond Jewellery: Up to 35% OFF on Making Charges\n"
+            "✨ Gold Jewellery: Up to 20% OFF on Making Charges\n"
+            "\U0001F6E1️ Free 1-Year Jewellery Insurance with every purchase\n"
+            "\n"
+            "Discounts apply only to making charges. T&Cs apply."
+        ),
         prompt_until=None,
         dropoff_until=None,
     ),
@@ -758,7 +758,13 @@ KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
             "- Gold Rate Protection (GRP) is running now. Never quote its dates; "
             "always direct the customer to the GRP page."
         ),
-        dropoff_line="• Gold Rate Protection — lock in today's gold rate before it changes: https://www.kisna.com/pages/gold-rate-protection",
+        dropoff_block=(
+            "\U0001F4B0 Gold Rate Protection (GRP): Lock today’s gold rate with just 25% "
+            "advance and purchase jewellery worth up to 4X your advance. Available on "
+            "eligible Gold, Diamond, Platinum & Solitaire Jewellery.\n"
+            "\n"
+            "https://www.kisna.com/pages/gold-rate-protection"
+        ),
         prompt_until=date(2026, 11, 10),
         dropoff_until=date(2026, 11, 5),
     ),
@@ -769,25 +775,31 @@ KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
             "2026, for Indian citizens aged 18 and above, excluding Tamil Nadu. "
             "T&Cs apply. Page: https://www.kisna.com/pages/jewellery-offers"
         ),
-        dropoff_line='• Lucky Draw — stand a chance to win 2 scooters and 1 car: https://www.kisna.com/pages/jewellery-offers',
+        dropoff_block=(
+            "\U0001F389 Lucky Draw: Win 2 Scooters + 1 Car!\n"
+            "\U0001F4C5 Offer: 21 Aug – 30 Nov 2026 | Indian citizens 18+ "
+            "(excluding Tamil Nadu). T&Cs apply.\n"
+            "\n"
+            "https://www.kisna.com/pages/jewellery-offers"
+        ),
         prompt_until=date(2026, 11, 30),
         dropoff_until=date(2026, 11, 30),
     ),
 )
 
-# The order the lines appeared in the client's drop-off message.
-_DROPOFF_ORDER: tuple[str, ...] = ('making_charges', 'insurance', 'grp', 'lucky_draw')
-_DROPOFF_HEADER = "Just a quick reminder before you go — here's what you don't want to miss at Kisna! ✨\n\n"
-_DROPOFF_FOOTER = "\nNeed help? Just reply here and I'll be happy to assist! 😊\n"
+# The order the blocks appear in the client's drop-off message.
+_DROPOFF_ORDER: tuple[str, ...] = ("making_charges", "grp", "lucky_draw")
+_DROPOFF_HEADER = "✨ Exclusive Benefits, Just for You!\n\nShop beautiful jewellery at KISNA and enjoy:"
+_DROPOFF_FOOTER = "\U0001F4AC Need help? Just reach out to us—we’re always happy to assist!"
 
 # The client's welcome text minus its first "Good Morning!..." line, which is
 # now the time-aware kisna_greeting_line() in processors/service_list.py.
 KISNA_WELCOME_BODY = """\
 Namaste and welcome to Kisna Diamond & Gold. 💎
 
-I'm KIA - your personal jewellery assistant, and I'm delighted to assist you.
+I’m KIA – your personal jewellery assistant, and I’m delighted to assist you.
 
-Whether you're exploring our latest collections, looking for the perfect jewellery, checking offers, tracking an order, or need any assistance - I'm here to make your Kisna experience simple and delightful. ✨
+Whether you're exploring our latest collections, looking for the perfect jewellery, checking offers, tracking an order, or need any assistance — I’m here to make your Kisna experience simple and delightful. ✨
 
 How may I assist you today? 😊
 """
@@ -815,14 +827,14 @@ def build_campaigns_block(today: date | None = None) -> str:
 
 
 def build_dropoff_message(today: date | None = None) -> str:
-    """The client's drop-off broadcast with only today's live lines (IST).
-    Always a valid message: header + live lines (original order) + footer."""
+    """The client's drop-off broadcast with only today's live blocks (IST).
+    Always a valid message: header + live blocks (client's order) + footer,
+    separated by blank lines."""
     today = today or _today_ist()
     by_id = {item.id: item for item in KISNA_CAMPAIGN_ITEMS}
     live = [
-        by_id[i].dropoff_line
+        by_id[i].dropoff_block
         for i in _DROPOFF_ORDER
-        if by_id[i].dropoff_line and _live(by_id[i].dropoff_until, today)
+        if by_id[i].dropoff_block and _live(by_id[i].dropoff_until, today)
     ]
-    body = "\n".join(live)
-    return _DROPOFF_HEADER + (body + "\n" if body else "") + _DROPOFF_FOOTER
+    return "\n\n".join([_DROPOFF_HEADER, *live, _DROPOFF_FOOTER])
