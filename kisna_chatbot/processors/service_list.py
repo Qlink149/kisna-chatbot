@@ -222,58 +222,69 @@ def is_new_session(chat_history: list) -> bool:
     return len(chat_history or []) == 0
 
 
-def _is_valid_display_name(name: str | None) -> bool:
-    """Reject garbage WhatsApp names for greeting personalization."""
-    if not name or not isinstance(name, str):
-        return False
-    cleaned = name.strip()
-    if not cleaned or len(cleaned) > 30:
-        return False
-    if "@" in cleaned:
-        return False
-    if cleaned.replace(" ", "").isdigit():
-        return False
-    lowered = cleaned.lower()
-    if lowered in ("none", "null", "customer", "user"):
-        return False
-    return True
+# A WhatsApp profile name is used only when it reads as a first name.
+_NOT_A_NAME = frozenset({"none", "null", "customer", "user"})
 
 
-def _display_name_from_profile(user_profile: dict | None) -> str | None:
+def _is_alphabetic(word: str) -> bool:
+    """Letters only, in any script. Indic vowel signs and viramas are
+    combining marks (not isalpha), so "प्रिया" needs them allowed."""
+    import unicodedata
+
+    return word[:1].isalpha() and all(
+        ch.isalpha() or unicodedata.category(ch).startswith("M") for ch in word
+    )
+
+
+def greeting_first_name(user_profile: dict | None) -> str | None:
+    """First word of the profile name, title-cased ("RAJENDRA singh" ->
+    "Rajendra"). None -- so the greeting omits the name and its comma -- when
+    that word is empty, not alphabetic, or longer than 20 characters."""
     profile = user_profile or {}
     for key in ("username", "whatsapp_username"):
-        candidate = profile.get(key)
-        if _is_valid_display_name(candidate):
-            return str(candidate).strip()
+        raw = profile.get(key)
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+        word = raw.split()[0]
+        if len(word) > 20 or not _is_alphabetic(word) or word.lower() in _NOT_A_NAME:
+            return None
+        return word.title()
     return None
 
 
-def _format_recent_search_hint(user_profile: dict | None) -> str | None:
-    """Optional continue-search line when last_search_filters is fresh (<2h)."""
-    profile = user_profile or {}
-    last_at = profile.get("last_search_at")
-    if not last_at or time.time() - last_at > 2 * 60 * 60:
-        return None
-    filters = profile.get("last_search_filters") or {}
-    parts: list[str] = []
-    # "chain" is stored as category="necklace" + clara_category_override="chain".
-    category = filters.get("clara_category_override") or filters.get("category")
-    if category:
-        parts.append(str(category).replace("_", " "))
-    material = filters.get("material_type")
-    if material:
-        parts.append(str(material))
-    max_p = filters.get("max_price")
-    min_p = filters.get("min_price")
-    if max_p and min_p and max_p != min_p:
-        parts.append(f"₹{min_p:,}–₹{max_p:,}")
-    elif max_p:
-        parts.append(f"under ₹{max_p:,}")
-    elif min_p:
-        parts.append(f"above ₹{min_p:,}")
-    if not parts:
-        return None
-    return f"Want to keep looking at {' '.join(parts)}?"
+def _part_of_day(now: datetime | None = None) -> str | None:
+    """"Morning" / "Afternoon" / "Evening" in IST, None from 21:00 to 04:59 --
+    the same windows as kisna_greeting_line()."""
+    if now is None:
+        now = datetime.now(_IST)
+    elif now.tzinfo is None:
+        now = now.replace(tzinfo=_IST)
+    else:
+        now = now.astimezone(_IST)
+    if 5 <= now.hour < 12:
+        return "Morning"
+    if 12 <= now.hour < 17:
+        return "Afternoon"
+    if 17 <= now.hour < 21:
+        return "Evening"
+    return None
+
+
+def build_returning_greeting_text(user_profile: dict | None = None, now: datetime | None = None) -> str:
+    """Returning user, greeting only: one message.
+
+    "Good Afternoon, Rajendra! 👋 Welcome back to Kisna Diamond & Gold. 💎"
+    + blank line + "How may I assist you today? 😊". 21:00-04:59 IST:
+    "Welcome back, Rajendra! 👋" + blank line + the same question.
+    """
+    name = greeting_first_name(user_profile)
+    part = _part_of_day(now)
+    if part:
+        hello = f"Good {part}, {name}! 👋" if name else f"Good {part}! 👋"
+        first = f"{hello} Welcome back to Kisna Diamond & Gold. 💎"
+    else:
+        first = f"Welcome back, {name}! 👋" if name else "Welcome back! 👋"
+    return f"{first}\n\n{_WELCOME_CLOSER}"
 
 
 def build_greeting_text(
@@ -285,30 +296,23 @@ def build_greeting_text(
     """English greeting copy -- the client's text, sent verbatim in English and
     translated faithfully (not rewritten) for other languages."""
     history = chat_history if chat_history is not None else []
-    time_line = kisna_greeting_line(now)
     if is_new_session(history):
+        time_line = kisna_greeting_line(now)
         return f"{time_line}\n\n{_WELCOME_BODY}" if time_line else _WELCOME_BODY
-
-    name = _display_name_from_profile(user_profile)
-    opener = f"Welcome back, {name}! 👋" if name else "Welcome back! 👋"
-    if time_line:
-        opener = f"{time_line}\n{opener}"
-    continue_hint = _format_recent_search_hint(user_profile)
-    if continue_hint:
-        return f"{opener}\n{continue_hint}\n{_WELCOME_CLOSER}"
-    return f"{opener}\n{_WELCOME_CLOSER}"
+    return build_returning_greeting_text(user_profile, now)
 
 
 def build_greeting_welcome_bot_responses(
     phone_number: str | None = None,
     chat_history: list | None = None,
     user_profile: dict | None = None,
+    now: datetime | None = None,
 ) -> list[dict]:
     """Welcome for new or returning users — text only, localized before send."""
     history = chat_history if chat_history is not None else []
     profile = user_profile or {}
     template_key = "greeting_new" if is_new_session(history) else "greeting_return"
-    text = build_greeting_text(chat_history=history, user_profile=profile)
+    text = build_greeting_text(chat_history=history, user_profile=profile, now=now)
     return [{"type": "text", "text": text, "_compose": template_key}]
 
 

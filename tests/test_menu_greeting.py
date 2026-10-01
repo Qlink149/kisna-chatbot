@@ -3,6 +3,7 @@
 import os
 import asyncio
 import unittest
+from datetime import datetime
 from unittest.mock import patch
 
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -105,6 +106,7 @@ class TestMenuGreeting(unittest.TestCase):
         text = build_greeting_text(
             chat_history=[{"role": "user", "content": "hi"}],
             user_profile={"username": "Priya"},
+            now=datetime(2026, 10, 1, 23, 0),
         )
         self.assertIn("Welcome back, Priya! 👋", text)
         self.assertIn("How may I assist you today? 😊", text)

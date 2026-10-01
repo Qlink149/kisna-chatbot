@@ -2990,18 +2990,10 @@ class ProductSearchAgentV3(Processor):
         *,
         query: str = "",
     ) -> dict:
-        """Enter guided funnel; prepend welcome on brand-new sessions."""
+        """Enter guided funnel. A new user's welcome is added for every intent
+        by processors/opening_messages.py, not here."""
         user_profile = data.get("user_profile", {})
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
-        prepend: list[dict] = []
-        history = user_profile.get("chat_history") or []
-        # First inbound product ask — lead with KIA intro then wizard question
-        if len(history) == 0:
-            prepend = build_greeting_welcome_bot_responses(
-                phone_number=phone_number,
-                chat_history=history,
-                user_profile=user_profile,
-            )
         # Slots the user already answered by tapping a button before escaping the
         # funnel this turn — apply underneath the new entities so the wizard does
         # not ask "Who is it for?" again (classifier._stash_wizard_carryover).
@@ -3024,7 +3016,6 @@ class ProductSearchAgentV3(Processor):
         responses = start_wizard(
             user_profile,
             entities=entities,
-            prepend_welcome=prepend,
             query=query,
         )
         if user_profile.get("shopping_wizard_step") == "complete":

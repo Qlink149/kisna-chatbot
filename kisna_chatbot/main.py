@@ -135,6 +135,10 @@ def _stamp_inbound(data: dict) -> None:
     """Mirror the new inbound time into the in-memory profile, so this turn's
     own window check (ResponseManager's welcome-template gate) sees it."""
     profile = data.get("user_profile")
+    if isinstance(profile, dict):
+        # Before any pipeline runs: "new user" for the opening-message rules
+        # (processors/opening_messages.py) -- no stored chat history yet.
+        data.setdefault("_new_user", not (profile.get("chat_history") or []))
     if isinstance(profile, dict) and data.get("_inbound_at"):
         profile["last_inbound_at"] = max(
             int(profile.get("last_inbound_at") or 0), data["_inbound_at"]
@@ -1075,7 +1079,16 @@ async def process_message(
 
                 await append_secondary_answer(data)
                 _ensure_explore_more_cta_last(data)
+                # Welcome once, then the reply as its own message; no second
+                # greeting (processors/opening_messages.py).
+                from kisna_chatbot.processors.opening_messages import (
+                    apply_opening_rules,
+                    strip_reply_opener_after_localize,
+                )
+
+                apply_opening_rules(data)
                 await localize_bot_responses(data)
+                strip_reply_opener_after_localize(data)
                 await _persist_session(data, phone_number, pipeline_start)
                 responses_to_send = data
 

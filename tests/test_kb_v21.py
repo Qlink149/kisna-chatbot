@@ -262,7 +262,12 @@ class GreetingLineTests(unittest.TestCase):
             user_profile={"username": "Asha"},
             now=datetime(2026, 9, 27, 18, 0, tzinfo=_IST),
         )
-        self.assertTrue(text.startswith(_EVENING + "\nWelcome back, Asha! 👋"))
+        # One message, no stacked time line: first name, then the closer.
+        self.assertEqual(
+            text,
+            "Good Evening, Asha! 👋 Welcome back to Kisna Diamond & Gold. 💎\n\n"
+            "How may I assist you today? 😊",
+        )
 
 
 class NoNarrateForClientCopyTests(unittest.TestCase):
