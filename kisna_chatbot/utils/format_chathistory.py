@@ -210,6 +210,40 @@ def format_user(user_message, phone_number):
         raise
 
 
+def format_outbound_messages(
+    assistant, phone_number, request_id: str | None = None, timestamp: int | None = None
+) -> list[dict]:
+    """One assistant entry per WhatsApp message the customer receives, in send
+    order -- what chat_messages (the dashboard) stores. ResponseManager sends
+    one message per bot_response item, except "skip" (nothing) and an image
+    item with several urls (one image message each).
+
+    users.chat_history keeps the turn as ONE assistant entry (format_assistant
+    over the whole list): that rolling window is the model's context and the
+    turn count, and must not change shape."""
+    now = int(time.time()) if timestamp is None else timestamp
+    contents: list[str] = []
+    for item in assistant or []:
+        if not isinstance(item, dict) or item.get("type") == "skip":
+            continue
+        urls = item.get("urls")
+        if item.get("type") == "media" and isinstance(urls, list) and len(urls) > 1:
+            contents.extend(
+                format_assistant([{**item, "urls": [u]}], phone_number) for u in urls
+            )
+            continue
+        contents.append(format_assistant([item], phone_number))
+    entries = []
+    for content in contents:
+        if not content:
+            continue
+        entry = {"role": "assistant", "content": content, "timestamp": now}
+        if request_id:
+            entry["request_id"] = request_id
+        entries.append(entry)
+    return entries
+
+
 def format_chat_history(
     user, assistant, phone_number, request_id: str | None = None, media: dict | None = None
 ):

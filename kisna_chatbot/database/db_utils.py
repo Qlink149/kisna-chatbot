@@ -13,7 +13,11 @@ from kisna_chatbot.database.collections import (
     users,
 )
 from kisna_chatbot.utils import media_store
-from kisna_chatbot.utils.format_chathistory import format_chat_history, trim_chat_history
+from kisna_chatbot.utils.format_chathistory import (
+    format_chat_history,
+    format_outbound_messages,
+    trim_chat_history,
+)
 from kisna_chatbot.utils.logger_config import logger
 from kisna_chatbot.utils.request_ids import generate_request_id
 from kisna_chatbot.utils.session_state import mongo_unset_for_missing_session_keys
@@ -223,7 +227,20 @@ def save_to_mongo(data: dict) -> dict | None:
             request_id=data.get("request_id"),
             media=data.get("_inbound_media"),
         )
-        dual_write_chat_entries(phone_number, client_id, new_chat)
+        # chat_messages (the dashboard) gets one row per WhatsApp message sent,
+        # in order; users.chat_history below keeps the turn as one entry.
+        user_entry = new_chat[0]
+        dual_write_chat_entries(
+            phone_number,
+            client_id,
+            [user_entry]
+            + format_outbound_messages(
+                assistant,
+                phone_number,
+                request_id=data.get("request_id"),
+                timestamp=user_entry.get("timestamp"),
+            ),
+        )
         current_history = user_profile_data.get("chat_history", [])
         combined_history = current_history + new_chat
         if len(combined_history) > MAX_CHAT_HISTORY:

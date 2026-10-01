@@ -270,12 +270,52 @@ def _part_of_day(now: datetime | None = None) -> str | None:
     return None
 
 
+RECENT_SEARCH_WINDOW_SECONDS = 2 * 60 * 60
+
+
+def recent_search_question(user_profile: dict | None, now_epoch: float | None = None) -> str | None:
+    """"Would you like to keep exploring gold rings under ₹50,000? 😊" when the
+    customer searched in the last 2 hours; None otherwise (or when the search
+    named neither a category nor a material)."""
+    from kisna_chatbot.processors.product_search_agent_v3 import _humanize_category_label
+
+    profile = user_profile or {}
+    last_at = profile.get("last_search_at")
+    now_epoch = time.time() if now_epoch is None else now_epoch
+    try:
+        if not last_at or now_epoch - float(last_at) > RECENT_SEARCH_WINDOW_SECONDS:
+            return None
+    except (TypeError, ValueError):
+        return None
+    filters = profile.get("last_search_filters") or {}
+    # "chain" is stored as category="necklace" + clara_category_override="chain".
+    category = filters.get("clara_category_override") or filters.get("category")
+    material = filters.get("material_type")
+    if not category and not material:
+        return None
+    thing = _humanize_category_label(str(category)) if category else "jewellery"
+    label = f"{material} {thing}" if material else thing
+    max_p, min_p = filters.get("max_price"), filters.get("min_price")
+    try:
+        if max_p and min_p and max_p != min_p:
+            label += f" between ₹{int(min_p):,} and ₹{int(max_p):,}"
+        elif max_p:
+            label += f" under ₹{int(max_p):,}"
+        elif min_p:
+            label += f" above ₹{int(min_p):,}"
+    except (TypeError, ValueError):
+        pass
+    return f"Would you like to keep exploring {label}? 😊"
+
+
 def build_returning_greeting_text(user_profile: dict | None = None, now: datetime | None = None) -> str:
     """Returning user, greeting only: one message.
 
     "Good Afternoon, Rajendra! 👋 Welcome back to Kisna Diamond & Gold. 💎"
     + blank line + "How may I assist you today? 😊". 21:00-04:59 IST:
-    "Welcome back, Rajendra! 👋" + blank line + the same question.
+    "Welcome back, Rajendra! 👋" + blank line + the same question. After a
+    search in the last 2 hours the question is the recent-search one instead
+    ("Would you like to keep exploring rings? 😊") -- one question only.
     """
     name = greeting_first_name(user_profile)
     part = _part_of_day(now)
@@ -284,7 +324,9 @@ def build_returning_greeting_text(user_profile: dict | None = None, now: datetim
         first = f"{hello} Welcome back to Kisna Diamond & Gold. 💎"
     else:
         first = f"Welcome back, {name}! 👋" if name else "Welcome back! 👋"
-    return f"{first}\n\n{_WELCOME_CLOSER}"
+    now_epoch = None if now is None else (now if now.tzinfo else now.replace(tzinfo=_IST)).timestamp()
+    question = recent_search_question(user_profile, now_epoch) or _WELCOME_CLOSER
+    return f"{first}\n\n{question}"
 
 
 def build_greeting_text(

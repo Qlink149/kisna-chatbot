@@ -44,6 +44,8 @@ RETURNING = {
     AT_23: "Welcome back, Rajendra! 👋\n\nHow may I assist you today? 😊",
 }
 WIZARD_REPLY = "What are you looking for today? e.g. rings, earrings, necklaces…"
+# After the new-user welcome the funnel asks the narrower question.
+FUNNEL_AFTER_WELCOME = "Which type of jewellery are you looking for? 💍 e.g. rings, earrings, necklaces…"
 PROFILE = {"username": "Rajendra Singh Asoliya"}
 HISTORY = [{"role": "user", "content": "hi"}]
 
@@ -69,7 +71,7 @@ class NewUserTests(unittest.TestCase):
                 data = _turn(True, [build_step_prompt("category")])  # "Hi! 👋 What are you looking for…"
                 apply_opening_rules(data, now=now)
                 texts = [r["text"] for r in data["bot_response"]]
-                self.assertEqual(texts, [welcome, WIZARD_REPLY])
+                self.assertEqual(texts, [welcome, FUNNEL_AFTER_WELCOME])
                 self.assertEqual(data["bot_response"][0]["_compose"], "greeting_new")
                 self.assertEqual(data["bot_response"][1]["_compose"], "wizard_category")
 
@@ -179,7 +181,7 @@ class LanguageTests(unittest.TestCase):
         texts = self._localize(data)
         self.assertEqual(len(texts), 2)
         self.assertEqual(texts[0], "[hi:greeting_new] " + NEW_WELCOME[AT_09])  # whole welcome, translated as one
-        self.assertEqual(texts[1], "[hi:wizard_category] " + WIZARD_REPLY)
+        self.assertEqual(texts[1], "[hi:wizard_category] " + FUNNEL_AFTER_WELCOME)
 
     def test_a_reply_rewritten_with_a_greeting_is_stripped_again(self):
         # narrate() (warm, personality-tagged lines) can greet again.

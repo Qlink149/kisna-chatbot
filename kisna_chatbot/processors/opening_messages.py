@@ -22,6 +22,11 @@ import re
 
 GREETING_COMPOSE_KEYS = ("greeting_new", "greeting_return")
 
+# The product funnel's first question, when it follows the new-user welcome:
+# the welcome already asked "How may I assist you today?", so the funnel asks
+# the narrower question (wizard prompt is "What are you looking for today?").
+FUNNEL_AFTER_WELCOME = "Which type of jewellery are you looking for? 💍 e.g. rings, earrings, necklaces…"
+
 _EMOJI = r"[\U0001F300-\U0001FAFF☀-➿️‍]"
 _GREETING_WORD = (
     r"(?:hi+|hello+|hey+|hiya|namaste|namaskar(?:am)?|"
@@ -76,6 +81,9 @@ def apply_opening_rules(data: dict, now=None) -> None:
         return
     from kisna_chatbot.processors.service_list import build_greeting_welcome_bot_responses
 
+    first = next((r for r in responses if r.get("type") != "skip"), None)
+    if first is not None and first.get("_compose") == "wizard_category":
+        first["text"] = FUNNEL_AFTER_WELCOME
     welcome = build_greeting_welcome_bot_responses(
         phone_number=data.get("phone_number"),
         chat_history=[],
