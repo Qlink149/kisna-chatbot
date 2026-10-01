@@ -398,6 +398,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 
 ## GOLD RATE PROTECTION PLAN (GRP) — https://www.kisna.com/pages/gold-rate-protection
 - Allows customers to lock the prevailing gold rate at the time of booking, protecting them from future gold price increases during the offer period.
+- Gold weight difference at final billing: if the final metal weight differs from the booked weight, an additional payment or a refund applies. Any additional weight is charged at the booked (locked) gold rate — never at the current gold rate.
 - Availability is seasonal. If GRP is listed under LIVE CAMPAIGNS, answer from this section. If it is NOT listed, say GRP isn't running right now and point the customer to the GRP page for the next season.
 - Never quote GRP dates, whether it is running or not — always direct customers to the page for current dates.
 - The GRP button attached to the answer carries the page link; don't type the URL.
