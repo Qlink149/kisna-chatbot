@@ -457,7 +457,8 @@
         "running",
         "available",
         "live",
-        "yes"
+        "yes",
+        "open for booking"
       ],
       "must": [
         "gold-rate-protection"
@@ -589,6 +590,119 @@
       ],
       "must_not": [
         "(?<!not )(?<!never )(?<!instead of )\\bat (the )?(current|today's|prevailing|live) (gold )?rate"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "date": "2026-11-05",
+      "q": "Can I book GRP?",
+      "any": [
+        "^\\W*(yes|absolutely|certainly)\\b",
+        "open for booking",
+        "\\bcan book\\b",
+        "25%"
+      ],
+      "must_not": [
+        "booking (has )?closed",
+        "isn't running|not running|not currently running"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "date": "2026-11-05",
+      "q": "I booked GRP, can I still buy?",
+      "any": [
+        "^\\W*(yes|absolutely|certainly)\\b",
+        "can (still )?(buy|purchase|redeem|use)"
+      ],
+      "must_not": [
+        "isn't running|not running|not currently running",
+        "\\b(cannot|can't|can not|no longer|unable to) (buy|purchase|redeem|use)"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "date": "2026-11-06",
+      "q": "Can I book GRP?",
+      "any": [
+        "closed",
+        "no longer",
+        "not (currently )?(open|accepting|available)"
+      ],
+      "must_not": [
+        "^\\W*(yes|absolutely|certainly)\\b"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "date": "2026-11-06",
+      "q": "I booked GRP, can I still buy?",
+      "any": [
+        "^\\W*(yes|absolutely|certainly)\\b",
+        "can still",
+        "redeem"
+      ],
+      "must_not": [
+        "isn't running|not running|not currently running",
+        "\\b(cannot|can't|can not|no longer|unable to) (buy|purchase|redeem|use)"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "date": "2026-11-10",
+      "q": "Can I book GRP?",
+      "any": [
+        "closed",
+        "no longer",
+        "not (currently )?(open|accepting|available)"
+      ],
+      "must_not": [
+        "^\\W*(yes|absolutely|certainly)\\b"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "date": "2026-11-10",
+      "q": "I booked GRP, can I still buy?",
+      "any": [
+        "^\\W*(yes|absolutely|certainly)\\b",
+        "can still",
+        "redeem"
+      ],
+      "must_not": [
+        "isn't running|not running|not currently running",
+        "\\b(cannot|can't|can not|no longer|unable to) (buy|purchase|redeem|use)"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "date": "2026-11-11",
+      "q": "Can I book GRP?",
+      "any": [
+        "isn't running|not running|not currently running",
+        "next season",
+        "not (currently )?available",
+        "closed",
+        "ended"
+      ],
+      "must_not": [
+        "^\\W*(yes|absolutely|certainly)\\b"
+      ]
+    },
+    {
+      "topic": "GRP",
+      "date": "2026-11-11",
+      "q": "I booked GRP, can I still buy?",
+      "any": [
+        "isn't running|not running|not currently running",
+        "ended",
+        "no longer",
+        "closed",
+        "Customer Support|support"
+      ],
+      "must_not": [
+        "^\\W*(yes|absolutely|certainly)\\b",
+        "\\byou can still (buy|purchase|redeem|use)"
       ]
     }
   ]

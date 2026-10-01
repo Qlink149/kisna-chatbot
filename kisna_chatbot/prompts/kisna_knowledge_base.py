@@ -363,7 +363,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 - Fraud prevention: payment partners monitor for suspicious activity; flagged transactions held for manual review; ID may be requested to confirm the cardholder.
 - Payment security: online payments are processed through Kisna's secure payment system; recommend completing payments only through the official checkout.
 - Price composition: the price may include gold value, making charges, stone charges, applicable taxes and discounts; a detailed price breakdown is on the website. (Never quote a making-charge percentage.)
-- Partial payment: accepted only against the gold rate under Gold Rate Protection (25% advance), and only while GRP is running (listed under LIVE CAMPAIGNS); it cannot be made against any specific jewellery product. Standard online orders require full payment at checkout.
+- Partial payment: accepted only against the gold rate under Gold Rate Protection (25% advance), and only while LIVE CAMPAIGNS says GRP is open for booking — once GRP booking has closed, no new GRP advance is accepted; it cannot be made against any specific jewellery product. Standard online orders require full payment at checkout.
 - One payment method per order: multiple payment methods cannot be combined directly at checkout. The Support Team can arrange payment using multiple options from the backend, wherever applicable.
 - Vouchers issued by Kisna stores or through events and promotions are not redeemable for online purchases.
 
@@ -399,7 +399,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 ## GOLD RATE PROTECTION PLAN (GRP) — https://www.kisna.com/pages/gold-rate-protection
 - Allows customers to lock the prevailing gold rate at the time of booking, protecting them from future gold price increases during the offer period.
 - Gold weight difference at final billing: if the final metal weight differs from the booked weight, an additional payment or a refund applies. Any additional weight is charged at the booked (locked) gold rate — never at the current gold rate.
-- Availability is seasonal. If GRP is listed under LIVE CAMPAIGNS, answer from this section. If it is NOT listed, say GRP isn't running right now and point the customer to the GRP page for the next season.
+- Availability is seasonal, in two phases. If LIVE CAMPAIGNS says GRP is open for booking, answer from this section. If it says GRP booking has closed, new bookings and advances are not accepted, but customers who already booked can still redeem against their locked rate: answer their questions from this section and point them to the GRP page. If LIVE CAMPAIGNS has no GRP line at all, GRP is NOT running — neither booking nor redemption: say GRP isn't running right now and point the customer to the GRP page for the next season. Never tell a customer they can book GRP or still buy against a GRP booking unless LIVE CAMPAIGNS says so.
 - Never quote GRP dates, whether it is running or not — always direct customers to the page for current dates.
 - The GRP button attached to the answer carries the page link; don't type the URL.
 
@@ -723,7 +723,8 @@ def build_locked_values(*, support_phone: str, support_email: str, support_hours
 
 # ---------------------------------------------------------------------------
 # Campaigns: records with structural expiry. An item is live ON its *_until
-# date and gone the day after. prompt_text is what the model may know (None:
+# date and gone the day after; with prompt_from set, its prompt text starts ON
+# that date (a later phase of the same campaign, e.g. GRP redemption). prompt_text is what the model may know (None:
 # nothing); dropoff_block is its exact block in the drop-off broadcast (one or
 # more lines; blocks are separated by a blank line). The making-charge
 # percentages exist ONLY in the drop-off -- the model never sees them. Blocks
@@ -737,6 +738,7 @@ class CampaignItem:
     dropoff_block: str | None
     prompt_until: date | None
     dropoff_until: date | None
+    prompt_from: date | None = None
 
 
 KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
@@ -754,9 +756,9 @@ KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
         dropoff_until=None,
     ),
     CampaignItem(
-        id="grp",
+        id="grp_booking",  # rate lock: to 5 Nov (kisna.com GRP page)
         prompt_text=(
-            "- Gold Rate Protection (GRP) is running now. Never quote its dates; "
+            "- Gold Rate Protection (GRP) is open for booking now. Never quote its dates; "
             "always direct the customer to the GRP page."
         ),
         dropoff_block=(
@@ -766,8 +768,38 @@ KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
             "\n"
             "https://www.kisna.com/pages/gold-rate-protection"
         ),
-        prompt_until=date(2026, 11, 10),
+        prompt_until=date(2026, 11, 5),
         dropoff_until=date(2026, 11, 5),
+    ),
+    CampaignItem(
+        id="grp_redemption",  # redeem a locked rate: 6-10 Nov (kisna.com GRP page)
+        prompt_text=(
+            "- GRP booking has closed for this season. Customers who already booked "
+            "under GRP can still redeem against their locked rate for a short period "
+            "— answer their questions and point them to the GRP page. Do not offer or "
+            "accept new GRP bookings."
+        ),
+        dropoff_block=None,
+        prompt_until=date(2026, 11, 10),
+        dropoff_until=None,
+        prompt_from=date(2026, 11, 6),
+    ),
+    CampaignItem(
+        # The season is over (from 11 Nov). Said explicitly: with no GRP line
+        # at all the model answered "yes, you can book / still buy" (eval).
+        # Replace with the next season's items when Kisna announces them.
+        id="grp_closed",
+        prompt_text=(
+            "- GRP is not running now. Booking AND redemption for this season have "
+            "both ended: a customer who booked earlier can no longer buy or redeem "
+            "against the locked rate. Never say they still can. Point questions "
+            "about an earlier GRP booking to Customer Support, and anyone asking "
+            "about GRP to the GRP page for the next season."
+        ),
+        dropoff_block=None,
+        prompt_until=None,
+        dropoff_until=None,
+        prompt_from=date(2026, 11, 11),
     ),
     CampaignItem(
         id="lucky_draw",
@@ -789,7 +821,7 @@ KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
 )
 
 # The order the blocks appear in the client's drop-off message.
-_DROPOFF_ORDER: tuple[str, ...] = ("making_charges", "grp", "lucky_draw")
+_DROPOFF_ORDER: tuple[str, ...] = ("making_charges", "grp_booking", "lucky_draw")
 _DROPOFF_HEADER = "✨ Exclusive Benefits, Just for You!\n\nShop beautiful jewellery at KISNA and enjoy:"
 _DROPOFF_FOOTER = "\U0001F4AC Need help? Just reach out to us—we’re always happy to assist!"
 
@@ -820,7 +852,9 @@ def build_campaigns_block(today: date | None = None) -> str:
     lines = [
         item.prompt_text
         for item in KISNA_CAMPAIGN_ITEMS
-        if item.prompt_text and _live(item.prompt_until, today)
+        if item.prompt_text
+        and _live(item.prompt_until, today)
+        and (item.prompt_from is None or today >= item.prompt_from)
     ]
     if not lines:
         return ""

@@ -102,12 +102,70 @@ class CampaignExpiryTests(unittest.TestCase):
         nov5 = build_campaigns_block(date(2026, 11, 5))
         self.assertIn("Gold Rate Protection", nov5)
         self.assertIn("Lucky Draw", nov5)
-        # GRP prompt_until is 2026-11-10, so it is still live on the 6th.
-        self.assertIn("Gold Rate Protection", build_campaigns_block(date(2026, 11, 6)))
         nov30 = build_campaigns_block(date(2026, 11, 30))
         self.assertNotIn("Gold Rate Protection", nov30)
         self.assertIn("Lucky Draw", nov30)
-        self.assertEqual(build_campaigns_block(date(2026, 12, 1)), "")
+        dec1 = build_campaigns_block(date(2026, 12, 1))
+        self.assertNotIn("Lucky Draw", dec1)
+        # Only the explicit "GRP is not running" line is left.
+        self.assertEqual(dec1.count("\n- "), 1)
+        self.assertIn(self.GRP_OVER, dec1)
+
+    # kisna.com GRP page: "You can lock your gold rate from 6th August to 5th
+    # November 2026. Bookings made during this period can be redeemed between
+    # 7th August and 10th November 2026."
+    GRP_OPEN = "- Gold Rate Protection (GRP) is open for booking now."
+    GRP_CLOSED = "- GRP booking has closed for this season."
+    GRP_OVER = "- GRP is not running now. Booking AND redemption for this season have both ended"
+
+    def test_grp_booking_phase_until_5_nov(self):
+        for day in (date(2026, 9, 30), date(2026, 11, 5)):
+            with self.subTest(day=day):
+                block = build_campaigns_block(day)
+                self.assertIn(self.GRP_OPEN, block)
+                self.assertNotIn(self.GRP_CLOSED, block)
+                self.assertNotIn("is running now", block)
+
+    def test_grp_redemption_phase_6_to_10_nov(self):
+        for day in (date(2026, 11, 6), date(2026, 11, 10)):
+            with self.subTest(day=day):
+                block = build_campaigns_block(day)
+                self.assertIn(self.GRP_CLOSED, block)
+                self.assertIn("redeem against their locked rate", block)
+                self.assertIn("Do not offer or accept new GRP bookings.", block)
+                self.assertNotIn(self.GRP_OPEN, block)
+
+    def test_grp_over_from_11_nov_said_explicitly(self):
+        # Without an explicit line the model answered "yes, you can book /
+        # still buy" on 11 Nov (KB eval), so the end of the season is stated.
+        for day in (date(2026, 11, 11), date(2027, 1, 15)):
+            with self.subTest(day=day):
+                block = build_campaigns_block(day)
+                self.assertIn(self.GRP_OVER, block)
+                self.assertIn("can no longer buy or redeem", block)
+                self.assertNotIn(self.GRP_OPEN, block)
+                self.assertNotIn(self.GRP_CLOSED, block)
+        for day in (date(2026, 11, 5), date(2026, 11, 10)):
+            self.assertNotIn(self.GRP_OVER, build_campaigns_block(day))
+
+    def test_grp_phases_quote_no_dates(self):
+        import re
+
+        for item in KISNA_CAMPAIGN_ITEMS:
+            if item.id.startswith("grp_"):
+                with self.subTest(item=item.id):
+                    self.assertNotRegex(item.prompt_text, r"(?i)\b\d{1,2}(st|nd|rd|th)?\s*(aug|nov)|\bnovember|\baugust")
+                    self.assertIsNone(re.search(r"\b20\d\d\b", item.prompt_text))
+
+    def test_rules_reading_live_campaigns_follow_both_phases(self):
+        self.assertIn("only while LIVE CAMPAIGNS says GRP is open for booking", _PROMPT)
+        self.assertIn("no new GRP advance is accepted", _PROMPT)
+        self.assertIn("If it says GRP booking has closed, new bookings and advances are not accepted", _PROMPT)
+        self.assertNotIn("only while GRP is running (listed under LIVE CAMPAIGNS)", _PROMPT)
+
+    def test_dropoff_grp_block_still_ends_5_nov(self):
+        self.assertIn("Gold Rate Protection (GRP)", build_dropoff_message(date(2026, 11, 5)))
+        self.assertNotIn("Gold Rate Protection", build_dropoff_message(date(2026, 11, 6)))
 
     # The client's drop-off message, pasted as sent (curly apostrophes, en and
     # em dashes, emoji with variation selectors).

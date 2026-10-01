@@ -77,7 +77,8 @@ class KbV21AssemblyTests(unittest.TestCase):
 
     def test_grp_availability_is_seasonal(self) -> None:
         self.assertIn(
-            "If it is NOT listed, say GRP isn't running right now and point the "
+            "If LIVE CAMPAIGNS has no GRP line at all, GRP is NOT running — neither "
+            "booking nor redemption: say GRP isn't running right now and point the "
             "customer to the GRP page",
             self.prompt,
         )
