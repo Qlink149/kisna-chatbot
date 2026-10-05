@@ -290,7 +290,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 ## RING SIZING & RESIZING
 - Determining ring size, three methods: (1) use a ring sizer, or visit a nearby jeweller, for the most accurate measurement; (2) measure the inner diameter of a well-fitting existing ring with a ruler; (3) paper strip method — wrap a thin strip of paper around the finger, mark the overlap, measure the length with a ruler.
 - Buying for someone else: ask them casually, or borrow one of their rings to size against.
-- Size change before dispatch: may be possible. Customer shares order details and preferred size; the team checks feasibility. May require remanufacture, which adds time.
+- Size change before dispatch: may be possible (a question like 'Can I change the size?' means this). Customer shares order details and preferred size; the team checks feasibility. May require remanufacture, which adds time.
 - Resizing charge: resizing is free.
 - Resizing turnaround: approximately 7-10 business days once the ring is received at the Kisna facility.
 - Resizing availability depends on the product and design, and is not possible for all designs.
@@ -329,7 +329,7 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 - HRD, GSI, NGTC: available on request via House of HK / franchise channel.
 - Lost certificate: a duplicate can be issued for ₹500 — the original product is required for a quality check before reissuing.
 - GIA certification is available on request for solitaire diamonds only, with additional charges applicable. For GIA questions, answer first — Kisna diamonds come with IGI certification; GIA is available on request for solitaires only, with additional charges — then point the customer to Customer Support to request it. Don't hand off to a live agent for this.
-- Sample diamond certificate, for reference only: https://www.igi.org/verify-your-report-sku/?r=HK_58J0810426 — the actual certificate varies by diamond and its grading.
+- Sample diamond certificate (a "diamond card" means the certificate), for reference only: https://www.igi.org/verify-your-report-sku/?r=HK_58J0810426 — the actual certificate varies by diamond and its grading.
 - Every Kisna gold jewellery product comes with a Kisna Promise Certificate, giving clarity on the product's purity and weight.
 - Bot handling rule: when sharing the sample certificate, always state that it is a sample and the customer's actual certificate may differ.
 
@@ -373,7 +373,9 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 - Duplicate order: contact Customer Support.
 - Order confirmation: a confirmation page with a unique Order ID, item listing, shipping address, plus a confirmation email; tracking details sent on dispatch.
 - Different shipping vs billing address: allowed.
-- Cancellation: an order can be cancelled any time before it has been shipped, through My Account; once shipped, cancellation may no longer be possible. Order status is tracked through My Account. This does NOT apply to Digital Gold -- a digital gold order cannot be cancelled once placed (see DIGITAL GOLD).
+- Bot handling rule: never state a timeline, notification method or process that this knowledge base doesn't give; if asked for one, say our team will confirm it.
+- Gold weight difference (all orders, not only GRP): if the final gold weight differs from the estimate, the difference is charged or refunded at the booking rate (the gold rate at the time of booking), not the current rate.
+- Cancellation: an order can be cancelled any time before it has been shipped, through My Account or by contacting Customer Support (support email in LOCKED VALUES); once shipped, cancellation may no longer be possible. Order status is tracked through My Account. This does NOT apply to Digital Gold -- a digital gold order cannot be cancelled once placed (see DIGITAL GOLD).
 
 ## DELIVERY & SHIPPING
 - Standard delivery within 4–5 working days across India; timelines may vary depending on the delivery pincode and location. Occasional delays are possible due to unforeseen circumstances.
@@ -647,6 +649,9 @@ Resizing
 Certification
 - Duplicate certificate: ₹500
 
+Orders
+- Gold weight difference: charged or refunded at the booking rate (the gold rate at the time of booking), never the current rate
+
 Gold Rate Protection
 - Minimum advance: 25% of total order value
 - Purchase limit: up to 4 times the advance paid
@@ -810,7 +815,7 @@ KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
         ),
         dropoff_block=(
             "\U0001F389 Lucky Draw: Win 2 Scooters + 1 Car!\n"
-            "\U0001F4C5 Offer: 21 Aug – 30 Nov 2026 | Indian citizens 18+ "
+            "\U0001F5D3\uFE0F Offer: 21 Aug – 30 Nov 2026 | Indian citizens 18+ "
             "(excluding Tamil Nadu). T&Cs apply.\n"
             "\n"
             "https://www.kisna.com/pages/jewellery-offers"

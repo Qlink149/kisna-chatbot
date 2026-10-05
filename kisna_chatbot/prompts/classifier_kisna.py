@@ -49,7 +49,8 @@ kaun sa", "which should I buy"). Only when products are currently shown.
 "galat hai", "not this one", "કંઈક બીજું". NOTE: "aur dikhao" (show more) is
 product_search, NOT repair — repair is dissatisfaction, not a request for more.
 
-**offers** — Promotions, discounts, sales, making-charge offers. NOT EMI/policy questions.
+**offers** — Promotions, discounts, sales, making-charge offers, cashback, coupon codes —
+including questions about them ("koi cashback milega?", "any coupon?"). NOT EMI/policy questions.
 
 **store_visit** — Wants to VISIT a store, with NO city/pincode named: book a visit or
 showroom appointment, "store near me", "nearest Kisna store", "dukaan kahan hai",
@@ -79,8 +80,13 @@ kya", "ship hua ya nahi", "order status".
 **complaint** — Damaged/wrong/defective received goods.
 
 **human_handoff** — Explicit request for a live person/agent ("connect me with agent",
-"talk to a human", "customer care", "kisi se baat"), OR bespoke jewellery ("custom ring
-banwana hai", "engraving chahiye"), OR order cancel/modify (bot cannot cancel).
+"talk to a human", "customer care", "kisi se baat"), OR an explicit request to place a
+custom order ("custom ring banwana hai", "engraving chahiye", "I want to place a custom
+order"), OR an action on a SPECIFIC order ("cancel my order #12345", "change the address
+on my order"). A general "Can I…? / What if…? / How long…?" question about cancelling,
+changing size or address before dispatch, customising, engraving, stones, old gold or
+certificates is **general** (the KB answers it), never human_handoff. (Exchanging a
+received piece for another size stays returns_refund.)
 Confidence ≥0.9; never general, never low-confidence unclear.
 NOTE: "made to order" / "ready to ship" are catalogue AVAILABILITY filters, NOT bespoke
 work — they are product_search, never human_handoff.
@@ -165,7 +171,9 @@ Read through typos and regional words when deciding the ROUTE: "necklac"/"neckle
 23. Scheme / savings plan / KMR / Meri Roshni / installment plan → general (KB), NEVER
     offers — offers is only discounts on purchases.
 24. Damaged/wrong item in a DELIVERED order → complaint
-25. Order cancellation or modification → human_handoff (bot cannot cancel).
+25. Cancelling or changing a SPECIFIC order ("cancel my order #12345", "change the
+    address on my order") → human_handoff. Asking whether/how ("Can I cancel my order?",
+    "Can I change the size?") → general (KB).
 26. MULTI-INTENT ("gold ring dikhao aur store bhi batao") → `intent` is the PRIMARY
     shopping action (usually the first concrete request) AND `secondary_intent` is
     the other one. Do not silently drop half of what they asked.
@@ -460,6 +468,10 @@ Fallback for unclear or spam/gibberish:
 "video pe jewellery dikha sakte ho?" -> video_call .9
 "mera order damage aa gaya" -> complaint .93
 "order cancel karna hai" -> human_handoff .88
+"cancel my order #KIS12345" -> human_handoff .9   (a specific order)
+"change the address on my order" -> human_handoff .88
+"I want to place a custom order" -> human_handoff .95
+"Can I cancel my order?" | "Can I change the size?" | "What if the ring doesn't fit?" | "Can I change the delivery address?" | "Can I exchange old gold?" | "Can you customise this?" | "Can I change the stone?" | "Can I engrave a name?" | "How long will customization take?" | "Is the diamond certified?" | "Can I see the certificate?" | "diamond card" -> general .9   (policy questions; "diamond card" = the certificate; a list number in front, e.g. "46. Can I cancel my order?", "6. Is the diamond certified?", "9. Can I see the certificate?", "11. Can I change the size?", "31. Can you customise this?", changes nothing)
 "gold ring dikhao aur nearest store bhi batao" -> product_search .85
 "book me a flight to Delhi" -> general .55
 "😍😍" |s -> product_search .5

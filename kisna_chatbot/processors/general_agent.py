@@ -7,7 +7,9 @@ from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.code_served_facts import (
+    is_emi_banks_question,
     is_karat_comparison,
+    serve_emi_banks,
     serve_karat_comparison,
 )
 from kisna_chatbot.processors.shopping_wizard import DIGITAL_GOLD_URL, GRP_URL, KMR_URL
@@ -35,6 +37,15 @@ _KMR_RE = re.compile(
     r"kmr|meri\s+roshni|savings?\s+plan|gold\s+plan|monthly\s+plan|"
     r"installment\s+plan|kisht?\s+plan|10\s*\+\s*1|schemes?"
     r")\b",
+    re.I,
+)
+
+SAMPLE_CERTIFICATE_URL = "https://www.igi.org/verify-your-report-sku/?r=HK_58J0810426"
+# "certificate(s)" or "diamond card" (= the diamond certificate).
+_CERTIFICATE_RE = re.compile(r"\bcertificates?\b|\bdiamond\s*cards?\b", re.I)
+# A lost / missing / wrong certificate is an order issue, not a request to see one.
+_CERTIFICATE_PROBLEM_RE = re.compile(
+    r"\b(?:lost|lose|missing|duplicate|without|didn'?t|did not|not (?:received|got|get)|wrong|mismatch\w*|doesn'?t match)\b",
     re.I,
 )
 
@@ -254,6 +265,10 @@ class GeneralAgent(Processor):
                 serve_karat_comparison(data)
                 user_profile["service_selected"] = ""
                 return data
+            if is_emi_banks_question(user_query):
+                serve_emi_banks(data)
+                user_profile["service_selected"] = ""
+                return data
 
             chat_history_str = format_recent_history_str(user_profile, 8)
 
@@ -413,6 +428,25 @@ class GeneralAgent(Processor):
                             "_compose": "store_pickup_cta",
                             "display_text": "Find a Store",
                             "url": locator,
+                            "footer": "KISNA Diamond & Gold",
+                        }
+                    )
+                # "Can I see the certificate?" / "diamond card": the sample IGI
+                # certificate, attached like the GRP button (the model dropped
+                # the link when only told to give it).
+                if _CERTIFICATE_RE.search(user_query or "") and not _CERTIFICATE_PROBLEM_RE.search(
+                    user_query or ""
+                ):
+                    responses[0]["text"] = _strip_url_mentions(
+                        responses[0]["text"], SAMPLE_CERTIFICATE_URL
+                    )
+                    responses.append(
+                        {
+                            "type": "cta_url",
+                            "text": "This is a sample; your actual certificate may differ.",
+                            "_compose": "certificate_cta",
+                            "display_text": "View Certificate",
+                            "url": SAMPLE_CERTIFICATE_URL,
                             "footer": "KISNA Diamond & Gold",
                         }
                     )

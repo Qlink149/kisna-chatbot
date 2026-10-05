@@ -118,13 +118,20 @@ async def classify(q: str, sem: asyncio.Semaphore) -> dict:
 async def ask(q: str, instructions: str, sem: asyncio.Semaphore) -> dict:
     from kisna_chatbot.ai.config import GENERAL_AGENT_TEMPERATURE
     from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
-    from kisna_chatbot.processors.code_served_facts import KARAT_COMPARISON_TEXT, is_karat_comparison
+    from kisna_chatbot.processors.code_served_facts import (
+        EMI_BANKS_TEXT,
+        KARAT_COMPARISON_TEXT,
+        is_emi_banks_question,
+        is_karat_comparison,
+    )
     from kisna_chatbot.processors.general_agent import _replace_sentence_unfortunately
     from kisna_chatbot.prompts.general_agent_kisna import output_schema, request_live_agent_tool
     from kisna_chatbot.utils.get_openai_client import get_openai_client
 
     if is_karat_comparison(q):
         return {"q": q, "a": KARAT_COMPARISON_TEXT, "tool": False}
+    if is_emi_banks_question(q):
+        return {"q": q, "a": EMI_BANKS_TEXT, "tool": False}
     async with sem:
         messages = [
             {"role": "system", "content": "Username: Customer"},
@@ -178,6 +185,14 @@ def _cta_urls(q: str, text: str) -> list[str]:
         urls.append(KMR_URL)
     if _STORE_PICKUP_RE.search(q):
         urls.append("https://www.kisna.com/store")
+    from kisna_chatbot.processors.general_agent import (
+        SAMPLE_CERTIFICATE_URL,
+        _CERTIFICATE_PROBLEM_RE,
+        _CERTIFICATE_RE,
+    )
+
+    if _CERTIFICATE_RE.search(q) and not _CERTIFICATE_PROBLEM_RE.search(q):
+        urls.append(SAMPLE_CERTIFICATE_URL)
     return urls
 
 
@@ -217,7 +232,8 @@ async def main() -> int:
             row = rows[i - 1]
             a = ans["a"]
             if row.get("intent"):
-                problems = [] if ans["intent"] == row["intent"] else [f"routed to {ans['intent']!r}, expected {row['intent']!r}"]
+                ok = row["intent"] if isinstance(row["intent"], list) else [row["intent"]]
+                problems = [] if ans["intent"] in ok else [f"routed to {ans['intent']!r}, expected {row['intent']!r}"]
             else:
                 problems = c_row(row, a, ans["tool"]) + c_banned(a) + c_locked(a) + c_name(a) + c_voice(a, ans["tool"], row.get("empathy_ok", False))
             results.append({"run": run, "n": i, "topic": row["topic"], "q": row["q"] + (f" [as of {row['date']}]" if row.get("date") else ""), "a": a,

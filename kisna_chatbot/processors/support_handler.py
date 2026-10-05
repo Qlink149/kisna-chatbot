@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 
 from kisna_chatbot.constants import ADMINS, KIA_HANDOFF_MESSAGE
@@ -177,6 +178,47 @@ def _notify_admins(customer_name: str, customer_phone: str) -> None:
             customer_name=customer_name,
             customer_phone=customer_phone,
         )
+
+
+# Client FAQ ("Customers commonly ask"), exact wording.
+EXPERT_CALLBACK_TEXT = (
+    "Of course! 💬 I can arrange a conversation with a Kisna jewellery expert. "
+    "Please choose your preferred callback time."
+)
+HUMAN_AGENT_TEXT = "Certainly. I\u2019ll connect you with a Kisna support representative."
+_EXPERT_CALLBACK_RE = re.compile(r"\b(?:expert|call\s*-?\s*back|callback)\b", re.I)
+
+
+def build_explicit_handoff_bot_response(
+    phone_number: str,
+    user_profile: dict,
+    user_text: str = "",
+    *,
+    now=None,
+) -> list[dict]:
+    """An explicit "talk to an expert / call back / human agent" request (client
+    FAQ #48 / #52): the client's exact text + the callback form, always. In
+    working hours the conversation is ALSO flagged for a live agent (and the
+    admins notified), as before, so an agent can still pick it up."""
+    from kisna_chatbot.config.gupshup import get_callback_flow_id
+    from kisna_chatbot.models.service_list import ServiceList as SL
+    from kisna_chatbot.processors.service_list import (
+        _start_callback_text_capture,
+        build_callback_flow_bot_response,
+    )
+
+    if is_within_working_hours(now):
+        user_profile["live_agent_requested_at"] = int(time.time())
+        user_profile["live_agent_required"] = True
+        _notify_admins(user_profile.get("username") or "Customer", phone_number)
+    text = EXPERT_CALLBACK_TEXT if _EXPERT_CALLBACK_RE.search(user_text or "") else HUMAN_AGENT_TEXT
+    responses: list[dict] = [{"type": "text", "text": text, "_compose": "handoff_client_faq"}]
+    user_profile["service_selected"] = SL.CALLBACK.value
+    if get_callback_flow_id():
+        responses.append(build_callback_flow_bot_response())
+    else:
+        responses.extend(_start_callback_text_capture(user_profile, request_type="callback"))
+    return responses
 
 
 def build_expert_support_bot_response(

@@ -12,6 +12,9 @@ reply is decided in code and the model never sees the question.
        gpt-4o-mini kept saying "18K has a richer colour, 14K is more durable" and
        inventing "58.3%" through three prompt wordings; the client's position is
        that purity is the only difference.
+    3. "Which banks offer EMI?" (client test, 2026-10-05) -- `emi_banks_response`
+       below. Reason: client requires exact wording (their "Customers commonly
+       ask" paragraph, verbatim); the model's paraphrase was flagged.
 
 If a THIRD fact needs this treatment, revisit the model choice, not the prompt.
 """
@@ -59,6 +62,42 @@ def is_karat_comparison(text: str | None) -> bool:
     if len(karats) >= 2:
         return True
     return len(karats) == 1 and bool(_COMPARE_RE.search(t))
+
+
+EMI_BANKS_TEXT = (
+    "Please note that EMI options are currently not available directly at KISNA. "
+    "However, you can conveniently make your payment using a Credit Card from a "
+    "major bank and, if your bank offers the option, convert the transaction into "
+    "an EMI.\n\n"
+    "For any assistance or queries regarding the EMI conversion process, we kindly "
+    "recommend reaching out to your bank\u2019s customer support team. They will be "
+    "happy to guide you further. 💳✨"
+)
+EMI_BANKS_COMPOSE_KEY = "emi_banks_canned"
+_EMI_RE = re.compile(r"\bemis?\b", re.I)
+_BANK_RE = re.compile(r"\bbanks?\b", re.I)
+
+
+def is_emi_banks_question(text: str | None) -> bool:
+    """An EMI question that names banks ("Which banks offer EMI?")."""
+    t = text or ""
+    return bool(_EMI_RE.search(t) and _BANK_RE.search(t))
+
+
+def emi_banks_response() -> list[dict]:
+    return [{"type": "text", "text": EMI_BANKS_TEXT, "_compose": EMI_BANKS_COMPOSE_KEY, "_pin": ("KISNA", "EMI")}]
+
+
+def serve_emi_banks(data: dict) -> None:
+    data["bot_response"] = emi_banks_response()
+    data["classified_category"] = "emi_banks"
+    data["_trace_outcome"] = "canned_sent"
+    try:
+        from kisna_chatbot.utils.message_trace import trace_step
+
+        trace_step(data, "Result", "Canned answer: EMI banks (client wording, served by code)")
+    except Exception:
+        pass
 
 
 def karat_comparison_response() -> list[dict]:

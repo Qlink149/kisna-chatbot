@@ -264,6 +264,31 @@ _CUSTOM_JEWELLERY_RE = re.compile(
     re.I,
 )
 
+# "Can I engrave a name?" asks about the policy for the customer (the KB
+# answers it); "can you do a bespoke necklace" asks for the service and stays
+# a handoff. A list number in front ("32. Can I engrave…") is ignored.
+_POLICY_QUESTION_OPENER_RE = re.compile(
+    r"^\s*(?:\d{1,3}[.)]\s*)?(?:can i|could i|may i|is it possible|is there|"
+    r"what if|how long|how much|will i|do i)\b",
+    re.I,
+)
+
+# "Can I exchange it for another size?" is an exchange the client handles with
+# the complaint form (FAQ #15), not a policy question; pinned in code because
+# the "Can I…? → general" rule made the LLM split on it.
+_SIZE_EXCHANGE_RE = re.compile(
+    r"\bexchange\b.*\b(?:another|different|other|bigger|smaller|right|correct)\s+size\b", re.I
+)
+
+_LIST_NUMBER_RE = re.compile(r"^\s*[\"\u201c']?\s*\d{1,3}[.)]\s+(?=\S)")
+
+
+def strip_list_number(text: str | None) -> str:
+    """'46.\tCan I cancel my order?' -> 'Can I cancel my order?'. Needs a space
+    after the number, so '2.5 carat ring' and a bare '2' are left alone."""
+    return _LIST_NUMBER_RE.sub("", text or "", count=1)
+
+
 _ACKNOWLEDGEMENT_RE = re.compile(
     r"^\s*(thank(s| you)?|thanx|ty|ok(ay)?|cool|nice|great|"
     r"good|perfect|awesome|dhanyavaad|shukriya|theek hai|"
@@ -636,6 +661,8 @@ def _is_custom_jewellery_query(text: str) -> bool:
         return False
     if is_fulfillment_slot_answer(normalized):
         return False
+    if _POLICY_QUESTION_OPENER_RE.match(normalized):
+        return False
     return bool(_CUSTOM_JEWELLERY_RE.search(normalized))
 
 
@@ -675,6 +702,8 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("general", 0.95)
     if _is_custom_jewellery_query(normalized):
         return ("human_handoff", 0.95)
+    if _SIZE_EXCHANGE_RE.search(normalized):
+        return ("returns_refund", 0.92)
     if (
         _HANDOFF_STATUS_RE.search(normalized)
         and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)
@@ -2387,9 +2416,15 @@ def _handle_custom_jewellery_handoff(
     ]
 
 
-def _handle_human_handoff(data: dict, user_profile: dict, phone_number: str) -> None:
-    data["bot_response"] = build_expert_support_bot_response(
-        phone_number, user_profile
+def _handle_human_handoff(
+    data: dict, user_profile: dict, phone_number: str, user_query: str = ""
+) -> None:
+    # Client FAQ #48 / #52: their exact text + the callback form, always; in
+    # working hours the conversation is also flagged for an agent.
+    from kisna_chatbot.processors.support_handler import build_explicit_handoff_bot_response
+
+    data["bot_response"] = build_explicit_handoff_bot_response(
+        phone_number, user_profile, user_query
     )
 
 
@@ -2590,7 +2625,7 @@ def _route_resolved_intent(
         if _is_custom_jewellery_query(user_query):
             _handle_custom_jewellery_handoff(data, user_profile, phone_number)
         else:
-            _handle_human_handoff(data, user_profile, phone_number)
+            _handle_human_handoff(data, user_profile, phone_number, user_query)
         return True
 
     if intent == "karat_comparison":
@@ -3372,7 +3407,10 @@ class Classifier(Processor):
             raw_query = ""
             chat_history: list = user_profile.get("chat_history") or []
             if "text" in data["messages"]:
-                user_query = data["messages"]["text"]["body"]
+                # Route "15. Can I exchange it for another size?" exactly like the
+                # plain question: a leading list number (a pasted FAQ list) is
+                # dropped for routing only; agents still see the original text.
+                user_query = strip_list_number(data["messages"]["text"]["body"])
 
                 # Script-mirror the stored language to THIS message even on
                 # shortcut paths that skip the LLM (greeting, ack, overrides).

@@ -171,7 +171,13 @@ class FlowSwitchPromptTests(unittest.TestCase):
             ):
                 result = await clf.process(data)
             self.assertIn("bot_response", result)
-            self.assertIn("connecting you", result["bot_response"][0]["text"].lower())
+            # Client FAQ #52: their exact text + the callback form; in working
+            # hours the conversation is also flagged for an agent.
+            from kisna_chatbot.processors.support_handler import HUMAN_AGENT_TEXT
+
+            self.assertEqual(result["bot_response"][0]["text"], HUMAN_AGENT_TEXT)
+            self.assertGreaterEqual(len(result["bot_response"]), 2)
+            self.assertTrue(result["user_profile"].get("live_agent_required"))
             self.assertNotIn("pending_flow_switch", result["user_profile"])
 
         asyncio.run(_run())

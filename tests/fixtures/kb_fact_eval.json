@@ -576,7 +576,7 @@
       "topic": "GRP",
       "q": "* If there is any difference in gold weight, an additional payment or refund will be applicable. , what if metal weight increase ? how will i charged ?",
       "must": [
-        "booked|locked"
+        "booked|locked|booking rate|time of booking"
       ],
       "must_not": [
         "(?<!not )(?<!never )(?<!instead of )\\bat (the )?(current|today's|prevailing|live) (gold )?rate"
@@ -586,7 +586,7 @@
       "topic": "GRP",
       "q": "I booked under Gold Rate Protection. If the final piece weighs more, which gold rate do I pay for the extra grams?",
       "must": [
-        "booked|locked"
+        "booked|locked|booking rate|time of booking"
       ],
       "must_not": [
         "(?<!not )(?<!never )(?<!instead of )\\bat (the )?(current|today's|prevailing|live) (gold )?rate"
@@ -704,6 +704,483 @@
         "^\\W*(yes|absolutely|certainly)\\b",
         "\\byou can still (buy|purchase|redeem|use)"
       ]
+    },
+    {
+      "topic": "Kisna test",
+      "q": "6.\tIs the diamond certified?",
+      "must": [
+        "IGI"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "9.\tCan I see the certificate?",
+      "must": [
+        "igi\\.org"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "diamond card",
+      "must": [
+        "igi\\.org"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "11.\tCan I change the size?",
+      "any": [
+        "dispatch",
+        "feasib",
+        "order details"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "12.\tWhat if the ring doesn't fit?",
+      "any": [
+        "resiz",
+        "exchange",
+        "size"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "18.\tCan I exchange old gold?",
+      "any": [
+        "store",
+        "offline"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "25.\tCan I change the delivery address?",
+      "any": [
+        "dispatch"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "31.\tCan you customise this?",
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "33.\tCan I change the stone?",
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "46.\tCan I cancel my order?",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "How long will customization take?",
+      "handoff": false,
+      "must_not": [
+        "\\b\\d+\\s*(?:[-–]\\s*\\d+\\s*)?(?:business |working )?(?:days?|hours?)\\b"
+      ]
+    },
+    {
+      "topic": "Kisna test",
+      "q": "36.\tWhich banks offer EMI?",
+      "must": [
+        "bank’s customer support team"
+      ]
+    },
+    {
+      "topic": "Kisna test",
+      "q": "what if metal weight increases, how will I be charged?",
+      "any": [
+        "booking rate",
+        "time of booking",
+        "booked"
+      ],
+      "must_not": [
+        "(?<!not )(?<!never )(?<!not at )\\bat (the )?(current|today'?s|prevailing|live) (gold )?rate",
+        "\\b\\d+\\s*(?:[-–]\\s*\\d+\\s*)?(?:business |working )?(?:days?|hours?)\\b"
+      ]
+    },
+    {
+      "topic": "Kisna test",
+      "q": "how wil you communicate for extra weight and charge ? in how many days?",
+      "must_not": [
+        "\\b\\d+\\s*(?:[-–]\\s*\\d+\\s*)?(?:business |working )?(?:days?|hours?)\\b"
+      ]
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Video call",
+      "intent": "video_call"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Call back",
+      "intent": "callback"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Compliant",
+      "intent": "complaint"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Connect egent",
+      "intent": "human_handoff"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Store visit",
+      "intent": "store_visit"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Is the diamond certified",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "7.\tWhich certificate will I get?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "1.\tIs the price same online and in-store?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "2.\tIs this genuine?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "3.\tIs this natural diamond?",
+      "intent": [
+        "product_question",
+        "product_info",
+        "general"
+      ]
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "4.\tIs the gold pure?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "5.\tIs it BIS hallmarked?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "6.\tIs the diamond certified?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "9.\tCan I see the certificate?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "8.\tIGI or GIA?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "10.\tHow do I know my ring size?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "11.\tCan I change the size?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "12.\tWhat if the ring doesn't fit?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "13.\tIs resizing free?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "14.\tHow long does resizing take?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "15.\tCan I exchange it for another size?",
+      "intent": "returns_refund"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "16.\tCan I resize it at a local jeweller?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "17.\tWill I get cash or store credit?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "18.\tCan I exchange old gold?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "19.\tCan I exchange jewellery bought from another brand?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "20.\tCan you deliver tomorrow?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "21.\tIs express delivery available?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "22.\tIs delivery free?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "23.\tIs the package insured?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "24.\tIs the package discreet?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "25.\tCan I change the delivery address?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "26.\tCan someone else receive it?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "27.\tCan I send it as a gift?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "28.\tCan I pick it up from a store?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "29.\tCan I add a message?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "30.\tCan I deliver to another address?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "31.\tCan you customise this?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "32.\tCan I engrave a name?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "33.\tCan I change the stone?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "34.\tCan I pay by UPI?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "35.\tIs EMI available?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "36.\tWhich banks offer EMI?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "37.\tCan I pay partially?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "38.\tIs COD available?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "39.\tIs online payment safe?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "40.\tCan I use two payment methods?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "41.\tCan I use a voucher?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "42.\tIs Kisna jewellery certified?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "43.\tHow can I trust online jewellery?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "44.\tWhat does 916 gold mean?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "45.\t14K or 18K which is better?",
+      "intent": "karat_comparison"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "46.\tCan I cancel my order?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "47.\tWhich is better gold or diamond?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "48.\tI want to talk to an expert or connect to expert or call back",
+      "intent": "human_handoff"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "49.\tI have a complaint",
+      "intent": "complaint"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "50.\tMy product is damaged/ I received the wrong product",
+      "intent": "complaint"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "52.\tI want a connect human agent",
+      "intent": "human_handoff"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "store near me",
+      "intent": "store_visit"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Do you provide lifetime maintenance?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Can I redeem store KMR online ?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "How long will customization take?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "When will I receive my jewellery?",
+      "intent": "track_order"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Does the price include making charges?",
+      "intent": "offers"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "What does diamond clarity mean?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Can I choose the diamond quality?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Can you deliver to another city?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Is online payment safe?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Will the price be shown in the package?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "How should I take care of my jewellery?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Does the jewellery look exactly like the picture?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "\"9.\tCan I see the certificate?",
+      "intent": "general"
     }
   ]
 }
