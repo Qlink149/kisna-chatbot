@@ -197,9 +197,13 @@ def build_explicit_handoff_bot_response(
     now=None,
 ) -> list[dict]:
     """An explicit "talk to an expert / call back / human agent" request (client
-    FAQ #48 / #52): the client's exact text + the callback form, always. In
-    working hours the conversation is ALSO flagged for a live agent (and the
-    admins notified), as before, so an agent can still pick it up."""
+    FAQ #48 / #52).
+
+    Working hours: the handoff message, the conversation flagged for a live
+    agent and the admins notified -- no form, so if no agent replies the
+    5-minute fallback (apology + callback form, handoff_sweep) follows.
+    Outside working hours / Sunday / holiday: the client's FAQ text + the
+    callback form straight away."""
     from kisna_chatbot.config.gupshup import get_callback_flow_id
     from kisna_chatbot.models.service_list import ServiceList as SL
     from kisna_chatbot.processors.service_list import (
@@ -208,14 +212,10 @@ def build_explicit_handoff_bot_response(
     )
 
     if is_within_working_hours(now):
-        requested_at = int(time.time())
-        user_profile["live_agent_requested_at"] = requested_at
+        user_profile["live_agent_requested_at"] = int(time.time())
         user_profile["live_agent_required"] = True
-        # The callback form goes out in this reply, so the 5-minute fallback
-        # (handoff_sweep) must not send a second one for this episode: its
-        # marker counts as sent when it is not older than the request.
-        user_profile["handoff_callback_sent_at"] = requested_at
         _notify_admins(user_profile.get("username") or "Customer", phone_number)
+        return [{"type": "text", "text": KIA_HANDOFF_MESSAGE, "_compose": "support_handoff"}]
     text = EXPERT_CALLBACK_TEXT if _EXPERT_CALLBACK_RE.search(user_text or "") else HUMAN_AGENT_TEXT
     responses: list[dict] = [{"type": "text", "text": text, "_compose": "handoff_client_faq"}]
     user_profile["service_selected"] = SL.CALLBACK.value

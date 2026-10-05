@@ -171,12 +171,10 @@ class FlowSwitchPromptTests(unittest.TestCase):
             ):
                 result = await clf.process(data)
             self.assertIn("bot_response", result)
-            # Client FAQ #52: their exact text + the callback form; in working
-            # hours the conversation is also flagged for an agent.
-            from kisna_chatbot.processors.support_handler import HUMAN_AGENT_TEXT
-
-            self.assertEqual(result["bot_response"][0]["text"], HUMAN_AGENT_TEXT)
-            self.assertGreaterEqual(len(result["bot_response"]), 2)
+            # Working hours: the handoff message, flagged for an agent, no form
+            # (the 5-minute fallback sends the form if no agent replies).
+            self.assertIn("connecting you", result["bot_response"][0]["text"].lower())
+            self.assertFalse(any(r.get("type") == "flow" for r in result["bot_response"]))
             self.assertTrue(result["user_profile"].get("live_agent_required"))
             self.assertNotIn("pending_flow_switch", result["user_profile"])
 

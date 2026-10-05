@@ -144,24 +144,47 @@ def _fallback_kind(requested_at: int, now: int, delay: int) -> str | None:
     return None
 
 
-def _has_pending_callback(phone: str, client_id: str) -> bool:
+def _has_pending_callback(phone: str, client_id: str, now: int | None = None) -> bool:
+    """A pending callback whose slot is today (IST) or later. Past-dated ones
+    are ignored: nobody ever marks a callback done, so an old booking used to
+    block every later fallback for that customer (34 customers, 2026-10-05)."""
+    today = start_of_day_ist(
+        datetime.fromtimestamp(int(now if now is not None else time.time()), tz=timezone.utc)
+    ).date().isoformat()
     return (
         callback_requests.find_one(
-            {"client_id": client_id, "phone_number": phone, "status": "pending"}
+            {
+                "client_id": client_id,
+                "phone_number": phone,
+                "status": "pending",
+                "preferred_date": {"$gte": today},
+            }
         )
         is not None
+    )
+
+
+def _log_skip(phone: str, reason: str, **extra) -> None:
+    logger.info(
+        "handoff-fallback skipped",
+        extra={"phone_number": phone, "reason": reason, **extra},
     )
 
 
 async def _process_one_handoff(user_profile: dict, now: int) -> bool:
     phone = user_profile.get("phone_number")
     client_id = user_profile.get("client_id") or _DEFAULT_CLIENT_ID
-    if not phone or not _eligible_for_fallback(user_profile):
+    if not phone:
+        return False
+    if not _eligible_for_fallback(user_profile):
+        _log_skip(phone, "already_sent_this_episode")
         return False
     requested_at = user_profile["live_agent_requested_at"]
     kind = _fallback_kind(requested_at, now, _callback_delay_seconds())
     if kind is None:
-        # Not due yet (or the day is over) -- leave the marker unarmed.
+        # Not due yet (or the day is over) -- leave the marker unarmed. Debug:
+        # the sweep revisits a fresh handoff every minute until it is due.
+        logger.debug("handoff-fallback not due", extra={"phone_number": phone})
         return False
 
     # At-most-once per episode: arm the marker atomically BEFORE sending. The
@@ -180,9 +203,11 @@ async def _process_one_handoff(user_profile: dict, now: int) -> bool:
         {"$set": {"handoff_callback_sent_at": now}},
     )
     if armed is None:
+        _log_skip(phone, "armed_by_another_sweep")
         return False
 
-    if _has_pending_callback(phone, client_id):
+    if _has_pending_callback(phone, client_id, now):
+        _log_skip(phone, "pending_callback_today_or_later")
         # Booked some other way already (e.g. the user did it themselves) --
         # the arm above still stands, so this phone is not re-checked again
         # for this handoff episode.

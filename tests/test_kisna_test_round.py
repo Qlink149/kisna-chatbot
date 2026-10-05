@@ -7,6 +7,7 @@ import asyncio
 import os
 import re
 import unittest
+import unittest.mock
 from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("ENV_MODE", "dev")
@@ -132,6 +133,55 @@ class RoutingHelperTests(unittest.TestCase):
         self.assertIsNone(_programmatic_intent_override("Can I change the size?"))
 
 
+# A Tuesday, 11:00 IST: inside working hours, no holiday.
+_TUE_1100 = int(__import__("datetime").datetime(2026, 10, 6, 11, 0, tzinfo=__import__("zoneinfo").ZoneInfo("Asia/Kolkata")).timestamp())
+EXPERT_FAQ = "Of course! 💬 I can arrange a conversation with a Kisna jewellery expert. Please choose your preferred callback time."
+HUMAN_FAQ = "Certainly. I’ll connect you with a Kisna support representative."
+Q48 = "48. I want to talk to an expert or connect to expert or call back"
+
+
+class _FakeUsers:
+    """The arm-once marker filter of _process_one_handoff and the candidate
+    query of _sweep_callback_fallback, applied to one in-memory profile."""
+
+    def __init__(self, profile):
+        self.profile = profile
+
+    def find_one_and_update(self, flt, update):
+        sent = self.profile.get("handoff_callback_sent_at")
+        ok = any(
+            ("$exists" in c["handoff_callback_sent_at"] and sent is None)
+            or ("$lt" in c["handoff_callback_sent_at"] and sent is not None and sent < c["handoff_callback_sent_at"]["$lt"])
+            for c in flt["$or"]
+        )
+        if not ok:
+            return None
+        self.profile.update(update["$set"])
+        return dict(self.profile)
+
+    def find(self, query):
+        p = self.profile
+        match = (
+            p.get("live_agent_required") is query["live_agent_required"]
+            and (p.get("human_takeover") or {}).get("active") is not True
+        )
+        rows = [dict(p)] if match else []
+        cursor = unittest.mock.MagicMock()
+        cursor.sort.return_value.limit.return_value = rows
+        return cursor
+
+
+class _FakeCallbacks:
+    def __init__(self, docs):
+        self.docs = docs
+
+    def find_one(self, q):
+        for d in self.docs:
+            if d["phone_number"] == q["phone_number"] and d["status"] == q["status"] and d["preferred_date"] >= q["preferred_date"]["$gte"]:
+                return d
+        return None
+
+
 class ExplicitHandoffTests(unittest.TestCase):
     def _build(self, text, in_hours):
         profile = {"username": "Asha"}
@@ -141,48 +191,100 @@ class ExplicitHandoffTests(unittest.TestCase):
             out = sh.build_explicit_handoff_bot_response("919812345678", profile, text)
         return out, profile, notify
 
-    def test_expert_or_callback_gets_the_client_text_and_the_form(self):
-        for q in ("48. I want to talk to an expert or connect to expert or call back", "call back please",
-                  "connect me to an expert"):
+    def test_in_hours_connecting_message_and_no_form(self):
+        from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
+
+        for q in (Q48, "52. I want a connect human agent", "call back please"):
             with self.subTest(q=q):
-                out, _, _ = self._build(q, True)
-                self.assertEqual(out[0]["text"], "Of course! 💬 I can arrange a conversation with a Kisna jewellery "
-                                                 "expert. Please choose your preferred callback time.")
-                self.assertEqual(out[1]["type"], "flow")
+                out, profile, notify = self._build(q, True)
+                self.assertEqual([r["text"] for r in out], [KIA_HANDOFF_MESSAGE])
+                self.assertFalse(any(r["type"] == "flow" for r in out))
+                self.assertTrue(profile["live_agent_required"])
+                self.assertNotIn("handoff_callback_sent_at", profile)  # the fallback stays armed
+                self.assertTrue(notify.called)
 
-    def test_human_agent_gets_the_client_text_and_the_form(self):
-        out, _, _ = self._build("52. I want a connect human agent", True)
-        self.assertEqual(out[0]["text"], "Certainly. I’ll connect you with a Kisna support representative.")
+    def test_out_of_hours_faq_text_and_form_immediately(self):
+        out, profile, notify = self._build(Q48, False)
+        self.assertEqual(out[0]["text"], EXPERT_FAQ)
         self.assertEqual(out[1]["type"], "flow")
-
-    def test_in_hours_also_flags_a_live_agent(self):
-        _, profile, notify = self._build("I want a human agent", True)
-        self.assertTrue(profile["live_agent_required"])
-        self.assertTrue(notify.called)
-
-    def test_in_hours_one_form_only_even_if_no_agent_replies(self):
-        from kisna_chatbot.processors import handoff_sweep as hs
-
-        out, profile, _ = self._build("48. I want to talk to an expert or connect to expert or call back", True)
-        self.assertEqual(sum(1 for r in out if r["type"] == "flow"), 1)
-        self.assertEqual(profile["handoff_callback_sent_at"], profile["live_agent_requested_at"])
-        self.assertFalse(hs._eligible_for_fallback(profile))
-        # The sweep, 10 minutes later with no agent: nothing more is sent.
-        profile.update(phone_number="919812345678", client_id="kisna")
-        with patch.object(hs, "send_callback_request_flow") as flow, \
-             patch.object(hs, "send_text_message_with_retry") as text, \
-             patch.object(hs.users, "find_one_and_update") as arm:
-            sent = asyncio.run(hs._process_one_handoff(profile, profile["live_agent_requested_at"] + 600))
-        self.assertFalse(sent)
-        flow.assert_not_called()
-        text.assert_not_called()
-        arm.assert_not_called()
-
-    def test_out_of_hours_sends_the_form_without_flagging(self):
         out, profile, notify = self._build("I want a human agent", False)
+        self.assertEqual(out[0]["text"], HUMAN_FAQ)
         self.assertEqual(out[1]["type"], "flow")
         self.assertNotIn("live_agent_required", profile)
         self.assertFalse(notify.called)
+
+    # --- the 5-minute fallback after an in-hours #48 -------------------------
+    def _profile_after_48(self):
+        _, profile, _ = self._build(Q48, True)
+        profile.update(phone_number="919812345678", client_id="kisna", language="en", live_agent_requested_at=_TUE_1100)
+        return profile
+
+    def _fallback_at(self, profile, now, callbacks=()):
+        from kisna_chatbot.processors import handoff_sweep as hs
+
+        users = _FakeUsers(profile)
+        with patch.object(hs, "users", users), \
+             patch.object(hs, "callback_requests", _FakeCallbacks(list(callbacks))), \
+             patch.object(hs, "send_callback_request_flow", return_value={"ok": True}) as flow, \
+             patch.object(hs, "send_text_message_with_retry") as text, \
+             patch.object(hs, "save_agent_message"), \
+             patch.object(hs.logger, "info") as log:
+            sent = asyncio.run(hs._process_one_handoff(dict(users.profile), now))
+        return sent, flow, text, log
+
+    def test_no_agent_reply_exactly_one_fallback_at_5_working_minutes(self):
+        from kisna_chatbot.processors import handoff_sweep as hs
+
+        profile = self._profile_after_48()
+        sent, flow, _, _ = self._fallback_at(profile, _TUE_1100 + 200)
+        self.assertFalse(sent)
+        flow.assert_not_called()  # not due yet
+        sent, flow, text, _ = self._fallback_at(profile, _TUE_1100 + 300)
+        self.assertTrue(sent)
+        flow.assert_called_once_with("919812345678", hs._FALLBACK_TEXT)  # apology + form, one message
+        text.assert_not_called()
+        sent, flow, _, log = self._fallback_at(profile, _TUE_1100 + 360)
+        self.assertFalse(sent)
+        flow.assert_not_called()  # never a second one
+        self.assertEqual(log.call_args.kwargs["extra"]["reason"], "already_sent_this_episode")
+
+    def test_agent_replies_in_time_no_fallback(self):
+        from kisna_chatbot.processors import handoff_sweep as hs
+
+        profile = self._profile_after_48()
+        # The agent takes over (dashboard) at 2 minutes and replies.
+        profile["human_takeover"] = {"active": True, "taken_at": _TUE_1100 + 120}
+        users = _FakeUsers(profile)
+        captured = {}
+
+        def find(query):
+            captured.update(query)
+            return users.find(query)
+
+        with patch.object(hs.users, "find", side_effect=find), \
+             patch.object(hs, "send_callback_request_flow") as flow, \
+             patch.object(hs, "send_text_message_with_retry") as text, \
+             patch.object(hs.time, "time", return_value=_TUE_1100 + 300):
+            sent = asyncio.run(hs._sweep_callback_fallback(25))
+        self.assertEqual(sent, 0)
+        flow.assert_not_called()
+        text.assert_not_called()
+        self.assertEqual(captured["human_takeover.active"], {"$ne": True})
+
+    def test_past_dated_pending_callback_does_not_block_it(self):
+        past = {"phone_number": "919812345678", "status": "pending", "preferred_date": "2026-08-15"}
+        sent, flow, _, _ = self._fallback_at(self._profile_after_48(), _TUE_1100 + 300, [past])
+        self.assertTrue(sent)
+        flow.assert_called_once()
+
+    def test_callback_today_or_later_blocks_it_and_the_skip_is_logged(self):
+        for day in ("2026-10-06", "2026-10-09"):
+            with self.subTest(day=day):
+                booked = {"phone_number": "919812345678", "status": "pending", "preferred_date": day}
+                sent, flow, _, log = self._fallback_at(self._profile_after_48(), _TUE_1100 + 300, [booked])
+                self.assertFalse(sent)
+                flow.assert_not_called()
+                self.assertEqual(log.call_args.kwargs["extra"]["reason"], "pending_callback_today_or_later")
 
 
 class EmiBanksTests(unittest.TestCase):
