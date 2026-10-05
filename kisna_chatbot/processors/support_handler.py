@@ -208,8 +208,13 @@ def build_explicit_handoff_bot_response(
     )
 
     if is_within_working_hours(now):
-        user_profile["live_agent_requested_at"] = int(time.time())
+        requested_at = int(time.time())
+        user_profile["live_agent_requested_at"] = requested_at
         user_profile["live_agent_required"] = True
+        # The callback form goes out in this reply, so the 5-minute fallback
+        # (handoff_sweep) must not send a second one for this episode: its
+        # marker counts as sent when it is not older than the request.
+        user_profile["handoff_callback_sent_at"] = requested_at
         _notify_admins(user_profile.get("username") or "Customer", phone_number)
     text = EXPERT_CALLBACK_TEXT if _EXPERT_CALLBACK_RE.search(user_text or "") else HUMAN_AGENT_TEXT
     responses: list[dict] = [{"type": "text", "text": text, "_compose": "handoff_client_faq"}]

@@ -280,6 +280,18 @@ _SIZE_EXCHANGE_RE = re.compile(
     r"\bexchange\b.*\b(?:another|different|other|bigger|smaller|right|correct)\s+size\b", re.I
 )
 
+# "Can you customise this?" / "can I get it customised": the client confirmed
+# customisation is not possible, so the KB answer ("unable to accept
+# customisation orders") is served -- pinned in code because the LLM split
+# 7/3 between that and a handoff. A request to PLACE a custom order or a
+# bespoke ask is caught first by _is_custom_jewellery_query (handoff).
+_CUSTOMISATION_QUESTION_RE = re.compile(
+    r"\b(?:can|could)\s+(?:you|i|we)\s+(?:get\s+(?:it|this|that|one)\s+)?customi[sz]\w*"
+    r"|\bis\s+customi[sz]ation\s+(?:possible|available)\b"
+    r"|\bdo\s+you\s+(?:do|offer|provide)\s+customi[sz]ation\b",
+    re.I,
+)
+
 _LIST_NUMBER_RE = re.compile(r"^\s*[\"\u201c']?\s*\d{1,3}[.)]\s+(?=\S)")
 
 
@@ -704,6 +716,8 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("human_handoff", 0.95)
     if _SIZE_EXCHANGE_RE.search(normalized):
         return ("returns_refund", 0.92)
+    if _CUSTOMISATION_QUESTION_RE.search(normalized):
+        return ("general", 0.95)
     if (
         _HANDOFF_STATUS_RE.search(normalized)
         and not _ORDER_BILL_COMPLAINT_CONTEXT_RE.search(normalized)

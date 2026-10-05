@@ -86,6 +86,43 @@ class RoutingHelperTests(unittest.TestCase):
         for kept in ("2.5 carat ring", "2", "18K ring", "50000"):
             self.assertEqual(strip_list_number(kept), kept)
 
+    def test_list_number_needs_a_dot_or_bracket_and_a_space(self):
+        from kisna_chatbot.processors.classifier import strip_list_number
+
+        for kept in ("18k gold rings", "916 gold", "22 carat", "2 rings under 50k", "14KT vs 18KT",
+                     "2.5 carat ring", "18.5k budget", "3)rings"):
+            with self.subTest(kept=kept):
+                self.assertEqual(strip_list_number(kept), kept)
+        self.assertEqual(strip_list_number("2. rings under 50k"), "rings under 50k")
+        self.assertEqual(strip_list_number("2) rings under 50k"), "rings under 50k")
+
+    def test_untouched_messages_route_as_before(self):
+        # The classifier receives the original text for these: same LLM input,
+        # same programmatic verdicts as without the number stripping.
+        from kisna_chatbot.processors.classifier import (
+            _programmatic_intent_override,
+            is_karat_comparison,
+            strip_list_number,
+        )
+
+        for q in ("18k gold rings", "916 gold", "22 carat", "2 rings under 50k", "14KT vs 18KT"):
+            with self.subTest(q=q):
+                self.assertEqual(_programmatic_intent_override(strip_list_number(q)), _programmatic_intent_override(q))
+        self.assertEqual(_programmatic_intent_override("14KT vs 18KT"), ("karat_comparison", 0.95))
+        self.assertTrue(is_karat_comparison(strip_list_number("14KT vs 18KT")))
+
+    def test_customisation_questions_get_the_kb_answer(self):
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override
+
+        for q in ("Can you customise this?", "can you customize", "can I get it customised", "31. Can you customise this?",
+                  "Could you customize this ring?", "is customisation possible?"):
+            with self.subTest(q=q):
+                self.assertEqual(_programmatic_intent_override(q), ("general", 0.95))
+        for q in ("I want to place a custom order", "can you do a bespoke necklace", "custom ring banwana hai"):
+            with self.subTest(q=q):
+                self.assertNotEqual(_programmatic_intent_override(q), ("general", 0.95))
+        self.assertEqual(_programmatic_intent_override("can you do a bespoke necklace"), ("human_handoff", 0.95))
+
     def test_size_exchange_stays_an_exchange(self):
         from kisna_chatbot.processors.classifier import _programmatic_intent_override
 
@@ -122,6 +159,24 @@ class ExplicitHandoffTests(unittest.TestCase):
         _, profile, notify = self._build("I want a human agent", True)
         self.assertTrue(profile["live_agent_required"])
         self.assertTrue(notify.called)
+
+    def test_in_hours_one_form_only_even_if_no_agent_replies(self):
+        from kisna_chatbot.processors import handoff_sweep as hs
+
+        out, profile, _ = self._build("48. I want to talk to an expert or connect to expert or call back", True)
+        self.assertEqual(sum(1 for r in out if r["type"] == "flow"), 1)
+        self.assertEqual(profile["handoff_callback_sent_at"], profile["live_agent_requested_at"])
+        self.assertFalse(hs._eligible_for_fallback(profile))
+        # The sweep, 10 minutes later with no agent: nothing more is sent.
+        profile.update(phone_number="919812345678", client_id="kisna")
+        with patch.object(hs, "send_callback_request_flow") as flow, \
+             patch.object(hs, "send_text_message_with_retry") as text, \
+             patch.object(hs.users, "find_one_and_update") as arm:
+            sent = asyncio.run(hs._process_one_handoff(profile, profile["live_agent_requested_at"] + 600))
+        self.assertFalse(sent)
+        flow.assert_not_called()
+        text.assert_not_called()
+        arm.assert_not_called()
 
     def test_out_of_hours_sends_the_form_without_flagging(self):
         out, profile, notify = self._build("I want a human agent", False)
