@@ -815,7 +815,7 @@ KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
         ),
         dropoff_block=(
             "\U0001F389 Lucky Draw: Win 2 Scooters + 1 Car!\n"
-            "\U0001F5D3\uFE0F Offer: 21 Aug – 30 Nov 2026 | Indian citizens 18+ "
+            "\U0001F4C5 Offer: 21 Aug – 30 Nov 2026 | Indian citizens 18+ "
             "(excluding Tamil Nadu). T&Cs apply.\n"
             "\n"
             "https://www.kisna.com/pages/jewellery-offers"

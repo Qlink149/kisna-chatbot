@@ -185,7 +185,7 @@ Discounts apply only to making charges. T&Cs apply.
 https://www.kisna.com/pages/gold-rate-protection
 
 🎉 Lucky Draw: Win 2 Scooters + 1 Car!
-🗓️ Offer: 21 Aug – 30 Nov 2026 | Indian citizens 18+ (excluding Tamil Nadu). T&Cs apply.
+📅 Offer: 21 Aug – 30 Nov 2026 | Indian citizens 18+ (excluding Tamil Nadu). T&Cs apply.
 
 https://www.kisna.com/pages/jewellery-offers
 
@@ -196,7 +196,7 @@ https://www.kisna.com/pages/jewellery-offers
         "Solitaire Jewellery.\n\nhttps://www.kisna.com/pages/gold-rate-protection\n\n"
     )
     LUCKY_BLOCK = (
-        "🎉 Lucky Draw: Win 2 Scooters + 1 Car!\n🗓️ Offer: 21 Aug – 30 Nov 2026 | Indian citizens "
+        "🎉 Lucky Draw: Win 2 Scooters + 1 Car!\n📅 Offer: 21 Aug – 30 Nov 2026 | Indian citizens "
         "18+ (excluding Tamil Nadu). T&Cs apply.\n\nhttps://www.kisna.com/pages/jewellery-offers\n\n"
     )
 
