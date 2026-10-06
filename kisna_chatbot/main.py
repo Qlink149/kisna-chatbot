@@ -269,6 +269,25 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to create stores / store_visits indexes")
 
+    # Quick replies: a title is unique among ACTIVE replies only, so a deleted
+    # title can be reused (soft delete keeps the row and its history).
+    try:
+        from kisna_chatbot.database.collections import quick_replies
+
+        quick_replies.create_index(
+            [("client_id", ASCENDING), ("title_lower", ASCENDING)],
+            unique=True,
+            partialFilterExpression={"active": True},
+            name="uniq_quick_reply_active_title",
+        )
+        quick_replies.create_index(
+            [("client_id", ASCENDING), ("active", ASCENDING), ("sort_order", ASCENDING)],
+            name="quick_replies_active_order",
+        )
+        quick_replies.create_index([("id", ASCENDING)], unique=True, name="uniq_quick_reply_id")
+    except Exception:
+        logger.exception("Failed to create quick_replies indexes")
+
     # The unique event_id is what makes the outbound event push idempotent.
     try:
         from kisna_chatbot.database.collections import clara_events

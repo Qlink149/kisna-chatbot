@@ -17,6 +17,7 @@ from kisna_chatbot.routes.system_sub_routes import damage as damage_router
 from kisna_chatbot.routes.system_sub_routes import dashboard as dashboard_router
 from kisna_chatbot.routes.system_sub_routes import message_trace as message_trace_router
 from kisna_chatbot.routes.system_sub_routes import store_visits as store_visits_router
+from kisna_chatbot.routes.system_sub_routes import quick_replies as quick_replies_router
 from kisna_chatbot.routes.system_sub_routes import stores_admin as stores_admin_router
 from kisna_chatbot.routes.system_sub_routes import users as users_router
 from kisna_chatbot.routes.system_sub_routes import whatsapp as whatsapp_router
@@ -44,6 +45,8 @@ router.include_router(clara_events_router.router, dependencies=[Depends(verify_s
 router.include_router(store_visits_router.router, dependencies=[Depends(verify_session)])
 
 router.include_router(stores_admin_router.router, dependencies=[Depends(verify_session)])
+# Quick replies for the agent composer.
+router.include_router(quick_replies_router.router, dependencies=[Depends(verify_session)])
 
 router.include_router(
     message_trace_router.router, dependencies=[Depends(verify_session)]

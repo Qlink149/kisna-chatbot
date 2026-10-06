@@ -20,6 +20,9 @@ message_traces = db["message_traces"]
 # Outbox for the real-time event push to the Clara backend (-> Salesforce).
 clara_events = db["clara_events"]
 
+# Saved messages agents insert into the dashboard composer (kisna_chatbot/quick_replies.py).
+quick_replies = db["quick_replies"]
+
 # Dashboard login — not client-scoped, shared across all clients.
 admin_users = db["admin_users"]
 admin_sessions = db["admin_sessions"]
@@ -38,6 +41,7 @@ COLLECTIONS = (
     chat_messages,
     message_traces,
     clara_events,
+    quick_replies,
     admin_users,
     admin_sessions,
 )
