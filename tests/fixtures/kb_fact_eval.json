@@ -871,11 +871,7 @@
     {
       "topic": "Kisna test routing",
       "q": "3.\tIs this natural diamond?",
-      "intent": [
-        "product_question",
-        "product_info",
-        "general"
-      ]
+      "intent": "general"
     },
     {
       "topic": "Kisna test routing",
@@ -1180,6 +1176,243 @@
     {
       "topic": "Kisna test routing",
       "q": "\"9.\tCan I see the certificate?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test",
+      "q": "What if the ring doesn't fit?",
+      "any": [
+        "resiz",
+        "exchange",
+        "size"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "12. What if the ring doesn't fit?",
+      "any": [
+        "resiz",
+        "exchange",
+        "size"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "what if the ring doesn't fit?",
+      "any": [
+        "resiz",
+        "exchange",
+        "size"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "What if the ring doesn't fit",
+      "any": [
+        "resiz",
+        "exchange",
+        "size"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "ring doesnt fit",
+      "any": [
+        "resiz",
+        "exchange",
+        "size"
+      ],
+      "handoff": false,
+      "empathy_ok": true
+    },
+    {
+      "topic": "Kisna test",
+      "q": "ring size is wrong what now",
+      "any": [
+        "resiz",
+        "exchange",
+        "size"
+      ],
+      "handoff": false,
+      "empathy_ok": true
+    },
+    {
+      "topic": "Kisna test",
+      "q": "Can I cancel my order?",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "46. Can I cancel my order?",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": ". Can I cancel my order?",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "can i cancel my order?",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "Can I cancel my order",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "how do I cancel my order",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "cancel order",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "Kisna test",
+      "q": "order cancel karna hai",
+      "must": [
+        "My Account"
+      ],
+      "any": [
+        "Customer Support",
+        "support@kisna\\.com"
+      ],
+      "handoff": false,
+      "empathy_ok": true,
+      "must_not": [
+        "return request form|return my order"
+      ]
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "What if the ring doesn't fit?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "12. What if the ring doesn't fit?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "what if the ring doesn't fit?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "What if the ring doesn't fit",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "ring doesnt fit",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "ring size is wrong what now",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Can I cancel my order?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "46. Can I cancel my order?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": ". Can I cancel my order?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "can i cancel my order?",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Can I cancel my order",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "how do I cancel my order",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "cancel order",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "order cancel karna hai",
+      "intent": "general"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "Is this natural diamond?",
       "intent": "general"
     }
   ]

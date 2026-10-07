@@ -292,6 +292,67 @@ _CUSTOMISATION_QUESTION_RE = re.compile(
     re.I,
 )
 
+# "What if the ring doesn't fit?" / "ring size is wrong what now": a sizing
+# question the KB answers (size exchange or resizing: free, 7-10 business
+# days, depends on the design). Pinned in code: the LLM said general, but its
+# "ring" entity then tripped the category guard into the shopping wizard
+# ("Who is it for?"). A ring that was delivered / received is about a real
+# order and is left to the LLM (complaint / returns_refund).
+_DOES_NOT_FIT = r"(?:does(?:\s+not|n[’']?t)|doesnt|do(?:\s+not|n[’']?t)|dont|won[’']?t|wont|will\s+not)\s+fit"
+_RING_FIT_QUESTION_RE = re.compile(
+    rf"\bwhat\s+if\b.*\b(?:ring|size)\b.*\b{_DOES_NOT_FIT}\b"
+    rf"|\bring\s+{_DOES_NOT_FIT}\b"
+    r"|\bring\s+size\s+(?:is\s+)?wrong\b",
+    re.I,
+)
+_RECEIVED_PIECE_RE = re.compile(
+    r"\b(?:deliver\w*|receiv\w*|got|sent|shipped|arrived|came|mila|aaya|aayi)\b", re.I
+)
+
+# "Can I cancel my order?" / "how do I cancel my order" / "order cancel karna
+# hai": the KB answer (any time before shipping, through My Account or
+# Customer Support / support@kisna.com). Pinned in code: with a chat history
+# the LLM handed it to an agent 8-10/10. A SPECIFIC order ("cancel my order
+# #1234", "cancel order KIS..."), an explicit ask for a person, or a complaint
+# stays with the LLM, which hands those off.
+_CANCEL_ORDER_QUESTION_RE = re.compile(
+    r"\bcancel\w*\b.*\border\b|\border\b.*\bcancel\w*\b"
+    r"|\bcancell?ation\s+(?:policy|possible|process)\b|\bis\s+cancell?ation\s+(?:possible|allowed)\b",
+    re.I,
+)
+_SPECIFIC_ORDER_RE = re.compile(
+    r"#\s*\w|\bKIS[\w-]*\d|\d{4,}|\border\s*(?:no|number|id)\b|\border\s*:", re.I
+)
+_CANCEL_COMPLAINT_RE = re.compile(
+    r"\b(?:damag\w*|broken|defect\w*|wrong\s+(?:product|item|piece)|complaint|fraud|scam)\b", re.I
+)
+
+
+# "Is this natural diamond?" (client question #3): the KB answers it (natural,
+# certified diamonds). Pinned in code: 9/10 the LLM answered with
+# "product_question" -- an entity field, not an intent -- which ends in "Sorry,
+# I didn't catch that". A yes/no question only; "show me natural diamond
+# rings" is a search and is left alone.
+_NATURAL_DIAMOND_QUESTION_RE = re.compile(
+    r"^\s*(?:\d{1,3}[.)]\s*)?(?:is|are)\s+(?:this|these|it|they|the\s+diamonds?|your\s+diamonds?|kisna\s+diamonds?)\s+"
+    r"(?:an?\s+)?(?:natural|real|lab[\s-]?grown|lab[\s-]?made|synthetic)\b",
+    re.I,
+)
+
+
+def _is_ring_fit_question(text: str) -> bool:
+    return bool(_RING_FIT_QUESTION_RE.search(text)) and not _RECEIVED_PIECE_RE.search(text)
+
+
+def _is_cancel_order_question(text: str) -> bool:
+    return (
+        bool(_CANCEL_ORDER_QUESTION_RE.search(text))
+        and not _SPECIFIC_ORDER_RE.search(text)
+        and not _CANCEL_COMPLAINT_RE.search(text)
+        and not _HUMAN_HANDOFF_RE.search(text)
+    )
+
+
 _LIST_NUMBER_RE = re.compile(r"^\s*[\"\u201c']?\s*\d{1,3}[.)]\s+(?=\S)")
 
 
@@ -717,6 +778,12 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
     if _SIZE_EXCHANGE_RE.search(normalized):
         return ("returns_refund", 0.92)
     if _CUSTOMISATION_QUESTION_RE.search(normalized):
+        return ("general", 0.95)
+    if _is_ring_fit_question(normalized):
+        return ("general", 0.95)
+    if _is_cancel_order_question(normalized):
+        return ("general", 0.95)
+    if _NATURAL_DIAMOND_QUESTION_RE.search(normalized):
         return ("general", 0.95)
     if (
         _HANDOFF_STATUS_RE.search(normalized)
