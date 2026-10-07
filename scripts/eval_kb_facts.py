@@ -121,8 +121,10 @@ async def ask(q: str, instructions: str, sem: asyncio.Semaphore) -> dict:
     from kisna_chatbot.processors.code_served_facts import (
         EMI_BANKS_TEXT,
         KARAT_COMPARISON_TEXT,
+        RING_FIT_TEXT,
         is_emi_banks_question,
         is_karat_comparison,
+        is_ring_fit_question,
     )
     from kisna_chatbot.processors.general_agent import _replace_sentence_unfortunately
     from kisna_chatbot.prompts.general_agent_kisna import output_schema, request_live_agent_tool
@@ -132,6 +134,8 @@ async def ask(q: str, instructions: str, sem: asyncio.Semaphore) -> dict:
         return {"q": q, "a": KARAT_COMPARISON_TEXT, "tool": False}
     if is_emi_banks_question(q):
         return {"q": q, "a": EMI_BANKS_TEXT, "tool": False}
+    if is_ring_fit_question(q):
+        return {"q": q, "a": RING_FIT_TEXT, "tool": False}
     async with sem:
         messages = [
             {"role": "system", "content": "Username: Customer"},

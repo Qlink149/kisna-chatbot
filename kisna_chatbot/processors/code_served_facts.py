@@ -15,6 +15,9 @@ reply is decided in code and the model never sees the question.
     3. "Which banks offer EMI?" (client test, 2026-10-05) -- `emi_banks_response`
        below. Reason: client requires exact wording (their "Customers commonly
        ask" paragraph, verbatim); the model's paraphrase was flagged.
+    4. "What if the ring doesn't fit?" (client, 2026-10-07) -- `ring_fit_response`
+       below. Reason: client's exact sentence; the model opened this
+       pre-purchase question with the complaint apology.
 
 If a THIRD fact needs this treatment, revisit the model choice, not the prompt.
 """
@@ -82,6 +85,48 @@ def is_emi_banks_question(text: str | None) -> bool:
     """An EMI question that names banks ("Which banks offer EMI?")."""
     t = text or ""
     return bool(_EMI_RE.search(t) and _BANK_RE.search(t))
+
+
+# "What if the ring doesn't fit?" / "ring doesnt fit" / "ring size is wrong
+# what now": a pre-purchase sizing question. A ring that was delivered or
+# received is a real order problem and is left to the classifier (complaint /
+# returns_refund).
+RING_FIT_TEXT = (
+    "No worries! If the ring doesn't fit, just reach out to us and we'll help "
+    "you with the available size exchange or resizing options."
+)
+RING_FIT_COMPOSE_KEY = "ring_fit_canned"
+_DOES_NOT_FIT = r"(?:does(?:\s+not|n[\u2019']?t)|doesnt|do(?:\s+not|n[\u2019']?t)|dont|won[\u2019']?t|wont|will\s+not)\s+fit"
+_RING_FIT_QUESTION_RE = re.compile(
+    rf"\bwhat\s+if\b.*\b(?:ring|size)\b.*\b{_DOES_NOT_FIT}\b"
+    rf"|\bring\s+{_DOES_NOT_FIT}\b"
+    r"|\bring\s+size\s+(?:is\s+)?wrong\b",
+    re.I,
+)
+_RECEIVED_PIECE_RE = re.compile(
+    r"\b(?:deliver\w*|receiv\w*|got|sent|shipped|arrived|came|mila|aaya|aayi)\b", re.I
+)
+
+
+def is_ring_fit_question(text: str | None) -> bool:
+    t = text or ""
+    return bool(_RING_FIT_QUESTION_RE.search(t)) and not _RECEIVED_PIECE_RE.search(t)
+
+
+def ring_fit_response() -> list[dict]:
+    return [{"type": "text", "text": RING_FIT_TEXT, "_compose": RING_FIT_COMPOSE_KEY, "_pin": ()}]
+
+
+def serve_ring_fit(data: dict) -> None:
+    data["bot_response"] = ring_fit_response()
+    data["classified_category"] = "ring_fit"
+    data["_trace_outcome"] = "canned_sent"
+    try:
+        from kisna_chatbot.utils.message_trace import trace_step
+
+        trace_step(data, "Result", "Canned answer: ring fit (client wording, served by code)")
+    except Exception:
+        pass
 
 
 def emi_banks_response() -> list[dict]:

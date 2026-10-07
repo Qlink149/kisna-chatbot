@@ -11,6 +11,7 @@ from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.ad_flow_agent import _PINCODE_ONLY_RE
 from kisna_chatbot.processors.code_served_facts import (
     is_karat_comparison,
+    is_ring_fit_question,
     serve_karat_comparison,
 )
 from kisna_chatbot.processors.entity_extractor import (
@@ -292,21 +293,15 @@ _CUSTOMISATION_QUESTION_RE = re.compile(
     re.I,
 )
 
-# "What if the ring doesn't fit?" / "ring size is wrong what now": a sizing
-# question the KB answers (size exchange or resizing: free, 7-10 business
-# days, depends on the design). Pinned in code: the LLM said general, but its
-# "ring" entity then tripped the category guard into the shopping wizard
-# ("Who is it for?"). A ring that was delivered / received is about a real
-# order and is left to the LLM (complaint / returns_refund).
-_DOES_NOT_FIT = r"(?:does(?:\s+not|n[’']?t)|doesnt|do(?:\s+not|n[’']?t)|dont|won[’']?t|wont|will\s+not)\s+fit"
-_RING_FIT_QUESTION_RE = re.compile(
-    rf"\bwhat\s+if\b.*\b(?:ring|size)\b.*\b{_DOES_NOT_FIT}\b"
-    rf"|\bring\s+{_DOES_NOT_FIT}\b"
-    r"|\bring\s+size\s+(?:is\s+)?wrong\b",
+# "Can I engrave a name?" (client #32): the KB answer (customisation,
+# including engraving, is not available). Pinned in code: with a chat history
+# the LLM handed it off 10/10. A request to have it done ("engraving chahiye",
+# "I want my name engraved") is caught first by _is_custom_jewellery_query and
+# stays a handoff.
+_ENGRAVE_QUESTION_RE = re.compile(
+    r"^\s*(?:\d{1,3}[.)]\s*)?(?:can|could|may)\s+(?:i|we)\s+(?:get\s+(?:it\s+|a\s+name\s+)?)?"
+    r"(?:engrav\w*|personali[sz]\w*)",
     re.I,
-)
-_RECEIVED_PIECE_RE = re.compile(
-    r"\b(?:deliver\w*|receiv\w*|got|sent|shipped|arrived|came|mila|aaya|aayi)\b", re.I
 )
 
 # "Can I cancel my order?" / "how do I cancel my order" / "order cancel karna
@@ -338,10 +333,6 @@ _NATURAL_DIAMOND_QUESTION_RE = re.compile(
     r"(?:an?\s+)?(?:natural|real|lab[\s-]?grown|lab[\s-]?made|synthetic)\b",
     re.I,
 )
-
-
-def _is_ring_fit_question(text: str) -> bool:
-    return bool(_RING_FIT_QUESTION_RE.search(text)) and not _RECEIVED_PIECE_RE.search(text)
 
 
 def _is_cancel_order_question(text: str) -> bool:
@@ -779,7 +770,12 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
         return ("returns_refund", 0.92)
     if _CUSTOMISATION_QUESTION_RE.search(normalized):
         return ("general", 0.95)
-    if _is_ring_fit_question(normalized):
+    if _ENGRAVE_QUESTION_RE.search(normalized):
+        return ("general", 0.95)
+    # Ring fit: pinned here because the LLM's "ring" entity tripped the
+    # category guard into the shopping wizard; the GeneralAgent then serves
+    # the client's sentence (code_served_facts.RING_FIT_TEXT).
+    if is_ring_fit_question(normalized):
         return ("general", 0.95)
     if _is_cancel_order_question(normalized):
         return ("general", 0.95)
