@@ -9,8 +9,10 @@ from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.code_served_facts import (
     is_emi_banks_question,
     is_karat_comparison,
+    is_ring_fit_question,
     serve_emi_banks,
     serve_karat_comparison,
+    serve_ring_fit,
 )
 from kisna_chatbot.processors.shopping_wizard import DIGITAL_GOLD_URL, GRP_URL, KMR_URL
 from kisna_chatbot.utils.format_chathistory import format_recent_history_str
@@ -267,6 +269,10 @@ class GeneralAgent(Processor):
                 return data
             if is_emi_banks_question(user_query):
                 serve_emi_banks(data)
+                user_profile["service_selected"] = ""
+                return data
+            if is_ring_fit_question(user_query):
+                serve_ring_fit(data)
                 user_profile["service_selected"] = ""
                 return data
 

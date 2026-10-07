@@ -254,6 +254,7 @@
     {"text": "show me rings in size 12", "expected": ["product_search"], "tags": ["tester_fit_cancel"]},
     {"text": "Is this natural diamond?", "expected": ["general"], "tags": ["kisna_test_round"]},
     {"text": "3. Is this natural diamond?", "expected": ["general"], "tags": ["kisna_test_round"]},
-    {"text": "show me natural diamond rings", "expected": ["product_search"], "tags": ["kisna_test_round"]}
+    {"text": "show me natural diamond rings", "expected": ["product_search"], "tags": ["kisna_test_round"]},
+    {"text": "51. My refund hasn't come", "expected": ["refund_status"], "tags": ["kisna_test_round"]}
   ]
 }

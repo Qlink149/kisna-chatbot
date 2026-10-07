@@ -159,6 +159,18 @@ class RoutingHelperTests(unittest.TestCase):
                 self.assertNotEqual(_programmatic_intent_override(q), ("general", 0.95))
         self.assertEqual(_programmatic_intent_override("Can I exchange it for another size?"), ("returns_refund", 0.92))
 
+    def test_engraving_question_gets_the_kb_answer(self):
+        # With the tester's history the LLM handed it off 10/10.
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override, strip_list_number
+
+        for q in ("Can I engrave a name?", "32. Can I engrave a name?", "32.\tCan I engrave a name?",
+                  "can i get it engraved", "Can I personalise it?"):
+            with self.subTest(q=q):
+                self.assertEqual(_programmatic_intent_override(strip_list_number(q)), ("general", 0.95))
+        for q in ("engraving chahiye", "I want my name engraved", "naam likhwana hai", "I want to place a custom order"):
+            with self.subTest(q=q):
+                self.assertEqual(_programmatic_intent_override(q), ("human_handoff", 0.95))
+
     def test_natural_diamond_question_gets_the_kb_answer(self):
         # 9/10 the LLM returned "product_question" (an entity field, not an
         # intent), which ends in "Sorry, I didn't catch that".
@@ -386,6 +398,38 @@ class EmiBanksTests(unittest.TestCase):
 
     def test_registry_names_it_with_the_reason(self):
         self.assertIn("client requires exact wording", csf.__doc__)
+
+
+class RingFitTests(unittest.TestCase):
+    # Client's answer, 2026-10-07: a pre-purchase "what if", not a complaint --
+    # no "I'm sorry for the inconvenience" opener.
+    CLIENT = ("No worries! If the ring doesn't fit, just reach out to us and we'll help "
+              "you with the available size exchange or resizing options.")
+
+    def test_exact_client_sentence(self):
+        self.assertEqual(csf.RING_FIT_TEXT, self.CLIENT)
+        self.assertNotIn("sorry", csf.RING_FIT_TEXT.lower())
+
+    def test_trigger(self):
+        for q in ("What if the ring doesn't fit?", "12. What if the ring doesn\u2019t fit?", "ring doesnt fit",
+                  "ring size is wrong what now", "what if the size does not fit"):
+            with self.subTest(q=q):
+                self.assertTrue(csf.is_ring_fit_question(q))
+        for q in ("the ring I received doesn't fit", "ring delivered yesterday doesnt fit", "wrong size delivered",
+                  "How do I know my ring size?", "Is resizing free?", "show me rings in size 12"):
+            with self.subTest(q=q):
+                self.assertFalse(csf.is_ring_fit_question(q))
+
+    def test_general_agent_serves_it_without_the_model(self):
+        for q in ("12. What if the ring doesn't fit?", "ring size is wrong what now"):
+            data = {"phone_number": "919812345678", "client_id": "kisna",
+                    "messages": {"text": {"body": q}}, "user_profile": {"language": "en"}}
+            with patch("kisna_chatbot.processors.general_agent.run_general_agent", new_callable=AsyncMock) as run:
+                out = asyncio.run(GeneralAgent().process(data))
+            with self.subTest(q=q):
+                run.assert_not_awaited()
+                self.assertEqual(out["bot_response"][0]["text"], self.CLIENT)
+                self.assertEqual(out["_trace_outcome"], "canned_sent")
 
 
 class CertificateButtonTests(unittest.TestCase):
