@@ -293,6 +293,23 @@ _CUSTOMISATION_QUESTION_RE = re.compile(
     re.I,
 )
 
+# "ring doesnt fit" / "ring size is wrong what now" / "my ring is loose": the
+# customer states a real fit problem -> the complaint form (where prod's LLM
+# sent "ring doesnt fit" 10/10), not the "reach out to us" sentence that
+# answers the hypothetical "What if the ring doesn't fit?". Pinned because the
+# LLM's "ring" entity can otherwise trip the category guard into the shopping
+# wizard.
+_RING_FIT_STATEMENT_RE = re.compile(
+    r"\bring\b.*\b(?:does(?:\s+not|n[\u2019']?t)|doesnt|do(?:\s+not|n[\u2019']?t)|dont|won[\u2019']?t|wont|is\s+not|isn[\u2019']?t)\s+fit"
+    r"|\bring\s+size\s+(?:is\s+)?wrong\b|\bwrong\s+ring\s+size\b"
+    r"|\bring\b.*\b(?:is|feels|was)\s+(?:too\s+|very\s+|a\s+bit\s+)?(?:loose|tight|big|small)\b",
+    re.I,
+)
+
+# "Compliant" on its own: a typo of "complaint" (client test). Prod's LLM read
+# it as general 4/10.
+_COMPLAINT_TYPO_RE = re.compile(r"^\s*(?:compliant|complain|complaint|complant|complait)\s*[.!]*\s*$", re.I)
+
 # "Can I engrave a name?" (client #32): the KB answer (customisation,
 # including engraving, is not available). Pinned in code: with a chat history
 # the LLM handed it off 10/10. A request to have it done ("engraving chahiye",
@@ -773,10 +790,15 @@ def _programmatic_intent_override(text: str) -> tuple[str, float] | None:
     if _ENGRAVE_QUESTION_RE.search(normalized):
         return ("general", 0.95)
     # Ring fit: pinned here because the LLM's "ring" entity tripped the
-    # category guard into the shopping wizard; the GeneralAgent then serves
-    # the client's sentence (code_served_facts.RING_FIT_TEXT).
+    # category guard into the shopping wizard. The hypothetical question gets
+    # the client's sentence (GeneralAgent, code_served_facts.RING_FIT_TEXT);
+    # a statement of a fit problem gets the complaint form.
     if is_ring_fit_question(normalized):
         return ("general", 0.95)
+    if _RING_FIT_STATEMENT_RE.search(normalized):
+        return ("complaint", 0.92)
+    if _COMPLAINT_TYPO_RE.match(normalized):
+        return ("complaint", 0.95)
     if _is_cancel_order_question(normalized):
         return ("general", 0.95)
     if _NATURAL_DIAMOND_QUESTION_RE.search(normalized):

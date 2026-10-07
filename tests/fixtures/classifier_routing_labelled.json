@@ -241,8 +241,8 @@
     {"text": "I want a human agent", "expected": ["human_handoff"], "tags": ["kisna_test_round"]},
     {"text": "what if the ring doesn't fit?", "expected": ["general"], "tags": ["tester_fit_cancel"]},
     {"text": "What if the ring doesn't fit", "expected": ["general"], "tags": ["tester_fit_cancel"]},
-    {"text": "ring doesnt fit", "expected": ["general"], "tags": ["tester_fit_cancel"]},
-    {"text": "ring size is wrong what now", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "ring doesnt fit", "expected": ["complaint", "returns_refund"], "tags": ["tester_fit_cancel"]},
+    {"text": "ring size is wrong what now", "expected": ["complaint", "returns_refund"], "tags": ["tester_fit_cancel"]},
     {"text": ". Can I cancel my order?", "expected": ["general"], "tags": ["tester_fit_cancel"]},
     {"text": "can i cancel my order?", "expected": ["general"], "tags": ["tester_fit_cancel"]},
     {"text": "Can I cancel my order", "expected": ["general"], "tags": ["tester_fit_cancel"]},
@@ -255,6 +255,8 @@
     {"text": "Is this natural diamond?", "expected": ["general"], "tags": ["kisna_test_round"]},
     {"text": "3. Is this natural diamond?", "expected": ["general"], "tags": ["kisna_test_round"]},
     {"text": "show me natural diamond rings", "expected": ["product_search"], "tags": ["kisna_test_round"]},
-    {"text": "51. My refund hasn't come", "expected": ["refund_status"], "tags": ["kisna_test_round"]}
+    {"text": "51. My refund hasn't come", "expected": ["refund_status"], "tags": ["kisna_test_round"]},
+    {"text": "my ring is loose", "expected": ["complaint", "returns_refund"], "tags": ["tester_fit_cancel"]},
+    {"text": "Compliant", "expected": ["complaint"], "tags": ["tester_fit_cancel"]}
   ]
 }

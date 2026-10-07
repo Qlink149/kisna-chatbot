@@ -87,10 +87,11 @@ def is_emi_banks_question(text: str | None) -> bool:
     return bool(_EMI_RE.search(t) and _BANK_RE.search(t))
 
 
-# "What if the ring doesn't fit?" / "ring doesnt fit" / "ring size is wrong
-# what now": a pre-purchase sizing question. A ring that was delivered or
-# received is a real order problem and is left to the classifier (complaint /
-# returns_refund).
+# "What if the ring doesn't fit?" (with a list number, lower case, no question
+# mark): the hypothetical, pre-purchase question only. A statement that a ring
+# does not fit ("ring doesnt fit", "my ring is loose") is a real problem: the
+# classifier pins those to the complaint form (classifier._RING_FIT_STATEMENT_RE),
+# and a delivered / received ring is never this answer either.
 RING_FIT_TEXT = (
     "No worries! If the ring doesn't fit, just reach out to us and we'll help "
     "you with the available size exchange or resizing options."
@@ -98,9 +99,7 @@ RING_FIT_TEXT = (
 RING_FIT_COMPOSE_KEY = "ring_fit_canned"
 _DOES_NOT_FIT = r"(?:does(?:\s+not|n[\u2019']?t)|doesnt|do(?:\s+not|n[\u2019']?t)|dont|won[\u2019']?t|wont|will\s+not)\s+fit"
 _RING_FIT_QUESTION_RE = re.compile(
-    rf"\bwhat\s+if\b.*\b(?:ring|size)\b.*\b{_DOES_NOT_FIT}\b"
-    rf"|\bring\s+{_DOES_NOT_FIT}\b"
-    r"|\bring\s+size\s+(?:is\s+)?wrong\b",
+    rf"^\s*(?:\d{{1,3}}[.)]\s*)?what\s+if\b.*\b(?:ring|size)\b.*\b{_DOES_NOT_FIT}\b",
     re.I,
 )
 _RECEIVED_PIECE_RE = re.compile(

@@ -140,7 +140,7 @@ class RoutingHelperTests(unittest.TestCase):
         from kisna_chatbot.processors.classifier import _programmatic_intent_override, strip_list_number
 
         for q in ("What if the ring doesn't fit?", "12. What if the ring doesn't fit?", "what if the ring doesn’t fit?",
-                  "What if the ring doesn't fit", "ring doesnt fit", "ring size is wrong what now",
+                  "What if the ring doesn't fit",
                   "what if the size does not fit", "Can I cancel my order?", "46. Can I cancel my order?",
                   ". Can I cancel my order?", "can i cancel my order?", "Can I cancel my order", "how do I cancel my order",
                   "cancel order", "order cancel karna hai", "is cancellation possible?"):
@@ -158,6 +158,44 @@ class RoutingHelperTests(unittest.TestCase):
             with self.subTest(q=q):
                 self.assertNotEqual(_programmatic_intent_override(q), ("general", 0.95))
         self.assertEqual(_programmatic_intent_override("Can I exchange it for another size?"), ("returns_refund", 0.92))
+
+    def test_ring_fit_statements_get_the_complaint_form(self):
+        # A customer saying the ring does not fit has a real problem: the
+        # complaint form, not the "reach out to us" sentence (client, 2026-10-07).
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override
+
+        for q in ("ring doesnt fit", "ring size is wrong what now", "my ring is loose", "my ring is too tight",
+                  "the ring I received doesn't fit", "wrong ring size"):
+            with self.subTest(q=q):
+                self.assertEqual(_programmatic_intent_override(q), ("complaint", 0.92))
+        for q in ("show me rings in size 12", "small ring for my daughter", "How do I know my ring size?"):
+            with self.subTest(q=q):
+                self.assertIsNone(_programmatic_intent_override(q))
+
+    def test_ring_fit_statement_gets_the_form_end_to_end(self):
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go(text):
+            data = {"phone_number": "919999999999", "messages": {"text": {"body": text}},
+                    "user_profile": {"chat_history": [], "service_selected": ""}, "client_id": "kisna"}
+            llm = AsyncMock(side_effect=AssertionError("model must not be called"))
+            with patch("kisna_chatbot.processors.classifier.complete_chat", llm):
+                return await Classifier().process(data)
+
+        for text in ("ring doesnt fit", "ring size is wrong what now", "my ring is loose"):
+            with self.subTest(text=text):
+                data = asyncio.run(_go(text))
+                self.assertEqual(data["classified_category"], "complaint")
+                self.assertEqual(data["user_profile"]["service_selected"], "complaint")
+                self.assertIn("type", data["bot_response"][0])
+
+    def test_compliant_typo_is_a_complaint(self):
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override
+
+        for q in ("Compliant", "compliant.", "complain", "Complaint"):
+            with self.subTest(q=q):
+                self.assertEqual(_programmatic_intent_override(q), ("complaint", 0.95))
+        self.assertIsNone(_programmatic_intent_override("I have a complaint about the compliant process"))
 
     def test_engraving_question_gets_the_kb_answer(self):
         # With the tester's history the LLM handed it off 10/10.
@@ -411,17 +449,18 @@ class RingFitTests(unittest.TestCase):
         self.assertNotIn("sorry", csf.RING_FIT_TEXT.lower())
 
     def test_trigger(self):
-        for q in ("What if the ring doesn't fit?", "12. What if the ring doesn\u2019t fit?", "ring doesnt fit",
-                  "ring size is wrong what now", "what if the size does not fit"):
+        for q in ("What if the ring doesn't fit?", "12. What if the ring doesn\u2019t fit?", "12.\tWhat if the ring doesn't fit?",
+                  "what if the ring doesn't fit", "what if the size does not fit"):
             with self.subTest(q=q):
                 self.assertTrue(csf.is_ring_fit_question(q))
-        for q in ("the ring I received doesn't fit", "ring delivered yesterday doesnt fit", "wrong size delivered",
+        for q in ("ring doesnt fit", "ring size is wrong what now", "my ring is loose",
+                  "the ring I received doesn't fit", "ring delivered yesterday doesnt fit", "wrong size delivered",
                   "How do I know my ring size?", "Is resizing free?", "show me rings in size 12"):
             with self.subTest(q=q):
                 self.assertFalse(csf.is_ring_fit_question(q))
 
     def test_general_agent_serves_it_without_the_model(self):
-        for q in ("12. What if the ring doesn't fit?", "ring size is wrong what now"):
+        for q in ("12. What if the ring doesn't fit?", "what if the ring doesn't fit"):
             data = {"phone_number": "919812345678", "client_id": "kisna",
                     "messages": {"text": {"body": q}}, "user_profile": {"language": "en"}}
             with patch("kisna_chatbot.processors.general_agent.run_general_agent", new_callable=AsyncMock) as run:
