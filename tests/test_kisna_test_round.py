@@ -58,9 +58,11 @@ class ClassifierPromptTests(unittest.TestCase):
         self.assertIn('"diamond card" -> general', CLASSIFIER_PROMPT)
 
     def test_explicit_handoffs_stay(self):
-        for line in ('"order cancel karna hai" -> human_handoff', '"cancel my order #KIS12345" -> human_handoff',
+        for line in ('"cancel my order #KIS12345" -> human_handoff',
                      '"I want to place a custom order" -> human_handoff', '"talk to a human" -> human_handoff'):
             self.assertIn(line, CLASSIFIER_PROMPT)
+        # No specific order: the KB says how to cancel (pinned in code too).
+        self.assertIn('"order cancel karna hai" | "cancel order" | "how do I cancel my order" -> general', CLASSIFIER_PROMPT)
 
 
 class CustomOverrideTests(unittest.TestCase):
@@ -131,6 +133,72 @@ class RoutingHelperTests(unittest.TestCase):
             with self.subTest(q=q):
                 self.assertEqual(_programmatic_intent_override(q), ("returns_refund", 0.92))
         self.assertIsNone(_programmatic_intent_override("Can I change the size?"))
+
+    def test_ring_fit_and_cancel_questions_get_the_kb_answer(self):
+        # Tester 917977104875, 2026-10-06: the ring question reached the
+        # shopping wizard, the cancel question a live-agent handoff.
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override, strip_list_number
+
+        for q in ("What if the ring doesn't fit?", "12. What if the ring doesn't fit?", "what if the ring doesn’t fit?",
+                  "What if the ring doesn't fit", "ring doesnt fit", "ring size is wrong what now",
+                  "what if the size does not fit", "Can I cancel my order?", "46. Can I cancel my order?",
+                  ". Can I cancel my order?", "can i cancel my order?", "Can I cancel my order", "how do I cancel my order",
+                  "cancel order", "order cancel karna hai", "is cancellation possible?"):
+            with self.subTest(q=q):
+                self.assertEqual(_programmatic_intent_override(strip_list_number(q)), ("general", 0.95))
+
+    def test_specific_orders_complaints_and_shopping_keep_their_routes(self):
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override
+
+        for q in ("cancel my order #1234", "cancel order KIS-SV-20260929-D172", "cancel my order 12345678",
+                  "cancel order id ABC", "I want to cancel my order, the product is damaged",
+                  "connect me to an agent to cancel my order", "wrong size delivered", "the ring I received doesn't fit",
+                  "ring delivered yesterday doesnt fit", "show me rings in size 12", "I have a complaint",
+                  "My product is damaged", "How do I know my ring size?", "Is resizing free?"):
+            with self.subTest(q=q):
+                self.assertNotEqual(_programmatic_intent_override(q), ("general", 0.95))
+        self.assertEqual(_programmatic_intent_override("Can I exchange it for another size?"), ("returns_refund", 0.92))
+
+    def test_natural_diamond_question_gets_the_kb_answer(self):
+        # 9/10 the LLM returned "product_question" (an entity field, not an
+        # intent), which ends in "Sorry, I didn't catch that".
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override, strip_list_number
+
+        for q in ("Is this natural diamond?", "3. Is this natural diamond?", "is it natural or lab grown",
+                  "Are these lab-grown?", "Is the diamond natural?", "Are your diamonds real?"):
+            with self.subTest(q=q):
+                self.assertEqual(_programmatic_intent_override(strip_list_number(q)), ("general", 0.95))
+        for q in ("show me natural diamond rings", "natural diamond earrings under 50k", "Is this genuine?"):
+            with self.subTest(q=q):
+                self.assertIsNone(_programmatic_intent_override(q))
+
+    def test_ring_fit_skips_the_category_guard(self):
+        # The LLM said general; its "ring" entity then turned that into
+        # product_search. The pin answers before either model call.
+        import json as _json
+
+        from kisna_chatbot.processors.classifier import Classifier
+
+        async def _go(text):
+            data = {
+                "phone_number": "919999999999",
+                "messages": {"text": {"body": text}},
+                "user_profile": {"chat_history": [], "service_selected": ""},
+                "client_id": "kisna",
+            }
+            llm = AsyncMock(return_value=_json.dumps({"intent": "general", "confidence": 0.9, "entities": {"category": "ring"}}))
+            with patch("kisna_chatbot.processors.classifier.complete_chat", llm), patch(
+                "kisna_chatbot.processors.entity_extractor.extract_entities_with_llm",
+                new_callable=AsyncMock,
+                return_value={"category": "ring"},
+            ):
+                return await Classifier().process(data), llm
+
+        for text in ("What if the ring doesn't fit?", "12. What if the ring doesn't fit?", "Can I cancel my order?"):
+            with self.subTest(text=text):
+                data, llm = asyncio.run(_go(text))
+                self.assertEqual(data["classified_category"], "general")
+                llm.assert_not_called()
 
 
 # A Tuesday, 11:00 IST: inside working hours, no holiday.

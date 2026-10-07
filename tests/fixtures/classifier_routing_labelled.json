@@ -126,7 +126,7 @@
     {"text": "agent se baat karni hai", "expected": ["human_handoff"], "tags": ["hinglish"]},
     {"text": "customer care", "expected": ["human_handoff", "general"], "tags": ["ambiguous"]},
     {"text": "custom ring banwana hai", "expected": ["human_handoff"], "tags": ["hinglish"]},
-    {"text": "order cancel karna hai", "expected": ["human_handoff"], "tags": ["hinglish"]},
+    {"text": "order cancel karna hai", "expected": ["general"], "tags": ["hinglish"]},
     {"text": "I want to modify my order", "expected": ["human_handoff"], "tags": []},
 
     {"text": "call me back", "expected": ["callback"], "tags": []},
@@ -238,6 +238,22 @@
     {"text": "engraving chahiye", "expected": ["human_handoff"], "tags": ["kisna_test_round"]},
     {"text": "48. I want to talk to an expert or connect to expert or call back", "expected": ["human_handoff", "callback"], "tags": ["kisna_test_round"]},
     {"text": "52. I want a connect human agent", "expected": ["human_handoff"], "tags": ["kisna_test_round"]},
-    {"text": "I want a human agent", "expected": ["human_handoff"], "tags": ["kisna_test_round"]}
+    {"text": "I want a human agent", "expected": ["human_handoff"], "tags": ["kisna_test_round"]},
+    {"text": "what if the ring doesn't fit?", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "What if the ring doesn't fit", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "ring doesnt fit", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "ring size is wrong what now", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": ". Can I cancel my order?", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "can i cancel my order?", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "Can I cancel my order", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "how do I cancel my order", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "cancel order", "expected": ["general"], "tags": ["tester_fit_cancel"]},
+    {"text": "cancel my order #1234", "expected": ["human_handoff"], "tags": ["tester_fit_cancel"]},
+    {"text": "cancel order KIS12345678", "expected": ["human_handoff"], "tags": ["tester_fit_cancel"]},
+    {"text": "wrong size delivered", "expected": ["complaint", "returns_refund"], "tags": ["tester_fit_cancel"]},
+    {"text": "show me rings in size 12", "expected": ["product_search"], "tags": ["tester_fit_cancel"]},
+    {"text": "Is this natural diamond?", "expected": ["general"], "tags": ["kisna_test_round"]},
+    {"text": "3. Is this natural diamond?", "expected": ["general"], "tags": ["kisna_test_round"]},
+    {"text": "show me natural diamond rings", "expected": ["product_search"], "tags": ["kisna_test_round"]}
   ]
 }

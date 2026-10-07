@@ -98,7 +98,7 @@ work — they are product_search, never human_handoff.
 **unsubscribe** — asking to STOP receiving messages: "unsubscribe", "stop",
 "remove my number", "don't message me again", "mujhe message mat bhejo",
 and the same in any language. NOT "stop showing me gold ones" (that is a
-search refinement) and NOT order cancellation (that is human_handoff).
+search refinement) and NOT order cancellation (that is general, or human_handoff for a specific order).
 
 **gold_rate** — Today's gold price as a metal ("aaj ka rate", "sone ka bhav",
 "22kt ka rate"). NOT product prices.
@@ -467,7 +467,7 @@ Fallback for unclear or spam/gibberish:
 "can you schedule a video call?" -> video_call .95
 "video pe jewellery dikha sakte ho?" -> video_call .9
 "mera order damage aa gaya" -> complaint .93
-"order cancel karna hai" -> human_handoff .88
+"order cancel karna hai" | "cancel order" | "how do I cancel my order" -> general .9   (no specific order: the KB says how)
 "cancel my order #KIS12345" -> human_handoff .9   (a specific order)
 "change the address on my order" -> human_handoff .88
 "I want to place a custom order" -> human_handoff .95
