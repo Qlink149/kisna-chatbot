@@ -31,14 +31,15 @@ _MEDIA_PRESIGN_TTL_SECONDS = 7200
 
 
 def _presigned_media(media: dict | None) -> dict | None:
-    """Mint a fresh presigned URL for a stored media reference. Returns the
+    """A presigned URL for a stored media reference -- the same one on every
+    refresh until it is half expired (media_store.presign_get_stable). Returns the
     media dict unchanged except for `url` (added, or None if B2 isn't
     configured / presign fails -- the dashboard renders an "unavailable"
     placeholder in that case)."""
     if not media:
         return None
     out = dict(media)
-    out["url"] = media_store.presign_get(media.get("b2_key"), _MEDIA_PRESIGN_TTL_SECONDS)
+    out["url"] = media_store.presign_get_stable(media.get("b2_key"), _MEDIA_PRESIGN_TTL_SECONDS)
     return out
 
 

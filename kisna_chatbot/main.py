@@ -926,7 +926,7 @@ async def process_message(
 
                         sse_media = {
                             **inbound_media,
-                            "url": media_store.presign_get(
+                            "url": media_store.presign_get_stable(
                                 inbound_media["b2_key"], 7200
                             ),
                         }

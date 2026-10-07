@@ -109,7 +109,7 @@ class TestChatPagination(unittest.TestCase):
     def test_get_paginated_messages_presigns_media_url(self, mock_coll, mock_store):
         from kisna_chatbot.database.db_utils import get_paginated_chat_messages
 
-        mock_store.presign_get.return_value = "https://b2.example/signed"
+        mock_store.presign_get_stable.return_value = "https://b2.example/signed"
         media = {"kind": "image", "b2_key": "kisna/inbound/x.jpg", "mime": "image/jpeg"}
         docs = [{"_id": "id1", "role": "user", "content": "[Image]", "ts": 1000, "media": media}]
 
@@ -125,7 +125,7 @@ class TestChatPagination(unittest.TestCase):
         page = get_paginated_chat_messages("9199", "kisna", limit=50)
         self.assertEqual(page["messages"][0]["media"]["url"], "https://b2.example/signed")
         self.assertEqual(page["messages"][0]["media"]["b2_key"], "kisna/inbound/x.jpg")
-        mock_store.presign_get.assert_called_once_with("kisna/inbound/x.jpg", 7200)
+        mock_store.presign_get_stable.assert_called_once_with("kisna/inbound/x.jpg", 7200)
 
     @patch("kisna_chatbot.database.db_utils.chat_messages")
     def test_get_paginated_messages_media_none_when_absent(self, mock_coll):

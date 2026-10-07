@@ -17,6 +17,8 @@ Env vars (all required together, see ``.env.example``):
 """
 
 import os
+import threading
+import time
 from functools import lru_cache
 
 from kisna_chatbot.utils.logger_config import logger
@@ -114,3 +116,36 @@ def presign_get(key: str, ttl_seconds: int) -> str | None:
     except Exception:
         logger.exception("B2 presign failed", extra={"key": key})
         return None
+
+
+# Display links, reused per (key, ttl) while more than half their life is left.
+# A fresh signature on every call gave the same file a new URL on every
+# 5-second dashboard refresh, so browsers downloaded every image and video in
+# the open chat again each time -- 1 GB/day against 229 MB stored, and the B2
+# daily download cap ran out (2026-10-07: every file "Media unavailable", agent
+# media not fetchable by WhatsApp). One uvicorn worker, so one cache serves
+# every request.
+_STABLE_MAX_ENTRIES = 5000
+_stable_links: dict[tuple[str, int], tuple[str, float]] = {}
+_stable_lock = threading.Lock()
+
+
+def presign_get_stable(key: str | None, ttl_seconds: int) -> str | None:
+    """``presign_get`` for showing a file: the same URL for the same key until
+    less than half of ``ttl_seconds`` remains, then a new one. Not for links
+    handed to WhatsApp -- those use ``presign_get`` directly."""
+    if not key:
+        return None
+    cache_key = (key, int(ttl_seconds))
+    now = time.time()
+    with _stable_lock:
+        hit = _stable_links.get(cache_key)
+        if hit and hit[1] - now > ttl_seconds / 2:
+            return hit[0]
+    url = presign_get(key, ttl_seconds)
+    if url:
+        with _stable_lock:
+            if cache_key not in _stable_links and len(_stable_links) >= _STABLE_MAX_ENTRIES:
+                _stable_links.pop(next(iter(_stable_links)))  # oldest insert
+            _stable_links[cache_key] = (url, now + ttl_seconds)
+    return url

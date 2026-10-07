@@ -137,5 +137,60 @@ class ClientConstructionTests(unittest.TestCase):
         media_store._client.cache_clear()
 
 
+class StableLinkTests(unittest.TestCase):
+    """2026-10-07: a new signed URL on every 5-second dashboard refresh made
+    browsers re-download every file in the open chat and used up the B2 daily
+    download cap. Display links are now reused until half expired."""
+
+    def setUp(self):
+        media_store._stable_links.clear()
+        self.calls = []
+
+        def fake_presign(key, ttl):
+            self.calls.append((key, ttl))
+            return f"https://b2.example/{key}?sig={len(self.calls)}"
+
+        self._p = patch.object(media_store, "presign_get", side_effect=fake_presign)
+        self._p.start()
+
+    def tearDown(self):
+        self._p.stop()
+        media_store._stable_links.clear()
+
+    def test_same_link_on_every_refresh_until_half_expired(self):
+        with patch.object(media_store.time, "time", return_value=1000.0):
+            first = media_store.presign_get_stable("kisna/outbound/a.jpg", 7200)
+            again = media_store.presign_get_stable("kisna/outbound/a.jpg", 7200)
+        self.assertEqual(first, again)
+        with patch.object(media_store.time, "time", return_value=1000.0 + 3599):
+            self.assertEqual(media_store.presign_get_stable("kisna/outbound/a.jpg", 7200), first)
+        with patch.object(media_store.time, "time", return_value=1000.0 + 3601):
+            fresh = media_store.presign_get_stable("kisna/outbound/a.jpg", 7200)
+        self.assertNotEqual(fresh, first)
+        self.assertEqual(len(self.calls), 2)
+
+    def test_each_file_and_ttl_has_its_own_link(self):
+        a = media_store.presign_get_stable("kisna/a.jpg", 7200)
+        b = media_store.presign_get_stable("kisna/b.mp4", 7200)
+        c = media_store.presign_get_stable("kisna/a.jpg", 900)
+        self.assertEqual(len({a, b, c}), 3)
+
+    def test_failures_and_missing_keys_are_not_cached(self):
+        self.assertIsNone(media_store.presign_get_stable(None, 7200))
+        self.assertIsNone(media_store.presign_get_stable("", 7200))
+        self.assertEqual(self.calls, [])
+        with patch.object(media_store, "presign_get", return_value=None):
+            self.assertIsNone(media_store.presign_get_stable("kisna/a.jpg", 7200))
+        self.assertEqual(media_store._stable_links, {})
+        self.assertTrue(media_store.presign_get_stable("kisna/a.jpg", 7200))
+
+    def test_cache_is_bounded(self):
+        with patch.object(media_store, "_STABLE_MAX_ENTRIES", 3):
+            for i in range(5):
+                media_store.presign_get_stable(f"kisna/{i}.jpg", 7200)
+        self.assertEqual(len(media_store._stable_links), 3)
+        self.assertNotIn(("kisna/0.jpg", 7200), media_store._stable_links)
+
+
 if __name__ == "__main__":
     unittest.main()
