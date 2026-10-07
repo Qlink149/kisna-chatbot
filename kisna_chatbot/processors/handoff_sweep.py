@@ -6,6 +6,11 @@
   (audit: 16 handoff events where the bot kept talking after promising a
   human, 108 stray turns; no ticket, no ETA, ever).
 
+  F12 -- if an agent took a chat over and has not sent a single message 5
+  minutes after the customer started waiting, send the F10 fallback form and
+  hand the chat back to the bot silently (no reconnect / rating messages);
+  live_agent_required stays set so the chat stays in the agent queue.
+
   F11 -- if a human_takeover has sat active for KISNA_TAKEOVER_TTL_SECONDS
   (default 12h) with no resolution, auto-expire it so the bot resumes
   instead of staying muted for a customer nobody is actually attending
@@ -24,16 +29,24 @@ import time
 
 from datetime import datetime, timezone
 
-from kisna_chatbot.database.collections import callback_requests, users
-from kisna_chatbot.database.db_utils import _user_filter, save_agent_message, set_takeover
+from kisna_chatbot.database.collections import callback_requests, chat_messages, users
+from kisna_chatbot.database.db_utils import (
+    _user_filter,
+    save_agent_message,
+    save_system_note,
+    set_takeover,
+)
 from kisna_chatbot.prompts.form_copy import CALLBACK_PREFORM, HANDOFF_FALLBACK
 from kisna_chatbot.utils.logger_config import logger
+from kisna_chatbot.utils.pubsub import pubsub
 from kisna_chatbot.utils.reply_composer import compose, normalize_language
 from kisna_chatbot.utils.support_hours import (
     close_of_working_day,
+    is_within_working_hours,
     start_of_day_ist,
     working_seconds_between,
 )
+from kisna_chatbot.utils.whatsapp_window import is_window_open
 from kisna_chatbot.whatsapp_functions.flow.send_callback_request_flow import (
     send_callback_request_flow,
 )
@@ -90,6 +103,14 @@ _MARKER_FROM_EARLIER_EPISODE = {
         {"$expr": {"$lt": ["$handoff_callback_sent_at", "$live_agent_requested_at"]}},
     ]
 }
+# F12 already sent this episode's form and released the takeover with
+# live_agent_required still set (requested_at = taken_at): F10 must not send a
+# second one. A new request from the customer rewrites requested_at.
+_SILENCE_FALLBACK_NOT_THIS_EPISODE = {
+    "$nor": [
+        {"$expr": {"$gte": ["$human_takeover.silence_fallback_sent_at", "$live_agent_requested_at"]}},
+    ]
+}
 
 
 def _eligible_for_fallback(user_profile: dict) -> bool:
@@ -101,6 +122,12 @@ def _eligible_for_fallback(user_profile: dict) -> bool:
     requested_at = user_profile.get("live_agent_requested_at")
     if requested_at is None:
         return False
+    silence_sent = (user_profile.get("human_takeover") or {}).get("silence_fallback_sent_at")
+    try:
+        if silence_sent is not None and float(silence_sent) >= float(requested_at):
+            return False
+    except (TypeError, ValueError):
+        pass
     sent_at = user_profile.get("handoff_callback_sent_at")
     if sent_at is None:
         return True
@@ -213,12 +240,27 @@ async def _process_one_handoff(user_profile: dict, now: int) -> bool:
         # for this handoff episode.
         return False
 
-    # ONE message: the callback form, with the text as its Flow body --
-    # FALLBACK: the client's apology + high-volume text; AT_CLOSE: the
-    # after-hours pre-form text, no apology. Sent straight to Gupshup from
-    # this background sweep, so it is localised here like the drop-off
-    # message: verbatim in English, faithful compose() otherwise, English on
-    # any failure.
+    await _send_fallback_form(user_profile, kind)
+    logger.info(
+        "handoff-fallback callback sent",
+        extra={"phone_number": phone, "kind": kind},
+    )
+    return True
+
+
+async def _send_fallback_form(user_profile: dict, kind: str) -> bool:
+    """The F10 fallback message, also used by F12. True when the callback Flow
+    or its plain-text stand-in was handed to Gupshup; a failed text send
+    raises.
+
+    ONE message: the callback form, with the text as its Flow body --
+    FALLBACK: the client's apology + high-volume text; AT_CLOSE: the
+    after-hours pre-form text, no apology. Sent straight to Gupshup from this
+    background sweep, so it is localised here like the drop-off message:
+    verbatim in English, faithful compose() otherwise, English on any failure.
+    """
+    phone = user_profile.get("phone_number")
+    client_id = user_profile.get("client_id") or _DEFAULT_CLIENT_ID
     source, key = (
         (_FALLBACK_TEXT, _FALLBACK_TEMPLATE_KEY)
         if kind == FALLBACK
@@ -252,9 +294,8 @@ async def _process_one_handoff(user_profile: dict, now: int) -> bool:
         await asyncio.to_thread(save_agent_message, phone, text, client_id)
     except Exception:
         logger.warning("handoff-fallback chat_history log skipped", exc_info=True)
-
     logger.info(
-        "handoff-fallback callback sent",
+        "fallback form delivered",
         extra={"phone_number": phone, "kind": kind, "as_form": sent_as_form is not None},
     )
     return True
@@ -279,6 +320,7 @@ async def _sweep_callback_fallback(limit: int) -> int:
                     },
                     "human_takeover.active": {"$ne": True},
                     **_MARKER_FROM_EARLIER_EPISODE,
+                    **_SILENCE_FALLBACK_NOT_THIS_EPISODE,
                 }
             )
             .sort("live_agent_requested_at", 1)
@@ -299,6 +341,169 @@ async def _sweep_callback_fallback(limit: int) -> int:
                 extra={"phone_number": user_profile.get("phone_number")},
             )
     return sent
+
+
+# --------------------------------------------------------------------------
+# F12: an agent took the chat over and never replied
+# --------------------------------------------------------------------------
+
+_SILENCE_MAX_ATTEMPTS = 3
+_SILENCE_CLAIM_SECONDS = 120
+SILENCE_NOTE = "No agent reply in 5 min, callback form sent, chat returned to bot."
+SILENCE_NOTE_BOOKED = (
+    "No agent reply in 5 min, customer already has a callback booked, chat returned to bot."
+)
+
+
+def _silence_clock_start(user_profile: dict) -> int | None:
+    """When the customer started waiting on this takeover: taken_at if they
+    were already waiting at Take over (asked for a person, or their last
+    message was unanswered), else their first message after it. None: nobody
+    is waiting (the agent opened the chat to write first) -- never fire."""
+    takeover = user_profile.get("human_takeover") or {}
+    taken_at = takeover.get("taken_at")
+    if not taken_at:
+        return None
+    if takeover.get("waiting_at_start"):
+        return int(taken_at)
+    first = chat_messages.find_one(
+        {
+            "phone": user_profile.get("phone_number"),
+            "client_id": user_profile.get("client_id") or _DEFAULT_CLIENT_ID,
+            "role": "user",
+            "ts": {"$gt": int(taken_at)},
+        },
+        sort=[("ts", 1)],
+    )
+    return int(first["ts"]) if first else None
+
+
+async def _process_one_silent_takeover(user_profile: dict, now: int) -> bool:
+    phone = user_profile.get("phone_number")
+    client_id = user_profile.get("client_id") or _DEFAULT_CLIENT_ID
+    takeover = user_profile.get("human_takeover") or {}
+    if (
+        not phone
+        or not takeover.get("active")
+        or not takeover.get("tracks_silence")
+        or takeover.get("agent_replied_at")
+        or takeover.get("silence_fallback_sent_at")
+        or int(takeover.get("silence_fallback_attempts") or 0) >= _SILENCE_MAX_ATTEMPTS
+    ):
+        return False
+    start = _silence_clock_start(user_profile)
+    if start is None or now - start < _callback_delay_seconds():
+        return False
+
+    # Once per takeover: claim it first. The filter re-checks that the agent
+    # has still not replied and that this is the same takeover (taken_at).
+    this_takeover = {**_user_filter(phone, client_id), "human_takeover.taken_at": takeover["taken_at"]}
+    claimed = users.find_one_and_update(
+        {
+            **this_takeover,
+            "human_takeover.active": True,
+            "human_takeover.agent_replied_at": {"$exists": False},
+            "human_takeover.silence_fallback_sent_at": {"$exists": False},
+            "$or": [
+                {"human_takeover.silence_claim_at": {"$exists": False}},
+                {"human_takeover.silence_claim_at": {"$lt": now - _SILENCE_CLAIM_SECONDS}},
+            ],
+        },
+        {"$set": {"human_takeover.silence_claim_at": now}},
+    )
+    if claimed is None:
+        return False
+
+    form_sent = False
+    if _has_pending_callback(phone, client_id, now):
+        _log_skip(phone, "silence_fallback_pending_callback")
+    else:
+        kind = (
+            FALLBACK
+            if is_within_working_hours(datetime.fromtimestamp(now, tz=timezone.utc))
+            else AT_CLOSE
+        )
+        delivered = False
+        if not is_window_open(claimed):
+            logger.warning("takeover-silence fallback: 24h window closed", extra={"phone_number": phone})
+        else:
+            try:
+                delivered = await _send_fallback_form(user_profile, kind)
+            except Exception:
+                logger.exception("takeover-silence fallback send failed", extra={"phone_number": phone})
+        if not delivered:
+            # Not sent: the agent keeps the chat and the next sweep retries.
+            users.update_one(
+                this_takeover,
+                {
+                    "$inc": {"human_takeover.silence_fallback_attempts": 1},
+                    "$unset": {"human_takeover.silence_claim_at": ""},
+                },
+            )
+            return False
+        form_sent = True
+
+    # Hand back silently: no reconnect line, no rating request.
+    # live_agent_required stays set (the chat stays in the agent queue) and
+    # handoff_callback_sent_at is not touched.
+    users.update_one(
+        this_takeover,
+        {
+            "$set": {
+                "human_takeover.active": False,
+                "human_takeover.released_at": now,
+                "human_takeover.released_by": "silence_fallback",
+                "human_takeover.silence_fallback_sent_at": now,
+                "human_takeover.silence_form_sent": form_sent,
+                "updated_at": now,
+            },
+            "$unset": {"human_takeover.silence_claim_at": ""},
+        },
+    )
+    note = SILENCE_NOTE if form_sent else SILENCE_NOTE_BOOKED
+    try:
+        await asyncio.to_thread(save_system_note, phone, note, client_id)
+        # The dashboard refetches history on "release", which shows the note.
+        await pubsub.publish(phone, {"type": "release", "phone_number": phone})
+    except Exception:
+        logger.warning("takeover-silence note / publish skipped", exc_info=True)
+    logger.info(
+        "takeover-silence fallback: chat returned to bot",
+        extra={"phone_number": phone, "form_sent": form_sent},
+    )
+    return True
+
+
+async def _sweep_takeover_silence(limit: int) -> int:
+    now = int(time.time())
+    try:
+        candidates = list(
+            users.find(
+                {
+                    "client_id": _DEFAULT_CLIENT_ID,
+                    "human_takeover.active": True,
+                    "human_takeover.tracks_silence": True,
+                    "human_takeover.agent_replied_at": {"$exists": False},
+                    "human_takeover.silence_fallback_sent_at": {"$exists": False},
+                    "human_takeover.silence_fallback_attempts": {"$not": {"$gte": _SILENCE_MAX_ATTEMPTS}},
+                    "human_takeover.taken_at": {"$gte": now - _takeover_ttl_seconds()},
+                }
+            ).limit(limit)
+        )
+    except Exception:
+        logger.exception("takeover-silence sweep query failed")
+        return 0
+    done = 0
+    for user_profile in candidates:
+        try:
+            if await _process_one_silent_takeover(user_profile, now):
+                done += 1
+        except Exception:
+            logger.exception(
+                "takeover-silence fallback failed",
+                extra={"phone_number": user_profile.get("phone_number")},
+            )
+    return done
 
 
 # --------------------------------------------------------------------------
@@ -365,21 +570,27 @@ async def sweep_handoff(limit: int | None = None) -> dict:
     """Run both passes. Returns counts. Never raises."""
     global _sweep_in_progress
     if _sweep_in_progress:
-        return {"callbacks_sent": 0, "takeovers_expired": 0}
+        return {"callbacks_sent": 0, "silence_fallbacks": 0, "takeovers_expired": 0}
     _sweep_in_progress = True
     try:
         batch_limit = limit or _DEFAULT_BATCH_LIMIT
         callbacks_sent = await _sweep_callback_fallback(batch_limit)
+        silence_fallbacks = await _sweep_takeover_silence(batch_limit)
         takeovers_expired = await _sweep_stale_takeovers(batch_limit)
-        if callbacks_sent or takeovers_expired:
+        if callbacks_sent or silence_fallbacks or takeovers_expired:
             logger.info(
                 "handoff sweep complete",
                 extra={
                     "callbacks_sent": callbacks_sent,
+                    "silence_fallbacks": silence_fallbacks,
                     "takeovers_expired": takeovers_expired,
                 },
             )
-        return {"callbacks_sent": callbacks_sent, "takeovers_expired": takeovers_expired}
+        return {
+            "callbacks_sent": callbacks_sent,
+            "silence_fallbacks": silence_fallbacks,
+            "takeovers_expired": takeovers_expired,
+        }
     finally:
         _sweep_in_progress = False
 

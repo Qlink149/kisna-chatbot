@@ -786,11 +786,11 @@
       "topic": "Kisna test",
       "q": "46.\tCan I cancel my order?",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false
     },
@@ -1252,11 +1252,11 @@
       "topic": "Kisna test",
       "q": "Can I cancel my order?",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false
     },
@@ -1264,11 +1264,11 @@
       "topic": "Kisna test",
       "q": "46. Can I cancel my order?",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false
     },
@@ -1276,11 +1276,11 @@
       "topic": "Kisna test",
       "q": ". Can I cancel my order?",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false
     },
@@ -1288,11 +1288,11 @@
       "topic": "Kisna test",
       "q": "can i cancel my order?",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false
     },
@@ -1300,11 +1300,11 @@
       "topic": "Kisna test",
       "q": "Can I cancel my order",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false
     },
@@ -1312,11 +1312,11 @@
       "topic": "Kisna test",
       "q": "how do I cancel my order",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false
     },
@@ -1324,11 +1324,11 @@
       "topic": "Kisna test",
       "q": "cancel order",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false
     },
@@ -1336,11 +1336,11 @@
       "topic": "Kisna test",
       "q": "order cancel karna hai",
       "must": [
-        "My Account"
+        "My Account",
+        "support@kisna\\.com"
       ],
       "any": [
-        "Customer Support",
-        "support@kisna\\.com"
+        "Customer Support"
       ],
       "handoff": false,
       "empathy_ok": true,

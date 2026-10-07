@@ -375,8 +375,8 @@ KISNA_KNOWLEDGE_BASE_V2 = """\
 - Different shipping vs billing address: allowed.
 - Bot handling rule: never state a timeline, notification method or process that this knowledge base doesn't give; if asked for one, say our team will confirm it.
 - Gold weight difference (all orders, not only GRP): if the final gold weight differs from the estimate, the difference is charged or refunded at the booking rate (the gold rate at the time of booking), not the current rate.
-- Cancellation: an order can be cancelled any time before it has been shipped, through My Account or by contacting Customer Support (support email in LOCKED VALUES); once shipped, cancellation may no longer be possible. Order status is tracked through My Account. This does NOT apply to Digital Gold -- a digital gold order cannot be cancelled once placed (see DIGITAL GOLD).
-- Bot handling rule (cancellation): any question or wish to cancel an order with no order named ("Can I cancel my order?", "order cancel karna hai") gets both ways to cancel: My Account, or Customer Support. Cancelling is not a return: never offer the return request form for it.
+- Cancellation: an order can be cancelled any time before it has been shipped, through My Account, by contacting Customer Support, or by emailing support@kisna.com; once shipped, cancellation may no longer be possible. Order status is tracked through My Account. This does NOT apply to Digital Gold -- a digital gold order cannot be cancelled once placed (see DIGITAL GOLD).
+- Bot handling rule (cancellation): any question or wish to cancel an order with no order named ("Can I cancel my order?", "order cancel karna hai") names all three ways to cancel, in the client's words: My Account, Customer Support, and the email support@kisna.com. Cancelling is not a return: never offer the return request form for it.
 
 ## DELIVERY & SHIPPING
 - Standard delivery within 4–5 working days across India; timelines may vary depending on the delivery pincode and location. Occasional delays are possible due to unforeseen circumstances.

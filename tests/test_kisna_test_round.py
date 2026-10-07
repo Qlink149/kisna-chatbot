@@ -522,7 +522,9 @@ class KbRuleTests(unittest.TestCase):
         self.assertIn("never state a timeline, notification method or process that this knowledge base doesn't give", self.PROMPT)
 
     def test_cancellation_names_customer_support(self):
-        self.assertIn("through My Account or by contacting Customer Support", self.PROMPT)
+        # Client's wording names all three: My Account, Customer Support, support@kisna.com.
+        self.assertIn("through My Account, by contacting Customer Support, or by emailing support@kisna.com", self.PROMPT)
+        self.assertIn("My Account, Customer Support, and the email support@kisna.com", self.PROMPT)
 
     def test_diamond_card_is_the_certificate(self):
         self.assertIn('Sample diamond certificate (a "diamond card" means the certificate)', self.PROMPT)

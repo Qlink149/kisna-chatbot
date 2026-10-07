@@ -112,6 +112,27 @@ def dual_write_chat_entries(
     ]
 
 
+def save_system_note(phone_number: str, text: str, client_id: str = "kisna") -> tuple[int, str | None]:
+    """A note for the dashboard chat only (role "system"): written to
+    chat_messages, never to users.chat_history, so the classifier and the
+    GeneralAgent never read it and nothing is sent to WhatsApp."""
+    now = int(time.time())
+    return now, _insert_chat_message(
+        phone=phone_number, client_id=client_id, role="system", content=text, ts=now
+    )
+
+
+def customer_waiting_at_takeover(user: dict | None) -> bool:
+    """At Take over: the customer had asked for a person (live_agent_required),
+    or their last message has no reply yet (the newest chat_history entry is
+    theirs)."""
+    user = user or {}
+    if user.get("live_agent_required"):
+        return True
+    history = user.get("chat_history") or []
+    return bool(history) and (history[-1] or {}).get("role") == "user"
+
+
 def _attach_trace_outcomes(messages: list[dict], client_id: str) -> None:
     """Stamp each message with its turn outcome so the dashboard can flag bad turns.
 
@@ -396,8 +417,15 @@ def get_takeover_status(phone_number: str, client_id: str = "kisna") -> dict | N
         raise
 
 
-def set_takeover(phone_number: str, active: bool, client_id: str = "kisna") -> None:
-    """Set human takeover and live-agent flags on the user profile."""
+def set_takeover(
+    phone_number: str, active: bool, client_id: str = "kisna", waiting: bool = False
+) -> None:
+    """Set human takeover and live-agent flags on the user profile.
+
+    A new takeover replaces the whole subdocument, so every per-takeover field
+    (agent_replied_at, the silence-fallback marker / attempts) starts fresh.
+    ``waiting``: the customer was already waiting when the agent took over
+    (handoff_sweep's takeover-silence clock starts at taken_at)."""
     try:
         now = int(time.time())
         takeover = {
@@ -405,6 +433,9 @@ def set_takeover(phone_number: str, active: bool, client_id: str = "kisna") -> N
             "taken_by": "agent" if active else None,
             "taken_at": now if active else None,
         }
+        if active:
+            takeover["tracks_silence"] = True
+            takeover["waiting_at_start"] = bool(waiting)
         update_fields: dict = {
             "human_takeover": takeover,
             "live_agent_required": active,
@@ -667,11 +698,16 @@ def save_agent_message(
     client_id: str = "kisna",
     request_id: str | None = None,
     media: dict | None = None,
+    from_agent: bool = False,
 ) -> tuple[int, str | None]:
     """Append an agent message to chat_history.
 
     Returns (timestamp, chat_messages _id): the SSE publish carries the saved
     row's id, which is what the dashboard de-duplicates the live copy by.
+
+    ``from_agent``: typed / sent by a person on the dashboard. Stamps
+    human_takeover.agent_replied_at once per takeover; system lines (takeover,
+    release, rating, fallback) leave it unset, so they never count as a reply.
     """
     try:
         now = int(time.time())
@@ -698,6 +734,15 @@ def save_agent_message(
         )
         ids = dual_write_chat_entries(phone_number, client_id, [entry])
         message_id = ids[0] if ids else None
+        if from_agent:
+            users.update_one(
+                {
+                    **_user_filter(phone_number, client_id),
+                    "human_takeover.active": True,
+                    "human_takeover.agent_replied_at": {"$exists": False},
+                },
+                {"$set": {"human_takeover.agent_replied_at": now}},
+            )
         logger.info(
             "Agent message saved",
             extra={"phone_number": phone_number, "client_id": client_id},

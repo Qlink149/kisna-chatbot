@@ -12,6 +12,7 @@ from kisna_chatbot.database.db_utils import (
     get_takeover_status,
     get_user_by_phone,
     resolve_live_agent,
+    customer_waiting_at_takeover,
     save_agent_message,
     set_takeover,
 )
@@ -119,7 +120,7 @@ async def takeover(phone_number: str):
             raise HTTPException(status_code=404, detail="User not found")
         _require_open_window(user)
 
-        set_takeover(phone_number, active=True)
+        set_takeover(phone_number, active=True, waiting=customer_waiting_at_takeover(user))
 
         send_text_message(
             phone_number=phone_number,
@@ -163,7 +164,7 @@ async def send_message(phone_number: str, body: SendMessageRequest):
             phone_number=phone_number,
             bot_response={"type": "text", "text": body.message},
         )
-        saved_ts, message_id = save_agent_message(phone_number, body.message)
+        saved_ts, message_id = save_agent_message(phone_number, body.message, from_agent=True)
 
         await pubsub.publish(
             phone_number,
@@ -273,7 +274,7 @@ async def send_media(
             "source": "agent",
         }
         content = _agent_media_label(kind, caption, filename)
-        saved_ts, message_id = save_agent_message(phone_number, content, media=media)
+        saved_ts, message_id = save_agent_message(phone_number, content, media=media, from_agent=True)
 
         await pubsub.publish(
             phone_number,
