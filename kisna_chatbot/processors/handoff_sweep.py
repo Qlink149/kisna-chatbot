@@ -378,6 +378,13 @@ def _silence_clock_start(user_profile: dict) -> int | None:
     return int(first["ts"]) if first else None
 
 
+def _agent_replied_since_claim(this_takeover: dict) -> bool:
+    """Fresh read: has an agent replied (or the takeover ended) since the claim?"""
+    current = users.find_one(this_takeover) or {}
+    takeover = current.get("human_takeover") or {}
+    return bool(takeover.get("agent_replied_at")) or not takeover.get("active")
+
+
 async def _process_one_silent_takeover(user_profile: dict, now: int) -> bool:
     phone = user_profile.get("phone_number")
     client_id = user_profile.get("client_id") or _DEFAULT_CLIENT_ID
@@ -424,6 +431,13 @@ async def _process_one_silent_takeover(user_profile: dict, now: int) -> bool:
             else AT_CLOSE
         )
         delivered = False
+        # Re-read immediately before sending: an agent reply that landed after
+        # the claim (e.g. at 4:59) cancels the fallback -- nothing is sent and
+        # the agent keeps the chat.
+        if _agent_replied_since_claim(this_takeover):
+            users.update_one(this_takeover, {"$unset": {"human_takeover.silence_claim_at": ""}})
+            _log_skip(phone, "silence_fallback_agent_replied")
+            return False
         if not is_window_open(claimed):
             logger.warning("takeover-silence fallback: 24h window closed", extra={"phone_number": phone})
         else:

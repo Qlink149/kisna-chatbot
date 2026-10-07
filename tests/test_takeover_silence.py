@@ -291,6 +291,42 @@ class OutcomeTests(SilenceTestBase):
         self.flow.assert_not_called()
 
 
+class AgentReplyRaceTests(SilenceTestBase):
+    """An agent reply landing at 4:59 -- after the sweep picked the chat --
+    must stop the apology."""
+
+    def _agent_replies_now(self):
+        self.users.docs[0]["human_takeover"]["agent_replied_at"] = self.now
+
+    def test_reply_between_selection_and_claim(self):
+        self.users.docs.append(_user(T_1100, waiting=True))
+        selected = self.users.find({})[0]  # the sweep's (stale) copy
+        self._agent_replies_now()
+        self.now = T_1100 + 300
+        self.assertFalse(asyncio.run(hs._process_one_silent_takeover(selected, self.now)))
+        self.flow.assert_not_called()
+        self.assertTrue(self.takeover["active"])
+
+    def test_reply_between_claim_and_send(self):
+        self.users.docs.append(_user(T_1100, waiting=True))
+
+        def reply_then_no_booking(_q):
+            self._agent_replies_now()  # lands after the claim, before the send
+            return None
+
+        with patch.object(hs.callback_requests, "find_one", side_effect=reply_then_no_booking):
+            self.assertEqual(self.sweep(T_1100 + 300), 0)
+        self.flow.assert_not_called()
+        self.text.assert_not_called()
+        self.note.assert_not_called()
+        self.assertTrue(self.takeover["active"])
+        self.assertNotIn("silence_claim_at", self.takeover)
+        self.assertNotIn("silence_fallback_attempts", self.takeover)
+        # And it never fires later either.
+        self.assertEqual(self.sweep(T_1100 + 900), 0)
+        self.flow.assert_not_called()
+
+
 class FailureTests(SilenceTestBase):
     def test_send_failure_keeps_takeover_and_retries_at_most_3_times(self):
         self.flow.side_effect = RuntimeError("Gupshup 500")
