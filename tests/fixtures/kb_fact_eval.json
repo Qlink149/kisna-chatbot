@@ -1250,38 +1250,6 @@
     },
     {
       "topic": "Kisna test",
-      "q": "ring doesnt fit",
-      "any": [
-        "resiz",
-        "exchange",
-        "size"
-      ],
-      "handoff": false,
-      "must": [
-        "^No worries!"
-      ],
-      "must_not": [
-        "sorry"
-      ]
-    },
-    {
-      "topic": "Kisna test",
-      "q": "ring size is wrong what now",
-      "any": [
-        "resiz",
-        "exchange",
-        "size"
-      ],
-      "handoff": false,
-      "must": [
-        "^No worries!"
-      ],
-      "must_not": [
-        "sorry"
-      ]
-    },
-    {
-      "topic": "Kisna test",
       "q": "Can I cancel my order?",
       "must": [
         "My Account"
@@ -1403,12 +1371,12 @@
     {
       "topic": "Kisna test routing",
       "q": "ring doesnt fit",
-      "intent": "general"
+      "intent": "complaint"
     },
     {
       "topic": "Kisna test routing",
       "q": "ring size is wrong what now",
-      "intent": "general"
+      "intent": "complaint"
     },
     {
       "topic": "Kisna test routing",
@@ -1464,6 +1432,11 @@
       "topic": "Kisna test routing",
       "q": "My refund hasn't come",
       "intent": "refund_status"
+    },
+    {
+      "topic": "Kisna test routing",
+      "q": "my ring is loose",
+      "intent": "complaint"
     }
   ]
 }
