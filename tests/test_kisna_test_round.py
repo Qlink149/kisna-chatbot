@@ -471,6 +471,71 @@ class RingFitTests(unittest.TestCase):
                 self.assertEqual(out["_trace_outcome"], "canned_sent")
 
 
+class CancelOrderTests(unittest.TestCase):
+    # Client's text, 2026-10-07: all three ways, served by code for the plain
+    # English question (the model dropped the email when an older answer was
+    # in the chat).
+    CLIENT = ("You can cancel your order any time before it has been shipped. 📦 Please raise a cancellation "
+              "request through My Account, contact our Customer Support team, or email us at support@kisna.com "
+              "with all the relevant details. Once the order has been shipped, cancellation may no longer be possible.")
+
+    def test_exact_client_text(self):
+        self.assertEqual(csf.CANCEL_ORDER_TEXT, self.CLIENT)
+
+    def test_trigger_plain_english_only(self):
+        for q in ("Can I cancel my order?", "46. Can I cancel my order?", "46.\tCan I cancel my order?",
+                  ". Can I cancel my order?", "can i cancel my order", "how do I cancel my order", "cancel order"):
+            with self.subTest(q=q):
+                self.assertTrue(csf.is_cancel_order_question(q))
+        for q in ("cancel my order #1234", "cancel order KIS12345", "order cancel karna hai", "mera order cancel karo",
+                  "Can I cancel a digital gold purchase?", "I want to cancel my order, the product is damaged"):
+            with self.subTest(q=q):
+                self.assertFalse(csf.is_cancel_order_question(q))
+
+    def test_hinglish_still_goes_to_the_model(self):
+        # Routed to general (the KB answer, in the customer's language) but
+        # not code-served: the model writes it.
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override
+
+        self.assertEqual(_programmatic_intent_override("order cancel karna hai"), ("general", 0.95))
+        self.assertFalse(csf.is_cancel_order_question("order cancel karna hai"))
+        self.assertIn("names all three ways to cancel", __import__(
+            "kisna_chatbot.prompts.kisna_knowledge_base", fromlist=["x"]).KISNA_KNOWLEDGE_BASE_V2)
+
+
+class HistoryVariantTests(unittest.TestCase):
+    """An older, DIFFERENT answer to the same question is in the chat history;
+    today's code-served answer must come back, without the model."""
+
+    OLD = "Certainly! You can do this through My Account or by contacting Customer Support. 18K is richer, 14K is more durable."
+
+    def _ask(self, q):
+        profile = {"language": "en", "chat_history": [
+            {"role": "user", "content": q}, {"role": "assistant", "content": self.OLD},
+            {"role": "user", "content": "ok thanks"}, {"role": "assistant", "content": "You're welcome!"}]}
+        data = {"phone_number": "919812345678", "client_id": "kisna",
+                "messages": {"text": {"body": q}}, "user_profile": profile}
+        with patch("kisna_chatbot.processors.general_agent.run_general_agent", new_callable=AsyncMock) as run:
+            out = asyncio.run(GeneralAgent().process(data))
+        run.assert_not_awaited()
+        return out["bot_response"][0]["text"]
+
+    def test_code_served_answers_ignore_an_older_answer(self):
+        for q, text in (("What if the ring doesn't fit?", csf.RING_FIT_TEXT),
+                        ("Can I cancel my order?", csf.CANCEL_ORDER_TEXT),
+                        ("Which banks offer EMI?", csf.EMI_BANKS_TEXT),
+                        ("14K or 18K which is better?", csf.KARAT_COMPARISON_TEXT)):
+            with self.subTest(q=q):
+                self.assertEqual(self._ask(q), text)
+
+    def test_engraving_route_ignores_history(self):
+        # Pinned before the LLM, so an older "yes, we engrave" answer in the
+        # chat cannot change where it goes (the KB eval checks the answer).
+        from kisna_chatbot.processors.classifier import _programmatic_intent_override
+
+        self.assertEqual(_programmatic_intent_override("Can I engrave a name?"), ("general", 0.95))
+
+
 class CertificateButtonTests(unittest.TestCase):
     def _run(self, query):
         from kisna_chatbot.ai.types import GeneralAgentResult, ProviderName

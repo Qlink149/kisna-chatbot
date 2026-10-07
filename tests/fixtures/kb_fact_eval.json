@@ -1437,6 +1437,174 @@
       "topic": "Kisna test routing",
       "q": "my ring is loose",
       "intent": "complaint"
+    },
+    {
+      "topic": "History variant",
+      "q": "What if the ring doesn't fit?",
+      "history": [
+        {
+          "role": "user",
+          "content": "What if the ring doesn't fit?"
+        },
+        {
+          "role": "assistant",
+          "content": "I'm sorry for the inconvenience. Let me help resolve this as quickly as possible. Please share your order details."
+        },
+        {
+          "role": "user",
+          "content": "ok thanks"
+        },
+        {
+          "role": "assistant",
+          "content": "You're welcome! 😊"
+        }
+      ],
+      "must": [
+        "^No worries!"
+      ],
+      "must_not": [
+        "sorry"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "History variant",
+      "q": "Can I cancel my order?",
+      "history": [
+        {
+          "role": "user",
+          "content": "Can I cancel my order?"
+        },
+        {
+          "role": "assistant",
+          "content": "Certainly! 📦 You can cancel your order anytime before it has been shipped. You can do this through My Account or by contacting Customer Support."
+        },
+        {
+          "role": "user",
+          "content": "ok thanks"
+        },
+        {
+          "role": "assistant",
+          "content": "You're welcome! 😊"
+        }
+      ],
+      "must": [
+        "My Account",
+        "support@kisna\\.com",
+        "Customer Support"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "History variant",
+      "q": "Can I engrave a name?",
+      "history": [
+        {
+          "role": "user",
+          "content": "Can I engrave a name?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, absolutely! We can engrave a name on most of our rings. Please share the name you would like."
+        },
+        {
+          "role": "user",
+          "content": "ok thanks"
+        },
+        {
+          "role": "assistant",
+          "content": "You're welcome! 😊"
+        }
+      ],
+      "any": [
+        "unable",
+        "not (currently )?(able|accept\\w*|available|possible)",
+        "cannot",
+        "can't"
+      ],
+      "must_not": [
+        "yes,? (absolutely|we can)",
+        "share the name"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "History variant",
+      "q": "Which banks offer EMI?",
+      "history": [
+        {
+          "role": "user",
+          "content": "Which banks offer EMI?"
+        },
+        {
+          "role": "assistant",
+          "content": "You can get EMI from HDFC, ICICI and SBI cards directly at checkout."
+        },
+        {
+          "role": "user",
+          "content": "ok thanks"
+        },
+        {
+          "role": "assistant",
+          "content": "You're welcome! 😊"
+        }
+      ],
+      "must": [
+        "Credit Card",
+        "bank"
+      ],
+      "must_not": [
+        "HDFC",
+        "ICICI",
+        "SBI"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "History variant",
+      "q": "14K or 18K which is better?",
+      "history": [
+        {
+          "role": "user",
+          "content": "14K or 18K which is better?"
+        },
+        {
+          "role": "assistant",
+          "content": "18K has a richer colour while 14K is more durable, so it depends on your needs."
+        },
+        {
+          "role": "user",
+          "content": "ok thanks"
+        },
+        {
+          "role": "assistant",
+          "content": "You're welcome! 😊"
+        }
+      ],
+      "must": [
+        "14KT",
+        "18KT"
+      ],
+      "must_not": [
+        "richer colou?r",
+        "more durable"
+      ],
+      "handoff": false
+    },
+    {
+      "topic": "History variant",
+      "q": "Can I engrave a name?",
+      "intent": "general",
+      "history": [
+        {
+          "role": "user",
+          "content": "Can I engrave a name?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, absolutely! We can engrave a name on most of our rings. Please share the name you would like."
+        }
+      ]
     }
   ]
 }

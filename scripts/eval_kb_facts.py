@@ -10,7 +10,11 @@ Per question: the row's must / any / must_not regexes, its optional
 "handoff" (true/false: whether the live-agent tool must be called), plus the generic
 checks (banned phrases incl. any pincode ask, unlocked % figures, the bot
 naming itself, the VOICE opener; "empathy_ok" allows the empathy line
-first). A row with "intent" is checked at the
+first; skipped for code-served client texts, which are verbatim by
+requirement). A row with "history" ([{role, content}, ...]) is asked with that
+chat history in front, as the live agent sees it -- used to check that an
+older, different answer in the chat does not override today's. A row with
+"intent" is checked at the
 classifier instead (one LLM classification per run): order issues must route
 there and never reach a KB answer. Prints every failure with the full answer.
 """
@@ -106,22 +110,32 @@ def c_row(row: dict, a: str, tool: bool = False) -> list[str]:
     return probs
 
 
-async def classify(q: str, sem: asyncio.Semaphore) -> dict:
-    from kisna_chatbot.processors.classifier import classify_query_for_audit
+def _history_str(history: list | None) -> str:
+    from kisna_chatbot.utils.format_chathistory import format_recent_history_str
+
+    return format_recent_history_str({"chat_history": list(history or [])}, 8) if history else ""
+
+
+async def classify(q: str, sem: asyncio.Semaphore, history: list | None = None) -> dict:
+    from kisna_chatbot.processors.classifier import classify_query_for_audit, strip_list_number
 
     async with sem:
-        got = await classify_query_for_audit(q, use_llm=True)
+        got = await classify_query_for_audit(
+            strip_list_number(q), {"chat_history": list(history or [])}, use_llm=True
+        )
     return {"q": q, "a": f"[routed: {got.get('intent')}]", "intent": got.get("intent"), "tool": False}
 
 
 # ------------------------------------------------------------------ ask
-async def ask(q: str, instructions: str, sem: asyncio.Semaphore) -> dict:
+async def ask(q: str, instructions: str, sem: asyncio.Semaphore, history: list | None = None) -> dict:
     from kisna_chatbot.ai.config import GENERAL_AGENT_TEMPERATURE
     from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
     from kisna_chatbot.processors.code_served_facts import (
+        CANCEL_ORDER_TEXT,
         EMI_BANKS_TEXT,
         KARAT_COMPARISON_TEXT,
         RING_FIT_TEXT,
+        is_cancel_order_question,
         is_emi_banks_question,
         is_karat_comparison,
         is_ring_fit_question,
@@ -131,15 +145,17 @@ async def ask(q: str, instructions: str, sem: asyncio.Semaphore) -> dict:
     from kisna_chatbot.utils.get_openai_client import get_openai_client
 
     if is_karat_comparison(q):
-        return {"q": q, "a": KARAT_COMPARISON_TEXT, "tool": False}
+        return {"q": q, "a": KARAT_COMPARISON_TEXT, "tool": False, "canned": True}
     if is_emi_banks_question(q):
-        return {"q": q, "a": EMI_BANKS_TEXT, "tool": False}
+        return {"q": q, "a": EMI_BANKS_TEXT, "tool": False, "canned": True}
     if is_ring_fit_question(q):
-        return {"q": q, "a": RING_FIT_TEXT, "tool": False}
+        return {"q": q, "a": RING_FIT_TEXT, "tool": False, "canned": True}
+    if is_cancel_order_question(q):
+        return {"q": q, "a": CANCEL_ORDER_TEXT, "tool": False, "canned": True}
     async with sem:
         messages = [
             {"role": "system", "content": "Username: Customer"},
-            {"role": "system", "content": "Recent chat history:\n"},
+            {"role": "system", "content": "Recent chat history:\n" + _history_str(history)},
             {"role": "user", "content": q},
         ]
         tool = False
@@ -228,8 +244,8 @@ async def main() -> int:
     results = []
     for run in range(args.runs):
         answers = await asyncio.gather(*(
-            classify(rows[i - 1]["q"], sem) if rows[i - 1].get("intent")
-            else ask(rows[i - 1]["q"], prompt_for(rows[i - 1]), sem)
+            classify(rows[i - 1]["q"], sem, rows[i - 1].get("history")) if rows[i - 1].get("intent")
+            else ask(rows[i - 1]["q"], prompt_for(rows[i - 1]), sem, rows[i - 1].get("history"))
             for i in picked
         ))
         for i, ans in zip(picked, answers):
@@ -239,7 +255,7 @@ async def main() -> int:
                 ok = row["intent"] if isinstance(row["intent"], list) else [row["intent"]]
                 problems = [] if ans["intent"] in ok else [f"routed to {ans['intent']!r}, expected {row['intent']!r}"]
             else:
-                problems = c_row(row, a, ans["tool"]) + c_banned(a) + c_locked(a) + c_name(a) + c_voice(a, ans["tool"], row.get("empathy_ok", False))
+                problems = c_row(row, a, ans["tool"]) + c_banned(a) + c_locked(a) + c_name(a) + ([] if ans.get("canned") else c_voice(a, ans["tool"], row.get("empathy_ok", False)))
             results.append({"run": run, "n": i, "topic": row["topic"], "q": row["q"] + (f" [as of {row['date']}]" if row.get("date") else ""), "a": a,
                             "tool": ans["tool"], "problems": problems})
 

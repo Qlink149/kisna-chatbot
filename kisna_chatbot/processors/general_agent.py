@@ -7,9 +7,11 @@ from kisna_chatbot.constants import KIA_HANDOFF_MESSAGE
 from kisna_chatbot.models.service_list import ServiceList as SL
 from kisna_chatbot.processors.abstract_processor import Processor
 from kisna_chatbot.processors.code_served_facts import (
+    is_cancel_order_question,
     is_emi_banks_question,
     is_karat_comparison,
     is_ring_fit_question,
+    serve_cancel_order,
     serve_emi_banks,
     serve_karat_comparison,
     serve_ring_fit,
@@ -273,6 +275,10 @@ class GeneralAgent(Processor):
                 return data
             if is_ring_fit_question(user_query):
                 serve_ring_fit(data)
+                user_profile["service_selected"] = ""
+                return data
+            if is_cancel_order_question(user_query):
+                serve_cancel_order(data)
                 user_profile["service_selected"] = ""
                 return data
 

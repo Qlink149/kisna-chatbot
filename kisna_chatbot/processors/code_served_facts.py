@@ -18,6 +18,11 @@ reply is decided in code and the model never sees the question.
     4. "What if the ring doesn't fit?" (client, 2026-10-07) -- `ring_fit_response`
        below. Reason: client's exact sentence; the model opened this
        pre-purchase question with the complaint apology.
+    5. "Can I cancel my order?" in plain English (client, 2026-10-07) --
+       `cancel_order_response` below. Reason: client's exact text naming all
+       three ways; with an older answer in the chat history the model copied
+       it and dropped support@kisna.com (0/5). Hindi / Hinglish wordings stay
+       with the model so the reply is in the customer's language.
 
 If a THIRD fact needs this treatment, revisit the model choice, not the prompt.
 """
@@ -124,6 +129,46 @@ def serve_ring_fit(data: dict) -> None:
         from kisna_chatbot.utils.message_trace import trace_step
 
         trace_step(data, "Result", "Canned answer: ring fit (client wording, served by code)")
+    except Exception:
+        pass
+
+
+CANCEL_ORDER_TEXT = (
+    "You can cancel your order any time before it has been shipped. 📦 "
+    "Please raise a cancellation request through My Account, contact our Customer Support "
+    "team, or email us at support@kisna.com with all the relevant details. Once the order "
+    "has been shipped, cancellation may no longer be possible."
+)
+CANCEL_ORDER_COMPOSE_KEY = "cancel_order_canned"
+# Plain English only, the whole message: "Can I cancel my order?", "how do I
+# cancel my order", "cancel order" (a list number, lower case, no question
+# mark). A named order ("cancel my order #1234") has more after "order" and
+# never matches; "order cancel karna hai" goes to the model.
+_CANCEL_ORDER_QUESTION_RE = re.compile(
+    r"^\s*(?:\d{1,3}[.)]\s*|[.]\s*)?"
+    r"(?:(?:can|could|may)\s+i\s+|how\s+(?:do|can)\s+i\s+|how\s+to\s+|i\s+want\s+to\s+)?"
+    r"cancel\s+(?:my\s+|the\s+|an\s+|this\s+)?order\s*[?.!]*\s*$",
+    re.I,
+)
+
+
+def is_cancel_order_question(text: str | None) -> bool:
+    return bool(_CANCEL_ORDER_QUESTION_RE.match(text or ""))
+
+
+def cancel_order_response() -> list[dict]:
+    return [{"type": "text", "text": CANCEL_ORDER_TEXT, "_compose": CANCEL_ORDER_COMPOSE_KEY,
+             "_pin": ("My Account", "Customer Support", "support@kisna.com")}]
+
+
+def serve_cancel_order(data: dict) -> None:
+    data["bot_response"] = cancel_order_response()
+    data["classified_category"] = "cancel_order"
+    data["_trace_outcome"] = "canned_sent"
+    try:
+        from kisna_chatbot.utils.message_trace import trace_step
+
+        trace_step(data, "Result", "Canned answer: order cancellation (client wording, served by code)")
     except Exception:
         pass
 
