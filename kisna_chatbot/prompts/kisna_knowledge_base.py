@@ -826,6 +826,12 @@ KISNA_CAMPAIGN_ITEMS: tuple[CampaignItem, ...] = (
     ),
 )
 
+# The client's making-charges block, line by line: diamond %, gold %,
+# insurance, blank, note. The two percentages are replaced with the live API
+# figures when the drop-off is sent (build_dropoff_message(making_charges=...)).
+_MAKING_CHARGES_BLOCK_LINES: tuple[str, ...] = tuple(KISNA_CAMPAIGN_ITEMS[0].dropoff_block.split("\n"))
+assert KISNA_CAMPAIGN_ITEMS[0].id == "making_charges" and len(_MAKING_CHARGES_BLOCK_LINES) == 5
+
 # The order the blocks appear in the client's drop-off message.
 _DROPOFF_ORDER: tuple[str, ...] = ("making_charges", "grp_booking", "lucky_draw")
 _DROPOFF_HEADER = "✨ Exclusive Benefits, Just for You!\n\nShop beautiful jewellery at KISNA and enjoy:"
@@ -867,15 +873,39 @@ def build_campaigns_block(today: date | None = None) -> str:
     return "# LIVE CAMPAIGNS (time-bound; never quote dates unless listed here)\n" + "\n".join(lines) + "\n"
 
 
-def build_dropoff_message(today: date | None = None) -> str:
+def _live_making_charges_block(making_charges: dict) -> str:
+    """The making-charges block with today's percentages from the Clara
+    promotions API ({"diamond": 100, "gold": 100}). Same lines as the client's
+    block; a category with no live offer loses its line, and with neither the
+    making-charges T&C note goes too (the insurance line always stays)."""
+    diamond, gold, insurance, _blank, note = _MAKING_CHARGES_BLOCK_LINES
+    lines = []
+    if making_charges.get("diamond"):
+        lines.append(diamond.replace("35%", f"{making_charges['diamond']}%"))
+    if making_charges.get("gold"):
+        lines.append(gold.replace("20%", f"{making_charges['gold']}%"))
+    lines.append(insurance)
+    if len(lines) > 1:
+        lines += ["", note]
+    return "\n".join(lines)
+
+
+def build_dropoff_message(today: date | None = None, making_charges: dict | None = None) -> str:
     """The client's drop-off broadcast with only today's live blocks (IST).
     Always a valid message: header + live blocks (client's order) + footer,
-    separated by blank lines."""
+    separated by blank lines.
+
+    ``making_charges``: today's percentages per category from the Clara
+    promotions API (processors/reengagement.py). None: the client's block as
+    written (35% / 20%)."""
     today = today or _today_ist()
     by_id = {item.id: item for item in KISNA_CAMPAIGN_ITEMS}
-    live = [
-        by_id[i].dropoff_block
-        for i in _DROPOFF_ORDER
-        if by_id[i].dropoff_block and _live(by_id[i].dropoff_until, today)
-    ]
+    live = []
+    for i in _DROPOFF_ORDER:
+        block = by_id[i].dropoff_block
+        if not block or not _live(by_id[i].dropoff_until, today):
+            continue
+        if i == "making_charges" and making_charges is not None:
+            block = _live_making_charges_block(making_charges)
+        live.append(block)
     return "\n\n".join([_DROPOFF_HEADER, *live, _DROPOFF_FOOTER])

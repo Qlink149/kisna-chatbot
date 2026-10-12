@@ -26,6 +26,24 @@ def match_production_search_confirmation(request, monkeypatch):
     monkeypatch.setenv("KISNA_SEARCH_CONFIRM_ENABLED", enabled)
 
 
+@pytest.fixture(autouse=True)
+def stub_dropoff_live_offers(request, monkeypatch):
+    """The drop-off sweep fetches today's making-charge % from the Clara
+    promotions API. Tests get the client's static block instead (no network,
+    same text as before), unless they opt in with
+    @pytest.mark.dropoff_live_offers and stub the API themselves."""
+    from kisna_chatbot.processors import reengagement
+
+    reengagement._live_offers.update(pct=None, fetched_at=0.0, failed_at=0.0)
+    if request.node.get_closest_marker("dropoff_live_offers"):
+        return
+
+    async def _static():
+        return None
+
+    monkeypatch.setattr(reengagement, "live_making_charges", _static)
+
+
 # ── No live LLM calls in pytest ────────────────────────────────────────────
 #
 # The suite was making real API calls: complete_chat succeeded because real

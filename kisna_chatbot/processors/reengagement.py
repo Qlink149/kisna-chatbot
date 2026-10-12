@@ -108,22 +108,31 @@ _DROPOFF_TEMPLATE_KEY = "reengage_dropoff"
 # One message now, not a rotation; kept so reengage_last_line stays populated.
 _DROPOFF_LINE_INDEX = 0
 _URL_RE = re.compile(r"https?://\S+")
-_PINNED_FIGURES = ("35%", "20%", "1-Year", "25%", "4X", "18+")
+_PERCENT_RE = re.compile(r"\d+(?:\.\d+)?%")
+_PINNED_FIGURES = ("1-Year", "4X", "18+")
 
 
-def build_reengagement_message(user_profile: dict) -> tuple[str, int]:
+def build_reengagement_message(
+    user_profile: dict, making_charges: dict | None = None
+) -> tuple[str, int]:
     """(English drop-off message for today, line index). Sync, side-effect free."""
-    return build_dropoff_message(), _DROPOFF_LINE_INDEX
+    return build_dropoff_message(making_charges=making_charges), _DROPOFF_LINE_INDEX
 
 
-async def compose_reengagement(user_profile: dict) -> tuple[str, int]:
+async def compose_reengagement(
+    user_profile: dict, making_charges: dict | None = None
+) -> tuple[str, int]:
     """(text, line_index) -- verbatim in English, faithfully translated otherwise."""
-    message, idx = build_reengagement_message(user_profile)
+    message, idx = build_reengagement_message(user_profile, making_charges)
     language = normalize_language(user_profile.get("language") or "en")
     if language == "en":
         return message, idx
-    pins = tuple(_URL_RE.findall(message)) + tuple(
-        figure for figure in _PINNED_FIGURES if figure in message
+    # Every percentage in the message (the live making-charge figures, GRP's
+    # 25%) and the fixed figures are kept exactly as written.
+    pins = (
+        tuple(_URL_RE.findall(message))
+        + tuple(dict.fromkeys(_PERCENT_RE.findall(message)))
+        + tuple(figure for figure in _PINNED_FIGURES if figure in message)
     )
     text = await compose(
         _DROPOFF_TEMPLATE_KEY,
@@ -134,6 +143,65 @@ async def compose_reengagement(user_profile: dict) -> tuple[str, int]:
         pin=pins,
     )
     return (text or message), idx
+
+
+# --------------------------------------------------------------------------
+# Live making-charge percentages (Clara promotions API)
+# --------------------------------------------------------------------------
+
+# The drop-off quotes the same figures as "View Offers": the highest active
+# making-charge (labour) % per category. Refreshed every 2 hours like the
+# promotions cache; if a refresh fails, the LAST SUCCESSFUL figures are used
+# (client decision, 2026-10-12). Before any success: no percentage lines.
+_OFFERS_TTL_SECONDS = 2 * 60 * 60
+_OFFERS_RETRY_SECONDS = 5 * 60
+_live_offers: dict = {"pct": None, "fetched_at": 0.0, "failed_at": 0.0}
+
+
+def making_charges_from_promotions(promotions: list) -> dict:
+    """{"diamond": 100, "gold": 100}: the highest active, percentage (not flat)
+    making-charge discount per category. A category without one is absent."""
+    from kisna_chatbot.processors.offers_agent import _active_promotions, _is_labour_promo
+
+    best: dict = {}
+    for promo in _active_promotions(promotions or []):
+        category = (promo.get("category") or "").strip().lower()
+        if category not in ("diamond", "gold") or promo.get("isFlat") or not _is_labour_promo(promo):
+            continue
+        raw = promo.get("discount", promo.get("disc"))
+        try:
+            pct = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if pct <= 0:
+            continue
+        pct = int(pct) if pct.is_integer() else pct
+        best[category] = max(best.get(category, 0), pct)
+    return best
+
+
+async def live_making_charges() -> dict:
+    """Today's figures, cached; the last successful result if the API fails."""
+    now = time.time()
+    cached = _live_offers["pct"]
+    if cached is not None and now - _live_offers["fetched_at"] < _OFFERS_TTL_SECONDS:
+        return cached
+    if now - _live_offers["failed_at"] < _OFFERS_RETRY_SECONDS:
+        return cached or {}
+    try:
+        from kisna_chatbot.integrations.clara_api import get_promotions
+
+        pct = making_charges_from_promotions(await get_promotions())
+    except Exception:
+        _live_offers["failed_at"] = now
+        logger.warning(
+            "drop-off offers fetch failed; using the last successful figures",
+            extra={"have_previous": cached is not None},
+            exc_info=True,
+        )
+        return cached or {}
+    _live_offers.update(pct=pct, fetched_at=now, failed_at=0.0)
+    return pct
 
 
 # --------------------------------------------------------------------------
@@ -187,7 +255,7 @@ async def _process_one(user_profile: dict, now: int) -> bool:
     if takeover and takeover.get("active"):
         return False
 
-    text, idx = await compose_reengagement(user_profile)
+    text, idx = await compose_reengagement(user_profile, await live_making_charges())
     if not text or not text.strip():
         return False
 
