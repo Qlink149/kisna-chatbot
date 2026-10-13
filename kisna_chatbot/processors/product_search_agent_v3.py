@@ -3255,9 +3255,56 @@ class ProductSearchAgentV3(Processor):
                 exclude_product_id=pending.get("exclude_product_id"),
             )
 
+        names_non_price_slot = any(
+            (llm_entities.get(key) is not None and llm_entities.get(key) != entities.get(key))
+            or (
+                regex_entities.get(key) is not None
+                and regex_entities.get(key) != entities.get(key)
+            )
+            for key in ("category", "material_type", "gender")
+        )
+        if change is None and not names_non_price_slot:
+            # A budget-only correction ("90000", "90k", "under 90000") is
+            # applied here and re-recapped, like the availability-only one
+            # above. Falling through used to leave the normal pipeline with a
+            # bare number it does not treat as a refinement: no reply, and the
+            # GeneralAgent improvised "I'll search... just a moment!" (tester,
+            # 2026-10-13). The wizard's budget read is used so "90000" gets the
+            # same price band the budget question gives "35000".
+            from kisna_chatbot.processors.shopping_wizard import _budget_from_text
+
+            budget = _budget_from_text(text)
+            if budget is None:
+                for source in (llm_entities, regex_entities):
+                    if source.get("min_price") is not None or source.get("max_price") is not None:
+                        budget = (source.get("min_price"), source.get("max_price"))
+                        break
+            if budget is not None:
+                entities["min_price"], entities["max_price"] = budget
+                clear_confirm_state(user_profile)
+                user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+                return await self._execute_search(
+                    data,
+                    phone_number,
+                    {**_empty_entities(), **entities},
+                    query_label=pending.get("query_label") or "correction",
+                    occasion_prefix=None,
+                    response_mode=pending.get("response_mode"),
+                    exclude_product_id=pending.get("exclude_product_id"),
+                )
+
         user_profile["last_search_filters"] = entities
         clear_confirm_state(user_profile)
         user_profile["service_selected"] = SL.PRODUCT_SEARCH.value
+        # If the normal pipeline cannot use this correction either, main.py
+        # re-shows this recap instead of handing the turn to the GeneralAgent
+        # (which promised a search that never ran -- tester, 2026-10-13).
+        data["_unapplied_search_correction"] = {
+            "entities": dict(entities),
+            "query_label": pending.get("query_label") or "correction",
+            "response_mode": pending.get("response_mode"),
+            "exclude_product_id": pending.get("exclude_product_id"),
+        }
         return None
 
     async def _complete_shopping_wizard(

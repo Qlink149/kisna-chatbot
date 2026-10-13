@@ -592,7 +592,7 @@ lost.
 
 {
   "category": "ring|earring|necklace|pendant|pendant_set|necklace_set|
-               bracelet|bangle|mangalsutra|mangalsutra_bracelet|
+               bracelet|kada|bangle|mangalsutra|mangalsutra_bracelet|
                anklet|nose_ring|maang_tikka|chain|null",
   "material_type": "gold|diamond|silver|platinum|pearl|
                     rose_gold|white_gold|gemstone|null",
@@ -635,7 +635,7 @@ category (REQUIRED when type word in message):
   necklace set/necklace sets → necklace_set  (NOT necklace — different catalog)
   mangalsutra bracelet → mangalsutra_bracelet
   bangle/kangan/chudi → bangle
-  bracelet/kada/kadi → bracelet
+  kada/kadi → kada (NOT bracelet)
   mangalsutra/tanmaniya → mangalsutra
   payal/pajeb → anklet
   nath/nathiya/nose pin/koka → nose_ring
@@ -655,7 +655,7 @@ category (REQUIRED when type word in message):
     GURMUKHI (Punjabi) — these are the everyday words, not transliterations:
     ਮੁੰਦਰੀ/ਮੁੰਦਰੀਆਂ/ਅੰਗੂਠੀ → ring (ਮੁੰਦਰੀ is a RING — NEVER earring or bangle)
     ਵਾਲੀਆਂ/ਝੁਮਕੇ/ਕੰਨਾਂ ਦੇ → earring | ਹਾਰ/ਨੈਕਲੇਸ → necklace | ਚੇਨ → chain
-    ਚੂੜੀ/ਚੂੜੀਆਂ/ਕੰਗਣ → bangle | ਕੜਾ/ਬਰੇਸਲੈੱਟ → bracelet
+    ਚੂੜੀ/ਚੂੜੀਆਂ/ਕੰਗਣ → bangle | ਬਰੇਸਲੈੱਟ → bracelet | ਕੜਾ → kada
     ਮੰਗਲਸੂਤਰ → mangalsutra | ਪੈਂਡੈਂਟ/ਲਾਕਟ → pendant
     ਪਾਜ਼ੇਬ/ਝਾਂਜਰ → anklet | ਨੱਥ/ਕੋਕਾ → nose_ring
 

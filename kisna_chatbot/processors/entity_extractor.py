@@ -167,7 +167,10 @@ _CATEGORY_SYNONYMS: dict[str, list[str]] = {
         "long chain",
         "short chain",
     ],
-    "bracelet": ["bracelet", "bracelets", "kada", "kadi", "bolo", "braclet"],
+    "bracelet": ["bracelet", "bracelets", "bolo", "braclet"],
+    # Kadas are their own catalogue category ("Kadas"), not bracelets: a kada
+    # search used to return bracelets and mangalsutra bracelets (2026-10-13).
+    "kada": ["kada", "kadas", "kadi"],
     "bangle": ["bangle", "bangles", "kangan", "chudi", "churi", "kara"],
     "pendant": ["pendant", "pendants", "pendent", "locket", "lockets", "charm", "latkan"],
     "pendant_set": ["pendant set", "pendant sets"],
@@ -203,6 +206,7 @@ CATEGORY_NORMALIZATION_MAP: dict[str, str | None] = {
     "pendant_set": "pendant set",
     "bangle": "bangle",
     "bracelet": "bracelet",
+    "kada": "kada",
     "bangle_bracelet": None,
     "mangalsutra": "mangalsutra",
     "mangalsutra_bracelet": "mangalsutra bracelet",

@@ -39,7 +39,7 @@ MATRIX = [
     ("choker", {"category": "necklace"}),
     ("latkan", {"category": "pendant"}),
     ("kara", {"category": "bangle"}),
-    ("kadi", {"category": "bracelet"}),
+    ("kadi", {"category": "kada"}),  # kadas are their own catalogue category (2026-10-13)
     ("tanmaniya", {"category": "mangalsutra"}),
     ("nosepin", {"category": "nosewear"}),
     # Unsupported categories (extract + flag)

@@ -1068,6 +1068,7 @@ _LLM_ENTITY_CATEGORIES = frozenset(
         "pendant_set",       # e.g. "pendant sets above 50k"
         "necklace_set",      # e.g. "necklace sets under 1 lakh"
         "bracelet",
+        "kada",              # its own catalogue category, not bracelet
         "bangle",
         "mangalsutra",
         "mangalsutra_bracelet",  # e.g. "mangalsutra bracelet"

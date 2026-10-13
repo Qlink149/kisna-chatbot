@@ -37,6 +37,7 @@ CATEGORY_SLUGS: dict[str, tuple[str, ...]] = {
     "pendant_set": ("pendant-sets",),
     "bangle": ("bangles",),
     "bracelet": ("bracelets",),
+    "kada": ("kadas",),
     "bangle_bracelet": ("bangles", "bracelets"),
     "mangalsutra": ("mangalsutra",),
     "mangalsutra_bracelet": ("mangalsutra-bracelets",),

@@ -343,6 +343,12 @@
           "queryParams": "categoryId"
         },
         {
+          "label": "Kadas",
+          "value": "6aa38eac98114ff359d41230",
+          "slug": "kadas",
+          "queryParams": "categoryId"
+        },
+        {
           "label": "Chain",
           "value": "66ec057581b26b00081b3fae",
           "slug": "chain",

@@ -1041,6 +1041,36 @@ async def process_message(
                 if pipeline:
                     data = await pipeline.run(data=data)
 
+                unapplied = data.get("_unapplied_search_correction")
+                if "bot_response" not in data and unapplied:
+                    # A "what should I change?" answer nothing could apply:
+                    # show the recap again (Yes / No) rather than let the
+                    # GeneralAgent improvise a search that will not run.
+                    from kisna_chatbot.processors.search_confirmation import (
+                        build_confirm_prompt,
+                        set_pending_search,
+                    )
+
+                    set_pending_search(
+                        data["user_profile"],
+                        unapplied["entities"],
+                        query_label=unapplied["query_label"],
+                        response_mode=unapplied.get("response_mode"),
+                        exclude_product_id=unapplied.get("exclude_product_id"),
+                    )
+                    data["bot_response"] = [
+                        {
+                            "type": "text",
+                            "text": "Sorry, I couldn't apply that change. Here's what I have so far:",
+                            "_compose": "search_correction_unapplied",
+                        },
+                        build_confirm_prompt(unapplied["entities"]),
+                    ]
+                    logger.info(
+                        "Search correction not applied — recap shown again",
+                        extra={"phone_number": phone_number},
+                    )
+
                 if "bot_response" not in data:
                     logger.warning(
                         "Pipeline completed without bot_response — trying GeneralAgent",
